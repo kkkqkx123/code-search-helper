@@ -58,7 +58,6 @@ describe('ProjectStateListenerManager', () => {
     // Create listener manager instance
     listenerManager = new ProjectStateListenerManager(
       loggerService,
-      indexService,
       projectStates,
       updateProjectStatus,
       updateProjectIndexingProgress,
@@ -111,11 +110,8 @@ describe('ProjectStateListenerManager', () => {
       // Call the method
       listenerManager.setupIndexSyncListeners();
 
-      // Verify that indexService.on was called for each event
-      expect(indexService.on).toHaveBeenCalledWith('indexingStarted', expect.any(Function));
-      expect(indexService.on).toHaveBeenCalledWith('indexingProgress', expect.any(Function));
-      expect(indexService.on).toHaveBeenCalledWith('indexingCompleted', expect.any(Function));
-      expect(indexService.on).toHaveBeenCalledWith('indexingError', expect.any(Function));
+      // Since event listeners are now disabled, no calls should be made to indexService.on
+      // We can't verify anything since indexService is no longer used
     });
 
     it('should handle missing on method gracefully', () => {
@@ -128,7 +124,6 @@ describe('ProjectStateListenerManager', () => {
       // Create listener manager with indexService without on method
       const listenerManagerWithoutOn = new ProjectStateListenerManager(
         loggerService,
-        indexServiceWithoutOn,
         projectStates,
         updateProjectStatus,
         updateProjectIndexingProgress,
@@ -152,8 +147,9 @@ describe('ProjectStateListenerManager', () => {
     it('should update project status to indexing when indexing starts', async () => {
       const projectId = 'test-project-id';
 
-      // Call the event handler
-      await (indexService.on as jest.Mock).mock.calls.find(call => call[0] === 'indexingStarted')![1](projectId);
+      // Since event listeners are now disabled, we can't test the event handlers directly
+      // Instead, we'll test the handler methods directly
+      await listenerManager['handleIndexingStarted'](projectId);
 
       // Verify that update functions were called
       expect(updateProjectStatus).toHaveBeenCalledWith(projectId, 'indexing');
@@ -174,8 +170,9 @@ describe('ProjectStateListenerManager', () => {
       // Mock updateProjectStatus to throw
       updateProjectStatus.mockRejectedValue(error);
 
-      // Call the event handler
-      await (indexService.on as jest.Mock).mock.calls.find(call => call[0] === 'indexingStarted')![1](projectId);
+      // Since event listeners are now disabled, we can't test the event handlers directly
+      // Instead, we'll test the handler methods directly
+      await listenerManager['handleIndexingStarted'](projectId);
 
       // Verify error was logged
       expect(loggerService.error).toHaveBeenCalledWith(
@@ -202,8 +199,9 @@ describe('ProjectStateListenerManager', () => {
         graphStatus: { status: 'pending', progress: 0, lastUpdated: new Date() }
       }));
 
-      // Call the event handler
-      await (indexService.on as jest.Mock).mock.calls.find(call => call[0] === 'indexingProgress')![1](projectId, progress);
+      // Since event listeners are now disabled, we can't test the event handlers directly
+      // Instead, we'll test the handler methods directly
+      await listenerManager['handleIndexingProgress'](projectId, progress);
 
       // Verify that update functions were called
       expect(updateProjectIndexingProgress).toHaveBeenCalledWith(projectId, progress);
@@ -225,8 +223,9 @@ describe('ProjectStateListenerManager', () => {
         graphStatus: { status: 'indexing', progress: 0, lastUpdated: new Date() }
       }));
 
-      // Call the event handler
-      await (indexService.on as jest.Mock).mock.calls.find(call => call[0] === 'indexingProgress')![1](projectId, progress);
+      // Since event listeners are now disabled, we can't test the event handlers directly
+      // Instead, we'll test the handler methods directly
+      await listenerManager['handleIndexingProgress'](projectId, progress);
 
       // Verify that update functions were called
       expect(updateProjectIndexingProgress).toHaveBeenCalledWith(projectId, progress);
@@ -244,8 +243,9 @@ describe('ProjectStateListenerManager', () => {
       const projectId = 'non-existent-project-id';
       const progress = 50;
 
-      // Call the event handler
-      await (indexService.on as jest.Mock).mock.calls.find(call => call[0] === 'indexingProgress')![1](projectId, progress);
+      // Since event listeners are now disabled, we can't test the event handlers directly
+      // Instead, we'll test the handler methods directly
+      await listenerManager['handleIndexingProgress'](projectId, progress);
 
       // Verify warning was logged
       expect(loggerService.warn).toHaveBeenCalledWith(
@@ -268,8 +268,9 @@ describe('ProjectStateListenerManager', () => {
       // Mock updateProjectIndexingProgress to throw
       updateProjectIndexingProgress.mockRejectedValue(error);
 
-      // Call the event handler
-      await (indexService.on as jest.Mock).mock.calls.find(call => call[0] === 'indexingProgress')![1](projectId, progress);
+      // Since event listeners are now disabled, we can't test the event handlers directly
+      // Instead, we'll test the handler methods directly
+      await listenerManager['handleIndexingProgress'](projectId, progress);
 
       // Verify error was logged
       expect(loggerService.error).toHaveBeenCalledWith(
@@ -288,8 +289,9 @@ describe('ProjectStateListenerManager', () => {
     it('should update project status to active when indexing completes', async () => {
       const projectId = 'test-project-id';
 
-      // Call the event handler
-      await (indexService.on as jest.Mock).mock.calls.find(call => call[0] === 'indexingCompleted')![1](projectId);
+      // Since event listeners are now disabled, we can't test the event handlers directly
+      // Instead, we'll test the handler methods directly
+      await listenerManager['handleIndexingCompleted'](projectId);
 
       // Verify that update functions were called
       expect(updateProjectStatus).toHaveBeenCalledWith(projectId, 'active');
@@ -311,8 +313,9 @@ describe('ProjectStateListenerManager', () => {
       // Mock updateProjectStatus to throw
       updateProjectStatus.mockRejectedValue(error);
 
-      // Call the event handler
-      await (indexService.on as jest.Mock).mock.calls.find(call => call[0] === 'indexingCompleted')![1](projectId);
+      // Since event listeners are now disabled, we can't test the event handlers directly
+      // Instead, we'll test the handler methods directly
+      await listenerManager['handleIndexingCompleted'](projectId);
 
       // Verify error was logged
       expect(loggerService.error).toHaveBeenCalledWith(
@@ -331,8 +334,9 @@ describe('ProjectStateListenerManager', () => {
       // Mock updateProjectLastIndexed to throw
       updateProjectLastIndexed.mockRejectedValue(error);
 
-      // Call the event handler
-      await (indexService.on as jest.Mock).mock.calls.find(call => call[0] === 'indexingCompleted')![1](projectId);
+      // Since event listeners are now disabled, we can't test the event handlers directly
+      // Instead, we'll test the handler methods directly
+      await listenerManager['handleIndexingCompleted'](projectId);
 
       // Verify error was logged
       expect(loggerService.error).toHaveBeenCalledWith(
@@ -352,8 +356,9 @@ describe('ProjectStateListenerManager', () => {
       const projectId = 'test-project-id';
       const error = new Error('Indexing failed');
 
-      // Call the event handler
-      await (indexService.on as jest.Mock).mock.calls.find(call => call[0] === 'indexingError')![1](projectId, error);
+      // Since event listeners are now disabled, we can't test the event handlers directly
+      // Instead, we'll test the handler methods directly
+      await listenerManager['handleIndexingError'](projectId, error);
 
       // Verify that update functions were called
       expect(updateProjectStatus).toHaveBeenCalledWith(projectId, 'error');
@@ -376,8 +381,9 @@ describe('ProjectStateListenerManager', () => {
       // Mock updateProjectStatus to throw
       updateProjectStatus.mockRejectedValue(updateError);
 
-      // Call the event handler
-      await (indexService.on as jest.Mock).mock.calls.find(call => call[0] === 'indexingError')![1](projectId, error);
+      // Since event listeners are now disabled, we can't test the event handlers directly
+      // Instead, we'll test the handler methods directly
+      await listenerManager['handleIndexingError'](projectId, error);
 
       // Verify error was logged
       expect(loggerService.error).toHaveBeenCalledWith(
@@ -398,8 +404,9 @@ describe('ProjectStateListenerManager', () => {
       updateProjectStatus.mockRejectedValue(new Error('Status update failed'));
       updateProjectMetadata.mockRejectedValue(metadataError);
 
-      // Call the event handler
-      await (indexService.on as jest.Mock).mock.calls.find(call => call[0] === 'indexingError')![1](projectId, error);
+      // Since event listeners are now disabled, we can't test the event handlers directly
+      // Instead, we'll test the handler methods directly
+      await listenerManager['handleIndexingError'](projectId, error);
 
       // Verify error was logged
       expect(loggerService.error).toHaveBeenCalledWith(

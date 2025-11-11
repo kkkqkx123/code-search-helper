@@ -1,6 +1,5 @@
 
 import { LoggerService } from '../../../utils/LoggerService';
-import { IndexService } from '../../index/IndexService';
 import { ProjectState, StorageStatus } from '../ProjectStateManager';
 
 /**
@@ -18,7 +17,6 @@ export class ProjectStateListenerManager {
 
   constructor(
     private logger: LoggerService,
-    private indexService: IndexService,
     projectStates: Map<string, ProjectState>,
     updateProjectStatus: (projectId: string, status: ProjectState['status']) => Promise<void>,
     updateProjectIndexingProgress: (projectId: string, progress: number) => Promise<void>,
@@ -40,25 +38,8 @@ export class ProjectStateListenerManager {
    * 设置索引同步服务监听器
    */
   setupIndexSyncListeners(): void {
-    // 监听索引开始事件
-    this.indexService.on?.('indexingStarted', async (projectId: string) => {
-      await this.handleIndexingStarted(projectId);
-    });
-
-    // 监听索引进度更新事件
-    this.indexService.on?.('indexingProgress', async (projectId: string, progress: number) => {
-      await this.handleIndexingProgress(projectId, progress);
-    });
-
-    // 监听索引完成事件
-    this.indexService.on?.('indexingCompleted', async (projectId: string) => {
-      await this.handleIndexingCompleted(projectId);
-    });
-
-    // 监听索引错误事件
-    this.indexService.on?.('indexingError', async (projectId: string, error: Error) => {
-      await this.handleIndexingError(projectId, error);
-    });
+    // 注意：事件监听功能已移除，因为IndexService已被弃用
+    // 现在通过ProjectStateManager直接管理状态更新
   }
 
   /**

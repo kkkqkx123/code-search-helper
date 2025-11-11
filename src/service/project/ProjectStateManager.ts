@@ -130,7 +130,6 @@ export class ProjectStateManager {
       // 初始化监听器管理器
       this.listenerManager = new ProjectStateListenerManager(
         this.logger,
-        this.coreStateService['indexService'], // 通过反射访问私有属性
         this.projectStates,
         (projectId: string, status: ProjectState['status']) => this.updateProjectStatus(projectId, status),
         (projectId: string, progress: number) => this.updateProjectIndexingProgress(projectId, progress),

@@ -4,7 +4,6 @@ import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { TYPES } from '../../types';
 import { ProjectHotReloadService } from './ProjectHotReloadService';
 import { ChangeDetectionService } from './ChangeDetectionService';
-import { IndexService } from '../index/IndexService';
 import { HotReloadConfigService } from './HotReloadConfigService';
 import { HotReloadRecoveryService } from './HotReloadRecoveryService';
 import { ProjectStateManager } from '../project/ProjectStateManager';
@@ -36,7 +35,6 @@ export class HotReloadRestartService {
   constructor(
     @inject(TYPES.ProjectHotReloadService) private projectHotReloadService: ProjectHotReloadService,
     @inject(TYPES.ChangeDetectionService) private changeDetectionService: ChangeDetectionService,
-    @inject(TYPES.IndexService) private indexService: IndexService,
     @inject(TYPES.HotReloadConfigService) private configService: HotReloadConfigService,
     @inject(TYPES.HotReloadRecoveryService) private recoveryService: HotReloadRecoveryService,
     @inject(TYPES.ProjectStateManager) private projectStateManager: ProjectStateManager,
@@ -56,8 +54,8 @@ async handleApplicationRestart(): Promise<void> {
       // 阶段1：尝试恢复之前的状态
       await this.restoreStateAfterRestart();
       
-      // 阶段2：使用IndexService恢复所有已索引项目的监听
-      await this.restoreProjectWatchingThroughIndexService();
+      // 阶段2：使用ProjectHotReloadService恢复所有已索引项目的监听
+      await this.restoreProjectWatchingThroughProjectHotReloadService();
       
       // 阶段3：验证功能完整性
       await this.validateFunctionality();
@@ -193,22 +191,69 @@ async handleApplicationRestart(): Promise<void> {
   }
   
   /**
-   * 通过IndexService恢复项目监听
+   * 通过ProjectHotReloadService恢复项目监听
    */
-  private async restoreProjectWatchingThroughIndexService(): Promise<void> {
+  private async restoreProjectWatchingThroughProjectHotReloadService(): Promise<void> {
     try {
-      this.logger.info('Restoring project watching through IndexService...');
+      this.logger.info('Restoring project watching through ProjectHotReloadService...');
       
-      // 调用IndexService中的方法来恢复所有已索引项目的监听
-      await this.indexService.restoreProjectWatchingAfterRestart();
+      // 获取所有已索引的项目路径
+      const indexedProjectPaths = await this.getIndexedProjects();
       
-      this.logger.info('Project watching restoration through IndexService completed');
+      if (indexedProjectPaths.length === 0) {
+        this.logger.info('No indexed projects found, nothing to restore');
+        return;
+      }
+      
+      this.logger.info(`Found ${indexedProjectPaths.length} indexed projects to restore watching for`);
+      
+      // 为每个已索引的项目启动监听
+      for (const projectPath of indexedProjectPaths) {
+        try {
+          // 检查项目路径是否存在
+          const projectExists = await this.checkProjectExists(projectPath);
+          if (!projectExists) {
+            this.logger.warn(`Project path does not exist, skipping: ${projectPath}`);
+            continue;
+          }
+          
+          // 检查项目是否仍然需要索引
+          const isProjectIndexed = await this.isProjectIndexed(projectPath);
+          if (!isProjectIndexed) {
+            this.logger.warn(`Project not indexed, skipping hot reload: ${projectPath}`);
+            continue;
+          }
+          
+          // 使用默认配置启用项目的热更新
+          const defaultConfig = {
+            debounceInterval: 500,
+            enabled: true,
+            watchPatterns: ['**/*.{js,ts,jsx,tsx,json,md,py,go,java}'],
+            ignorePatterns: ['**/node_modules/**', '**/.git/**', '**/dist/**', '**/build/**', '**/target/**', '**/venv/**'],
+            maxFileSize: 512000, // 500KB
+            errorHandling: {
+              maxRetries: 3,
+              alertThreshold: 5,
+              autoRecovery: true
+            }
+          };
+          
+          await this.projectHotReloadService.enableForProject(projectPath, defaultConfig);
+          
+          this.logger.info(`Restored hot reload for project: ${projectPath}`);
+        } catch (error) {
+          this.logger.error(`Failed to restore hot reload for project ${projectPath}:`, error);
+          // 继续处理其他项目
+        }
+      }
+      
+      this.logger.info('Project watching restoration through ProjectHotReloadService completed');
     } catch (error) {
-      this.logger.error('Failed to restore project watching through IndexService:', error);
+      this.logger.error('Failed to restore project watching through ProjectHotReloadService:', error);
       
       this.errorHandler.handleError(
-        new Error(`Failed to restore project watching through IndexService: ${error instanceof Error ? error.message : String(error)}`),
-        { component: 'HotReloadRestartService', operation: 'restoreProjectWatchingThroughIndexService' }
+        new Error(`Failed to restore project watching through ProjectHotReloadService: ${error instanceof Error ? error.message : String(error)}`),
+        { component: 'HotReloadRestartService', operation: 'restoreProjectWatchingThroughProjectHotReloadService' }
       );
       
       // 抛出错误，以便调用者知道此操作失败了
@@ -242,7 +287,7 @@ async handleApplicationRestart(): Promise<void> {
       
       // 额外的验证：检查索引服务中的项目监听状态
       try {
-        const indexedProjectPaths = this.indexService.getAllIndexedProjectPaths();
+        const indexedProjectPaths = await this.projectStateManager.getAllProjects();
         if (indexedProjectPaths.length > 0) {
           this.logger.info(`Validating project watching for ${indexedProjectPaths.length} indexed projects...`);
           
@@ -284,10 +329,10 @@ async handleApplicationRestart(): Promise<void> {
     try {
       this.logger.info('Performing basic hot reload recovery...');
       
-      // 调用IndexService中的方法来恢复所有已索引项目的监听
-      await this.indexService.restoreProjectWatchingAfterRestart();
+      // 调用ProjectHotReloadService中的方法来恢复所有已索引项目的监听
+      await this.restoreProjectWatchingThroughProjectHotReloadService();
       
-      this.logger.info('Basic hot reload recovery completed through IndexService');
+      this.logger.info('Basic hot reload recovery completed through ProjectHotReloadService');
     } catch (error) {
       this.logger.error('Basic recovery through IndexService failed:', error);
       
@@ -419,7 +464,7 @@ async handleApplicationRestart(): Promise<void> {
       this.logger.info('Reinitializing hot reload functionality...');
 
       // 获取所有已索引的项目
-      const indexedProjectPaths = this.indexService.getAllIndexedProjectPaths();
+      const indexedProjectPaths = await this.getIndexedProjects();
       this.logger.info(`Found ${indexedProjectPaths.length} indexed projects to reinitialize`);
 
       if (indexedProjectPaths.length === 0) {
@@ -671,7 +716,7 @@ async handleApplicationRestart(): Promise<void> {
         .length;
       
       // 获取已索引的项目数量
-      const indexedProjectsCount = this.indexService.getAllIndexedProjectPaths().length;
+      const indexedProjectsCount = (await this.getIndexedProjects()).length;
       
       // 检查是否有最近的错误
       const hasRecentError = !!this.restartState.error;
@@ -718,7 +763,7 @@ async handleApplicationRestart(): Promise<void> {
     recoveryAttempts: number;
   }> {
     try {
-      const indexedProjects = this.indexService.getAllIndexedProjectPaths();
+      const indexedProjects = await this.getIndexedProjects();
       const allStatuses = this.projectHotReloadService.getAllProjectStatuses();
       const watchedProjects = Array.from(allStatuses.entries())
         .filter(([_, status]) => status.enabled && status.isWatching);

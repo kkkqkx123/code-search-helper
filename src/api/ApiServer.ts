@@ -15,6 +15,7 @@ import { GraphStatsRoutes } from './routes/GraphStatsRoutes';
 import { ProjectIdManager } from '../database/ProjectIdManager';
 import { ProjectLookupService } from '../database/ProjectLookupService';
 import { IndexService } from '../service/index/IndexService.js';
+import { HybridIndexService } from '../service/index/HybridIndexService';
 import { EmbedderFactory } from '../embedders/EmbedderFactory';
 import { QdrantService } from '../database/qdrant/QdrantService.js';
 import { ProjectStateManager } from '../service/project/ProjectStateManager';
@@ -67,17 +68,16 @@ export class ApiServer {
     // 创建一个简单的错误处理器实例
     const errorHandler = new (require('../utils/ErrorHandlerService').ErrorHandlerService)();
     this.projectLookupService = new ProjectLookupService(this.projectIdManager, errorHandler, this.indexSyncService);
-    // 从依赖注入容器获取ProjectStateManager和新服务
+    // 从依赖注入容器获取ProjectStateManager和混合索引服务
     this.projectStateManager = diContainer.get<ProjectStateManager>(TYPES.ProjectStateManager);
-    const vectorIndexService = diContainer.get<any>(TYPES.VectorIndexService);
-    const graphIndexService = diContainer.get<any>(TYPES.GraphIndexService);
+    const hybridIndexService = diContainer.get<HybridIndexService>(TYPES.HybridIndexService);
 
     // 初始化热更新配置服务
     const hotReloadConfigService = diContainer.get<HotReloadConfigService>(TYPES.HotReloadConfigService);
     // 初始化统一映射服务
     const unifiedMappingService = diContainer.get<any>(TYPES.UnifiedMappingService);
 
-    this.projectRoutes = new ProjectRoutes(this.projectIdManager, this.projectLookupService, logger, this.projectStateManager, this.indexSyncService, vectorIndexService, graphIndexService, hotReloadConfigService, unifiedMappingService);
+    this.projectRoutes = new ProjectRoutes(this.projectIdManager, this.projectLookupService, logger, this.projectStateManager, hybridIndexService, hotReloadConfigService, unifiedMappingService);
     this.indexingRoutes = new IndexingRoutes(this.indexSyncService, this.projectIdManager, this.embedderFactory, logger, this.projectStateManager);
 
     // 从依赖注入容器获取文件搜索服务

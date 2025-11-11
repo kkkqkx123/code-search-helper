@@ -19,7 +19,6 @@ import { HotReloadRestartService } from '../../service/filesystem/HotReloadResta
 import { FileHashManager, FileHashManagerImpl } from '../../service/filesystem/FileHashManager';
 
 // 项目管理服务
-import { IndexService } from '../../service/index/IndexService';
 import { IndexingLogicService } from '../../service/index/IndexingLogicService';
 import { ProjectStateManager } from '../../service/project/ProjectStateManager';
 import { CoreStateService } from '../../service/project/services/CoreStateService';
@@ -28,6 +27,7 @@ import { StorageStateService } from '../../service/project/services/StorageState
 // 新增的索引服务
 import { VectorIndexService } from '../../service/index/VectorIndexService';
 import { GraphIndexService } from '../../service/index/GraphIndexService';
+import { HybridIndexService } from '../../service/index/HybridIndexService';
 import { StorageCoordinatorService } from '../../service/index/StorageCoordinatorService';
 import { ConcurrencyService } from '../../service/index/shared/ConcurrencyService';
 import { FileTraversalService } from '../../service/index/shared/FileTraversalService';
@@ -126,7 +126,6 @@ export class BusinessServiceRegistrar {
       container.bind<HotReloadRestartService>(TYPES.HotReloadRestartService).to(HotReloadRestartService).inSingletonScope();
 
       // 项目管理服务
-      container.bind<IndexService>(TYPES.IndexService).to(IndexService).inSingletonScope();
       container.bind<IndexingLogicService>(TYPES.IndexingLogicService).to(IndexingLogicService).inSingletonScope();
       container.bind<CoreStateService>(TYPES.CoreStateService).to(CoreStateService).inSingletonScope();
       container.bind<StorageStateService>(TYPES.StorageStateService).to(StorageStateService).inSingletonScope();
@@ -141,7 +140,11 @@ export class BusinessServiceRegistrar {
       // 新增的索引服务
       container.bind<VectorIndexService>(TYPES.VectorIndexService).to(VectorIndexService).inSingletonScope();
       container.bind<GraphIndexService>(TYPES.GraphIndexService).to(GraphIndexService).inSingletonScope();
+      container.bind<HybridIndexService>(TYPES.HybridIndexService).to(HybridIndexService).inSingletonScope();
       container.bind<StorageCoordinatorService>(TYPES.StorageCoordinatorService).to(StorageCoordinatorService).inSingletonScope();
+      
+      // IndexService 作为 VectorIndexService 的别名
+      container.bind(TYPES.IndexService).toService(TYPES.VectorIndexService);
 
       // 忽略规则管理器 - 使用 toDynamicValue 确保正确注入依赖
       container.bind<IgnoreRuleManager>(TYPES.IgnoreRuleManager).toDynamicValue(context => {

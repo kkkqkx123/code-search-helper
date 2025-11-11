@@ -5,7 +5,7 @@ import { ProjectIdManager } from '../../../database/ProjectIdManager';
 import { ProjectLookupService } from '../../../database/ProjectLookupService';
 import { Logger } from '../../../utils/logger';
 import { ProjectStateManager, ProjectState } from '../../../service/project/ProjectStateManager';
-import { IndexService } from '../../../service/index/IndexService';
+import { HybridIndexService } from '../../../service/index/HybridIndexService';
 import { VectorIndexService } from '../../../service/index/VectorIndexService';
 import { GraphIndexService } from '../../../service/index/GraphIndexService';
 
@@ -26,6 +26,30 @@ const createMockProjectLookupService = () => ({
     reindexProject: jest.fn(),
     on: jest.fn(),
     getAllIndexStatuses: jest.fn()
+  }
+});
+
+const createMockHybridIndexService = () => ({
+  startIndexing: jest.fn(),
+  stopIndexing: jest.fn(),
+  getIndexStatus: jest.fn(),
+  reindexProject: jest.fn(),
+  on: jest.fn(),
+  getAllIndexStatuses: jest.fn(),
+  indexService: {
+    startIndexing: jest.fn(),
+    stopIndexing: jest.fn(),
+    getIndexStatus: jest.fn(),
+    reindexProject: jest.fn(),
+    on: jest.fn(),
+    getAllIndexStatuses: jest.fn()
+  },
+  graphIndexService: {
+    startIndexing: jest.fn(),
+    stopIndexing: jest.fn(),
+    getGraphStatus: jest.fn(),
+    reindexProject: jest.fn(),
+    on: jest.fn()
   }
 });
 
@@ -61,6 +85,7 @@ describe('ProjectRoutes', () => {
   let mockProjectLookupService: any;
   let mockLogger: any;
   let mockProjectStateManager: any;
+  let mockHybridIndexService: any;
   let mockVectorIndexService: any;
   let mockGraphIndexService: any;
 
@@ -78,6 +103,7 @@ describe('ProjectRoutes', () => {
       debug: jest.fn()
     };
     mockProjectStateManager = createMockProjectStateManager();
+    mockHybridIndexService = createMockHybridIndexService();
     mockVectorIndexService = createMockVectorIndexService();
     mockGraphIndexService = createMockGraphIndexService();
 
@@ -87,9 +113,7 @@ describe('ProjectRoutes', () => {
       mockProjectLookupService as ProjectLookupService,
       mockLogger as Logger,
       mockProjectStateManager as ProjectStateManager,
-      mockProjectLookupService.indexSyncService as IndexService,
-      mockVectorIndexService as VectorIndexService,
-      mockGraphIndexService as GraphIndexService,
+      mockHybridIndexService as HybridIndexService,
       {} as any, // Mock hotReloadConfigService
       {} as any // Mock unifiedMappingService
     );

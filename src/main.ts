@@ -8,7 +8,6 @@ import { ErrorHandlerService } from './utils/ErrorHandlerService';
 import { QdrantService } from './database/qdrant/QdrantService';
 import { EmbeddingCacheService } from './embedders/EmbeddingCacheService';
 import { EmbedderFactory } from './embedders/EmbedderFactory';
-import { IndexService } from './service/index/IndexService';
 import { ProjectStateManager } from './service/project/ProjectStateManager';
 import { ConfigService } from './config/ConfigService';
 import { diContainer } from './core/DIContainer';
@@ -22,6 +21,7 @@ import { HotReloadRestartService } from './service/filesystem/HotReloadRestartSe
 import { SqliteDatabaseService } from './database/splite/SqliteDatabaseService';
 import { ProcessEventManager } from './utils/ProcessEventManager';
 import { SimilarityServiceInitializer } from './service/similarity/initializer/SimilarityServiceInitializer';
+import { IndexService } from './service/index/IndexService';
 
 // 获取事件管理器实例，用于统一管理所有事件监听器
 const eventManager = ProcessEventManager.getInstance();
@@ -94,7 +94,6 @@ class Application {
     @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
     @inject(TYPES.QdrantService) private qdrantService: QdrantService,
     @inject(TYPES.EmbedderFactory) private embedderFactory: EmbedderFactory,
-    @inject(TYPES.IndexService) private indexService: IndexService,
     @inject(TYPES.ProjectStateManager) private projectStateManager: ProjectStateManager,
     @inject(TYPES.EmbeddingCacheService) private embeddingCacheService: EmbeddingCacheService,
     @inject(TYPES.EmbeddingConfigService) private embeddingConfigService: EmbeddingConfigService,
@@ -104,7 +103,8 @@ class Application {
     @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
     @inject(TYPES.HotReloadRestartService) private hotReloadRestartService: HotReloadRestartService,
     @inject(TYPES.SqliteDatabaseService) private sqliteService: SqliteDatabaseService,
-    @inject(TYPES.SimilarityServiceInitializer) private similarityServiceInitializer: SimilarityServiceInitializer
+    @inject(TYPES.SimilarityServiceInitializer) private similarityServiceInitializer: SimilarityServiceInitializer,
+    @inject(TYPES.IndexService) private indexService: IndexService
   ) {
     // 使用 Logger 单例，避免重复创建实例
     this.logger = Logger.getInstance('code-search-helper');
@@ -370,7 +370,6 @@ class ApplicationFactory {
     const errorHandler = diContainer.get<ErrorHandlerService>(TYPES.ErrorHandlerService);
     const qdrantService = diContainer.get<QdrantService>(TYPES.QdrantService);
     const embedderFactory = diContainer.get<EmbedderFactory>(TYPES.EmbedderFactory);
-    const indexService = diContainer.get<IndexService>(TYPES.IndexService);
     const projectStateManager = diContainer.get<ProjectStateManager>(TYPES.ProjectStateManager);
     const embeddingCacheService = diContainer.get<EmbeddingCacheService>(TYPES.EmbeddingCacheService);
     const embeddingConfigService = diContainer.get<EmbeddingConfigService>(TYPES.EmbeddingConfigService);
@@ -381,6 +380,7 @@ class ApplicationFactory {
     const hotReloadRestartService = diContainer.get<HotReloadRestartService>(TYPES.HotReloadRestartService);
     const sqliteService = diContainer.get<SqliteDatabaseService>(TYPES.SqliteDatabaseService);
     const similarityServiceInitializer = diContainer.get<SimilarityServiceInitializer>(TYPES.SimilarityServiceInitializer);
+    const indexService = diContainer.get<IndexService>(TYPES.IndexService);
 
     return new Application(
       configService,
@@ -388,7 +388,6 @@ class ApplicationFactory {
       errorHandler,
       qdrantService,
       embedderFactory,
-      indexService,
       projectStateManager,
       embeddingCacheService,
       embeddingConfigService,
@@ -398,7 +397,8 @@ class ApplicationFactory {
       projectIdManager,
       hotReloadRestartService,
       sqliteService,
-      similarityServiceInitializer
+      similarityServiceInitializer,
+      indexService
     );
   }
 }

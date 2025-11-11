@@ -6,9 +6,12 @@ import { ProjectStateManager } from '../project/ProjectStateManager';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { QdrantService } from '../../database/qdrant/QdrantService';
 import { EmbedderFactory } from '../../embedders/EmbedderFactory';
-import { IndexService } from './IndexService';
+import { IndexingLogicService } from './IndexingLogicService';
 import { FileTraversalService } from './shared/FileTraversalService';
 import { ConcurrencyService } from './shared/ConcurrencyService';
+import { BatchProcessingService } from '../../infrastructure/batching/BatchProcessingService';
+import { IIndexService, IndexServiceType, IndexStatus, IndexOptions } from './IIndexService';
+import { IndexServiceError } from './errors/IndexServiceErrors';
 
 export interface VectorIndexOptions {
   embedder?: string;
@@ -16,6 +19,8 @@ export interface VectorIndexOptions {
   maxConcurrency?: number;
   chunkSize?: number;
   chunkOverlap?: number;
+  includePatterns?: string[];
+  excludePatterns?: string[];
 }
 
 export interface VectorIndexResult {
@@ -29,9 +34,14 @@ export interface VectorIndexResult {
   error?: string;
 }
 
+/**
+ * 向量索引服务实现
+ * 实现统一的IIndexService接口，专注于向量索引操作
+ */
 @injectable()
-export class VectorIndexService {
+export class VectorIndexService implements IIndexService {
   private activeOperations: Map<string, any> = new Map();
+  private serviceType = IndexServiceType.VECTOR;
 
   constructor(
     @inject(TYPES.LoggerService) private logger: LoggerService,
@@ -40,32 +50,64 @@ export class VectorIndexService {
     @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
     @inject(TYPES.QdrantService) private qdrantService: QdrantService,
     @inject(TYPES.EmbedderFactory) private embedderFactory: EmbedderFactory,
-    @inject(TYPES.IndexService) private indexService: IndexService,
+    @inject(TYPES.IndexingLogicService) private indexingLogicService: IndexingLogicService,
     @inject(TYPES.FileTraversalService) private fileTraversalService: FileTraversalService,
-    @inject(TYPES.ConcurrencyService) private concurrencyService: ConcurrencyService
+    @inject(TYPES.ConcurrencyService) private concurrencyService: ConcurrencyService,
+    @inject(TYPES.BatchProcessingService) private batchProcessor: BatchProcessingService
   ) { }
 
   /**
-   * 执行向量嵌入
+   * 实现IIndexService接口 - 开始索引项目
    */
-  async indexVectors(projectId: string, options: VectorIndexOptions = {}): Promise<VectorIndexResult> {
+  async startIndexing(projectPath: string, options?: IndexOptions): Promise<string> {
+    const startTime = Date.now();
+    
     try {
-      const projectPath = this.projectIdManager.getProjectPath(projectId);
-      if (!projectPath) {
-        throw new Error(`Project not found: ${projectId}`);
+      // 检查是否启用了向量索引
+      if (options?.enableVectorIndex === false) {
+        throw IndexServiceError.serviceDisabled('Vector indexing', undefined, 'vector');
       }
+
+      // 生成或获取项目ID
+      const projectId = await this.projectIdManager.generateProjectId(projectPath);
 
       // 检查是否已有正在进行的操作
       if (this.activeOperations.has(projectId)) {
-        throw new Error(`Vector indexing already in progress for project: ${projectId}`);
+        throw IndexServiceError.projectAlreadyIndexing(projectId, 'vector');
       }
 
       // 获取项目文件列表
-      const files = await this.fileTraversalService.getProjectFiles(projectPath);
+      const files = await this.fileTraversalService.getProjectFiles(projectPath, {
+        includePatterns: options?.includePatterns,
+        excludePatterns: options?.excludePatterns
+      });
       const totalFiles = files.length;
 
       if (totalFiles === 0) {
-        throw new Error(`No files found in project: ${projectId}`);
+        throw IndexServiceError.indexingFailed(
+          `No files found in project: ${projectId}`,
+          projectId,
+          'vector'
+        );
+      }
+
+      // 使用IndexingLogicService获取嵌入器维度
+      const embedderProvider = options?.embedder || this.embedderFactory.getDefaultProvider();
+      const vectorDimensions = await this.indexingLogicService.getEmbedderDimensions(embedderProvider);
+
+      // 创建Qdrant集合
+      const collectionCreated = await this.qdrantService.createCollectionForProject(
+        projectPath,
+        vectorDimensions,
+        'Cosine'
+      );
+
+      if (!collectionCreated) {
+        throw IndexServiceError.indexingFailed(
+          `Failed to create collection for project: ${projectPath}`,
+          projectId,
+          'vector'
+        );
       }
 
       // 开始向量索引
@@ -92,22 +134,207 @@ export class VectorIndexService {
           this.activeOperations.delete(projectId);
         });
 
-      return {
-        success: true,
+      return projectId;
+
+    } catch (error) {
+      if (error instanceof IndexServiceError) {
+        // 如果已经是IndexServiceError，直接重新抛出
+        throw error;
+      }
+
+      const projectId = this.projectIdManager.getProjectId(projectPath);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // 使用ErrorHandlerService记录错误
+      this.errorHandler.handleError(
+        new Error(`Failed to start vector indexing: ${errorMessage}`),
+        { component: 'VectorIndexService', operation: 'startIndexing', projectPath, options }
+      );
+
+      // 更新项目状态为失败
+      if (projectId) {
+        await this.projectStateManager.failVectorIndexing(projectId, errorMessage);
+      }
+
+      // 抛出统一的IndexServiceError
+      throw IndexServiceError.indexingFailed(
+        `Failed to start vector indexing: ${errorMessage}`,
         projectId,
-        operationId,
-        status: 'started',
-        estimatedTime: Math.ceil(totalFiles / 10) * 1000, // 估算时间
-        totalFiles
+        'vector',
+        { projectPath, options, originalError: error }
+      );
+    }
+  }
+
+  /**
+   * 实现IIndexService接口 - 停止索引项目
+   */
+  async stopIndexing(projectId: string): Promise<boolean> {
+    try {
+      const activeOperation = this.activeOperations.get(projectId);
+      if (!activeOperation) {
+        return false;
+      }
+
+      // 从活跃操作中移除
+      this.activeOperations.delete(projectId);
+
+      // 更新项目状态
+      const vectorStatus = this.projectStateManager.getVectorStatus(projectId);
+      if (vectorStatus) {
+        await this.projectStateManager.updateVectorIndexingProgress(
+          projectId,
+          vectorStatus.progress,
+          vectorStatus.processedFiles,
+          vectorStatus.failedFiles
+        );
+      }
+
+      this.logger.info(`Stopped vector indexing for project: ${projectId}`);
+      return true;
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      this.errorHandler.handleError(
+        new Error(`Failed to stop vector indexing: ${errorMessage}`),
+        { component: 'VectorIndexService', operation: 'stopIndexing', projectId }
+      );
+      
+      // 记录错误但不抛出，因为stopIndexing应该返回false而不是抛出异常
+      this.logger.error(`Failed to stop vector indexing for project ${projectId}`, {
+        error: errorMessage,
+        projectId
+      });
+      
+      return false;
+    }
+  }
+
+  /**
+   * 实现IIndexService接口 - 获取索引状态
+   */
+  getIndexStatus(projectId: string): IndexStatus | null {
+    try {
+      const vectorStatus = this.projectStateManager.getVectorStatus(projectId);
+
+      if (!vectorStatus) {
+        return null;
+      }
+
+      // 检查是否有正在进行的操作
+      const activeOperation = this.activeOperations.get(projectId);
+
+      return {
+        projectId,
+        projectPath: this.projectIdManager.getProjectPath(projectId) || '',
+        isIndexing: vectorStatus.status === 'indexing' || !!activeOperation,
+        lastIndexed: vectorStatus.lastCompleted ? new Date(vectorStatus.lastCompleted) : null,
+        totalFiles: vectorStatus.totalFiles || 0,
+        indexedFiles: vectorStatus.processedFiles || 0,
+        failedFiles: vectorStatus.failedFiles || 0,
+        progress: vectorStatus.progress || 0,
+        serviceType: this.serviceType,
+        error: vectorStatus.error
       };
 
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
       this.errorHandler.handleError(
-        new Error(`Failed to start vector indexing: ${error instanceof Error ? error.message : String(error)}`),
-        { component: 'VectorIndexService', operation: 'indexVectors', projectId, options }
+        new Error(`Failed to get vector status: ${errorMessage}`),
+        { component: 'VectorIndexService', operation: 'getIndexStatus', projectId }
       );
+      
+      this.logger.error(`Failed to get vector status for project ${projectId}`, {
+        error: errorMessage,
+        projectId
+      });
+      
+      return null;
+    }
+  }
 
-      await this.projectStateManager.failVectorIndexing(projectId, error instanceof Error ? error.message : String(error));
+  /**
+   * 实现IIndexService接口 - 重新索引项目
+   */
+  async reindexProject(projectPath: string, options?: IndexOptions): Promise<string> {
+    try {
+      const projectId = this.projectIdManager.getProjectId(projectPath);
+      
+      if (projectId) {
+        // 停止当前索引（如果有）
+        await this.stopIndexing(projectId);
+
+        // 清理向量数据
+        try {
+          await this.qdrantService.deleteCollectionForProject(projectPath);
+          this.logger.info(`Cleared vector collection for project: ${projectPath}`);
+        } catch (clearError) {
+          this.logger.warn(`Failed to clear vector collection for project ${projectPath}:`, clearError);
+        }
+      }
+
+      // 开始新的索引
+      return await this.startIndexing(projectPath, options);
+
+    } catch (error) {
+      if (error instanceof IndexServiceError) {
+        throw error;
+      }
+
+      throw IndexServiceError.indexingFailed(
+        `Failed to reindex project: ${error instanceof Error ? error.message : String(error)}`,
+        undefined,
+        'vector',
+        { projectPath, options }
+      );
+    }
+  }
+
+  /**
+   * 执行向量嵌入（保持向后兼容）
+   */
+  async indexVectors(projectId: string, options: VectorIndexOptions = {}): Promise<VectorIndexResult> {
+    try {
+      const projectPath = this.projectIdManager.getProjectPath(projectId);
+      if (!projectPath) {
+        throw IndexServiceError.projectNotFound(projectId, 'vector');
+      }
+
+      // 转换为IndexOptions格式
+      const indexOptions: IndexOptions = {
+        includePatterns: options.includePatterns,
+        excludePatterns: options.excludePatterns,
+        maxConcurrency: options.maxConcurrency,
+        enableVectorIndex: true,
+        enableGraphIndex: false,
+        embedder: options.embedder,
+        batchSize: options.batchSize,
+        chunkSize: options.chunkSize,
+        chunkOverlap: options.chunkOverlap
+      };
+
+      // 开始索引
+      await this.startIndexing(projectPath, indexOptions);
+
+      return {
+        success: true,
+        projectId,
+        operationId: this.activeOperations.get(projectId)?.operationId || `vector_${projectId}_${Date.now()}`,
+        status: 'started'
+      };
+
+    } catch (error) {
+      if (error instanceof IndexServiceError) {
+        return {
+          success: false,
+          projectId,
+          operationId: `error_${Date.now()}`,
+          status: 'error',
+          error: error.message
+        };
+      }
 
       return {
         success: false,
@@ -120,42 +347,42 @@ export class VectorIndexService {
   }
 
   /**
-   * 获取向量状态
+   * 获取向量状态（保持向后兼容）
    */
   async getVectorStatus(projectId: string): Promise<any> {
-    try {
-      const vectorStatus = this.projectStateManager.getVectorStatus(projectId);
-
-      if (!vectorStatus) {
-        throw new Error(`Project not found: ${projectId}`);
-      }
-
-      // 检查是否有正在进行的操作
-      const activeOperation = this.activeOperations.get(projectId);
-
-      return {
-        projectId,
-        ...vectorStatus,
-        isActive: !!activeOperation,
-        operationId: activeOperation?.operationId
-      };
-
-    } catch (error) {
-      this.errorHandler.handleError(
-        new Error(`Failed to get vector status: ${error instanceof Error ? error.message : String(error)}`),
-        { component: 'VectorIndexService', operation: 'getVectorStatus', projectId }
-      );
-      throw error;
+    const status = this.getIndexStatus(projectId);
+    
+    if (!status) {
+      throw IndexServiceError.projectNotFound(projectId, 'vector');
     }
+
+    const activeOperation = this.activeOperations.get(projectId);
+
+    return {
+      projectId,
+      isIndexing: status.isIndexing,
+      lastIndexed: status.lastIndexed,
+      totalFiles: status.totalFiles,
+      indexedFiles: status.indexedFiles,
+      failedFiles: status.failedFiles,
+      progress: status.progress,
+      isActive: !!activeOperation,
+      operationId: activeOperation?.operationId,
+      error: status.error
+    };
   }
 
   /**
-   * 批量向量嵌入
+   * 批量向量嵌入（保持向后兼容）
    */
   async batchIndexVectors(projectIds: string[], options: VectorIndexOptions = {}): Promise<any> {
     try {
       if (!Array.isArray(projectIds) || projectIds.length === 0) {
-        throw new Error('projectIds array is required and cannot be empty');
+        throw IndexServiceError.indexingFailed(
+          'projectIds array is required and cannot be empty',
+          undefined,
+          'vector'
+        );
       }
 
       const operationId = `batch_vector_${Date.now()}`;
@@ -211,73 +438,79 @@ export class VectorIndexService {
     projectId: string,
     projectPath: string,
     files: string[],
-    options: VectorIndexOptions
+    options?: IndexOptions
   ): Promise<void> {
     try {
-      const batchSize = options.batchSize || 10;
-      const maxConcurrency = options.maxConcurrency || 3;
+      const batchSize = options?.batchSize || 10;
+      const maxConcurrency = options?.maxConcurrency || 3;
 
       let processedFiles = 0;
       let failedFiles = 0;
 
-      // 分批处理文件
-      for (let i = 0; i < files.length; i += batchSize) {
-        const batch = files.slice(i, i + batchSize);
+      // 使用批处理服务批量处理文件
+      await this.batchProcessor.processBatches(
+        files,
+        async (batch) => {
+          try {
+            // 使用IndexingLogicService处理文件
+            const promises = batch.map(async (filePath) => {
+              try {
+                await this.indexingLogicService.indexFile(projectPath, filePath);
+              } catch (error) {
+                this.logger.error(`Failed to index file: ${filePath}`, { error });
+                throw error;
+              }
+            });
 
-        try {
-          // 使用现有的IndexService处理文件
-          // 由于indexFile是私有方法，我们需要使用startIndexing
-          // 但为了简化，我们直接处理文件
-          for (const filePath of batch) {
-            try {
-              // 直接使用indexingLogicService处理文件
-              await this.indexService['indexingLogicService'].indexFile(projectPath, filePath);
-            } catch (error) {
-              this.logger.error(`Failed to index file: ${filePath}`, { error });
-              throw error;
-            }
+            // 限制并发数
+            await this.concurrencyService.processWithConcurrency(promises, maxConcurrency);
+
+            processedFiles += batch.length;
+
+            // 更新进度
+            const progress = Math.round((processedFiles / files.length) * 100);
+            await this.projectStateManager.updateVectorIndexingProgress(
+              projectId,
+              progress,
+              processedFiles,
+              failedFiles
+            );
+
+            this.logger.debug(`Processed vector batch for project ${projectId}`, {
+              projectId,
+              processedFiles,
+              totalFiles: files.length,
+              progress
+            });
+
+            return batch.map(file => ({ filePath: file, success: true }));
+          } catch (error) {
+            failedFiles += batch.length;
+            this.logger.error(`Failed to process vector batch for project ${projectId}`, {
+              projectId,
+              error: error instanceof Error ? error.message : String(error)
+            });
+
+            await this.projectStateManager.updateVectorIndexingProgress(
+              projectId,
+              Math.round((processedFiles / files.length) * 100),
+              processedFiles,
+              failedFiles
+            );
+
+            return batch.map(file => ({
+              filePath: file,
+              success: false,
+              error: error instanceof Error ? error.message : String(error)
+            }));
           }
-
-          processedFiles += batch.length;
-
-          // 更新进度
-          const progress = Math.round((processedFiles / files.length) * 100);
-          await this.projectStateManager.updateVectorIndexingProgress(
-            projectId,
-            progress,
-            processedFiles,
-            failedFiles
-          );
-
-          this.logger.debug(`Processed vector batch for project ${projectId}`, {
-            projectId,
-            batch: Math.floor(i / batchSize) + 1,
-            processedFiles,
-            totalFiles: files.length,
-            progress
-          });
-
-        } catch (error) {
-          failedFiles += batch.length;
-          this.logger.error(`Failed to process vector batch for project ${projectId}`, {
-            projectId,
-            batch: Math.floor(i / batchSize) + 1,
-            error: error instanceof Error ? error.message : String(error)
-          });
-
-          await this.projectStateManager.updateVectorIndexingProgress(
-            projectId,
-            Math.round((processedFiles / files.length) * 100),
-            processedFiles,
-            failedFiles
-          );
+        },
+        {
+          batchSize,
+          maxConcurrency,
+          context: { domain: 'database', subType: 'vector' }
         }
-
-        // 限制并发数，添加延迟
-        if ((i / batchSize) % maxConcurrency === 0 && i > 0) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
+      );
 
       // 完成向量索引
       await this.projectStateManager.completeVectorIndexing(projectId);
@@ -287,7 +520,7 @@ export class VectorIndexService {
         processedFiles,
         totalFiles: files.length,
         failedFiles,
-        successRate: ((processedFiles - failedFiles) / processedFiles) * 100
+        successRate: processedFiles > 0 ? ((processedFiles - failedFiles) / processedFiles) * 100 : 0
       });
 
     } catch (error) {

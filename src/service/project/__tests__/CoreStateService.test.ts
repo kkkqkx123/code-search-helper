@@ -93,7 +93,6 @@ describe('CoreStateService', () => {
       loggerService,
       errorHandlerService,
       projectIdManager,
-      indexService,
       qdrantService,
       nebulaService,
       hotReloadConfigService

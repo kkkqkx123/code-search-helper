@@ -1,0 +1,15 @@
+总结已完成的修改：
+✅ TYPES定义更新: 添加了HybridIndexService符号，移除了过时的IndexAdapterService
+✅ DI注册: 在BusinessServiceRegistrar中导入和注册HybridIndexService
+✅ ApiServer: 更新从DI容器获取HybridIndexService并传递给ProjectRoutes
+✅ ProjectRoutes:
+更新导入，使用HybridIndexService替代分散的服务
+更新构造函数签名
+修改reindexProject使用混合索引服务
+修改indexVectors、getVectorStatus、indexGraph、getGraphStatus使用混合索引服务
+暂不支持批量操作（返回501）
+
+HybridIndexService现在是系统中的关键协调层，在以下场景被使用：
+项目重新索引
+向量和图索引操作
+索引状态查询

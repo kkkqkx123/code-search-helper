@@ -287,7 +287,7 @@ describe('GraphIndexService', () => {
     });
 
     it('should handle new project', async () => {
-      mockProjectIdManager.getProjectId.mockReturnValue(null);
+      mockProjectIdManager.getProjectId.mockReturnValue(undefined);
       mockProjectIdManager.generateProjectId.mockResolvedValue(projectId);
       mockFileTraversalService.getProjectFiles.mockResolvedValue(['file1.js']);
 

@@ -55,7 +55,6 @@ export const TYPES = {
 
   // 项目管理
   ProjectIdManager: Symbol.for('ProjectIdManager'),
-  IndexService: Symbol.for('IndexService'),
   IndexingLogicService: Symbol.for('IndexingLogicService'),
   ProjectStateManager: Symbol.for('ProjectStateManager'),
   CoreStateService: Symbol.for('CoreStateService'),
@@ -121,14 +120,12 @@ export const TYPES = {
   // 新增的索引服务
   VectorIndexService: Symbol.for('VectorIndexService'),
   GraphIndexService: Symbol.for('GraphIndexService'),
-  StorageCoordinatorService: Symbol.for('StorageCoordinatorService'),
+  HybridIndexService: Symbol.for('HybridIndexService'),
+   StorageCoordinatorService: Symbol.for('StorageCoordinatorService'),
 
   // 共享服务
   FileTraversalService: Symbol.for('FileTraversalService'),
-  ConcurrencyService: Symbol.for('ConcurrencyService'),
-
-  // 适配器服务
-  IndexAdapterService: Symbol.for('IndexAdapterService'),
+   ConcurrencyService: Symbol.for('ConcurrencyService'),
 
   // 语言检测服务
   LanguageDetector: Symbol.for('LanguageDetector'),

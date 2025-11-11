@@ -1,4 +1,15 @@
-import { IndexSyncOptions } from './IndexService';
+/**
+ * 索引同步选项接口
+ */
+export interface IndexSyncOptions {
+  embedder?: string;
+  batchSize?: number;
+  maxConcurrency?: number;
+  chunkSize?: number;
+  chunkOverlap?: number;
+  includePatterns?: string[];
+  excludePatterns?: string[];
+}
 
 /**
  * 统一的索引服务接口
@@ -11,7 +22,7 @@ export interface IIndexService {
    * @param options 索引选项
    * @returns 项目ID
    */
-  startIndexing(projectPath: string, options?: IndexSyncOptions): Promise<string>;
+  startIndexing(projectPath: string, options?: IndexOptions): Promise<string>;
   
   /**
    * 停止索引项目
@@ -33,7 +44,7 @@ export interface IIndexService {
    * @param options 索引选项
    * @returns 项目ID
    */
-  reindexProject(projectPath: string, options?: IndexSyncOptions): Promise<string>;
+  reindexProject(projectPath: string, options?: IndexOptions): Promise<string>;
 }
 
 /**

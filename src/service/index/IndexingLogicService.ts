@@ -121,7 +121,8 @@ export class IndexingLogicService {
                 filePath: file.path,
                 success: true,
                 processingTime: Date.now() - startTime,
-                error: undefined
+                error: undefined,
+                chunks: []
               });
             } catch (error) {
               const errorMessage = error instanceof Error ? error.message : String(error);
@@ -132,7 +133,8 @@ export class IndexingLogicService {
                 filePath: file.path,
                 success: false,
                 processingTime: Date.now() - startTime,
-                error: errorMessage
+                error: errorMessage,
+                chunks: []
               });
             }
           });

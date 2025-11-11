@@ -59,6 +59,7 @@ export const TYPES = {
   IndexingLogicService: Symbol.for('IndexingLogicService'),
   VectorIndexService: Symbol.for('VectorIndexService'),
   GraphIndexService: Symbol.for('GraphIndexService'),
+  HybridIndexService: Symbol.for('HybridIndexService'),
   StorageCoordinatorService: Symbol.for('StorageCoordinatorService'),
   FileTraversalService: Symbol.for('FileTraversalService'),
   ConcurrencyService: Symbol.for('ConcurrencyService'),

@@ -31,6 +31,7 @@ import { IMemoryMonitorService } from '../../service/memory/interfaces/IMemoryMo
 import { SemanticBatchStrategy } from '../../infrastructure/batching/strategies/SemanticBatchStrategy';
 import { QdrantBatchStrategy } from '../../infrastructure/batching/strategies/QdrantBatchStrategy';
 import { NebulaBatchStrategy } from '../../infrastructure/batching/strategies/NebulaBatchStrategy';
+import { GraphBatchStrategy } from '../../infrastructure/batching/strategies/GraphBatchStrategy';
 import { EmbeddingBatchStrategy } from '../../infrastructure/batching/strategies/EmbeddingBatchStrategy';
 import { ConfigService } from '../../config/ConfigService';
 
@@ -164,6 +165,7 @@ container.bind<PerformanceMetricsCollector>(TYPES.PerformanceMetricsCollector).t
             container.get<SemanticBatchStrategy>(TYPES.SemanticBatchStrategy),
             container.get<QdrantBatchStrategy>(TYPES.QdrantBatchStrategy),
             container.get<NebulaBatchStrategy>(TYPES.NebulaBatchStrategy),
+            container.get<GraphBatchStrategy>(TYPES.GraphBatchStrategy),
             container.get<EmbeddingBatchStrategy>(TYPES.EmbeddingBatchStrategy)
           )
         );

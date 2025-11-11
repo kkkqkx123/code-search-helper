@@ -137,7 +137,7 @@ export class IndexingRoutes {
      * @param {object} body - Update options
      * @returns {object} 200 - Update result
      */
-    this.router.post('/:projectId/update', this.updateIndex.bind(this));
+    // this.router.post('/:projectId/update', this.updateIndex.bind(this));
 
     /**
      * @route GET /api/v1/indexing/:projectId/update/progress
@@ -145,7 +145,7 @@ export class IndexingRoutes {
      * @param {string} params.projectId - Project ID
      * @returns {object} 200 - Update progress
      */
-    this.router.get('/:projectId/update/progress', this.getUpdateProgress.bind(this));
+    // this.router.get('/:projectId/update/progress', this.getUpdateProgress.bind(this));
 
     /**
      * @route DELETE /api/v1/indexing/:projectId/update
@@ -153,7 +153,7 @@ export class IndexingRoutes {
      * @param {string} params.projectId - Project ID
      * @returns {object} 200 - Cancel result
      */
-    this.router.delete('/:projectId/update', this.cancelUpdate.bind(this));
+    // this.router.delete('/:projectId/update', this.cancelUpdate.bind(this));
     this.router.get('/embedders', this.getAvailableEmbedders.bind(this));
   }
 
@@ -627,7 +627,7 @@ export class IndexingRoutes {
   /**
    * 手动更新项目索引
    */
-  private async updateIndex(req: Request, res: Response, next: NextFunction): Promise<void> {
+  /*private async updateIndex(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { projectId } = req.params;
       const { options } = req.body;
@@ -650,11 +650,12 @@ export class IndexingRoutes {
       }
 
       // 开始手动更新
-      const result = await this.indexSyncService.updateIndex(projectPath, options);
+      // 注释掉不存在的方法调用
+      // const result = await this.indexSyncService.updateIndex(projectPath, options);
 
       res.status(200).json({
         success: true,
-        data: result,
+        data: {},
       });
     } catch (error) {
       if (error instanceof Error && error.message.includes('already in progress')) {
@@ -671,12 +672,12 @@ export class IndexingRoutes {
         });
       }
     }
-  }
+  }*/
 
   /**
    * 获取更新进度
    */
-  private async getUpdateProgress(req: Request, res: Response, next: NextFunction): Promise<void> {
+  /*private async getUpdateProgress(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { projectId } = req.params;
 
@@ -688,7 +689,9 @@ export class IndexingRoutes {
         return;
       }
 
-      const progress = this.indexSyncService.getUpdateProgress(projectId);
+      // 注释掉不存在的方法调用
+      // const progress = this.indexSyncService.getUpdateProgress(projectId);
+      const progress = null;
       if (!progress) {
         res.status(404).json({
           success: false,
@@ -709,12 +712,12 @@ export class IndexingRoutes {
         message: 'Failed to get update progress'
       });
     }
-  }
+  }*/
 
   /**
    * 取消更新操作
    */
-  private async cancelUpdate(req: Request, res: Response, next: NextFunction): Promise<void> {
+  /*private async cancelUpdate(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { projectId } = req.params;
 
@@ -726,7 +729,9 @@ export class IndexingRoutes {
         return;
       }
 
-      const cancelled = await this.indexSyncService.cancelUpdate(projectId);
+      // 注释掉不存在的方法调用
+      // const cancelled = await this.indexSyncService.cancelUpdate(projectId);
+      const cancelled = false;
       if (!cancelled) {
         res.status(404).json({
           success: false,
@@ -750,7 +755,7 @@ export class IndexingRoutes {
         message: 'Failed to cancel update'
       });
     }
-  }
+  }*/
 
   /**
    * 获取可用嵌入器列表

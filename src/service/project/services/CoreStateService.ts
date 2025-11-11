@@ -6,7 +6,6 @@ import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ProjectIdManager } from '../../../database/ProjectIdManager';
 import { QdrantService } from '../../../database/qdrant/QdrantService';
 import { NebulaClient } from '../../../database/nebula/client/NebulaClient';
-import { IndexService } from '../../index/IndexService';
 import { ProjectState, ProjectStats, StorageStatus } from '../ProjectStateManager';
 import { ProjectStateStorageUtils } from '../utils/ProjectStateStorageUtils';
 import { ProjectStateValidator } from '../utils/ProjectStateValidator';
@@ -23,7 +22,6 @@ export class CoreStateService {
     @inject(TYPES.LoggerService) private logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
     @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
-    @inject(TYPES.IndexService) private indexService: IndexService,
     @inject(TYPES.QdrantService) private qdrantService: QdrantService,
     @inject(TYPES.NebulaClient) private nebulaClient: NebulaClient,
     @inject(TYPES.HotReloadConfigService) private hotReloadConfigService: HotReloadConfigService
@@ -361,13 +359,7 @@ options.description !== undefined) state.description = options.description;
     state.lastIndexedAt = new Date();
     state.updatedAt = new Date();
 
-    // 从索引同步服务获取索引统计信息
-    const indexStatus = this.indexService.getIndexStatus(projectId);
-    if (indexStatus) {
-      state.totalFiles = indexStatus.totalFiles;
-      state.indexedFiles = indexStatus.indexedFiles;
-      state.failedFiles = indexStatus.failedFiles;
-    }
+    // 注意：索引统计信息现在由ProjectStateManager直接管理，无需从索引服务获取
 
     projectStates.set(projectId, state);
 

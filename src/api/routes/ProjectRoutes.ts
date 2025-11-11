@@ -14,9 +14,7 @@ import {
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { ProjectStateManager, ProjectState, StorageStatus } from '../../service/project/ProjectStateManager';
-import { IndexService } from '../../service/index/IndexService';
-import { VectorIndexService } from '../../service/index/VectorIndexService';
-import { GraphIndexService } from '../../service/index/GraphIndexService';
+import { HybridIndexService } from '../../service/index/HybridIndexService';
 import { HotReloadConfigService } from '../../service/filesystem/HotReloadConfigService';
 import { ProjectMappingService } from '../../database/ProjectMappingService';
 
@@ -62,9 +60,7 @@ export class ProjectRoutes {
   private projectLookupService: ProjectLookupService;
   private logger: Logger;
   private projectStateManager: ProjectStateManager;
-  private indexSyncService: IndexService;
-  private vectorIndexService: VectorIndexService;
-  private graphIndexService: GraphIndexService;
+  private hybridIndexService: HybridIndexService;
   private hotReloadConfigService: HotReloadConfigService;
   private unifiedMappingService: ProjectMappingService;
 
@@ -73,9 +69,7 @@ export class ProjectRoutes {
     projectLookupService: ProjectLookupService,
     logger: Logger,
     projectStateManager: ProjectStateManager,
-    indexSyncService: IndexService,
-    vectorIndexService: VectorIndexService,
-    graphIndexService: GraphIndexService,
+    hybridIndexService: HybridIndexService,
     hotReloadConfigService: HotReloadConfigService,
     unifiedMappingService: ProjectMappingService
   ) {
@@ -83,9 +77,7 @@ export class ProjectRoutes {
     this.projectLookupService = projectLookupService;
     this.logger = logger;
     this.projectStateManager = projectStateManager;
-    this.indexSyncService = indexSyncService;
-    this.vectorIndexService = vectorIndexService;
-    this.graphIndexService = graphIndexService;
+    this.hybridIndexService = hybridIndexService;
     this.hotReloadConfigService = hotReloadConfigService;
     this.unifiedMappingService = unifiedMappingService;
     this.router = Router();
@@ -370,8 +362,8 @@ export class ProjectRoutes {
       // 更新项目状态以允许重新索引
       await this.projectStateManager.createOrUpdateProjectState(projectPath, { allowReindex: true });
 
-      // 调用 IndexSyncService 的 reindexProject 方法
-      const reindexProjectId = await this.indexSyncService.reindexProject(projectPath);
+      // 调用混合索引服务重新索引项目
+      const reindexProjectId = await this.hybridIndexService.reindexProject(projectPath);
 
       res.status(200).json({
         success: true,
@@ -388,27 +380,36 @@ export class ProjectRoutes {
   }
 
   /**
-   * 执行向量嵌入
-   */
+  * 执行向量嵌入
+  */
   private async indexVectors(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const { projectId } = req.params;
-      const { options } = req.body;
+  try {
+  const { projectId } = req.params;
+  const { options } = req.body;
 
-      if (!projectId) {
-        res.status(400).json({
-          success: false,
-          error: 'projectId is required',
-        });
-        return;
-      }
+  if (!projectId) {
+  res.status(400).json({
+  success: false,
+  error: 'projectId is required',
+  });
+  return;
+  }
 
-      // 调用向量索引服务
-      const result = await this.vectorIndexService.indexVectors(projectId, options);
+  const projectPath = this.projectIdManager.getProjectPath(projectId);
+  if (!projectPath) {
+        res.status(404).json({
+      success: false,
+    error: 'Project not found',
+  });
+    return;
+    }
+
+    // 调用混合索引服务执行向量索引
+      const result = await this.hybridIndexService.indexByType(projectPath, 'vector' as any, options);
 
       res.status(200).json({
-        success: result.success,
-        data: result,
+        success: true,
+        data: { projectId: result },
       });
     } catch (error) {
       next(error);
@@ -416,30 +417,30 @@ export class ProjectRoutes {
   }
 
   /**
-   * 获取向量状态
-   */
+  * 获取向量状态
+  */
   private async getVectorStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const { projectId } = req.params;
+  try {
+  const { projectId } = req.params;
 
-      if (!projectId) {
-        res.status(400).json({
-          success: false,
-          error: 'projectId is required',
-        });
-        return;
-      }
+  if (!projectId) {
+  res.status(400).json({
+  success: false,
+  error: 'projectId is required',
+  });
+  return;
+  }
 
-      // 调用向量索引服务获取状态
-      const vectorStatus = await this.vectorIndexService.getVectorStatus(projectId);
+  // 调用混合索引服务获取状态
+  const status = await this.hybridIndexService.getIndexStatus(projectId);
 
-      res.status(200).json({
-        success: true,
-        data: vectorStatus,
-      });
-    } catch (error) {
-      next(error);
-    }
+  res.status(200).json({
+  success: true,
+  data: status,
+  });
+  } catch (error) {
+  next(error);
+  }
   }
 
   /**
@@ -452,54 +453,36 @@ export class ProjectRoutes {
   }
 
   /**
-   * 执行图存储
-   */
+  * 执行图存储
+  */
   private async indexGraph(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const { projectId } = req.params;
-      const { options } = req.body;
+  try {
+  const { projectId } = req.params;
+  const { options } = req.body;
 
-      if (!projectId) {
-        res.status(400).json({
-          success: false,
-          error: 'projectId is required',
-        });
-        return;
-      }
-
-      // 调用图索引服务
-      const result = await this.graphIndexService.indexGraph(projectId, options);
-
-      res.status(200).json({
-        success: result.success,
-        data: result,
-      });
-    } catch (error) {
-      next(error);
-    }
+  if (!projectId) {
+  res.status(400).json({
+  success: false,
+  error: 'projectId is required',
+  });
+  return;
   }
 
-  /**
-   * 获取图状态
-   */
-  private async getGraphStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const { projectId } = req.params;
+  const projectPath = this.projectIdManager.getProjectPath(projectId);
+  if (!projectPath) {
+        res.status(404).json({
+      success: false,
+    error: 'Project not found',
+  });
+    return;
+    }
 
-      if (!projectId) {
-        res.status(400).json({
-          success: false,
-          error: 'projectId is required',
-        });
-        return;
-      }
-
-      // 调用图索引服务获取状态
-      const graphStatus = await this.graphIndexService.getGraphStatus(projectId);
+    // 调用混合索引服务执行图索引
+      const result = await this.hybridIndexService.indexByType(projectPath, 'graph' as any, options);
 
       res.status(200).json({
         success: true,
-        data: graphStatus,
+        data: { projectId: result },
       });
     } catch (error) {
       next(error);
@@ -507,57 +490,50 @@ export class ProjectRoutes {
   }
 
   /**
-   * 批量向量嵌入
-   */
+  * 获取图状态
+  */
+  private async getGraphStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+  const { projectId } = req.params;
+
+  if (!projectId) {
+  res.status(400).json({
+  success: false,
+  error: 'projectId is required',
+  });
+  return;
+  }
+
+  // 调用混合索引服务获取状态
+  const status = await this.hybridIndexService.getIndexStatus(projectId);
+
+  res.status(200).json({
+  success: true,
+  data: status,
+  });
+  } catch (error) {
+  next(error);
+  }
+  }
+
+  /**
+  * 批量向量嵌入（暂不支持）
+  */
   private async batchIndexVectors(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const { projectIds, options } = req.body;
-
-      if (!Array.isArray(projectIds) || projectIds.length === 0) {
-        res.status(400).json({
-          success: false,
-          error: 'projectIds array is required and cannot be empty',
-        });
-        return;
-      }
-
-      // 调用向量索引服务进行批量处理
-      const result = await this.vectorIndexService.batchIndexVectors(projectIds, options);
-
-      res.status(200).json({
-        success: result.success,
-        data: result,
-      });
-    } catch (error) {
-      next(error);
-    }
+  res.status(501).json({
+  success: false,
+      error: 'Batch vector indexing is not yet supported through the hybrid index service',
+  });
   }
 
   /**
-   * 批量图存储
-   */
+  * 批量图存储（暂不支持）
+  */
   private async batchIndexGraph(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const { projectIds, options } = req.body;
-
-      if (!Array.isArray(projectIds) || projectIds.length === 0) {
-        res.status(400).json({
-          success: false,
-          error: 'projectIds array is required and cannot be empty',
-        });
-        return;
-      }
-
-      // 调用图索引服务进行批量处理
-      const result = await this.graphIndexService.batchIndexGraph(projectIds, options);
-
-      res.status(200).json({
-        success: result.success,
-        data: result,
-      });
-    } catch (error) {
-      next(error);
-    }
+    res.status(501).json({
+  success: false,
+  error: 'Batch graph indexing is not yet supported through the hybrid index service',
+    });
   }
 
   /**
