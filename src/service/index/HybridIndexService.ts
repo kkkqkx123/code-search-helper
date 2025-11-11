@@ -3,7 +3,9 @@ import { TYPES } from '../../types';
 import { IIndexService } from './IIndexService';
 import { IndexService } from './IndexService';
 import { GraphIndexService } from './GraphIndexService';
-import { IndexSyncOptions } from './IndexService';
+import { IndexSyncOptions, IndexOptions } from './IIndexService';
+import { InfrastructureConfigService } from '../../infrastructure/config/InfrastructureConfigService';
+import { IGraphIndexPerformanceMonitor } from '../../infrastructure/monitoring/GraphIndexMetrics';
 
 export enum IndexType {
   Vector = 'vector',
@@ -15,12 +17,14 @@ export enum IndexType {
 export class HybridIndexService implements IIndexService {
   constructor(
     @inject(TYPES.IndexService) private indexService: IndexService,
-    @inject(TYPES.GraphIndexService) private graphIndexService: GraphIndexService
+    @inject(TYPES.GraphIndexService) private graphIndexService: GraphIndexService,
+    @inject(TYPES.InfrastructureConfigService) private configService: InfrastructureConfigService,
+    @inject(TYPES.GraphIndexPerformanceMonitor) private performanceMonitor: IGraphIndexPerformanceMonitor
   ) { }
 
-  private async startGraphIndexingIfEnabled(projectId: string, projectPath: string, options?: IndexSyncOptions): Promise<void> {
-    const nebulaEnabled = process.env.NEBULA_ENABLED?.toLowerCase() !== 'false';
-    if (nebulaEnabled) {
+  private async startGraphIndexingIfEnabled(projectId: string, projectPath: string, options?: IndexOptions): Promise<void> {
+    const graphEnabled = this.configService.isGraphEnabled() && this.isVectorEnabled();
+    if (graphEnabled) {
       await this.graphIndexService.startIndexing(projectPath, {
         ...options,
         enableGraphIndex: true
@@ -28,11 +32,107 @@ export class HybridIndexService implements IIndexService {
     }
   }
 
-  async startIndexing(projectPath: string, options?: IndexSyncOptions): Promise<string> {
-    // 启动混合索引（向量+图）
-    const projectId = await this.indexService.startIndexing(projectPath, options);
-    await this.startGraphIndexingIfEnabled(projectId, projectPath, options);
-    return projectId;
+  async startIndexing(projectPath: string, options?: IndexOptions): Promise<string> {
+    const operationId = `hybrid_${Date.now()}`;
+    const startTime = Date.now();
+    
+    try {
+      // 1. 配置验证（复用 InfrastructureConfigService）
+      await this.validateConfiguration(options);
+      
+      // 2. 智能索引策略
+      const strategy = await this.determineIndexingStrategy(projectPath, options);
+      
+      // 3. 协调执行
+      return await this.executeIndexingStrategy(projectPath, strategy, options);
+    } catch (error) {
+      this.performanceMonitor.recordMetric({
+        operation: 'startIndexing',
+        projectId: projectPath,
+        timestamp: Date.now(),
+        duration: Date.now() - startTime,
+        success: false,
+        metadata: {
+          errorMessage: (error as Error).message,
+          errorType: (error as Error).constructor.name
+        }
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * 验证配置
+   */
+  private async validateConfiguration(options?: IndexOptions): Promise<void> {
+    if (options?.enableGraphIndex !== false) {
+      // 复用 InfrastructureConfigService 的配置验证
+      this.configService.validateGraphConfiguration();
+    }
+  }
+
+  /**
+   * 确定索引策略
+   */
+  private async determineIndexingStrategy(projectPath: string, options?: IndexOptions): Promise<string> {
+    const isGraphEnabled = this.configService.isGraphEnabled();
+    const isVectorEnabled = this.isVectorEnabled();
+    
+    // 检查显式选项
+    if (options?.enableGraphIndex === false) {
+      return 'vector-only';
+    }
+    
+    if (options?.enableVectorIndex === false) {
+      return 'graph-only';
+    }
+    
+    // 检查环境变量配置
+    const defaultStrategy = process.env.DEFAULT_INDEXING_STRATEGY?.toLowerCase() || 'hybrid';
+    
+    switch (defaultStrategy) {
+      case 'vector':
+        return 'vector-only';
+      case 'graph':
+        return 'graph-only';
+      case 'hybrid':
+      default:
+        // 混合策略需要同时启用向量和图索引
+        if (isGraphEnabled && isVectorEnabled) {
+          return 'hybrid';
+        } else if (isGraphEnabled) {
+          return 'graph-only';
+        } else {
+          return 'vector-only';
+        }
+    }
+  }
+
+  /**
+   * 检查向量索引是否启用
+   */
+  private isVectorEnabled(): boolean {
+    return process.env.VECTOR_INDEX_ENABLED?.toLowerCase() !== 'false';
+  }
+
+  /**
+   * 执行索引策略
+   */
+  private async executeIndexingStrategy(projectPath: string, strategy: string, options?: IndexOptions): Promise<string> {
+    switch (strategy) {
+      case 'vector-only':
+        return await this.indexService.startIndexing(projectPath, options);
+      
+      case 'graph-only':
+        return await this.graphIndexService.startIndexing(projectPath, options);
+      
+      case 'hybrid':
+      default:
+        // 启动混合索引（向量+图）
+        const projectId = await this.indexService.startIndexing(projectPath, options);
+        await this.startGraphIndexingIfEnabled(projectId, projectPath, options);
+        return projectId;
+    }
   }
 
   async indexProject(projectPath: string, options?: IndexSyncOptions): Promise<string> {

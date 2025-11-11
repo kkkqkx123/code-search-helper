@@ -32,6 +32,9 @@ import { StorageCoordinatorService } from '../../service/index/StorageCoordinato
 import { ConcurrencyService } from '../../service/index/shared/ConcurrencyService';
 import { FileTraversalService } from '../../service/index/shared/FileTraversalService';
 
+// 图构建服务
+import { GraphConstructionService } from '../../service/graph/construction/GraphConstructionService';
+
 // 性能优化服务
 import { PerformanceOptimizerService } from '../../infrastructure/batching/PerformanceOptimizerService';
 import { BatchProcessingService } from '../../infrastructure/batching/BatchProcessingService';
@@ -142,6 +145,10 @@ export class BusinessServiceRegistrar {
       container.bind<GraphIndexService>(TYPES.GraphIndexService).to(GraphIndexService).inSingletonScope();
       container.bind<HybridIndexService>(TYPES.HybridIndexService).to(HybridIndexService).inSingletonScope();
       container.bind<StorageCoordinatorService>(TYPES.StorageCoordinatorService).to(StorageCoordinatorService).inSingletonScope();
+      
+      // 图构建服务
+      container.bind<GraphConstructionService>(TYPES.GraphConstructionService)
+        .to(GraphConstructionService).inSingletonScope();
       
       // IndexService 作为 VectorIndexService 的别名
       container.bind(TYPES.IndexService).toService(TYPES.VectorIndexService);

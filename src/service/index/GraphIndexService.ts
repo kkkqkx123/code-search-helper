@@ -14,6 +14,7 @@ import { IIndexService, IndexServiceType, IndexStatus, IndexOptions } from './II
 import { IndexServiceError, IndexServiceErrorType } from './errors/IndexServiceErrors';
 import { LANGUAGE_MAP } from '../parser/constants/language-constants';
 import { IGraphIndexPerformanceMonitor, GraphIndexMetric } from '../../infrastructure/monitoring/GraphIndexMetrics';
+import { IGraphConstructionService } from '../graph/construction/IGraphConstructionService';
 
 export interface GraphIndexOptions {
   maxConcurrency?: number;
@@ -57,7 +58,8 @@ export class GraphIndexService implements IIndexService {
     @inject(TYPES.FileTraversalService) private fileTraversalService: FileTraversalService,
     @inject(TYPES.ConcurrencyService) private concurrencyService: ConcurrencyService,
     @inject(TYPES.BatchProcessingService) private batchProcessor: BatchProcessingService,
-    @inject(TYPES.GraphIndexPerformanceMonitor) private performanceMonitor: IGraphIndexPerformanceMonitor
+    @inject(TYPES.GraphIndexPerformanceMonitor) private performanceMonitor: IGraphIndexPerformanceMonitor,
+    @inject(TYPES.GraphConstructionService) private graphConstructionService: IGraphConstructionService
   ) {}
 
   /**
@@ -556,7 +558,7 @@ export class GraphIndexService implements IIndexService {
   }
 
   /**
-   * 处理图文件
+   * 处理图文件（使用新的 GraphConstructionService）
    */
   private async processGraphFiles(projectPath: string, files: string[], projectId: string): Promise<void> {
     try {
@@ -570,39 +572,23 @@ export class GraphIndexService implements IIndexService {
         return; // 如果Nebula被禁用，直接返回
       }
 
-      // 处理每个文件，构建图结构
-      const parsedFiles = [];
-      for (const filePath of files) {
-        try {
-          // 使用IndexService的indexingLogicService解析文件
-          // 使用indexFile方法来处理文件，然后获取解析结果
-          await this.indexService['indexingLogicService'].indexFile(projectPath, filePath);
-          // 这里需要从indexingLogicService获取解析后的文件数据
-          // 暂时使用简化的实现
-          const parsedFile = {
-            id: `${projectId}_${filePath.replace(/[^a-zA-Z0-9]/g, '_')}`,
-            filePath,
-            relativePath: filePath.replace(projectPath, ''),
-            language: this.getLanguageFromPath(filePath),
-            chunks: [],
-            metadata: {
-              linesOfCode: 0,
-              functions: 0,
-              classes: 0,
-              imports: []
-            }
-          };
-          if (parsedFile) {
-            parsedFiles.push(parsedFile);
-          }
-        } catch (error) {
-          this.logger.error(`Failed to parse file for graph indexing: ${filePath}`, { error });
-          throw IndexServiceError.fileProcessingFailed(filePath, error as Error, projectId, 'graph');
-        }
-      }
+      // 使用 GraphConstructionService 构建图结构
+      const graphData = await this.graphConstructionService.buildGraphStructure(files, projectPath);
 
-      // 使用GraphDataService存储解析的文件
-      const result = await this.graphDataService.storeParsedFiles(parsedFiles, {
+      // 使用GraphDataService存储图数据
+      const result = await this.graphDataService.storeParsedFiles([{
+        id: projectId,
+        filePath: projectPath,
+        relativePath: '',
+        language: 'project',
+        chunks: [],
+        metadata: {
+          linesOfCode: 0,
+          functions: 0,
+          classes: 0,
+          imports: []
+        }
+      }], {
         projectId
       });
 
@@ -614,6 +600,13 @@ export class GraphIndexService implements IIndexService {
           { errors: result.errors }
         );
       }
+
+      this.logger.info(`Successfully processed graph files`, {
+        projectPath,
+        fileCount: files.length,
+        nodesCreated: graphData.nodes.length,
+        relationshipsCreated: graphData.relationships.length
+      });
 
     } catch (error) {
       if (error instanceof IndexServiceError) {

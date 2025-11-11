@@ -547,5 +547,35 @@ export class InfrastructureConfigService {
   validateConfig(): boolean {
     return ConfigValidationUtil.validateAndLog(this.config, this.logger);
   }
+
+  /**
+   * 验证图配置
+   */
+  validateGraphConfiguration(): void {
+    const nebulaConfig = this.getDatabaseConfig(DatabaseType.NEBULA);
+    
+    if (!this.isGraphEnabled()) {
+      throw new Error('Graph indexing is disabled via NEBULA_ENABLED environment variable');
+    }
+    
+    // 验证必要的图配置
+    if (!nebulaConfig.graph) {
+      throw new Error('Graph configuration is missing');
+    }
+  }
+
+  /**
+   * 检查图是否启用
+   */
+  isGraphEnabled(): boolean {
+    return process.env.NEBULA_ENABLED?.toLowerCase() !== 'false';
+  }
+
+  /**
+   * 获取图配置
+   */
+  getGraphConfiguration(): any {
+    return this.getDatabaseConfig(DatabaseType.NEBULA).graph;
+  }
   
 }

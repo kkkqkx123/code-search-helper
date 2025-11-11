@@ -155,6 +155,7 @@ export const TYPES = {
   GraphPerformanceMonitor: Symbol.for('GraphPerformanceMonitor'),
   GraphIndexPerformanceMonitor: Symbol.for('GraphIndexPerformanceMonitor'),
   GraphBatchOptimizer: Symbol.for('GraphBatchOptimizer'),
+  GraphConstructionService: Symbol.for('GraphConstructionService'),
   GraphPersistenceUtils: Symbol.for('GraphPersistenceUtils'),
   GraphQueryValidator: Symbol.for('GraphQueryValidator'),
   GraphDatabaseService: Symbol.for('GraphDatabaseService'),

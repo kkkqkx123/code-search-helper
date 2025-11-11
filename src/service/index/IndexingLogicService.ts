@@ -20,8 +20,7 @@ import { ChunkToVectorCoordinationService } from '../parser/ChunkToVectorCoordin
 import { ConcurrencyService } from './shared/ConcurrencyService';
 import * as fs from 'fs/promises';
 import { IndexSyncOptions, BatchProcessingResult } from './IndexService';
-import { IGraphService } from '../graph/core/IGraphService';
-import { IGraphDataMappingService } from '../graph/mapping/IGraphDataMappingService';
+import { IGraphConstructionService } from '../graph/construction/IGraphConstructionService';
 import { GraphPersistenceResult } from '../graph/core/types';
 import { PerformanceDashboard } from '../monitoring/PerformanceDashboard';
 import { AutoOptimizationAdvisor } from '../optimization/AutoOptimizationAdvisor';
@@ -53,10 +52,7 @@ export class IndexingLogicService {
   @inject(TYPES.ErrorHandlerService) private errorHandler!: ErrorHandlerService;
   @inject(TYPES.FileSystemTraversal) private fileSystemTraversal!: FileSystemTraversal;
   @inject(TYPES.QdrantService) private qdrantService!: QdrantService;
-  @inject(TYPES.GraphService) private graphService!: IGraphService; // 新增
-  @inject(TYPES.NebulaClient) private nebulaClient!: NebulaClient; // 新增
-  @inject(TYPES.INebulaProjectManager) private nebulaProjectManager!: INebulaProjectManager; // 新增
-  @inject(TYPES.GraphDataMappingService) private graphMappingService!: IGraphDataMappingService; // 新增
+  @inject(TYPES.GraphConstructionService) private graphConstructionService!: IGraphConstructionService; // 新增
   @inject(TYPES.PerformanceDashboard) private performanceDashboard!: PerformanceDashboard; // 新增
   @inject(TYPES.AutoOptimizationAdvisor) private optimizationAdvisor!: AutoOptimizationAdvisor; // 暂时禁用
   @inject(TYPES.BatchProcessingOptimizer) private batchProcessingOptimizer!: BatchProcessingOptimizer;
@@ -216,7 +212,7 @@ export class IndexingLogicService {
   }
 
   /**
-   * 存储文件数据到图数据库（新增方法）
+   * 存储文件数据到图数据库（使用新的 GraphConstructionService）
    */
   private async storeFileToGraph(
     projectPath: string,
@@ -227,63 +223,28 @@ export class IndexingLogicService {
     this.logger.debug('Storing file to graph database', { projectPath, filePath });
 
     try {
-      // 创建文件ID
-      const fileId = `file_${Buffer.from(filePath).toString('hex')}`;
+      // 使用 GraphConstructionService 构建图结构
+      const graphData = await this.graphConstructionService.buildGraphStructure([filePath], projectPath);
 
-      // 使用批处理优化器进行图数据存储
-      const mappingResult = await this.graphMappingService.mapChunksToGraphNodes(chunks, fileId);
-
-      // 准备图数据
-      const graphData = {
-        nodes: mappingResult.nodes,
-        relationships: mappingResult.relationships
-      };
-
-      // 获取或生成项目ID，然后获取对应的空间名称
-      let projectId = this.projectIdManager.getProjectId(projectPath);
-      if (!projectId) {
-        // 如果项目ID不存在，先生成它（这将创建正确的空间名称映射）
-        projectId = await this.projectIdManager.generateProjectId(projectPath);
-      }
-      const spaceName = this.projectIdManager.getSpaceName(projectId);
-
-      // 使用批处理优化器存储到图数据库
-      const batchResult = await this.batchProcessingOptimizer.executeOptimizedBatch(
-        [graphData],
-        async (batch: any[]) => {
-          return await this.graphService.storeChunks(batch, {
-            projectId: spaceName,
-            useCache: true
-          });
-        },
-        {
-          strategy: 'balanced',
-          maxLatency: 5000 // 5秒最大延迟
-        }
-      );
-
-      const result = batchResult.results[0]; // 获取第一个（也是唯一一个）结果
-
-      this.logger.debug('Successfully stored file to graph database', {
+      this.logger.debug('Successfully built graph structure', {
         filePath,
-        nodesCreated: result.nodesCreated || 0,
-        relationshipsCreated: result.relationshipsCreated || 0,
-        processingTime: result.processingTime
+        nodesCreated: graphData.nodes.length,
+        relationshipsCreated: graphData.relationships.length
       });
 
       // 记录性能指标到仪表板
       await this.performanceDashboard.recordMetric({
         timestamp: Date.now(),
         metricName: 'graph.store_time',
-        value: result.processingTime,
+        value: 0, // GraphConstructionService 内部已经记录了时间
         unit: 'milliseconds',
         tags: { filePath, projectPath }
       });
 
-      return result || {
+      return {
         success: true,
-        nodesCreated: 0,
-        relationshipsCreated: 0,
+        nodesCreated: graphData.nodes.length,
+        relationshipsCreated: graphData.relationships.length,
         nodesUpdated: 0,
         processingTime: 0,
         errors: []
@@ -500,58 +461,16 @@ export class IndexingLogicService {
   }
 
   /**
-   * 索引文件到图数据库
+   * 索引文件到图数据库（使用新的 GraphConstructionService）
    */
   async indexFileToGraph(projectPath: string, filePath: string): Promise<void> {
     try {
-      // 读取文件内容
-      const content = await fs.readFile(filePath, 'utf8');
-
-      // 检测语言
-      const language = await this.treeSitterService.detectLanguage(filePath);
-      if (!language) {
-        this.logger.warn(`Unsupported language for file: ${filePath}`);
-        return;
-      }
-
-      // 解析为 AST
-      const parseResult = await this.treeSitterService.parseCode(content, language.name);
-
-      // 执行图索引查询
-      const queryResults = await this.treeSitterQueryEngine.executeGraphQueries(parseResult.ast, language.name);
-
-      // 映射为图元素 - 使用新的标准化方法
-      // 首先将查询结果转换为标准化格式
-      const queryResultsArray = Array.from(queryResults.values());
-      const standardizedNodes = this.convertQueryResultsToStandardized(queryResultsArray);
-
-      // 使用新的mapToGraph方法
-      const graphElements = await this.graphMappingService.mapToGraph(filePath, standardizedNodes);
-
-      // 转换为 Nebula 格式
-      const nebulaNodes = this.convertToNebulaNodes(graphElements.nodes);
-      const nebulaRelationships = this.convertToNebulaRelationships(graphElements.edges);
-
-      // 插入到图数据库
-      if (nebulaNodes.length > 0) {
-        // 使用 NebulaProjectManager 插入节点
-        const nodesSuccess = await this.nebulaProjectManager.insertNodesForProject(projectPath, nebulaNodes);
-        if (!nodesSuccess) {
-          throw new Error(`Failed to insert nodes for file: ${filePath}`);
-        }
-      }
-
-      if (nebulaRelationships.length > 0) {
-        // 使用 NebulaProjectManager 插入关系
-        const relationshipsSuccess = await this.nebulaProjectManager.insertRelationshipsForProject(projectPath, nebulaRelationships);
-        if (!relationshipsSuccess) {
-          throw new Error(`Failed to insert relationships for file: ${filePath}`);
-        }
-      }
+      // 使用 GraphConstructionService 构建图结构
+      const graphData = await this.graphConstructionService.buildGraphStructure([filePath], projectPath);
 
       this.logger.info(`Successfully indexed file to graph: ${filePath}`, {
-        nodeCount: nebulaNodes.length,
-        edgeCount: nebulaRelationships.length
+        nodeCount: graphData.nodes.length,
+        edgeCount: graphData.relationships.length
       });
 
     } catch (error) {
@@ -560,31 +479,6 @@ export class IndexingLogicService {
     }
   }
 
-  /**
-   * 转换为Nebula节点格式
-   */
-  private convertToNebulaNodes(nodes: any[]): NebulaNode[] {
-    // 简化转换逻辑，实际实现可能需要更复杂的映射
-    return nodes.map(node => ({
-      id: node.id,
-      label: node.type,
-      properties: node.properties
-    }));
-  }
-
-  /**
-   * 转换为Nebula关系格式
-   */
-  private convertToNebulaRelationships(edges: any[]): NebulaRelationship[] {
-    // 简化转换逻辑，实际实现可能需要更复杂的映射
-    return edges.map(edge => ({
-      id: edge.id,
-      type: edge.type,
-      sourceId: edge.sourceNodeId,
-      targetId: edge.targetNodeId,
-      properties: edge.properties
-    }));
-  }
 
   /**
    * 从索引中删除文件
