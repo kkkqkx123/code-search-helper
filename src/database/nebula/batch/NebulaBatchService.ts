@@ -13,7 +13,7 @@ export interface INebulaBatchService {
   insertNodes(nodes: NebulaNode[]): Promise<boolean>;
   insertRelationships(relationships: NebulaRelationship[]): Promise<boolean>;
   groupNodesByLabel(nodes: NebulaNode[]): Record<string, NebulaNode[]>;
- groupRelationshipsByType(relationships: NebulaRelationship[]): Record<string, NebulaRelationship[]>;
+  groupRelationshipsByType(relationships: NebulaRelationship[]): Record<string, NebulaRelationship[]>;
   formatValue(value: any): string;
 }
 

@@ -132,6 +132,8 @@ export const TYPES = {
   NebulaClient: Symbol.for('NebulaClient'),
   INebulaClient: Symbol.for('INebulaClient'),
   NebulaServiceAdapter: Symbol.for('NebulaServiceAdapter'),
+  IGraphDatabaseService: Symbol.for('IGraphDatabaseService'),
+  NebulaClientAdapter: Symbol.for('NebulaClientAdapter'),
   QueryPipeline: Symbol.for('QueryPipeline'),
   ParallelQueryExecutor: Symbol.for('ParallelQueryExecutor'),
   MemoryOptimizer: Symbol.for('MemoryOptimizer'),

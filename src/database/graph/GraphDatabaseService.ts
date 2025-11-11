@@ -3,34 +3,18 @@ import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
-import { NebulaService } from '../nebula/NebulaService';
 import { NebulaSpaceManager } from '../nebula/space/NebulaSpaceManager';
 import { GraphQueryBuilder } from '../nebula/query/GraphQueryBuilder';
-import { IBatchOptimizer } from '../../infrastructure/batching/types';
 import { ICacheService } from '../../infrastructure/caching/types';
 import { IPerformanceMonitor } from '../../infrastructure/monitoring/types';
 import { BatchProcessingService } from '../../infrastructure/batching/BatchProcessingService';
-
-export interface GraphDatabaseConfig {
-  defaultSpace: string;
-  enableTransactions: boolean;
-  enableCaching: boolean;
-  cacheTTL: number;
-  maxRetries: number;
-  retryDelay: number;
-  connectionTimeout: number;
-  healthCheckInterval: number;
-}
-
-export interface GraphQuery {
-  nGQL: string;
-  parameters?: Record<string, any>;
-}
+import { INebulaClient } from './interfaces';
+import { IGraphDatabaseService, GraphDatabaseConfig, GraphQuery } from './interfaces';
 
 
 @injectable()
-export class GraphDatabaseService {
-  private nebulaService: NebulaService;
+export class GraphDatabaseService implements IGraphDatabaseService {
+  private nebulaClient: INebulaClient;
   private spaceManager: NebulaSpaceManager;
   private queryBuilder: GraphQueryBuilder;
   private batchOptimizer: BatchProcessingService;
@@ -48,7 +32,7 @@ export class GraphDatabaseService {
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) configService: ConfigService,
-    @inject(TYPES.NebulaService) nebulaService: NebulaService,
+    @inject(TYPES.INebulaClient) nebulaClient: INebulaClient,
     @inject(TYPES.INebulaSpaceManager) spaceManager: NebulaSpaceManager,
     @inject(TYPES.GraphQueryBuilder) queryBuilder: GraphQueryBuilder,
     @inject(TYPES.BatchProcessingService) batchOptimizer: BatchProcessingService,
@@ -60,7 +44,7 @@ export class GraphDatabaseService {
     this.logger = logger;
     this.errorHandler = errorHandler;
     this.configService = configService;
-    this.nebulaService = nebulaService;
+    this.nebulaClient = nebulaClient;
     this.spaceManager = spaceManager;
     this.queryBuilder = queryBuilder;
     this.batchOptimizer = batchOptimizer;
@@ -119,10 +103,10 @@ export class GraphDatabaseService {
 
       this.isConnected = true;
 
-      // Initialize Nebula service
-      const nebulaInitialized = await this.nebulaService.initialize();
+      // Initialize Nebula client
+      const nebulaInitialized = await this.nebulaClient.initialize();
       if (!nebulaInitialized) {
-        throw new Error('Failed to initialize Nebula service');
+        throw new Error('Failed to initialize Nebula client');
       }
 
       // 初始化时不需要切换到特定空间，让项目特定的空间在需要时创建和切换
@@ -140,7 +124,8 @@ export class GraphDatabaseService {
 
   async useSpace(spaceName: string): Promise<void> {
     try {
-      await this.nebulaService.useSpace(spaceName);
+      // 使用底层客户端执行 USE 命令
+      await this.nebulaClient.execute(`USE \`${spaceName}\``);
       this.currentSpace = spaceName;
       this.logger.debug('Switched to space', { spaceName });
     } catch (error) {
@@ -168,7 +153,7 @@ export class GraphDatabaseService {
 
     try {
       const result = await this.batchOptimizer.executeWithRetry(
-        () => this.nebulaService.executeReadQuery(query, parameters),
+        () => this.nebulaClient.execute(query, parameters),
         'executeReadQuery'
       );
 
@@ -209,7 +194,7 @@ export class GraphDatabaseService {
 
     try {
       const result = await this.performanceOptimizer.executeWithRetry(
-        () => this.nebulaService.executeWriteQuery(query, parameters),
+        () => this.nebulaClient.execute(query, parameters),
         'executeWriteQuery'
       );
 
@@ -250,7 +235,7 @@ export class GraphDatabaseService {
 
     // Calculate optimal batch size based on query count
     const optimalBatchSize = 50; // Default batch size
-    
+
     try {
       // Use batch processing for efficient execution
       const batchResults = await this.performanceOptimizer.processBatches(
@@ -387,7 +372,7 @@ export class GraphDatabaseService {
 
   async getDatabaseStats(): Promise<any> {
     try {
-      const nebulaStats = await this.nebulaService.getDatabaseStats();
+      const nebulaStats = await this.nebulaClient.getStats();
       const performanceStats = this.performanceMonitor.getMetrics();
       const cacheStats = this.cacheService.getCacheStats();
 
@@ -447,21 +432,21 @@ export class GraphDatabaseService {
   }
 
   private async connect(): Promise<boolean> {
-    // For Nebula, we rely on NebulaService to handle the actual connection
-    // This is a simplified implementation that just checks if NebulaService is connected
-    return this.nebulaService.isConnected();
+    // For Nebula, we rely on NebulaClient to handle the actual connection
+    // This is a simplified implementation that just checks if NebulaClient is connected
+    return this.nebulaClient.isConnected();
   }
 
   private async disconnect(): Promise<void> {
-    // For Nebula, we rely on NebulaService to handle the actual disconnection
+    // For Nebula, we rely on NebulaClient to handle the actual disconnection
     // This is a simplified implementation
-    await this.nebulaService.close();
+    await this.nebulaClient.close();
     this.isConnected = false;
   }
 
   private async checkConnection(): Promise<boolean> {
-    // For Nebula, we rely on NebulaService to check the connection status
-    return this.nebulaService.isConnected();
+    // For Nebula, we rely on NebulaClient to check the connection status
+    return this.nebulaClient.isConnected();
   }
 
   private startHealthChecks(): void {
@@ -511,8 +496,8 @@ export class GraphDatabaseService {
       // Wait before reconnecting
       await new Promise(resolve => setTimeout(resolve, this.config.retryDelay));
 
-      // Attempt to reconnect through NebulaService
-      const reconnected = await this.nebulaService.initialize();
+      // Attempt to reconnect through NebulaClient
+      const reconnected = await this.nebulaClient.initialize();
       if (reconnected) {
         this.isConnected = true;
         this.logger.info('Database reconnection successful');
@@ -565,8 +550,8 @@ export class GraphDatabaseService {
       // Stop performance monitoring
       this.performanceMonitor.stopPeriodicMonitoring();
 
-      // Close Nebula service
-      await this.nebulaService.close();
+      // Close Nebula client
+      await this.nebulaClient.close();
 
       // Disconnect
       await this.disconnect();
@@ -579,5 +564,13 @@ export class GraphDatabaseService {
       );
       throw error;
     }
+  }
+
+  /**
+   * 获取底层 NebulaClient 实例
+   * 用于高级操作和直接访问底层功能
+   */
+  getNebulaClient(): INebulaClient {
+    return this.nebulaClient;
   }
 }

@@ -22,6 +22,7 @@ import { PerformanceMonitor } from '../../database/common/PerformanceMonitor';
 
 // 图数据库服务
 import { GraphDatabaseService } from '../../database/graph/GraphDatabaseService';
+import { IGraphDatabaseService, INebulaClient, NebulaClientAdapter } from '../../database/graph/interfaces';
 import { GraphQueryBuilder, IGraphQueryBuilder } from '../../database/nebula/query/GraphQueryBuilder';
 import { NebulaProjectManager } from '../../database/nebula/NebulaProjectManager';
 
@@ -94,6 +95,7 @@ export class DatabaseServiceRegistrar {
       container.bind<QdrantService>(TYPES.QdrantService).to(QdrantService).inSingletonScope();
 
       // 图数据库核心服务
+      container.bind<IGraphDatabaseService>(TYPES.IGraphDatabaseService).to(GraphDatabaseService).inSingletonScope();
       container.bind<GraphDatabaseService>(TYPES.GraphDatabaseService).to(GraphDatabaseService).inSingletonScope();
       container.bind<GraphQueryBuilder>(TYPES.GraphQueryBuilder).to(GraphQueryBuilder).inSingletonScope();
       container.bind<IGraphQueryBuilder>(TYPES.IGraphQueryBuilder).to(GraphQueryBuilder).inSingletonScope();
@@ -139,8 +141,12 @@ export class DatabaseServiceRegistrar {
       container.bind<ParallelQueryExecutor>(TYPES.ParallelQueryExecutor).to(ParallelQueryExecutor).inSingletonScope();
       container.bind<MemoryOptimizer>(TYPES.MemoryOptimizer).to(MemoryOptimizer).inSingletonScope();
 
-      // NebulaClient 服务 - 新的统一客户端
+      // NebulaClient 服务 - 底层客户端
+      container.bind<INebulaClient>(TYPES.INebulaClient).to(NebulaClient).inSingletonScope();
       container.bind<NebulaClient>(TYPES.NebulaClient).to(NebulaClient).inSingletonScope();
+      
+      // 适配器服务 - 向后兼容
+      container.bind<NebulaClientAdapter>(TYPES.NebulaClientAdapter).to(NebulaClientAdapter).inSingletonScope();
 
       // 工具类服务
       container.bind<NebulaQueryUtils>(TYPES.NebulaQueryUtils).to(NebulaQueryUtils).inSingletonScope();

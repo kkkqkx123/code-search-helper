@@ -5,94 +5,13 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { NebulaConfigService } from '../../../config/service/NebulaConfigService';
 import { PerformanceMonitor } from '../../../infrastructure/monitoring/PerformanceMonitor';
-import { NebulaConfig, NebulaConnectionStatus, NebulaQueryResult, NebulaNode, NebulaRelationship } from '../NebulaTypes';
+import { NebulaConfig, NebulaConnectionStatus, NebulaQueryResult } from '../NebulaTypes';
 import { IQueryRunner } from '../query/QueryRunner';
-import { INebulaProjectManager } from '../NebulaProjectManager';
-import { ProjectIdManager } from '../../ProjectIdManager';
-import { Subscription } from '../../common/DatabaseEventTypes';
-
-// 查询批次接口
-export interface QueryBatch {
-  query: string;
-  params?: Record<string, any>;
-}
-
-// 查询选项接口
-export interface QueryOptions {
-  timeout?: number;
-  retryAttempts?: number;
-  useCache?: boolean;
-}
-
-// NebulaClient接口 - 完整的独立接口，包含所有必要的方法
-export interface INebulaClient {
-  // 基础操作
-  initialize(config?: NebulaConfig): Promise<boolean>;
-  isConnected(): boolean;
-  isInitialized(): boolean;
-  close(): Promise<void>;
-  reconnect(): Promise<boolean>;
-
-  // 连接管理
-  connect(): Promise<void>;
-  disconnect(): Promise<void>;
-
-  // 查询执行
-  execute(query: string, params?: Record<string, any>, options?: QueryOptions): Promise<NebulaQueryResult>;
-  executeQuery(query: string, params?: Record<string, any>, options?: QueryOptions): Promise<NebulaQueryResult>;
-  executeBatch(queries: QueryBatch[]): Promise<NebulaQueryResult[]>;
-
-  // 统计信息
-  getStats(): any;
-
-  // 配置管理
-  updateConfig(config: Partial<NebulaConfig>): void;
-  getConfig(): NebulaConfig;
-
-  // 事件订阅
-  on(event: string, listener: Function): void;
-  off(event: string, listener: Function): void;
-  emit(event: string, ...args: any[]): boolean;
-  subscribe(type: string, listener: (event: any) => void): Subscription;
-
-  // 项目空间管理
-  createSpaceForProject(projectPath: string): Promise<boolean>;
-  deleteSpaceForProject(projectPath: string): Promise<boolean>;
-
-  // 数据操作
-  insertNodes(nodes: NebulaNode[]): Promise<boolean>;
-  insertRelationships(relationships: NebulaRelationship[]): Promise<boolean>;
-  deleteDataForFile(filePath: string): Promise<void>;
-
-  // 查询操作
-  findNodesByLabel(label: string, filter?: any): Promise<any[]>;
-  findRelationships(type?: string, filter?: any): Promise<any[]>;
-  getDatabaseStats(): Promise<any>;
-
-  // 兼容性方法（保持向后兼容）
-  executeReadQuery(nGQL: string, parameters?: Record<string, any>): Promise<any>;
-  executeWriteQuery(nGQL: string, parameters?: Record<string, any>): Promise<any>;
-  useSpace(spaceName: string): Promise<void>;
-  createNode(label: string, properties: Record<string, any>): Promise<string>;
-  createRelationship(
-    type: string,
-    sourceId: string,
-    targetId: string,
-    properties?: Record<string, any>
-  ): Promise<void>;
-  findNodes(label: string, properties?: Record<string, any>): Promise<any[]>;
-
-  // 健康检查
-  healthCheck(): Promise<{
-    status: 'healthy' | 'unhealthy';
-    details?: any;
-    error?: string;
-  }>;
-}
+import { INebulaClient, QueryBatch, QueryOptions } from '../../graph/interfaces';
 
 /**
- * Nebula Graph客户端门面类
- * 作为整个客户端的统一入口，集成现有配置和监控服务
+ * Nebula Graph 底层客户端
+ * 职责：连接管理、查询执行、基本事件
  */
 @injectable()
 export class NebulaClient extends EventEmitter implements INebulaClient {
@@ -101,8 +20,6 @@ export class NebulaClient extends EventEmitter implements INebulaClient {
   private configService: NebulaConfigService;
   private performanceMonitor: PerformanceMonitor;
   private queryRunner: IQueryRunner;
-  private projectManager: INebulaProjectManager;
-  private projectIdManager: ProjectIdManager;
   private config: NebulaConfig;
   private connectionStatus: NebulaConnectionStatus;
   private isConnectedFlag: boolean = false;
@@ -115,8 +32,6 @@ export class NebulaClient extends EventEmitter implements INebulaClient {
     @inject(TYPES.NebulaConfigService) configService: NebulaConfigService,
     @inject(TYPES.PerformanceMonitor) performanceMonitor: PerformanceMonitor,
     @inject(TYPES.IQueryRunner) queryRunner: IQueryRunner,
-    @inject(TYPES.INebulaProjectManager) projectManager: INebulaProjectManager,
-    @inject(TYPES.ProjectIdManager) projectIdManager: ProjectIdManager,
     @inject(TYPES.IConnectionPool) connectionPool: any,
     @inject(TYPES.ISessionManager) sessionManager: any
   ) {
@@ -126,8 +41,6 @@ export class NebulaClient extends EventEmitter implements INebulaClient {
     this.configService = configService;
     this.performanceMonitor = performanceMonitor;
     this.queryRunner = queryRunner;
-    this.projectManager = projectManager;
-    this.projectIdManager = projectIdManager;
     this.connectionPool = connectionPool;
     this.sessionManager = sessionManager;
 
@@ -457,18 +370,6 @@ export class NebulaClient extends EventEmitter implements INebulaClient {
     }
   }
 
-  /**
-   * 订阅事件
-   */
-  subscribe(type: string, listener: (event: any) => void): Subscription {
-    this.on(type, listener);
-    return {
-      id: `sub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      eventType: type,
-      handler: listener,
-      unsubscribe: () => this.off(type, listener)
-    };
-  }
 
   /**
    * 执行查询（别名方法）
@@ -520,125 +421,12 @@ export class NebulaClient extends EventEmitter implements INebulaClient {
   }
 
  /**
-  * 为项目创建空间
-  */
- async createSpaceForProject(projectPath: string): Promise<boolean> {
-   this.ensureConnected();
-   return await this.projectManager.createSpaceForProject(projectPath);
- }
-
- /**
-  * 删除项目的空间
-  */
- async deleteSpaceForProject(projectPath: string): Promise<boolean> {
-   this.ensureConnected();
-   return await this.projectManager.deleteSpaceForProject(projectPath);
- }
-
- /**
   * 确保已连接
   */
  private ensureConnected(): void {
    if (!this.isConnectedFlag) {
      throw new Error('Not connected to Nebula Graph');
    }
- }
-
- /**
-  * 批量插入节点
-  */
- async insertNodes(nodes: NebulaNode[]): Promise<boolean> {
-   this.ensureConnected();
-   if (!nodes || nodes.length === 0) {
-     return true;
-   }
-   
-   // 使用项目管理器的批量插入功能
-   // 需要确定当前项目，这里可以使用默认项目或从配置获取
-   // 为了简化，我们假设使用默认项目或第一个项目
-   const projectPaths = this.projectIdManager.listAllProjectPaths();
-   if (projectPaths.length === 0) {
-     throw new Error('No project found for node insertion');
-   }
-   
-   const projectPath = projectPaths[0]; // 使用第一个项目
-   return await this.projectManager.insertNodesForProject(projectPath, nodes);
- }
-
- /**
-  * 批量插入关系
-  */
- async insertRelationships(relationships: NebulaRelationship[]): Promise<boolean> {
-   this.ensureConnected();
-   if (!relationships || relationships.length === 0) {
-     return true;
-   }
-   
-   const projectPaths = this.projectIdManager.listAllProjectPaths();
-   if (projectPaths.length === 0) {
-     throw new Error('No project found for relationship insertion');
-   }
-   
-   const projectPath = projectPaths[0]; // 使用第一个项目
-   return await this.projectManager.insertRelationshipsForProject(projectPath, relationships);
- }
-
- /**
-  * 删除文件相关的所有数据
-  */
- async deleteDataForFile(filePath: string): Promise<void> {
-   this.ensureConnected();
-   
-   try {
-     this.logger.info('Deleting data for file', { filePath });
-     
-     // 实现完整的文件数据删除逻辑
-     const deleteQuery = `
-       MATCH (v:File)
-       WHERE v.filePath == $filePath
-       DETACH DELETE v
-     `;
-     
-     await this.execute(deleteQuery, { filePath });
-     
-     this.logger.info('Successfully deleted data for file', { filePath });
-   } catch (error) {
-     this.errorHandler.handleError(
-       new Error(`Failed to delete data for file ${filePath}: ${error instanceof Error ? error.message : String(error)}`),
-       { component: 'NebulaClient', operation: 'deleteDataForFile', filePath }
-     );
-     throw error;
-   }
- }
-
- /**
-  * 根据标签查找节点
-  */
- async findNodesByLabel(label: string, filter?: any): Promise<any[]> {
-   this.ensureConnected();
-   
-   const projectPaths = this.projectIdManager.listAllProjectPaths();
-   if (projectPaths.length === 0) {
-     return [];
-   }
-   
-   const projectPath = projectPaths[0]; // 使用第一个项目
-   return await this.projectManager.findNodesForProject(projectPath, label, filter);
- }
-
- /**
-  * 查找关系
-  */
- async findRelationships(type?: string, filter?: any): Promise<any[]> {
-   this.ensureConnected();
-   
-   const projectPaths = this.projectIdManager.listAllProjectPaths();
-   if (projectPaths.length === 0) {
-     return [];
-   }
-   
-   const projectPath = projectPaths[0]; // 使用第一个项目
-   return await this.projectManager.findRelationshipsForProject(projectPath, type, filter);
  }
 
  /**
@@ -670,124 +458,7 @@ export class NebulaClient extends EventEmitter implements INebulaClient {
      };
    }
  }
-
- /**
-  * 执行读查询
-  */
- async executeReadQuery(nGQL: string, parameters?: Record<string, any>): Promise<any> {
-   this.ensureConnected();
-   return await this.execute(nGQL, parameters);
- }
-
- /**
-  * 执行写查询
-  */
- async executeWriteQuery(nGQL: string, parameters?: Record<string, any>): Promise<any> {
-   this.ensureConnected();
-   return await this.execute(nGQL, parameters);
- }
-
- /**
-  * 使用指定空间
-  */
- async useSpace(spaceName: string): Promise<void> {
-   this.ensureConnected();
-   if (!spaceName || spaceName === 'undefined' || spaceName === '') {
-     throw new Error(`Invalid space name provided: ${spaceName}`);
-   }
-   
-   const query = `USE \`${spaceName}\``;
-   await this.execute(query);
-   this.connectionStatus.space = spaceName;
- }
-
- /**
-  * 创建节点
-  */
- async createNode(label: string, properties: Record<string, any>): Promise<string> {
-   this.ensureConnected();
-   
-   // 生成节点ID
-   const nodeId = `${label}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-   
-   // 构建插入节点的nGQL
-   const propertyNames = Object.keys(properties).join(', ');
-   let nGQL = `INSERT VERTEX ${label}`;
-   
-   if (propertyNames) {
-     const escapedProperties = this.escapeProperties(properties);
-     const propertyValues = Object.values(escapedProperties).map(v => `"${v}"`).join(', ');
-     nGQL += `(${propertyNames}) VALUES "${nodeId}":(${propertyValues})`;
-   } else {
-     nGQL += `() VALUES "${nodeId}":()`;
-   }
-   
-   await this.execute(nGQL);
-   return nodeId;
- }
-
- /**
-  * 创建关系
-  */
- async createRelationship(
-   type: string,
-   sourceId: string,
-   targetId: string,
-   properties?: Record<string, any>
- ): Promise<void> {
-   this.ensureConnected();
-   
-   // 构建插入边的nGQL
-   let nGQL = `INSERT EDGE ${type}`;
-   
-   if (properties && Object.keys(properties).length > 0) {
-     const propertyNames = Object.keys(properties).join(', ');
-     const escapedProperties = this.escapeProperties(properties);
-     const propertyValues = Object.values(escapedProperties).map(v => `"${v}"`).join(', ');
-     nGQL += `(${propertyNames}) VALUES "${sourceId}"->"${targetId}":(${propertyValues})`;
-   } else {
-     nGQL += `() VALUES "${sourceId}"->"${targetId}":()`;
-   }
-   
-   await this.execute(nGQL);
- }
-
- /**
-  * 根据标签和属性查找节点
-  */
- async findNodes(label: string, properties?: Record<string, any>): Promise<any[]> {
-   this.ensureConnected();
-   
-   // 构建查询节点的nGQL
-   let nGQL = `MATCH (n:${label})`;
-   
-   if (properties && Object.keys(properties).length > 0) {
-     const escapedProperties = this.escapeProperties(properties);
-     const conditions = Object.entries(escapedProperties)
-       .map(([key, value]) => `n.${key} == "${value}"`)
-       .join(' AND ');
-     nGQL += ` WHERE ${conditions}`;
-   }
-   
-   nGQL += ' RETURN n';
-   
-   const result = await this.execute(nGQL);
-   return result?.data || [];
- }
-
- /**
-  * 转义属性值中的特殊字符，防止nGQL注入
-  */
- private escapeProperties(properties: Record<string, any>): Record<string, any> {
-   const escaped: Record<string, any> = {};
-   for (const [key, value] of Object.entries(properties)) {
-     if (typeof value === 'string') {
-       // 转义字符串中的引号和反斜杠
-       escaped[key] = value.replace(/"/g, '\\"').replace(/\\/g, '\\\\');
-     } else {
-       escaped[key] = value;
-     }
-   }
-   return escaped;
- }
 }
+
+// 重新导出接口以保持向后兼容
+export { INebulaClient, QueryBatch, QueryOptions } from '../../graph/interfaces';
