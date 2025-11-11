@@ -7,8 +7,11 @@ import { INebulaDataOperations } from '../operation/NebulaDataOperations';
 import { NebulaNode, NebulaRelationship } from '../NebulaTypes';
 import { DatabaseEventType } from '../../common/DatabaseEventTypes';
 import { NebulaDataService } from '../data/NebulaDataService';
+import { IBatchProcessingService } from '../../../infrastructure/batching/types';
+import { BatchContext, DatabaseBatchOptions } from '../../../infrastructure/batching/types';
+import { DatabaseType } from '../../../infrastructure/types';
 
-export interface INebulaBatchService {
+export interface INebulaDataBatchProcessor {
   batchInsertNodes(nodes: NebulaNode[]): Promise<void>;
   insertNodes(nodes: NebulaNode[]): Promise<boolean>;
   insertRelationships(relationships: NebulaRelationship[]): Promise<boolean>;
@@ -18,25 +21,103 @@ export interface INebulaBatchService {
 }
 
 @injectable()
-export class NebulaBatchService implements INebulaBatchService {
+export class NebulaDataBatchProcessor implements INebulaDataBatchProcessor {
   private databaseLogger: DatabaseLoggerService;
   private errorHandler: ErrorHandlerService;
   private queryService: INebulaQueryService;
   private dataOperations: INebulaDataOperations;
   private dataService: NebulaDataService;
+  private batchService: IBatchProcessingService;
 
   constructor(
     @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.NebulaQueryService) queryService: INebulaQueryService,
     @inject(TYPES.NebulaDataOperations) dataOperations: INebulaDataOperations,
-    @inject(TYPES.NebulaDataService) dataService: NebulaDataService
+    @inject(TYPES.NebulaDataService) dataService: NebulaDataService,
+    @inject(TYPES.BatchProcessingService) batchService: IBatchProcessingService
   ) {
     this.databaseLogger = databaseLogger;
     this.errorHandler = errorHandler;
     this.queryService = queryService;
     this.dataOperations = dataOperations;
     this.dataService = dataService;
+    this.batchService = batchService;
+  }
+
+  /**
+   * 评估图复杂度
+   */
+  private assessGraphComplexity(nodes: NebulaNode[], relationships?: NebulaRelationship[]): 'low' | 'medium' | 'high' {
+    const nodeCount = nodes.length;
+    const relationshipCount = relationships?.length || 0;
+    const avgPropertiesPerNode = nodes.reduce((sum, node) => sum + Object.keys(node.properties).length, 0) / nodeCount;
+    
+    if (nodeCount > 10000 || relationshipCount > 50000 || avgPropertiesPerNode > 20) {
+      return 'high';
+    } else if (nodeCount > 1000 || relationshipCount > 5000 || avgPropertiesPerNode > 10) {
+      return 'medium';
+    } else {
+      return 'low';
+    }
+  }
+
+  /**
+   * 处理节点项目ID
+   */
+  private async processNodesWithProjectId(nodes: NebulaNode[]): Promise<NebulaNode[]> {
+    // 从第一个节点的属性中获取projectId，如果不存在则尝试获取当前空间的相关信息
+    let projectId = nodes[0].properties?.projectId;
+    if (!projectId) {
+      // 尝试获取当前空间信息以确定projectId
+      const spaceResult = await this.queryService.executeQuery('SHOW SPACES');
+      if (spaceResult && spaceResult.data && spaceResult.data.length > 0) {
+        const currentSpace = spaceResult.data[0];
+        projectId = currentSpace.Name || currentSpace.name;
+      }
+    }
+
+    if (!projectId) {
+      throw new Error('Unable to determine project ID for node insertion');
+    }
+
+    // 为所有节点添加项目ID（如果尚未存在）
+    return nodes.map(node => ({
+      ...node,
+      properties: {
+        ...node.properties,
+        projectId
+      }
+    }));
+  }
+
+  /**
+   * 处理关系项目ID
+   */
+  private async processRelationshipsWithProjectId(relationships: NebulaRelationship[]): Promise<NebulaRelationship[]> {
+    // 从第一个关系的属性中获取projectId，如果不存在则尝试获取当前空间的相关信息
+    let projectId = relationships[0].properties?.projectId;
+    if (!projectId) {
+      // 尝试获取当前空间信息以确定projectId
+      const spaceResult = await this.queryService.executeQuery('SHOW SPACES');
+      if (spaceResult && spaceResult.data && spaceResult.data.length > 0) {
+        const currentSpace = spaceResult.data[0];
+        projectId = currentSpace.Name || currentSpace.name;
+      }
+    }
+
+    if (!projectId) {
+      throw new Error('Unable to determine project ID for relationship insertion');
+    }
+
+    // 为所有关系添加项目ID（如果尚未存在）
+    return relationships.map(rel => ({
+      ...rel,
+      properties: {
+        ...rel.properties,
+        projectId
+      }
+    }));
   }
 
   /**
@@ -94,35 +175,31 @@ export class NebulaBatchService implements INebulaBatchService {
     try {
       const startTime = Date.now();
 
-      // 从第一个节点的属性中获取projectId，如果不存在则尝试获取当前空间的相关信息
-      let projectId = nodes[0].properties?.projectId;
-      if (!projectId) {
-        // 尝试获取当前空间信息以确定projectId
-        const spaceResult = await this.queryService.executeQuery('SHOW SPACES');
-        if (spaceResult && spaceResult.data && spaceResult.data.length > 0) {
-          const currentSpace = spaceResult.data[0];
-          projectId = currentSpace.Name || currentSpace.name;
+      // 业务逻辑：处理项目ID
+      const processedNodes = await this.processNodesWithProjectId(nodes);
+
+      // 创建批处理上下文
+      const context: BatchContext = {
+        domain: 'database',
+        subType: 'nebula',
+        metadata: {
+          operationType: 'insert',
+          nodeCount: nodes.length,
+          graphComplexity: this.assessGraphComplexity(nodes)
         }
-      }
+      };
 
-      if (!projectId) {
-        throw new Error('Unable to determine project ID for node insertion');
-      }
-
-      // 为所有节点添加项目ID（如果尚未存在）
-      const nodesWithProjectId = nodes.map(node => ({
-        ...node,
-        properties: {
-          ...node.properties,
-          projectId
+      // 使用批处理服务
+      const result = await this.batchService.processDatabaseBatch(
+        processedNodes,
+        DatabaseType.NEBULA,
+        {
+          databaseType: DatabaseType.NEBULA,
+          context,
+          operationType: 'write',
+          enableRetry: true,
+          enableMonitoring: true
         }
-      }));
-
-      // 使用dataOperations服务进行批量插入
-      const result = await this.dataOperations.insertNodes(
-        projectId,
-        this.generateSpaceNameFromPath(projectId),
-        nodesWithProjectId
       );
 
       const duration = Date.now() - startTime;
@@ -131,13 +208,20 @@ export class NebulaBatchService implements INebulaBatchService {
         type: DatabaseEventType.DATA_INSERTED,
         source: 'nebula',
         timestamp: new Date(),
-        data: { message: `Inserted ${nodes.length} nodes`, nodeCount: nodes.length }
+        data: {
+          message: `Inserted ${nodes.length} nodes`,
+          nodeCount: nodes.length,
+          successfulOperations: result.successfulOperations,
+          failedOperations: result.failedOperations,
+          duration
+        }
       });
-      return result;
+
+      return result.successfulOperations === nodes.length;
     } catch (error) {
       this.errorHandler.handleError(
         error instanceof Error ? error : new Error(String(error)),
-        { component: 'NebulaBatchService', operation: 'insertNodes' }
+        { component: 'NebulaDataBatchProcessor', operation: 'insertNodes' }
       );
       return false;
     }
@@ -154,35 +238,31 @@ export class NebulaBatchService implements INebulaBatchService {
     try {
       const startTime = Date.now();
 
-      // 从第一个关系的属性中获取projectId，如果不存在则尝试获取当前空间的相关信息
-      let projectId = relationships[0].properties?.projectId;
-      if (!projectId) {
-        // 尝试获取当前空间信息以确定projectId
-        const spaceResult = await this.queryService.executeQuery('SHOW SPACES');
-        if (spaceResult && spaceResult.data && spaceResult.data.length > 0) {
-          const currentSpace = spaceResult.data[0];
-          projectId = currentSpace.Name || currentSpace.name;
+      // 业务逻辑：处理项目ID
+      const processedRelationships = await this.processRelationshipsWithProjectId(relationships);
+
+      // 创建批处理上下文
+      const context: BatchContext = {
+        domain: 'database',
+        subType: 'nebula',
+        metadata: {
+          operationType: 'insert',
+          relationshipCount: relationships.length,
+          graphComplexity: this.assessGraphComplexity([], relationships)
         }
-      }
+      };
 
-      if (!projectId) {
-        throw new Error('Unable to determine project ID for relationship insertion');
-      }
-
-      // 为所有关系添加项目ID（如果尚未存在）
-      const relationshipsWithProjectId = relationships.map(rel => ({
-        ...rel,
-        properties: {
-          ...rel.properties,
-          projectId
+      // 使用批处理服务
+      const result = await this.batchService.processDatabaseBatch(
+        processedRelationships,
+        DatabaseType.NEBULA,
+        {
+          databaseType: DatabaseType.NEBULA,
+          context,
+          operationType: 'write',
+          enableRetry: true,
+          enableMonitoring: true
         }
-      }));
-
-      // 使用dataOperations服务进行批量插入
-      const result = await this.dataOperations.insertRelationships(
-        projectId,
-        this.generateSpaceNameFromPath(projectId),
-        relationshipsWithProjectId
       );
 
       const duration = Date.now() - startTime;
@@ -191,13 +271,20 @@ export class NebulaBatchService implements INebulaBatchService {
         type: DatabaseEventType.DATA_INSERTED,
         source: 'nebula',
         timestamp: new Date(),
-        data: { message: `Inserted ${relationships.length} relationships`, relationshipCount: relationships.length }
+        data: {
+          message: `Inserted ${relationships.length} relationships`,
+          relationshipCount: relationships.length,
+          successfulOperations: result.successfulOperations,
+          failedOperations: result.failedOperations,
+          duration
+        }
       });
-      return result;
+
+      return result.successfulOperations === relationships.length;
     } catch (error) {
       this.errorHandler.handleError(
         error instanceof Error ? error : new Error(String(error)),
-        { component: 'NebulaBatchService', operation: 'insertRelationships' }
+        { component: 'NebulaDataBatchProcessor', operation: 'insertRelationships' }
       );
       return false;
     }

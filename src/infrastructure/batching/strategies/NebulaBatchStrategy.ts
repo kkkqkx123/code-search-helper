@@ -300,4 +300,68 @@ export class NebulaBatchStrategy implements IBatchStrategy {
     
     return Math.min(50, Math.floor(batchSize / 3));
   }
+
+  /**
+   * 获取Nebula特定的批处理配置
+   */
+  getNebulaSpecificConfig(context?: BatchContext): {
+    maxConcurrentTransactions: number;
+    transactionTimeout: number;
+    enableBatchOptimization: boolean;
+  } {
+    const graphComplexity = context?.metadata?.graphComplexity || 'medium';
+    
+    return {
+      maxConcurrentTransactions: graphComplexity === 'high' ? 2 : 5,
+      transactionTimeout: graphComplexity === 'high' ? 120000 : 60000,
+      enableBatchOptimization: graphComplexity !== 'high'
+    };
+  }
+
+  /**
+   * 评估图复杂度
+   */
+  assessGraphComplexity(nodeCount: number, relationshipCount: number, avgPropertiesPerNode: number): 'low' | 'medium' | 'high' {
+    if (nodeCount > 10000 || relationshipCount > 50000 || avgPropertiesPerNode > 20) {
+      return 'high';
+    } else if (nodeCount > 1000 || relationshipCount > 5000 || avgPropertiesPerNode > 10) {
+      return 'medium';
+    } else {
+      return 'low';
+    }
+  }
+
+  /**
+   * 获取最优查询批大小
+   */
+  getOptimalQueryBatchSize(queries: any[]): number {
+    const queryComplexity = this.assessQueryComplexity(queries);
+    
+    switch (queryComplexity) {
+      case 'simple':
+        return Math.min(50, queries.length);
+      case 'medium':
+        return Math.min(20, queries.length);
+      case 'complex':
+        return Math.min(10, queries.length);
+      default:
+        return this.DEFAULT_BATCH_SIZE;
+    }
+  }
+
+  /**
+   * 评估查询复杂度
+   */
+  private assessQueryComplexity(queries: any[]): 'simple' | 'medium' | 'complex' {
+    // 简单的复杂度评估逻辑
+    const avgQueryLength = queries.reduce((sum, query) => sum + (query.query || '').length, 0) / queries.length;
+    
+    if (avgQueryLength < 100) {
+      return 'simple';
+    } else if (avgQueryLength < 300) {
+      return 'medium';
+    } else {
+      return 'complex';
+    }
+  }
 }

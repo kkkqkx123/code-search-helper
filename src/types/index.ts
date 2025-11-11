@@ -81,7 +81,8 @@ export const TYPES = {
   INebulaDataOperations: Symbol.for('INebulaDataOperations'),
   INebulaQueryService: Symbol.for('INebulaQueryService'),
   ISpaceNameUtils: Symbol.for('ISpaceNameUtils'),
-   IConnectionPool: Symbol.for('IConnectionPool'),
+  IConnectionPool: Symbol.for('IConnectionPool'),
+  NebulaDataBatchProcessor: Symbol.for('NebulaDataBatchProcessor'),
 
   // 通用文件处理服务
   UniversalTextStrategy: Symbol.for('UniversalTextStrategy'),
@@ -141,7 +142,7 @@ export const TYPES = {
 
   // 策略注册和配置管理
   StrategyRegistry: Symbol.for('StrategyRegistry'),
-  
+
   StrategyConfigManager: Symbol.for('StrategyConfigManager'),
   MarkdownTextStrategy: Symbol.for('MarkdownTextStrategy'),
   XMLTextStrategy: Symbol.for('XMLTextStrategy'),

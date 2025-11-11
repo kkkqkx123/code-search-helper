@@ -6,7 +6,7 @@ import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../config/ConfigService';
 import { NebulaQueryBuilder, INebulaQueryBuilder } from '../query/NebulaQueryBuilder';
 import { BatchVertex, BatchEdge } from '../NebulaTypes';
-import { INebulaService } from '../NebulaService';
+import { INebulaClient } from '../client/NebulaClient';
 
 export interface INebulaGraphOperations {
   insertVertex(tag: string, vertexId: string, properties: Record<string, any>): Promise<boolean>;
@@ -30,14 +30,14 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
   private errorHandler: ErrorHandlerService;
   private configService: ConfigService;
   private queryBuilder: INebulaQueryBuilder;
-  private nebulaService: INebulaService;
+  private nebulaService: INebulaClient;
 
   constructor(
     @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) configService: ConfigService,
     @inject(TYPES.INebulaQueryBuilder) queryBuilder: INebulaQueryBuilder,
-    @inject(TYPES.INebulaService) nebulaService: INebulaService
+    @inject(TYPES.INebulaClient) nebulaService: INebulaClient
   ) {
     this.databaseLogger = databaseLogger;
     this.errorHandler = errorHandler;
@@ -50,7 +50,7 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
     try {
       // 构建INSERT VERTEX查询
       const { query, params } = this.queryBuilder.insertVertex(tag, vertexId, properties);
-      await this.nebulaService.executeWriteQuery(query, params);
+      await this.nebulaService.executeQuery(query, params);
       return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -75,7 +75,7 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
     try {
       // 构建INSERT EDGE查询
       const { query, params } = this.queryBuilder.insertEdge(edgeType, srcId, dstId, properties);
-      await this.nebulaService.executeWriteQuery(query, params);
+      await this.nebulaService.executeQuery(query, params);
       return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -101,7 +101,7 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
       // 构建批量INSERT VERTEX查询
       const { query, params } = this.queryBuilder.batchInsertVertices(vertices);
       if (query && query.length > 0) {
-        await this.nebulaService.executeWriteQuery(query, params);
+        await this.nebulaService.executeQuery(query, params);
       }
       return true;
     } catch (error) {
@@ -128,7 +128,7 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
       // 构建批量INSERT EDGE查询
       const { query, params } = this.queryBuilder.batchInsertEdges(edges);
       if (query && query.length > 0) {
-        await this.nebulaService.executeWriteQuery(query, params);
+        await this.nebulaService.executeQuery(query, params);
       }
       return true;
     } catch (error) {
@@ -165,7 +165,7 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
         LIMIT 100
       `;
 
-      const result = await this.nebulaService.executeReadQuery(query);
+      const result = await this.nebulaService.executeQuery(query);
 
       if (result && result.data) {
         return result.data.map((record: any) => record.relatedNode);
@@ -203,7 +203,7 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
         YIELD path AS p
       `;
 
-      const result = await this.nebulaService.executeReadQuery(query);
+      const result = await this.nebulaService.executeQuery(query);
 
       if (result && result.data) {
         return result.data;
@@ -243,7 +243,7 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
         YIELD path AS p
       `;
 
-      const result = await this.nebulaService.executeReadQuery(query);
+      const result = await this.nebulaService.executeQuery(query);
 
       if (result && result.data) {
         return result.data;
@@ -281,7 +281,7 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
 
       // Use NebulaQueryBuilder to build the update query
       const { query, params } = this.queryBuilder.updateVertex(vertexId, tag, properties);
-      await this.nebulaService.executeWriteQuery(query, params);
+      await this.nebulaService.executeQuery(query, params);
 
       // 使用 DatabaseLoggerService 记录更新顶点的调试信息
       this.databaseLogger.logDatabaseEvent({
@@ -328,7 +328,7 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
 
       // Use NebulaQueryBuilder to build the update query
       const { query, params } = this.queryBuilder.updateEdge(srcId, dstId, edgeType, properties);
-      await this.nebulaService.executeWriteQuery(query, params);
+      await this.nebulaService.executeQuery(query, params);
 
       // 使用 DatabaseLoggerService 记录更新边的调试信息
       this.databaseLogger.logDatabaseEvent({
@@ -372,7 +372,7 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
         query = `DELETE VERTEX "${vertexId}" WITH EDGE`;
       }
 
-      await this.nebulaService.executeWriteQuery(query);
+      await this.nebulaService.executeQuery(query);
 
       // 使用 DatabaseLoggerService 记录删除顶点的调试信息
       this.databaseLogger.logDatabaseEvent({
@@ -414,7 +414,7 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
         query = `DELETE EDGE "${srcId}" -> "${dstId}"`;
       }
 
-      await this.nebulaService.executeWriteQuery(query);
+      await this.nebulaService.executeQuery(query);
 
       // 使用 DatabaseLoggerService 记录删除边的调试信息
       this.databaseLogger.logDatabaseEvent({
@@ -455,7 +455,7 @@ export class NebulaGraphOperations implements INebulaGraphOperations {
     try {
       // Use NebulaQueryBuilder to build the traversal query
       const { query, params } = this.queryBuilder.buildComplexTraversal(startId, edgeTypes, options);
-      const result = await this.nebulaService.executeReadQuery(query, params);
+      const result = await this.nebulaService.executeQuery(query, params);
 
       if (result && result.data) {
         // Check if result.data is an array

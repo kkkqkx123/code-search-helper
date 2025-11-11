@@ -3,7 +3,7 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { FileSystemTraversal } from '../../filesystem/FileSystemTraversal';
 import { QdrantService } from '../../../database/qdrant/QdrantService';
-import { NebulaService } from '../../../database/nebula/NebulaService';
+import { NebulaClient } from '../../../database/nebula/client/NebulaClient';
 import { ProjectIdManager } from '../../../database/ProjectIdManager';
 import { EmbedderFactory } from '../../../embedders/EmbedderFactory';
 import { EmbeddingCacheService } from '../../../embedders/EmbeddingCacheService';
@@ -11,24 +11,28 @@ import { PerformanceOptimizerService } from '../../../infrastructure/batching/Pe
 import { ASTCodeSplitter } from '../../parser/processing/strategies/implementations/ASTCodeSplitter';
 import { ChunkToVectorCoordinationService } from '../../parser/ChunkToVectorCoordinationService';
 import { VectorPoint } from '../../../database/qdrant/IVectorStore';
-import { IMemoryMonitorService } from '../../../service/memory/interfaces/IMemoryMonitorService';
 import { FileInfo } from '../../filesystem/FileSystemTraversal';
 import { ConfigService } from '../../../config/ConfigService';
 import { IGraphService } from '../../graph/core/IGraphService';
 import { IGraphDataMappingService } from '../../graph/mapping/IGraphDataMappingService';
 import { PerformanceDashboard } from '../../monitoring/PerformanceDashboard';
 import { AutoOptimizationAdvisor } from '../../optimization/AutoOptimizationAdvisor';
+import { BatchProcessingOptimizer } from '../../optimization/BatchProcessingOptimizer';
+import { INebulaProjectManager } from '../../../database/nebula/NebulaProjectManager';
 import { TreeSitterService } from '../../parser/core/parse/TreeSitterService';
 import { TreeSitterQueryEngine } from '../../parser/core/query/TreeSitterQueryExecutor';
 import { NebulaNode, NebulaRelationship } from '../../../database/nebula/NebulaTypes';
 import { CodeChunk } from '../../parser/types';
+import { Container } from 'inversify';
+import { TYPES } from '../../../types';
+import { ConcurrencyService } from '../shared/ConcurrencyService';
 
 // Mock dependencies
 jest.mock('../../../utils/LoggerService');
 jest.mock('../../../utils/ErrorHandlerService');
 jest.mock('../../filesystem/FileSystemTraversal');
 jest.mock('../../../database/qdrant/QdrantService');
-jest.mock('../../../database/nebula/NebulaService');
+jest.mock('../../../database/nebula/client/NebulaClient');
 jest.mock('../../../database/ProjectIdManager');
 jest.mock('../../../embedders/EmbedderFactory');
 jest.mock('../../../embedders/EmbeddingCacheService');
@@ -39,8 +43,11 @@ jest.mock('../../graph/core/IGraphService');
 jest.mock('../../graph/mapping/IGraphDataMappingService');
 jest.mock('../../monitoring/PerformanceDashboard');
 jest.mock('../../optimization/AutoOptimizationAdvisor');
+jest.mock('../../optimization/BatchProcessingOptimizer');
 jest.mock('../../parser/core/parse/TreeSitterService');
-jest.mock('../../parser/core/query/TreeSitterQueryEngine');
+jest.mock('../../parser/core/query/TreeSitterQueryExecutor');
+jest.mock('../../../config/ConfigService');
+jest.mock('../../../database/nebula/NebulaProjectManager');
 
 describe('IndexingLogicService', () => {
   let indexingLogicService: IndexingLogicService;
@@ -48,7 +55,7 @@ describe('IndexingLogicService', () => {
   let errorHandlerService: ErrorHandlerService & jest.Mocked<ErrorHandlerService>;
   let fileSystemTraversal: jest.Mocked<FileSystemTraversal>;
   let qdrantService: jest.Mocked<QdrantService>;
-  let nebulaService: jest.Mocked<NebulaService>;
+  let nebulaService: jest.Mocked<NebulaClient>;
   let projectIdManager: jest.Mocked<ProjectIdManager>;
   let embedderFactory: jest.Mocked<EmbedderFactory>;
   let embeddingCacheService: jest.Mocked<EmbeddingCacheService>;
@@ -59,10 +66,26 @@ describe('IndexingLogicService', () => {
   let graphMappingService: jest.Mocked<IGraphDataMappingService>;
   let performanceDashboard: jest.Mocked<PerformanceDashboard>;
   let optimizationAdvisor: jest.Mocked<AutoOptimizationAdvisor>;
+  let batchProcessingOptimizer: jest.Mocked<BatchProcessingOptimizer>;
+  let nebulaProjectManager: jest.Mocked<INebulaProjectManager>;
   let treeSitterService: jest.Mocked<TreeSitterService>;
   let treeSitterQueryEngine: jest.Mocked<TreeSitterQueryEngine>;
+  let testContainer: Container;
 
   beforeEach(() => {
+    // Create a test container
+    testContainer = new Container();
+
+    // Bind ConfigService mock
+    const mockConfigService = {
+      get: jest.fn().mockImplementation((key: string) => {
+        if (key === 'logging') {
+          return { level: 'info' };
+        }
+        return undefined;
+      })
+    } as unknown as ConfigService;
+    testContainer.bind<ConfigService>(TYPES.ConfigService).toConstantValue(mockConfigService);
     // Reset all mocks
     jest.clearAllMocks();
 
@@ -98,21 +121,11 @@ describe('IndexingLogicService', () => {
       {} as any // Mock SqliteProjectManager
     ) as jest.Mocked<ProjectIdManager>;
 
-    // Create a mock ConfigService for testing
-    const mockConfigService = {
-      get: jest.fn().mockImplementation((key: string) => {
-        if (key === 'logging') {
-          return { level: 'info' };
-        }
-        return undefined;
-      })
-    } as unknown as ConfigService;
-
     embedderFactory = new EmbedderFactory(
       loggerService,
       errorHandlerService,
       embeddingCacheService,
-      mockConfigService
+      testContainer.get<ConfigService>(TYPES.ConfigService)
     ) as jest.Mocked<EmbedderFactory>;
     embeddingCacheService = new EmbeddingCacheService(
       loggerService,
@@ -181,6 +194,56 @@ describe('IndexingLogicService', () => {
     optimizationAdvisor = {
       analyzeAndRecommend: jest.fn().mockResolvedValue(undefined)
     } as any;
+    batchProcessingOptimizer = {
+      executeOptimizedBatch: jest.fn().mockResolvedValue({
+        results: [{
+          success: true,
+          nodesCreated: 1,
+          relationshipsCreated: 1,
+          nodesUpdated: 0,
+          processingTime: 100,
+          errors: []
+        }],
+        batchSize: 1,
+        concurrency: 1,
+        processingTime: 100,
+        throughput: 10
+      }),
+      getCurrentParams: jest.fn().mockReturnValue({ batchSize: 50, concurrency: 3 }),
+      setParams: jest.fn(),
+      getPerformanceHistory: jest.fn().mockResolvedValue([]),
+      getOptimizationRecommendations: jest.fn().mockResolvedValue([]),
+      getPerformanceSummary: jest.fn().mockResolvedValue({
+        currentParams: { batchSize: 50, concurrency: 3 },
+        avgProcessingTime: 100,
+        avgThroughput: 10,
+        avgSuccessRate: 1,
+        recommendations: []
+      }),
+      reset: jest.fn().mockResolvedValue(undefined),
+      destroy: jest.fn().mockResolvedValue(undefined)
+    } as any;
+    nebulaProjectManager = {
+      insertNodesForProject: jest.fn().mockResolvedValue(true),
+      insertRelationshipsForProject: jest.fn().mockResolvedValue(true),
+      createSpaceForProject: jest.fn().mockResolvedValue(true),
+      deleteSpaceForProject: jest.fn().mockResolvedValue(true),
+      getSpaceInfoForProject: jest.fn().mockResolvedValue(null),
+      clearSpaceForProject: jest.fn().mockResolvedValue(true),
+      listProjectSpaces: jest.fn().mockResolvedValue([]),
+      findNodesForProject: jest.fn().mockResolvedValue([]),
+      findRelationshipsForProject: jest.fn().mockResolvedValue([]),
+      createProjectSpace: jest.fn().mockResolvedValue(true),
+      deleteProjectSpace: jest.fn().mockResolvedValue(true),
+      getProjectSpaceInfo: jest.fn().mockResolvedValue(null),
+      clearProjectSpace: jest.fn().mockResolvedValue(true),
+      insertProjectData: jest.fn().mockResolvedValue(true),
+      updateProjectData: jest.fn().mockResolvedValue(true),
+      deleteProjectData: jest.fn().mockResolvedValue(true),
+      searchProjectData: jest.fn().mockResolvedValue([]),
+      getProjectDataById: jest.fn().mockResolvedValue(null),
+      subscribe: jest.fn()
+    } as any;
     treeSitterService = {
       detectLanguage: jest.fn(),
       parseCode: jest.fn()
@@ -188,7 +251,6 @@ describe('IndexingLogicService', () => {
     treeSitterQueryEngine = {
       executeGraphQueries: jest.fn()
     } as any;
-    const batchProcessingOptimizer = {} as any;
     const concurrencyService = {
       processWithConcurrency: jest.fn().mockResolvedValue(undefined)
     } as any;
@@ -197,27 +259,33 @@ describe('IndexingLogicService', () => {
     jest.spyOn(require('fs/promises'), 'readFile').mockResolvedValue('test file content');
     jest.spyOn(require('fs/promises'), 'stat').mockResolvedValue({ size: 1024 } as any);
 
-    // Create service instance using dependency injection approach
-    indexingLogicService = new IndexingLogicService();
-    // Mock the injected properties
-    (indexingLogicService as any).logger = loggerService;
-    (indexingLogicService as any).errorHandler = errorHandlerService;
-    (indexingLogicService as any).fileSystemTraversal = fileSystemTraversal;
-    (indexingLogicService as any).qdrantService = qdrantService;
-    (indexingLogicService as any).nebulaService = nebulaService;
-    (indexingLogicService as any).graphService = graphService;
-    (indexingLogicService as any).graphMappingService = graphMappingService;
-    (indexingLogicService as any).performanceDashboard = performanceDashboard;
-    (indexingLogicService as any).optimizationAdvisor = optimizationAdvisor;
-    (indexingLogicService as any).treeSitterService = treeSitterService;
-    (indexingLogicService as any).treeSitterQueryEngine = treeSitterQueryEngine;
-    (indexingLogicService as any).projectIdManager = projectIdManager;
-    (indexingLogicService as any).embedderFactory = embedderFactory;
-    (indexingLogicService as any).embeddingCacheService = embeddingCacheService;
-    (indexingLogicService as any).performanceOptimizer = performanceOptimizerService;
-    (indexingLogicService as any).astSplitter = astSplitter;
-    (indexingLogicService as any).coordinationService = coordinationService;
-    (indexingLogicService as any).concurrencyService = concurrencyService;
+    // Bind all dependencies to test container
+    testContainer.bind<LoggerService>(TYPES.LoggerService).toConstantValue(loggerService);
+    testContainer.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).toConstantValue(errorHandlerService);
+    testContainer.bind<FileSystemTraversal>(TYPES.FileSystemTraversal).toConstantValue(fileSystemTraversal);
+    testContainer.bind<QdrantService>(TYPES.QdrantService).toConstantValue(qdrantService);
+    testContainer.bind<NebulaClient>(TYPES.NebulaClient).toConstantValue(nebulaService);
+    testContainer.bind<IGraphService>(TYPES.GraphService).toConstantValue(graphService);
+    testContainer.bind<IGraphDataMappingService>(TYPES.GraphDataMappingService).toConstantValue(graphMappingService);
+    testContainer.bind<PerformanceDashboard>(TYPES.PerformanceDashboard).toConstantValue(performanceDashboard);
+    testContainer.bind<AutoOptimizationAdvisor>(TYPES.AutoOptimizationAdvisor).toConstantValue(optimizationAdvisor);
+    testContainer.bind<BatchProcessingOptimizer>(TYPES.BatchProcessingOptimizer).toConstantValue(batchProcessingOptimizer);
+    testContainer.bind<INebulaProjectManager>(TYPES.INebulaProjectManager).toConstantValue(nebulaProjectManager);
+    testContainer.bind<TreeSitterService>(TYPES.TreeSitterService).toConstantValue(treeSitterService);
+    testContainer.bind<TreeSitterQueryEngine>(TYPES.TreeSitterQueryEngine).toConstantValue(treeSitterQueryEngine);
+    testContainer.bind<ProjectIdManager>(TYPES.ProjectIdManager).toConstantValue(projectIdManager);
+    testContainer.bind<EmbedderFactory>(TYPES.EmbedderFactory).toConstantValue(embedderFactory);
+    testContainer.bind<EmbeddingCacheService>(TYPES.EmbeddingCacheService).toConstantValue(embeddingCacheService);
+    testContainer.bind<PerformanceOptimizerService>(TYPES.PerformanceOptimizerService).toConstantValue(performanceOptimizerService);
+    testContainer.bind<ASTCodeSplitter>(TYPES.ASTCodeSplitter).toConstantValue(astSplitter);
+    testContainer.bind<ChunkToVectorCoordinationService>(TYPES.ChunkToVectorCoordinationService).toConstantValue(coordinationService);
+    testContainer.bind<ConcurrencyService>(TYPES.ConcurrencyService).toConstantValue(concurrencyService);
+
+    // Bind IndexingLogicService itself
+    testContainer.bind<IndexingLogicService>(TYPES.IndexingLogicService).to(IndexingLogicService).inSingletonScope();
+
+    // Create service instance using dependency injection
+    indexingLogicService = testContainer.get<IndexingLogicService>(TYPES.IndexingLogicService);
   });
 
   describe('indexProject', () => {
@@ -509,9 +577,13 @@ describe('IndexingLogicService', () => {
 
       // Verify results
       expect(graphMappingService.mapChunksToGraphNodes).toHaveBeenCalledWith(chunks, expect.any(String));
-      expect(graphService.storeChunks).toHaveBeenCalledWith(
+      expect(batchProcessingOptimizer.executeOptimizedBatch).toHaveBeenCalledWith(
         [{ nodes: mappedNodes, relationships: mappedRelationships }],
-        { projectId: 'test_space', useCache: true }
+        expect.any(Function),
+        {
+          strategy: 'balanced',
+          maxLatency: 5000
+        }
       );
       expect(result).toEqual(graphPersistenceResult);
       expect(performanceDashboard.recordMetric).toHaveBeenCalledTimes(1);
@@ -561,8 +633,6 @@ describe('IndexingLogicService', () => {
       graphMappingService.mapToGraph.mockResolvedValue(graphElements);
       (indexingLogicService as any).convertToNebulaNodes = jest.fn().mockReturnValue(nebulaNodes);
       (indexingLogicService as any).convertToNebulaRelationships = jest.fn().mockReturnValue(nebulaRelationships);
-      nebulaService.insertNodes.mockResolvedValue(true as any);
-      nebulaService.insertRelationships.mockResolvedValue(true as any);
 
       // Call the method
       await indexingLogicService.indexFileToGraph(projectPath, filePath);
@@ -572,8 +642,8 @@ describe('IndexingLogicService', () => {
       expect(treeSitterService.parseCode).toHaveBeenCalledWith(fileContent, 'javascript');
       expect(treeSitterQueryEngine.executeGraphQueries).toHaveBeenCalledWith(parseResult.ast, 'javascript');
       expect(graphMappingService.mapToGraph).toHaveBeenCalledWith(filePath, expect.any(Array));
-      expect(nebulaService.insertNodes).toHaveBeenCalledWith(nebulaNodes);
-      expect(nebulaService.insertRelationships).toHaveBeenCalledWith(nebulaRelationships);
+      expect(nebulaProjectManager.insertNodesForProject).toHaveBeenCalledWith(projectPath, nebulaNodes);
+      expect(nebulaProjectManager.insertRelationshipsForProject).toHaveBeenCalledWith(projectPath, nebulaRelationships);
       expect(loggerService.info).toHaveBeenCalled();
     });
 

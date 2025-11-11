@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../../types';
 import { LoggerService } from '../../../utils/LoggerService';
-import { NebulaService } from '../../../database/nebula/NebulaService';
+import { NebulaClient } from '../../../database/nebula/client/NebulaClient';
 import { NebulaQueryBuilder } from '../../../database/nebula/query/NebulaQueryBuilder';
 import { CodeGraphNode, CodeGraphRelationship } from '../core/types';
 
@@ -71,7 +71,7 @@ export class GraphPersistenceUtils {
   }
   constructor(
     @inject(TYPES.LoggerService) private logger: LoggerService,
-    @inject(TYPES.NebulaService) private nebulaService: NebulaService,
+    @inject(TYPES.NebulaClient) private nebulaService: NebulaClient,
     @inject(TYPES.INebulaQueryBuilder) private queryBuilder: NebulaQueryBuilder
   ) { }
 
@@ -294,10 +294,10 @@ export class GraphPersistenceUtils {
         parameters: {}
       };
 
-      const result = await this.nebulaService.executeReadQuery(query.nGQL, query.parameters);
+      const result = await this.nebulaService.executeQuery(query.nGQL, query.parameters);
 
-      if (result && result.success && result.data && result.data.rows) {
-        return result.data.rows.map((row: any) => row.id || row._id);
+      if (result && !result.error && result.data && Array.isArray(result.data)) {
+        return result.data.map((row: any) => row.id || row._id);
       }
 
       return [];
@@ -328,10 +328,10 @@ export class GraphPersistenceUtils {
           parameters: {}
         };
 
-        const result = await this.nebulaService.executeReadQuery(query.nGQL, query.parameters);
+        const result = await this.nebulaService.executeQuery(query.nGQL, query.parameters);
 
-        if (result && result.success && result.data && result.data.rows) {
-          existingIds.push(...result.data.rows.map((row: any) => row.id || row._id));
+        if (result && !result.error && result.data && Array.isArray(result.data)) {
+          existingIds.push(...result.data.map((row: any) => row.id || row._id));
         }
       }
 
@@ -361,10 +361,10 @@ export class GraphPersistenceUtils {
           parameters: {}
         };
 
-        const queryResult = await this.nebulaService.executeReadQuery(query.nGQL, query.parameters);
+        const queryResult = await this.nebulaService.executeQuery(query.nGQL, query.parameters);
 
-        if (queryResult && queryResult.success && queryResult.data && queryResult.data.rows) {
-          result[filePath] = queryResult.data.rows.map((row: any) => row.id || row._id);
+        if (queryResult && !queryResult.error && queryResult.data && Array.isArray(queryResult.data)) {
+          result[filePath] = queryResult.data.map((row: any) => row.id || row._id);
         } else {
           result[filePath] = [];
         }
@@ -428,14 +428,14 @@ export class GraphPersistenceUtils {
   }
 
   async waitForSpaceDeletion(
-    nebulaService: NebulaService,
+    nebulaService: NebulaClient,
     spaceName: string,
     maxRetries: number = 30,
     retryDelay: number = 1000
   ): Promise<void> {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        const spacesResult = await nebulaService.executeReadQuery('SHOW SPACES');
+        const spacesResult = await nebulaService.executeQuery('SHOW SPACES');
         const spaces = spacesResult?.data || [];
         const spaceExists = spaces.some((space: { Name: string } | { name: string }) => {
           const spaceNameValue = 'Name' in space ? space.Name : space.name;
@@ -474,7 +474,7 @@ export class GraphPersistenceUtils {
     throw new Error(`Space ${spaceName} still exists after ${maxRetries} retries`);
   }
 
-  async ensureConstraints(nebulaService: NebulaService, logger: any): Promise<void> {
+  async ensureConstraints(nebulaService: NebulaClient, logger: any): Promise<void> {
     try {
       // 确保唯一性约束
       const constraints = [
@@ -506,14 +506,14 @@ export class GraphPersistenceUtils {
    * 创建索引并带有重试机制和错误处理
    */
   private async createIndexWithRetry(
-    nebulaService: NebulaService,
+    nebulaService: NebulaClient,
     indexQuery: string,
     logger: any,
     maxRetries: number = 3
   ): Promise<void> {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        await nebulaService.executeWriteQuery(indexQuery, {});
+        await nebulaService.executeQuery(indexQuery, {});
         logger.debug(`Successfully created constraint index: ${indexQuery}`);
         return;
       } catch (error) {
@@ -561,7 +561,7 @@ export class GraphPersistenceUtils {
   }
 
   async initializeConnectionMonitoring(
-    nebulaService: NebulaService,
+    nebulaService: NebulaClient,
     performanceMonitor: any
   ): Promise<void> {
     try {
@@ -615,7 +615,7 @@ export class GraphPersistenceUtils {
 
   // Enhanced graph statistics using NebulaQueryBuilder
   async getEnhancedGraphStats(
-    nebulaService: NebulaService,
+    nebulaService: NebulaClient,
     queryBuilder: NebulaQueryBuilder
   ): Promise<{
     nodeCount: number;
@@ -638,11 +638,11 @@ export class GraphPersistenceUtils {
       // 获取当前空间 - 使用公共方法替代直接访问受保护的属性
       let currentSpace: string | undefined;
       try {
-        // 由于NebulaService没有直接暴露获取当前空间的方法，我们需要通过其他方式来实现
+        // 由于NebulaClient没有直接暴露获取当前空间的方法，我们需要通过其他方式来实现
         // 我们可以尝试执行一个查询来确定当前空间是否有效
         if (nebulaService.isConnected()) {
           // 执行一个简单的查询来验证当前空间是否有效
-          const result = await nebulaService.executeReadQuery('SHOW TAGS');
+          const result = await nebulaService.executeQuery('SHOW TAGS');
           if (result && !result.error) {
             // 如果查询成功执行（即使没有结果），说明当前空间是有效的
             // 在实际的NebulaGraph中，我们无法直接获取当前空间名称，所以设置一个占位符
@@ -668,8 +668,8 @@ export class GraphPersistenceUtils {
         };
       }
 
-      const tagResult = await nebulaService.executeReadQuery('SHOW TAGS');
-      const edgeResult = await nebulaService.executeReadQuery('SHOW EDGES');
+      const tagResult = await nebulaService.executeQuery('SHOW TAGS');
+      const edgeResult = await nebulaService.executeQuery('SHOW EDGES');
 
       const nodeTypes: Record<string, number> = {};
       const relationshipTypes: Record<string, number> = {};
@@ -679,7 +679,7 @@ export class GraphPersistenceUtils {
         for (const tag of tagResult) {
           const tagName = tag.Name || tag.name || 'Unknown';
           const countQuery = queryBuilder.buildNodeCountQuery(tagName);
-          const countResult = await nebulaService.executeReadQuery(
+          const countResult = await nebulaService.executeQuery(
             countQuery.query,
             countQuery.params
           );

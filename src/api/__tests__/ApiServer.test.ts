@@ -236,15 +236,15 @@ describe('ApiServer', () => {
     const { ProjectStateManager } = require('../../service/project/ProjectStateManager');
     testContainer.bind(TYPES.ProjectStateManager).toConstantValue(new ProjectStateManager());
     
-    // 绑定NebulaService（使用模拟版本）
-    const mockNebulaService = {
+    // 绑定NebulaClient（使用模拟版本）
+    const mockNebulaClient = {
       isConnected: jest.fn().mockReturnValue(false),
       getDatabaseStats: jest.fn().mockResolvedValue({}),
       initialize: jest.fn().mockResolvedValue(false),
       reconnect: jest.fn().mockResolvedValue(false),
     };
-    testContainer.bind(TYPES.INebulaService).toConstantValue(mockNebulaService);
-    testContainer.bind(TYPES.NebulaService).toConstantValue(mockNebulaService);
+    testContainer.bind(TYPES.INebulaClient).toConstantValue(mockNebulaClient);
+    testContainer.bind(TYPES.NebulaClient).toConstantValue(mockNebulaClient);
     
     // 绑定文件搜索服务
     const mockFileSearchService = {

@@ -3,7 +3,7 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ProjectIdManager } from '../../../database/ProjectIdManager';
 import { QdrantService } from '../../../database/qdrant/QdrantService';
-import { NebulaService } from '../../../database/nebula/NebulaService';
+import { NebulaClient } from '../../../database/nebula/client/NebulaClient';
 import { IndexService } from '../../index/IndexService';
 import { ProjectState, ProjectStats, StorageStatus } from '../ProjectStateManager';
 import { ProjectStateStorageUtils } from '../utils/ProjectStateStorageUtils';
@@ -15,7 +15,7 @@ jest.mock('../../../utils/LoggerService');
 jest.mock('../../../utils/ErrorHandlerService');
 jest.mock('../../../database/ProjectIdManager');
 jest.mock('../../../database/qdrant/QdrantService');
-jest.mock('../../../database/nebula/NebulaService');
+jest.mock('../../../database/nebula/NebulaClient');
 jest.mock('../../index/IndexService');
 jest.mock('../utils/ProjectStateStorageUtils');
 jest.mock('../utils/ProjectStateValidator');
@@ -27,7 +27,7 @@ describe('CoreStateService', () => {
   let errorHandlerService: jest.Mocked<ErrorHandlerService>;
   let projectIdManager: jest.Mocked<ProjectIdManager>;
   let qdrantService: jest.Mocked<QdrantService>;
-  let nebulaService: jest.Mocked<NebulaService>;
+  let nebulaService: jest.Mocked<NebulaClient>;
   let indexService: jest.Mocked<IndexService>;
   let hotReloadConfigService: jest.Mocked<HotReloadConfigService>;
 
@@ -52,11 +52,11 @@ describe('CoreStateService', () => {
     } as unknown as jest.Mocked<QdrantService>;
     nebulaService = {
       deleteSpaceForProject: jest.fn()
-    } as unknown as jest.Mocked<NebulaService>;
+    } as unknown as jest.Mocked<NebulaClient>;
     indexService = {
       getIndexStatus: jest.fn()
     } as unknown as jest.Mocked<IndexService>;
-    
+
     hotReloadConfigService = {
       getGlobalConfig: jest.fn().mockReturnValue({
         enabled: true,

@@ -4,7 +4,8 @@ import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { FileSystemTraversal, FileInfo } from '../filesystem/FileSystemTraversal';
 import { QdrantService } from '../../database/qdrant/QdrantService';
-import { NebulaService } from '../../database/nebula/NebulaService';
+import { NebulaClient } from '../../database/nebula/client/NebulaClient';
+import { INebulaProjectManager } from '../../database/nebula/NebulaProjectManager';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { EmbedderFactory } from '../../embedders/EmbedderFactory';
 import { EmbeddingCacheService } from '../../embedders/EmbeddingCacheService';
@@ -53,11 +54,12 @@ export class IndexingLogicService {
   @inject(TYPES.FileSystemTraversal) private fileSystemTraversal!: FileSystemTraversal;
   @inject(TYPES.QdrantService) private qdrantService!: QdrantService;
   @inject(TYPES.GraphService) private graphService!: IGraphService; // 新增
-  @inject(TYPES.NebulaService) private nebulaService!: NebulaService; // 新增
+  @inject(TYPES.NebulaClient) private nebulaClient!: NebulaClient; // 新增
+  @inject(TYPES.INebulaProjectManager) private nebulaProjectManager!: INebulaProjectManager; // 新增
   @inject(TYPES.GraphDataMappingService) private graphMappingService!: IGraphDataMappingService; // 新增
   @inject(TYPES.PerformanceDashboard) private performanceDashboard!: PerformanceDashboard; // 新增
   @inject(TYPES.AutoOptimizationAdvisor) private optimizationAdvisor!: AutoOptimizationAdvisor; // 暂时禁用
-  // @inject(TYPES.BatchProcessingOptimizer) private batchProcessingOptimizer!: BatchProcessingOptimizer; // 暂时禁用
+  @inject(TYPES.BatchProcessingOptimizer) private batchProcessingOptimizer!: BatchProcessingOptimizer;
   @inject(TYPES.ProjectIdManager) private projectIdManager!: ProjectIdManager;
   @inject(TYPES.EmbedderFactory) private embedderFactory!: EmbedderFactory;
   @inject(TYPES.EmbeddingCacheService) private embeddingCacheService!: EmbeddingCacheService;
@@ -226,7 +228,7 @@ export class IndexingLogicService {
       // 创建文件ID
       const fileId = `file_${Buffer.from(filePath).toString('hex')}`;
 
-      // 简化图数据存储逻辑（暂时禁用批处理优化器）
+      // 使用批处理优化器进行图数据存储
       const mappingResult = await this.graphMappingService.mapChunksToGraphNodes(chunks, fileId);
 
       // 准备图数据
@@ -243,11 +245,22 @@ export class IndexingLogicService {
       }
       const spaceName = this.projectIdManager.getSpaceName(projectId);
 
-      // 存储到图数据库
-      const result = await this.graphService.storeChunks([graphData], {
-        projectId: spaceName,
-        useCache: true
-      });
+      // 使用批处理优化器存储到图数据库
+      const batchResult = await this.batchProcessingOptimizer.executeOptimizedBatch(
+        [graphData],
+        async (batch: any[]) => {
+          return await this.graphService.storeChunks(batch, {
+            projectId: spaceName,
+            useCache: true
+          });
+        },
+        {
+          strategy: 'balanced',
+          maxLatency: 5000 // 5秒最大延迟
+        }
+      );
+
+      const result = batchResult.results[0]; // 获取第一个（也是唯一一个）结果
 
       this.logger.debug('Successfully stored file to graph database', {
         filePath,
@@ -519,11 +532,19 @@ export class IndexingLogicService {
 
       // 插入到图数据库
       if (nebulaNodes.length > 0) {
-        await this.nebulaService.insertNodes(nebulaNodes);
+        // 使用 NebulaProjectManager 插入节点
+        const nodesSuccess = await this.nebulaProjectManager.insertNodesForProject(projectPath, nebulaNodes);
+        if (!nodesSuccess) {
+          throw new Error(`Failed to insert nodes for file: ${filePath}`);
+        }
       }
 
       if (nebulaRelationships.length > 0) {
-        await this.nebulaService.insertRelationships(nebulaRelationships);
+        // 使用 NebulaProjectManager 插入关系
+        const relationshipsSuccess = await this.nebulaProjectManager.insertRelationshipsForProject(projectPath, nebulaRelationships);
+        if (!relationshipsSuccess) {
+          throw new Error(`Failed to insert relationships for file: ${filePath}`);
+        }
       }
 
       this.logger.info(`Successfully indexed file to graph: ${filePath}`, {

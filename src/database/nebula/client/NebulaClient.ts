@@ -458,6 +458,32 @@ export class NebulaClient extends EventEmitter implements INebulaClient {
      };
    }
  }
+
+ /**
+  * 删除项目空间
+  */
+ async deleteSpaceForProject(projectPath: string): Promise<boolean> {
+   try {
+     this.logger.info('Deleting space for project', { projectPath });
+     
+     // 生成空间名称
+     const spaceName = projectPath.startsWith('project_')
+       ? projectPath
+       : `project_${projectPath.replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase()}`;
+     
+     // 执行删除空间的查询
+     await this.execute(`DROP SPACE IF EXISTS ${spaceName}`);
+     
+     this.logger.info('Successfully deleted space for project', { projectPath, spaceName });
+     return true;
+   } catch (error) {
+     this.errorHandler.handleError(
+       error instanceof Error ? error : new Error(String(error)),
+       { component: 'NebulaClient', operation: 'deleteSpaceForProject', projectPath }
+     );
+     return false;
+   }
+ }
 }
 
 // 重新导出接口以保持向后兼容

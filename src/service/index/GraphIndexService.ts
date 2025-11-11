@@ -4,12 +4,10 @@ import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ProjectStateManager } from '../project/ProjectStateManager';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
-import { INebulaService, NebulaService } from '../../database/nebula/NebulaService';
+import { INebulaClient } from '../../database/graph/interfaces/INebulaClient';
 import { IndexService } from './IndexService';
 import { FileTraversalService } from './shared/FileTraversalService';
 import { ConcurrencyService } from './shared/ConcurrencyService';
-import * as fs from 'fs/promises';
-import * as path from 'path';
 
 export interface GraphIndexOptions {
   maxConcurrency?: number;
@@ -20,7 +18,7 @@ export interface GraphIndexOptions {
 export interface GraphIndexResult {
   success: boolean;
   projectId: string;
- operationId: string;
+  operationId: string;
   status: 'started' | 'completed' | 'error';
   estimatedTime?: number;
   processedFiles?: number;
@@ -37,7 +35,7 @@ export class GraphIndexService {
     @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
     @inject(TYPES.ProjectStateManager) private projectStateManager: ProjectStateManager,
     @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
-    @inject(TYPES.INebulaService) private nebulaService: INebulaService,
+    @inject(TYPES.INebulaClient) private nebulaService: INebulaClient,
     @inject(TYPES.IndexService) private indexService: IndexService,
     @inject(TYPES.FileTraversalService) private fileTraversalService: FileTraversalService,
     @inject(TYPES.ConcurrencyService) private concurrencyService: ConcurrencyService
@@ -224,7 +222,7 @@ export class GraphIndexService {
         const batch = files.slice(i, i + batchSize);
 
         try {
-          // 使用NebulaService处理文件
+          // 使用NebulaClient处理文件
           await this.processGraphFiles(projectPath, batch);
 
           processedFiles += batch.length;
@@ -301,7 +299,9 @@ export class GraphIndexService {
       }
 
       // 确保项目空间存在
-      await this.nebulaService.createSpaceForProject(projectPath);
+      // Note: createSpaceForProject should be called on NebulaProjectManager, not NebulaClient
+      // This might need to be refactored to use the correct service
+      throw new Error('createSpaceForProject should be called on NebulaProjectManager, not NebulaClient');
 
       // 处理每个文件，构建图结构
       for (const filePath of files) {

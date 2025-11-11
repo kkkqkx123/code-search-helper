@@ -10,10 +10,11 @@ import { QdrantConfigService } from '../../../config/service/QdrantConfigService
 import { NebulaConfigService } from '../../../config/service/NebulaConfigService';
 import { EmbedderFactory } from '../../../embedders/EmbedderFactory';
 import { EmbeddingCacheService } from '../../../embedders/EmbeddingCacheService';
-import { diContainer } from '../../../core/DIContainer';
 import { TYPES } from '../../../types';
 import { PerformanceOptimizerService } from '../../../infrastructure/batching/PerformanceOptimizerService';
 import { ConfigService } from '../../../config/ConfigService';
+import { Container } from 'inversify';
+import { BatchProcessingService } from '../../../infrastructure/batching/BatchProcessingService';
 import { IQdrantConnectionManager } from '../../../database/qdrant/QdrantConnectionManager';
 import { IQdrantCollectionManager } from '../../../database/qdrant/QdrantCollectionManager';
 import { IQdrantVectorOperations } from '../../../database/qdrant/QdrantVectorOperations';
@@ -145,7 +146,7 @@ describe('IndexService', () => {
     } as unknown as jest.Mocked<PerformanceMonitor>;
 
     qdrantService = new QdrantService(
-      diContainer.get(TYPES.ConfigService),
+      {} as any, // ConfigService - will be mocked
       loggerService,
       errorHandlerService,
       projectIdManager,
@@ -273,25 +274,35 @@ describe('IndexService', () => {
       once: jest.fn()
     } as any;
 
-    indexService = new IndexService(
-      loggerService,
-      errorHandlerService,
-      fileWatcherService,
-      changeDetectionService,
-      {} as any, // ProjectHotReloadService
-      qdrantService,
-      {} as any, // INebulaService
-      projectIdManager,
-      embedderFactory,
-      embeddingCacheService,
-      performanceOptimizerService as unknown as any,
-      astSplitter,
-      coordinationService,
-      indexingLogicService,
-      mockFileTraversalService,
-      mockConcurrencyService,
-      mockIgnoreRuleManager
-    );
+    // Create a test container for IndexService
+    const testContainer = new Container();
+    
+    // Bind all dependencies
+    testContainer.bind<LoggerService>(TYPES.LoggerService).toConstantValue(loggerService);
+    testContainer.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).toConstantValue(errorHandlerService);
+    testContainer.bind<FileWatcherService>(TYPES.FileWatcherService).toConstantValue(fileWatcherService);
+    testContainer.bind<ChangeDetectionService>(TYPES.ChangeDetectionService).toConstantValue(changeDetectionService);
+    testContainer.bind<QdrantService>(TYPES.QdrantService).toConstantValue(qdrantService);
+    testContainer.bind<ProjectIdManager>(TYPES.ProjectIdManager).toConstantValue(projectIdManager);
+    testContainer.bind<EmbedderFactory>(TYPES.EmbedderFactory).toConstantValue(embedderFactory);
+    testContainer.bind<EmbeddingCacheService>(TYPES.EmbeddingCacheService).toConstantValue(embeddingCacheService);
+    testContainer.bind<BatchProcessingService>(TYPES.BatchProcessingService).toConstantValue(performanceOptimizerService as any);
+    testContainer.bind<ASTCodeSplitter>(TYPES.ASTCodeSplitter).toConstantValue(astSplitter);
+    testContainer.bind<ChunkToVectorCoordinationService>(TYPES.ChunkToVectorCoordinationService).toConstantValue(coordinationService);
+    testContainer.bind<IndexingLogicService>(TYPES.IndexingLogicService).toConstantValue(indexingLogicService);
+    testContainer.bind<FileTraversalService>(TYPES.FileTraversalService).toConstantValue(mockFileTraversalService);
+    testContainer.bind<ConcurrencyService>(TYPES.ConcurrencyService).toConstantValue(mockConcurrencyService);
+    testContainer.bind<IgnoreRuleManager>(TYPES.IgnoreRuleManager).toConstantValue(mockIgnoreRuleManager);
+    
+    // Bind missing dependencies
+    testContainer.bind<any>(TYPES.ProjectHotReloadService).toConstantValue({} as any);
+    testContainer.bind<any>(TYPES.INebulaClient).toConstantValue({} as any);
+    
+    // Bind IndexService itself
+    testContainer.bind<IndexService>(TYPES.IndexService).to(IndexService).inSingletonScope();
+    
+    // Create IndexService instance
+    indexService = testContainer.get<IndexService>(TYPES.IndexService);
   });
 
   // 在所有测试完成后清理资源

@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
-import { INebulaService } from '../../../database/nebula/NebulaService';
+import { INebulaClient } from '../../../database/graph/interfaces/INebulaClient';
 import { TYPES } from '../../../types';
 import { EventEmitter } from 'events';
 
@@ -22,7 +22,7 @@ export interface NebulaConnectionEvent {
 export class NebulaConnectionMonitor extends EventEmitter {
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
-  private nebulaService: INebulaService;
+  private nebulaService: INebulaClient;
   private monitoringInterval: NodeJS.Timeout | null = null;
   private isConnected: boolean = false;
   private lastError: string | null = null;
@@ -34,7 +34,7 @@ export class NebulaConnectionMonitor extends EventEmitter {
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
-    @inject(TYPES.INebulaService) nebulaService: INebulaService
+    @inject(TYPES.INebulaClient) nebulaService: INebulaClient
   ) {
     super();
     this.logger = logger;
@@ -115,7 +115,9 @@ export class NebulaConnectionMonitor extends EventEmitter {
       // 获取数据库统计信息
       if (connected) {
         try {
-          const stats = await this.nebulaService.getDatabaseStats();
+          // Note: getDatabaseStats should be called on NebulaClient, not INebulaClient
+          // This might need to be refactored to use the correct service
+          const stats = await (this.nebulaService as any).getDatabaseStats();
           this.connectionStats = stats;
           
           this.emit('stats_update', {

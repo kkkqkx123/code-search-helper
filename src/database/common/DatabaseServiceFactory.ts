@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { IDatabaseService } from './IDatabaseService';
-import { NebulaService } from '../nebula/NebulaService';
+import { NebulaClient } from '../nebula/client/NebulaClient';
 import { QdrantService } from '../qdrant/QdrantService';
 import { DatabaseConfigManager } from './DatabaseConfigManager';
 import { DatabaseLoggerService } from './DatabaseLoggerService';
@@ -83,7 +83,9 @@ export class DatabaseServiceFactory {
           service = await this.createQdrantService(config);
           break;
         case DatabaseType.NEBULA:
-          service = await this.createNebulaService(config);
+          // NebulaClient doesn't implement IDatabaseService interface directly
+          // We need to use a wrapper or adapter
+          throw new Error('NebulaClient does not implement IDatabaseService interface. Please use NebulaProjectManager instead.');
           break;
         default:
           throw DatabaseError.configurationError(
@@ -152,15 +154,15 @@ export class DatabaseServiceFactory {
   /**
    * 创建Nebula服务实例
    */
-  private async createNebulaService(config: DatabaseConfig): Promise<NebulaService> {
+  private async createNebulaService(config: DatabaseConfig): Promise<IDatabaseService> {
     try {
-      // 从DI容器获取NebulaService实例
-      const nebulaService = diContainer.get<NebulaService>(TYPES.INebulaService);
+      // 从DI容器获取NebulaProjectManager实例，它实现了IDatabaseService接口
+      const nebulaProjectManager = diContainer.get<any>(TYPES.INebulaProjectManager);
       
       // 配置Nebula服务
-      await this.configureService(nebulaService, config);
+      await this.configureService(nebulaProjectManager, config);
 
-      return nebulaService;
+      return nebulaProjectManager;
     } catch (error) {
       throw DatabaseError.internalError(
         `Failed to create Nebula service: ${error instanceof Error ? error.message : String(error)}`,

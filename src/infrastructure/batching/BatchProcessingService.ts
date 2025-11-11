@@ -5,6 +5,7 @@ import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
 import { DatabaseType } from '../types';
 import { IMemoryMonitorService } from '../../service/memory/interfaces/IMemoryMonitorService';
+import { NebulaBatchStrategy } from './strategies/NebulaBatchStrategy';
 
 // 导入相关类型
 import {
@@ -228,6 +229,32 @@ export class BatchProcessingService implements IBatchProcessingService {
     let failedOperations = 0;
 
     try {
+      // 如果是 Nebula 数据库，应用特定的配置
+      let processingOptions: BatchProcessingOptions = {
+        batchSize,
+        context,
+        enableRetry: true,
+        enableMonitoring: true
+      };
+
+      if (databaseType === DatabaseType.NEBULA) {
+        const nebulaStrategy = this.strategyFactory.getStrategy(context) as NebulaBatchStrategy;
+        const nebulaConfig = nebulaStrategy.getNebulaSpecificConfig(context);
+        
+        // 应用 Nebula 特定配置
+        processingOptions = {
+          ...processingOptions,
+          maxConcurrency: nebulaConfig.maxConcurrentTransactions,
+          timeout: nebulaConfig.transactionTimeout
+        };
+
+        this.logger.debug('Applied Nebula-specific configuration', {
+          databaseType,
+          nebulaConfig,
+          operationCount: operations.length
+        });
+      }
+
       const batchResults = await this.processBatches(
         operations,
         async (batch) => {
@@ -237,12 +264,7 @@ export class BatchProcessingService implements IBatchProcessingService {
           successfulOperations += batch.length;
           return batchResult;
         },
-        {
-          batchSize,
-          context,
-          enableRetry: true,
-          enableMonitoring: true
-        }
+        processingOptions
       );
 
       results.push(...batchResults.flat());
