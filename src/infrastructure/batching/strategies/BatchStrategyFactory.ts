@@ -5,6 +5,7 @@ import { IBatchStrategy, IBatchStrategyFactory, BatchContext } from '../types';
 import { SemanticBatchStrategy } from './SemanticBatchStrategy';
 import { QdrantBatchStrategy } from './QdrantBatchStrategy';
 import { NebulaBatchStrategy } from './NebulaBatchStrategy';
+import { GraphBatchStrategy } from './GraphBatchStrategy';
 import { EmbeddingBatchStrategy } from './EmbeddingBatchStrategy';
 
 /**
@@ -20,6 +21,7 @@ export class BatchStrategyFactory implements IBatchStrategyFactory {
     @inject(TYPES.SemanticBatchStrategy) private semanticStrategy: SemanticBatchStrategy,
     @inject(TYPES.QdrantBatchStrategy) private qdrantStrategy: QdrantBatchStrategy,
     @inject(TYPES.NebulaBatchStrategy) private nebulaStrategy: NebulaBatchStrategy,
+    @inject(TYPES.GraphBatchStrategy) private graphStrategy: GraphBatchStrategy,
     @inject(TYPES.EmbeddingBatchStrategy) private embeddingStrategy: EmbeddingBatchStrategy
   ) {
     this.initializeStrategies();
@@ -35,6 +37,7 @@ export class BatchStrategyFactory implements IBatchStrategyFactory {
     // 注册数据库策略
     this.registerStrategy('database', 'qdrant', this.qdrantStrategy);
     this.registerStrategy('database', 'nebula', this.nebulaStrategy);
+    this.registerStrategy('database', 'graph', this.graphStrategy);
     
     // 注册嵌入器策略
     this.registerStrategy('embedding', 'api', this.embeddingStrategy);

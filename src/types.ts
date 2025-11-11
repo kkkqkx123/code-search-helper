@@ -152,6 +152,7 @@ export const TYPES = {
   GraphQueryBuilder: Symbol.for('GraphQueryBuilder'),
   IGraphQueryBuilder: Symbol.for('IGraphQueryBuilder'),
   GraphPerformanceMonitor: Symbol.for('GraphPerformanceMonitor'),
+  GraphIndexPerformanceMonitor: Symbol.for('GraphIndexPerformanceMonitor'),
   GraphBatchOptimizer: Symbol.for('GraphBatchOptimizer'),
   GraphPersistenceUtils: Symbol.for('GraphPersistenceUtils'),
   GraphQueryValidator: Symbol.for('GraphQueryValidator'),
@@ -374,5 +375,6 @@ export const TYPES = {
   SemanticBatchStrategy: Symbol.for('SemanticBatchStrategy'),
   QdrantBatchStrategy: Symbol.for('QdrantBatchStrategy'),
   NebulaBatchStrategy: Symbol.for('NebulaBatchStrategy'),
+  GraphBatchStrategy: Symbol.for('GraphBatchStrategy'),
   EmbeddingBatchStrategy: Symbol.for('EmbeddingBatchStrategy'),
 };

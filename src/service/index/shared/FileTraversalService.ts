@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../../types';
 import { LoggerService } from '../../../utils/LoggerService';
-import { FileSystemTraversal, FileInfo } from '../../filesystem/FileSystemTraversal';
+import { FileSystemTraversal } from '../../filesystem/FileSystemTraversal';
 import { CacheService } from '../../../infrastructure/caching/CacheService';
 import * as path from 'path';
 
@@ -19,7 +19,7 @@ export class FileTraversalService {
     @inject(TYPES.LoggerService) private logger: LoggerService,
     @inject(TYPES.FileSystemTraversal) private fileSystemTraversal: FileSystemTraversal,
     @inject(TYPES.CacheService) private cacheService: CacheService
-  ) {}
+  ) { }
 
   /**
    * 获取项目中的所有文件
