@@ -99,8 +99,8 @@ const mockPerformanceMonitor = {
   resetMetrics: jest.fn(),
   registerMetrics: jest.fn(),
   getHealthStatus: jest.fn(),
-  recordNebulaOperation: jest.fn(),
-  recordVectorOperation: jest.fn(),
+  
+  
 };
 
 const mockPerformanceOptimizer = {

@@ -154,7 +154,8 @@ export class GraphDatabaseService implements IGraphDatabaseService {
     try {
       const result = await this.batchOptimizer.executeWithRetry(
         () => this.nebulaClient.execute(query, parameters),
-        'executeReadQuery'
+        'executeReadQuery',
+        { maxAttempts: this.config.maxRetries, baseDelay: this.config.retryDelay }
       );
 
       // Cache the result
@@ -195,7 +196,8 @@ export class GraphDatabaseService implements IGraphDatabaseService {
     try {
       const result = await this.performanceOptimizer.executeWithRetry(
         () => this.nebulaClient.execute(query, parameters),
-        'executeWriteQuery'
+        'executeWriteQuery',
+        { maxAttempts: this.config.maxRetries, baseDelay: this.config.retryDelay }
       );
 
       const executionTime = Date.now() - startTime;

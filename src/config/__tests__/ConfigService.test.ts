@@ -196,7 +196,6 @@ describe('ConfigService', () => {
       mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
       mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
       mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
-      mockContainer.get({ name: 'SimilarityConfigService' }) as any,
     );
   });
 
@@ -289,21 +288,20 @@ describe('ConfigService', () => {
 
       // 重新创建实例以使用新的配置
       const newConfigService = new ConfigService(
-        mockContainer.get({ name: 'EnvironmentConfigService' }) as any,
-        mockContainer.get({ name: 'QdrantConfigService' }) as any,
-        mockContainer.get({ name: 'EmbeddingConfigService' }) as any,
-        mockContainer.get({ name: 'LoggingConfigService' }) as any,
-        mockContainer.get({ name: 'MonitoringConfigService' }) as any,
-        mockContainer.get({ name: 'MemoryMonitorConfigService' }) as any,
-        mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
-        mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
-        mockContainer.get({ name: 'ProjectConfigService' }) as any,
-        mockContainer.get({ name: 'IndexingConfigService' }) as any,
-        mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
-        mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
-        mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
-        mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
-        mockContainer.get({ name: 'SimilarityConfigService' }) as any,
+      mockContainer.get({ name: 'EnvironmentConfigService' }) as any,
+      mockContainer.get({ name: 'QdrantConfigService' }) as any,
+      mockContainer.get({ name: 'EmbeddingConfigService' }) as any,
+      mockContainer.get({ name: 'LoggingConfigService' }) as any,
+      mockContainer.get({ name: 'MonitoringConfigService' }) as any,
+      mockContainer.get({ name: 'MemoryMonitorConfigService' }) as any,
+      mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
+      mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
+      mockContainer.get({ name: 'ProjectConfigService' }) as any,
+      mockContainer.get({ name: 'IndexingConfigService' }) as any,
+      mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
+      mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
+      mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
+      mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
       );
       await newConfigService.initialize();
       const config = newConfigService.getAll();
@@ -338,21 +336,20 @@ describe('ConfigService', () => {
       });
 
       const newConfigService = new ConfigService(
-        mockContainer.get({ name: 'EnvironmentConfigService' }) as any,
-        mockContainer.get({ name: 'QdrantConfigService' }) as any,
-        mockContainer.get({ name: 'EmbeddingConfigService' }) as any,
-        mockContainer.get({ name: 'LoggingConfigService' }) as any,
-        mockContainer.get({ name: 'MonitoringConfigService' }) as any,
-        mockContainer.get({ name: 'MemoryMonitorConfigService' }) as any,
-        mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
-        mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
-        mockContainer.get({ name: 'ProjectConfigService' }) as any,
-        mockContainer.get({ name: 'IndexingConfigService' }) as any,
-        mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
-        mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
-        mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
-        mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
-        mockContainer.get({ name: 'SimilarityConfigService' }) as any,
+      mockContainer.get({ name: 'EnvironmentConfigService' }) as any,
+      mockContainer.get({ name: 'QdrantConfigService' }) as any,
+      mockContainer.get({ name: 'EmbeddingConfigService' }) as any,
+      mockContainer.get({ name: 'LoggingConfigService' }) as any,
+      mockContainer.get({ name: 'MonitoringConfigService' }) as any,
+      mockContainer.get({ name: 'MemoryMonitorConfigService' }) as any,
+      mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
+      mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
+      mockContainer.get({ name: 'ProjectConfigService' }) as any,
+      mockContainer.get({ name: 'IndexingConfigService' }) as any,
+      mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
+      mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
+      mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
+      mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
       );
 
       // 现在initialize()方法应该抛出错误，因为getConfig()会抛出错误
@@ -487,7 +484,6 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
         mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
         mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
-          mockContainer.get({ name: 'SimilarityConfigService' }) as any,
         );
       await newConfigService.initialize();
       const embeddingConfig = newConfigService.get('embedding');
@@ -534,8 +530,7 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
         mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
         mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
-          mockContainer.get({ name: 'SimilarityConfigService' }) as any,
-      );
+        );
       await newConfigService.initialize();
       const embeddingConfig = newConfigService.get('embedding');
 
@@ -582,8 +577,7 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
         mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
         mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
-          mockContainer.get({ name: 'SimilarityConfigService' }) as any,
-      );
+        );
       await newConfigService.initialize();
       const embeddingConfig = newConfigService.get('embedding');
 
@@ -639,8 +633,7 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
         mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
         mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
-          mockContainer.get({ name: 'SimilarityConfigService' }) as any,
-      );
+        );
 
       await newConfigService.initialize();
       const batchConfig = newConfigService.get('batchProcessing');

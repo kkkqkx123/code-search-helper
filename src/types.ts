@@ -34,6 +34,7 @@ export const TYPES = {
   EventToLogBridge: Symbol.for('EventToLogBridge'),
   PerformanceMonitor: Symbol.for('PerformanceMonitor'),
   DatabasePerformanceMonitor: Symbol.for('DatabasePerformanceMonitor'),
+  VectorPerformanceMonitor: Symbol.for('VectorPerformanceMonitor'),
 
   // 4. Qdrant 服务模块
   QdrantService: Symbol.for('QdrantService'),
@@ -300,6 +301,7 @@ export const TYPES = {
   ChunkFilter: Symbol.for('ChunkFilter'),
   ChunkRebalancer: Symbol.for('ChunkRebalancer'),
   ChunkMerger: Symbol.for('ChunkMerger'),
+  ContentQualityEvaluator: Symbol.for('ContentQualityEvaluator'),
 
   // 37. 优化的降级处理相关服务
   OptimizedProcessingGuard: Symbol.for('OptimizedProcessingGuard'),

@@ -134,41 +134,9 @@ export interface IPerformanceMonitor {
   getMetrics(): PerformanceMetrics;
   resetMetrics(): void;
 
-  // 扩展接口以支持多数据库类型
-  recordNebulaOperation(
-    operation: string,
-    spaceName: string,
-    duration: number,
-    success: boolean
-  ): Promise<void>;
-
-  recordVectorOperation(
-    operation: 'insert' | 'search' | 'update' | 'delete',
-    collectionName: string,
-    vectorCount: number,
-    dimension: number,
-    duration: number,
-    success: boolean
-  ): Promise<void>;
-
   // 新增解析和标准化操作监控
   startOperation(operationType: string, metadata?: Record<string, any>): string;
   endOperation(operationId: string, result?: Partial<OperationResult>): void;
-  recordParsingOperation(metric: ParsingOperationMetric): Promise<void>;
-  recordNormalizationOperation(metric: NormalizationOperationMetric): Promise<void>;
-  recordChunkingOperation(metric: ChunkingOperationMetric): Promise<void>;
-  getOperationMetrics(): {
-    parsing: ParsingOperationMetric[];
-    normalization: NormalizationOperationMetric[];
-    chunking: ChunkingOperationMetric[];
-  };
-  getOperationStats(): {
-    totalOperations: number;
-    successRate: number;
-    averageDuration: number;
-    operationsByType: Record<string, number>;
-    operationsByLanguage: Record<string, number>;
-  };
 }
 
 export interface MetricsCollector {

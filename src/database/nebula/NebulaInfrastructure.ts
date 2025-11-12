@@ -9,6 +9,7 @@ import { IHealthChecker } from '../../infrastructure/monitoring/types';
 import { BatchProcessingService } from '../../infrastructure/batching/BatchProcessingService';
 import { CacheService } from '../../infrastructure/caching/CacheService';
 import { PerformanceMonitor } from '../../infrastructure/monitoring/PerformanceMonitor';
+import { DatabasePerformanceMonitor } from '../../service/monitoring/DatabasePerformanceMonitor';
 import { DatabaseHealthChecker } from '../../service/monitoring/DatabaseHealthChecker';
 import { GraphOperation, BatchResult } from '../../infrastructure/batching/types';
 
@@ -18,7 +19,7 @@ export class NebulaInfrastructure implements IDatabaseInfrastructure {
 
   private logger: LoggerService;
   private cacheService: ICacheService;
-  private performanceMonitor: IPerformanceMonitor;
+  private performanceMonitor: DatabasePerformanceMonitor;
   private batchOptimizer: BatchProcessingService;
   private healthChecker: IHealthChecker;
   private initialized = false;
@@ -26,7 +27,7 @@ export class NebulaInfrastructure implements IDatabaseInfrastructure {
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.CacheService) cacheService: CacheService,
-    @inject(TYPES.PerformanceMonitor) performanceMonitor: IPerformanceMonitor,
+    @inject(TYPES.DatabasePerformanceMonitor) performanceMonitor: DatabasePerformanceMonitor,
     @inject(TYPES.BatchProcessingService) batchOptimizer: BatchProcessingService,
     @inject(TYPES.HealthChecker) healthChecker: DatabaseHealthChecker
   ) {
@@ -44,7 +45,7 @@ export class NebulaInfrastructure implements IDatabaseInfrastructure {
     return this.cacheService;
   }
 
-  getPerformanceMonitor(): IPerformanceMonitor {
+  getPerformanceMonitor(): DatabasePerformanceMonitor {
     this.ensureInitialized();
     return this.performanceMonitor;
   }

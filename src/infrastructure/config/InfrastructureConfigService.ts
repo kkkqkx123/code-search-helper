@@ -4,8 +4,6 @@ import { LoggerService } from '../../utils/LoggerService';
 import { ConfigService } from '../../config/ConfigService';
 import { DatabaseType } from '../types';
 import { ConfigValidationUtil } from './ConfigValidator';
-import { BaseConfigTemplate } from './BaseServiceConfig';
-import { CommonConfig } from './types';
 import { InfrastructureConfig } from './InfrastructureConfigTypes';
 
 /**
@@ -85,13 +83,13 @@ export class InfrastructureConfigService {
           databaseSpecific: {}
         },
         performance: {
-          monitoringInterval: EnvUtils.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_INTERVAL', 1000),
-          metricsRetentionPeriod: EnvUtils.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_RETENTION', 8640000),
+          monitoringInterval: EnvUtils.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_INTERVAL', 30000),
+          metricsRetentionPeriod: EnvUtils.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_RETENTION', 86400000),
           enableDetailedLogging: EnvUtils.getEnvBooleanValue('INFRA_QDRANT_PERFORMANCE_LOGGING_ENABLED', true),
           performanceThresholds: {
-            queryExecutionTime: EnvUtils.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_QUERY_TIMEOUT', 1000),
+            queryExecutionTime: EnvUtils.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_QUERY_TIMEOUT', 5000),
             memoryUsage: EnvUtils.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_MEMORY_THRESHOLD', 80),
-            responseTime: EnvUtils.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_RESPONSE_THRESHOLD', 50)
+            responseTime: EnvUtils.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_RESPONSE_THRESHOLD', 500)
           },
           databaseSpecific: {}
         },
@@ -275,11 +273,11 @@ export class InfrastructureConfigService {
         performance: {
           monitoringInterval: 30000,
           metricsRetentionPeriod: 86400000,
-          enableDetailedLogging: false,
+          enableDetailedLogging: true,
           performanceThresholds: {
-            queryExecutionTime: 1000,
+            queryExecutionTime: 5000,
             memoryUsage: 80,
-            responseTime: 500
+            responseTime: 2000
           },
           databaseSpecific: {}
         },
@@ -584,11 +582,11 @@ export class InfrastructureConfigService {
    */
   validateGraphConfiguration(): void {
     const nebulaConfig = this.getDatabaseConfig(DatabaseType.NEBULA);
-    
+
     if (!this.isGraphEnabled()) {
       throw new Error('Graph indexing is disabled via NEBULA_ENABLED environment variable');
     }
-    
+
     // 验证必要的图配置
     if (!nebulaConfig.graph) {
       throw new Error('Graph configuration is missing');
@@ -608,5 +606,5 @@ export class InfrastructureConfigService {
   getGraphConfiguration(): any {
     return this.getDatabaseConfig(DatabaseType.NEBULA).graph;
   }
-  
+
 }

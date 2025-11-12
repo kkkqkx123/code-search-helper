@@ -2,12 +2,15 @@ import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { IPerformanceMonitor, PerformanceMetrics, OperationContext, OperationResult, ParsingOperationMetric, NormalizationOperationMetric, ChunkingOperationMetric } from './types';
+import { InfrastructureConfigService } from '../config/InfrastructureConfigService';
+import { DatabaseType } from '../types';
 
 @injectable()
 export class PerformanceMonitor implements IPerformanceMonitor {
   private logger: LoggerService;
+  private configService: InfrastructureConfigService;
   private metrics: PerformanceMetrics;
- private monitoringInterval: NodeJS.Timeout | null = null;
+  private monitoringInterval: NodeJS.Timeout | null = null;
   private queryExecutionTimes: number[] = [];
   private cacheHits: number = 0;
   private cacheMisses: number = 0;
@@ -17,11 +20,55 @@ export class PerformanceMonitor implements IPerformanceMonitor {
   // 通用操作监控相关属性
   private operationContexts: Map<string, OperationContext> = new Map();
 
+  // 配置值缓存
+  private monitoringIntervalMs: number = 30000;
+  private queryExecutionTimeThreshold: number = 5000;
+  private memoryUsageThreshold: number = 80;
+  private responseTimeThreshold: number = 2000;
+  private enableDetailedLogging: boolean = true;
+
   constructor(
-    @inject(TYPES.LoggerService) logger: LoggerService
+    @inject(TYPES.LoggerService) logger: LoggerService,
+    @inject(TYPES.InfrastructureConfigService) configService: InfrastructureConfigService
   ) {
     this.logger = logger;
+    this.configService = configService;
     this.metrics = this.initializeMetrics();
+    this.loadConfiguration();
+  }
+
+  /**
+   * 从配置服务加载性能配置
+   */
+  private loadConfiguration(): void {
+    try {
+      const config = this.configService.getConfig();
+
+      // 加载 Qdrant 配置（使用 Qdrant 配置作为主要来源）
+      if (config.qdrant && config.qdrant.performance) {
+        const perfConfig = config.qdrant.performance;
+        this.monitoringIntervalMs = perfConfig.monitoringInterval || 30000;
+        this.enableDetailedLogging = perfConfig.enableDetailedLogging !== false;
+
+        if (perfConfig.performanceThresholds) {
+          this.queryExecutionTimeThreshold = perfConfig.performanceThresholds.queryExecutionTime || 5000;
+          this.memoryUsageThreshold = perfConfig.performanceThresholds.memoryUsage || 80;
+          this.responseTimeThreshold = perfConfig.performanceThresholds.responseTime || 2000;
+        }
+      }
+
+      this.logger.info('Performance monitor configuration loaded', {
+        monitoringIntervalMs: this.monitoringIntervalMs,
+        queryExecutionTimeThreshold: this.queryExecutionTimeThreshold,
+        memoryUsageThreshold: this.memoryUsageThreshold,
+        responseTimeThreshold: this.responseTimeThreshold,
+        enableDetailedLogging: this.enableDetailedLogging
+      });
+    } catch (error) {
+      this.logger.warn('Failed to load performance configuration, using defaults', {
+        error: (error as Error).message
+      });
+    }
   }
 
   private initializeMetrics(): PerformanceMetrics {
@@ -44,18 +91,21 @@ export class PerformanceMonitor implements IPerformanceMonitor {
     };
   }
 
-  startPeriodicMonitoring(intervalMs: number = 30000): void {
+  startPeriodicMonitoring(intervalMs?: number): void {
     if (this.monitoringInterval) {
       this.logger.warn('Performance monitoring is already running');
       return;
     }
 
-    this.logger.info('Starting periodic performance monitoring', { intervalMs });
+    // 使用提供的间隔或从配置加载的间隔
+    const interval = intervalMs || this.monitoringIntervalMs;
+
+    this.logger.info('Starting periodic performance monitoring', { intervalMs: interval });
 
     this.monitoringInterval = setInterval(() => {
       this.collectSystemMetrics();
       this.logMetricsSummary();
-    }, intervalMs);
+    }, interval);
 
     // Ensure interval doesn't prevent Node.js from exiting
     if (this.monitoringInterval.unref) {
@@ -107,7 +157,7 @@ export class PerformanceMonitor implements IPerformanceMonitor {
     this.batchSizes.push(batchSize);
 
     // Keep only the last 100 batch sizes
-    if (this.batchSizes.length > 10) {
+    if (this.batchSizes.length > 100) {
       this.batchSizes = this.batchSizes.slice(-100);
     }
 
@@ -187,6 +237,10 @@ export class PerformanceMonitor implements IPerformanceMonitor {
   }
 
   private logMetricsSummary(): void {
+    if (!this.enableDetailedLogging) {
+      return;
+    }
+
     const metrics = this.getMetrics();
 
     this.logger.info('Performance metrics summary', {
@@ -201,16 +255,18 @@ export class PerformanceMonitor implements IPerformanceMonitor {
       },
     });
 
-    // Log warnings for potential issues
-    if (metrics.memoryUsage.percentage > 80) {
+    // Log warnings for potential issues using configured thresholds
+    if (metrics.memoryUsage.percentage > this.memoryUsageThreshold) {
       this.logger.warn('High memory usage detected', {
         percentage: metrics.memoryUsage.percentage,
+        threshold: this.memoryUsageThreshold,
       });
     }
 
-    if (metrics.averageQueryTime > 1000) {
+    if (metrics.averageQueryTime > this.queryExecutionTimeThreshold) {
       this.logger.warn('High average query time detected', {
         averageQueryTime: metrics.averageQueryTime,
+        threshold: this.queryExecutionTimeThreshold,
       });
     }
 
@@ -248,7 +304,7 @@ export class PerformanceMonitor implements IPerformanceMonitor {
     };
   }
 
-  // 保留通用操作监控功能
+  // 通用操作监控功能
   startOperation(operationType: string, metadata?: Record<string, any>): string {
     const operationId = `${operationType}_${Date.now()}_${Math.random()}`;
     const context: OperationContext = {
@@ -264,7 +320,7 @@ export class PerformanceMonitor implements IPerformanceMonitor {
     return operationId;
   }
 
- endOperation(operationId: string, result?: Partial<OperationResult>): void {
+  endOperation(operationId: string, result?: Partial<OperationResult>): void {
     const context = this.operationContexts.get(operationId);
     if (!context) {
       this.logger.warn('Attempted to end non-existent operation', { operationId });
@@ -287,65 +343,5 @@ export class PerformanceMonitor implements IPerformanceMonitor {
     // 可以根据需要记录到特定的指标数组
   }
 
-  // 以下是数据库特定的方法，需要从接口中移除或提供空实现
-  // 为了保持接口兼容性，提供空实现
-  async recordNebulaOperation(
-    operation: string,
-    spaceName: string,
-    duration: number,
-    success: boolean
-  ): Promise<void> {
-    // 空实现，数据库特定逻辑已移至DatabasePerformanceMonitor
-  }
-
-  async recordVectorOperation(
-    operation: 'insert' | 'search' | 'update' | 'delete',
-    collectionName: string,
-    vectorCount: number,
-    dimension: number,
-    duration: number,
-    success: boolean
-  ): Promise<void> {
-    // 空实现，数据库特定逻辑已移至DatabasePerformanceMonitor
-  }
-
-  async recordParsingOperation(metric: ParsingOperationMetric): Promise<void> {
-    // 空实现，解析操作已移至专门的监控器
-  }
-
-  async recordNormalizationOperation(metric: NormalizationOperationMetric): Promise<void> {
-    // 空实现，标准化操作已移至专门的监控器
-  }
-
-  async recordChunkingOperation(metric: ChunkingOperationMetric): Promise<void> {
-    // 空实现，分段操作已移至专门的监控器
-  }
-
-  getOperationMetrics(): {
-    parsing: ParsingOperationMetric[];
-    normalization: NormalizationOperationMetric[];
-    chunking: ChunkingOperationMetric[];
-  } {
-    return {
-      parsing: [],
-      normalization: [],
-      chunking: []
-    };
-  }
-
-  getOperationStats(): {
-    totalOperations: number;
-    successRate: number;
-    averageDuration: number;
-    operationsByType: Record<string, number>;
-    operationsByLanguage: Record<string, number>;
-  } {
-    return {
-      totalOperations: 0,
-      successRate: 0,
-      averageDuration: 0,
-      operationsByType: {},
-      operationsByLanguage: {}
-    };
-  }
+  
 }

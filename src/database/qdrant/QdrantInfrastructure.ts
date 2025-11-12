@@ -8,7 +8,9 @@ import { IPerformanceMonitor } from '../../infrastructure/monitoring/types';
 import { IHealthChecker } from '../../infrastructure/monitoring/types';
 import { BatchProcessingService } from '../../infrastructure/batching/BatchProcessingService';
 import { CacheService } from '../../infrastructure/caching/CacheService';
+import { VectorPerformanceMonitor } from '../../service/monitoring/VectorPerformanceMonitor';
 import { DatabaseHealthChecker } from '../../service/monitoring/DatabaseHealthChecker';
+import { InfrastructureConfigService } from '../../infrastructure/config/InfrastructureConfigService';
 
 @injectable()
 export class QdrantInfrastructure implements IDatabaseInfrastructure {
@@ -16,23 +18,26 @@ export class QdrantInfrastructure implements IDatabaseInfrastructure {
 
   private logger: LoggerService;
   private cacheService: ICacheService;
-  private performanceMonitor: IPerformanceMonitor;
+  private performanceMonitor: VectorPerformanceMonitor;
   private batchOptimizer: BatchProcessingService;
   private healthChecker: IHealthChecker;
+  private configService: InfrastructureConfigService;
   private initialized = false;
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.CacheService) cacheService: CacheService,
-    @inject(TYPES.PerformanceMonitor) performanceMonitor: IPerformanceMonitor,
+    @inject(TYPES.VectorPerformanceMonitor) performanceMonitor: VectorPerformanceMonitor,
     @inject(TYPES.BatchProcessingService) batchOptimizer: BatchProcessingService,
-    @inject(TYPES.HealthChecker) healthChecker: DatabaseHealthChecker
+    @inject(TYPES.HealthChecker) healthChecker: DatabaseHealthChecker,
+    @inject(TYPES.InfrastructureConfigService) configService: InfrastructureConfigService
   ) {
     this.logger = logger;
     this.cacheService = cacheService;
     this.performanceMonitor = performanceMonitor;
     this.batchOptimizer = batchOptimizer;
     this.healthChecker = healthChecker;
+    this.configService = configService;
 
     this.logger.info('Qdrant infrastructure created');
   }
@@ -42,7 +47,7 @@ export class QdrantInfrastructure implements IDatabaseInfrastructure {
     return this.cacheService;
   }
 
-  getPerformanceMonitor(): IPerformanceMonitor {
+  getPerformanceMonitor(): VectorPerformanceMonitor {
     this.ensureInitialized();
     return this.performanceMonitor;
   }
@@ -66,14 +71,20 @@ export class QdrantInfrastructure implements IDatabaseInfrastructure {
     this.logger.info('Initializing Qdrant infrastructure');
 
     try {
+      // 从配置获取监控间隔，或使用默认值
+      const config = this.configService.getConfig();
+      const monitoringInterval = config.qdrant?.performance?.monitoringInterval || 30000;
+      
       // 启动性能监控
-      this.performanceMonitor.startPeriodicMonitoring(30000);
+      this.performanceMonitor.startPeriodicMonitoring(monitoringInterval);
 
       // 执行健康检查
       await this.healthChecker.checkHealth();
 
       this.initialized = true;
-      this.logger.info('Qdrant infrastructure initialized successfully');
+      this.logger.info('Qdrant infrastructure initialized successfully', {
+        monitoringInterval
+      });
     } catch (error) {
       this.logger.error('Failed to initialize Qdrant infrastructure', {
         error: (error as Error).message

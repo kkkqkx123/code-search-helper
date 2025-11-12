@@ -165,8 +165,8 @@ describe('Database and Embedders Integration', () => {
     } as unknown as jest.Mocked<PerformanceMonitor>;
 
 
-    cacheService = new EmbeddingCacheService(logger, errorHandler, {} as any);
-    embedderFactory = new EmbedderFactory(logger, errorHandler, cacheService, mockConfigService);
+    cacheService = new EmbeddingCacheService(logger, errorHandler);
+    embedderFactory = new EmbedderFactory(logger, errorHandler, cacheService);
     qdrantService = new QdrantService(
       mockConfigService,
       logger,

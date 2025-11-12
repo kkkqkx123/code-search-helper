@@ -131,10 +131,10 @@ describe('EmbedderFactory', () => {
     
     logger = new LoggerService();
     errorHandler = new ErrorHandlerService(logger);
-    cacheService = new EmbeddingCacheService(logger, errorHandler, {} as any);
+    cacheService = new EmbeddingCacheService(logger, errorHandler);
     
     // Create EmbedderFactory instance
-    embedderFactory = new EmbedderFactory(logger, errorHandler, cacheService, mockConfigService);
+    embedderFactory = new EmbedderFactory(logger, errorHandler, cacheService);
   });
 
   describe('嵌入器服务验收标准', () => {

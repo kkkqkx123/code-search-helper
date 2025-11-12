@@ -13,6 +13,8 @@ import { GraphQueryValidator } from '../../service/graph/query/GraphQueryValidat
 // 性能监控服务
 import { PerformanceDashboard } from '../../service/monitoring/PerformanceDashboard';
 import { PerformanceMetricsCollector } from '../../service/monitoring/PerformanceMetricsCollector';
+import { DatabasePerformanceMonitor } from '../../service/monitoring/DatabasePerformanceMonitor';
+import { VectorPerformanceMonitor } from '../../service/monitoring/VectorPerformanceMonitor';
 import { AutoOptimizationAdvisor } from '../../service/optimization/AutoOptimizationAdvisor';
 import { BatchProcessingOptimizer } from '../../service/optimization/BatchProcessingOptimizer';
 import { GraphMappingCache } from '../../service/graph/caching/GraphMappingCache';
@@ -183,6 +185,9 @@ export class InfrastructureServiceRegistrar {
       // 基础设施核心服务（在CleanupManager外部注册，确保正确的依赖顺序）
       container.bind<CacheService>(TYPES.CacheService).to(CacheService).inSingletonScope();
       container.bind<PerformanceMonitor>(TYPES.PerformanceMonitor).to(PerformanceMonitor).inSingletonScope();
+      // 专门的性能监控器
+      container.bind<DatabasePerformanceMonitor>(TYPES.DatabasePerformanceMonitor).to(DatabasePerformanceMonitor).inSingletonScope();
+      container.bind<VectorPerformanceMonitor>(TYPES.VectorPerformanceMonitor).to(VectorPerformanceMonitor).inSingletonScope();
       container.bind<DatabaseHealthChecker>(TYPES.HealthChecker).to(DatabaseHealthChecker).inSingletonScope();
 
       // SQLite基础设施

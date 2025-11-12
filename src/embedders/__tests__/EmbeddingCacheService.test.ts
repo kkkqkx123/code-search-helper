@@ -26,7 +26,7 @@ describe('EmbeddingCacheService', () => {
     errorHandler = new ErrorHandlerService(logger);
     
     // Create EmbeddingCacheService instance
-    cacheService = new EmbeddingCacheService(logger, errorHandler, {} as any);
+    cacheService = new EmbeddingCacheService(logger, errorHandler);
   });
 
   describe('嵌入器服务验收标准', () => {
