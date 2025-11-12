@@ -121,8 +121,10 @@ export class GraphConstructionService implements IGraphConstructionService {
     const nodes: GraphNode[] = [];
     
     for (const chunk of chunks) {
+      const symbolName = this.extractNameFromChunk(chunk);
+      const filePath = chunk.metadata.filePath || 'unknown_file';
       const node: GraphNode = {
-        id: this.generateNodeId(chunk),
+        id: NodeIdGenerator.forSymbol(symbolName, chunk.metadata.type, filePath, chunk.metadata.startLine),
         type: this.mapChunkTypeToGraphNodeType(chunk.metadata.type),
         properties: {
           content: chunk.content,
@@ -153,12 +155,16 @@ export class GraphConstructionService implements IGraphConstructionService {
     // 基于代码块之间的关系创建图关系
     for (let i = 0; i < chunks.length; i++) {
       const currentChunk = chunks[i];
-      const currentId = this.generateNodeId(currentChunk);
+      const currentSymbolName = this.extractNameFromChunk(currentChunk);
+      const currentFilePath = currentChunk.metadata.filePath || 'unknown_file';
+      const currentId = NodeIdGenerator.forSymbol(currentSymbolName, currentChunk.metadata.type, currentFilePath, currentChunk.metadata.startLine);
       
       // 检查与其他代码块的关系
       for (let j = i + 1; j < chunks.length; j++) {
         const otherChunk = chunks[j];
-        const otherId = this.generateNodeId(otherChunk);
+        const otherSymbolName = this.extractNameFromChunk(otherChunk);
+        const otherFilePath = otherChunk.metadata.filePath || 'unknown_file';
+        const otherId = NodeIdGenerator.forSymbol(otherSymbolName, otherChunk.metadata.type, otherFilePath, otherChunk.metadata.startLine);
         
         // 检查包含关系
         if (this.isContaining(currentChunk, otherChunk)) {

@@ -11,6 +11,7 @@ import { LRUCache } from '../../../../utils/cache/LRUCache';
 import { PerformanceMonitor } from '../../../../infrastructure/monitoring/PerformanceMonitor';
 import { MetadataBuilder } from './utils/MetadataBuilder';
 import { ContentHashUtils } from '../../../../utils/cache/ContentHashUtils';
+import { NodeIdGenerator } from '../../../../utils/deterministic-node-id';
 
 /**
  * 适配器选项接口

@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { RustHelperMethods } from './RustHelperMethods';
 import Parser from 'tree-sitter';
 
@@ -263,7 +263,7 @@ export class DataFlowRelationshipExtractor {
         break;
     }
     
-    return sourceNode ? generateDeterministicNodeId(sourceNode) : 'unknown';
+    return sourceNode ? NodeIdGenerator.forAstNode(sourceNode) : 'unknown';
   }
 
   /**
@@ -290,7 +290,7 @@ export class DataFlowRelationshipExtractor {
         return node.text || 'unknown';
     }
     
-    return targetNode ? generateDeterministicNodeId(targetNode) : 'unknown';
+    return targetNode ? NodeIdGenerator.forAstNode(targetNode) : 'unknown';
   }
 
   /**

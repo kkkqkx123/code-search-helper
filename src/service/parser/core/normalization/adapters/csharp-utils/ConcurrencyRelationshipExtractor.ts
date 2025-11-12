@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { CSharpHelperMethods } from './CSharpHelperMethods';
 import Parser from 'tree-sitter';
 
@@ -18,8 +18,8 @@ export class ConcurrencyRelationshipExtractor {
     return {
       type: 'concurrency',
       concurrencyType,
-      fromNodeId: relatedNodes.from ? generateDeterministicNodeId(relatedNodes.from) : 'unknown',
-      toNodeId: relatedNodes.to ? generateDeterministicNodeId(relatedNodes.to) : 'unknown',
+      fromNodeId: relatedNodes.from ? NodeIdGenerator.forAstNode(relatedNodes.from) : 'unknown',
+      toNodeId: relatedNodes.to ? NodeIdGenerator.forAstNode(relatedNodes.to) : 'unknown',
       synchronizationObject,
       location: {
         filePath: symbolTable?.filePath || 'current_file.cs',

@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -78,18 +78,18 @@ export class AnnotationRelationshipExtractor {
    * 提取注解关系的节点
    */
   private extractAnnotationNodes(astNode: Parser.SyntaxNode, annotationType: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
     let toNodeId = 'unknown';
 
     if (annotationType === 'attribute') {
       const attributeName = this.extractAnnotationName(astNode);
       if (attributeName) {
-        toNodeId = this.generateNodeId(attributeName, 'attribute', 'current_file.c');
+        toNodeId = NodeIdGenerator.forSymbol(attributeName, 'attribute', 'current_file.c');
       }
     } else if (annotationType === 'type_annotation') {
       const typeName = this.extractTypeName(astNode);
       if (typeName) {
-        toNodeId = this.generateNodeId(typeName, 'type', 'current_file.c');
+        toNodeId = NodeIdGenerator.forSymbol(typeName, 'type', 'current_file.c');
       }
     }
 

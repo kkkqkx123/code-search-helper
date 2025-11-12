@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -99,12 +99,12 @@ export class ReferenceRelationshipExtractor {
    * 提取引用关系的节点
    */
   private extractReferenceNodes(astNode: Parser.SyntaxNode, referenceType: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
     let toNodeId = 'unknown';
 
     const referenceName = this.extractReferenceName(astNode);
     if (referenceName) {
-      toNodeId = this.generateNodeId(referenceName, referenceType, 'current_file.java');
+      toNodeId = NodeIdGenerator.forSymbol(referenceName, referenceType, 'current_file.java');
     }
 
     return { fromNodeId, toNodeId };
@@ -371,8 +371,8 @@ export class ReferenceRelationshipExtractor {
 
       if (referenceType) {
         references.push({
-          sourceId: generateDeterministicNodeId(identifier),
-          targetId: this.generateNodeId(identifierName, referenceType, filePath),
+          sourceId: NodeIdGenerator.forAstNode(identifier),
+          targetId: NodeIdGenerator.forSymbol(identifierName, referenceType, filePath),
           referenceType,
           referenceName: identifierName,
           templateInfo,
@@ -396,8 +396,8 @@ export class ReferenceRelationshipExtractor {
         const namespaceInfo = this.extractNamespaceInfo(fieldExpr);
 
         references.push({
-          sourceId: generateDeterministicNodeId(fieldExpr),
-          targetId: this.generateNodeId(fieldName, referenceType, filePath),
+          sourceId: NodeIdGenerator.forAstNode(fieldExpr),
+          targetId: NodeIdGenerator.forSymbol(fieldName, referenceType, filePath),
           referenceType,
           referenceName: fieldName,
           namespaceInfo,
@@ -419,8 +419,8 @@ export class ReferenceRelationshipExtractor {
 
       if (referenceType && templateName) {
         references.push({
-          sourceId: generateDeterministicNodeId(templateRef),
-          targetId: this.generateNodeId(templateName, referenceType, filePath),
+          sourceId: NodeIdGenerator.forAstNode(templateRef),
+          targetId: NodeIdGenerator.forSymbol(templateName, referenceType, filePath),
           referenceType,
           referenceName: templateName,
           templateInfo,

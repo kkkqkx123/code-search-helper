@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -110,7 +110,7 @@ export class SemanticRelationshipExtractor {
    * 提取语义关系的节点
    */
   private extractSemanticNodes(astNode: Parser.SyntaxNode, pattern: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
     let toNodeId = 'unknown';
 
     // 根据模式类型提取相关节点

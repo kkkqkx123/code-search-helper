@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -82,28 +82,28 @@ export class AnnotationRelationshipExtractor {
    * 提取注解关系的节点
    */
   private extractAnnotationNodes(astNode: Parser.SyntaxNode, annotationType: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
     let toNodeId = 'unknown';
 
     if (annotationType === 'attribute') {
       const attributeName = this.extractAnnotationName(astNode);
       if (attributeName) {
-        toNodeId = this.generateNodeId(attributeName, 'attribute', 'current_file.cpp');
+        toNodeId = NodeIdGenerator.forSymbol(attributeName, 'attribute', 'current_file.cpp', 0);
       }
     } else if (annotationType === 'type_annotation') {
       const typeName = this.extractTypeName(astNode);
       if (typeName) {
-        toNodeId = this.generateNodeId(typeName, 'type', 'current_file.cpp');
+        toNodeId = NodeIdGenerator.forSymbol(typeName, 'type', 'current_file.cpp', 0);
       }
     } else if (annotationType === 'alignas') {
       const alignmentValue = this.extractAlignmentValue(astNode);
       if (alignmentValue) {
-        toNodeId = this.generateNodeId(alignmentValue, 'alignas', 'current_file.cpp');
+        toNodeId = NodeIdGenerator.forSymbol(alignmentValue, 'alignas', 'current_file.cpp', 0);
       }
     } else if (annotationType === 'modern_feature') {
       const featureName = this.extractFeatureName(astNode);
       if (featureName) {
-        toNodeId = this.generateNodeId(featureName, 'modern_feature', 'current_file.cpp');
+        toNodeId = NodeIdGenerator.forSymbol(featureName, 'modern_feature', 'current_file.cpp', 0);
       }
     }
 
@@ -336,8 +336,8 @@ export class AnnotationRelationshipExtractor {
 
       if (annotationName && annotationType) {
         annotations.push({
-          sourceId: generateDeterministicNodeId(attrDecl),
-          targetId: this.generateNodeId(annotationName, 'attribute', filePath),
+          sourceId: NodeIdGenerator.forAstNode(attrDecl),
+          targetId: NodeIdGenerator.forSymbol(annotationName, 'attribute', filePath, 0),
           annotationType,
           annotationName,
           parameters,
@@ -358,8 +358,8 @@ export class AnnotationRelationshipExtractor {
 
       if (alignmentValue && annotationType) {
         annotations.push({
-          sourceId: generateDeterministicNodeId(alignas),
-          targetId: this.generateNodeId(alignmentValue, 'alignas', filePath),
+          sourceId: NodeIdGenerator.forAstNode(alignas),
+          targetId: NodeIdGenerator.forSymbol(alignmentValue, 'alignas', filePath, 0),
           annotationType,
           annotationName: 'alignas',
           parameters: { alignment: alignmentValue },
@@ -381,8 +381,8 @@ export class AnnotationRelationshipExtractor {
 
       if (featureName && annotationType) {
         annotations.push({
-          sourceId: generateDeterministicNodeId(modernFeature),
-          targetId: this.generateNodeId(featureName, 'modern_feature', filePath),
+          sourceId: NodeIdGenerator.forAstNode(modernFeature),
+          targetId: NodeIdGenerator.forSymbol(featureName, 'modern_feature', filePath, 0),
           annotationType,
           annotationName: featureName,
           parameters,

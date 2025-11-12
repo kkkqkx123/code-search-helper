@@ -111,7 +111,7 @@ export class ReferenceRelationshipExtractor {
 
     const referenceName = this.extractReferenceName(astNode);
     if (referenceName) {
-      toNodeId = this.generateNodeId(referenceName, 'reference', 'current_file.rs');
+      toNodeId = NodeIdGenerator.forSymbol(referenceName, 'reference', 'current_file.rs', astNode.startPosition.row);
     }
 
     return { fromNodeId, toNodeId };
@@ -405,9 +405,6 @@ export class ReferenceRelationshipExtractor {
   /**
    * 生成节点ID
    */
-  private generateNodeId(name: string, type: string, filePath: string): string {
-    return `${type}_${Buffer.from(`${filePath}_${name}`).toString('hex')}`;
-  }
 
   /**
    * 查找标识符引用
@@ -512,7 +509,7 @@ export class ReferenceRelationshipExtractor {
       if (referenceType && referenceName) {
         references.push({
           sourceId: NodeIdGenerator.forAstNode(identifier),
-          targetId: this.generateNodeId(referenceName, 'reference', filePath),
+          targetId: NodeIdGenerator.forSymbol(referenceName, 'reference', filePath, identifier.startPosition.row + 1),
           referenceType,
           referenceName,
           referenceInfo,
@@ -534,7 +531,7 @@ export class ReferenceRelationshipExtractor {
       if (referenceType && referenceName) {
         references.push({
           sourceId: NodeIdGenerator.forAstNode(fieldAccess),
-          targetId: this.generateNodeId(referenceName, 'reference', filePath),
+          targetId: NodeIdGenerator.forSymbol(referenceName, 'reference', filePath, fieldAccess.startPosition.row + 1),
           referenceType,
           referenceName,
           referenceInfo,
@@ -556,7 +553,7 @@ export class ReferenceRelationshipExtractor {
       if (referenceType && referenceName) {
         references.push({
           sourceId: NodeIdGenerator.forAstNode(methodCall),
-          targetId: this.generateNodeId(referenceName, 'reference', filePath),
+          targetId: NodeIdGenerator.forSymbol(referenceName, 'reference', filePath, methodCall.startPosition.row + 1),
           referenceType,
           referenceName,
           referenceInfo,
@@ -578,7 +575,7 @@ export class ReferenceRelationshipExtractor {
       if (referenceType && referenceName) {
         references.push({
           sourceId: NodeIdGenerator.forAstNode(scopedIdentifier),
-          targetId: this.generateNodeId(referenceName, 'reference', filePath),
+          targetId: NodeIdGenerator.forSymbol(referenceName, 'reference', filePath, scopedIdentifier.startPosition.row + 1),
           referenceType,
           referenceName,
           referenceInfo,

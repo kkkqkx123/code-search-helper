@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { JavaHelperMethods } from './JavaHelperMethods';
 import Parser from 'tree-sitter';
 
@@ -26,13 +26,13 @@ export class InheritanceRelationshipExtractor {
       if (capture.name.includes('extends') || capture.name.includes('superclass')) {
         metadata.inheritanceType = 'extends';
         metadata.superclass = capture.node.text;
-        metadata.fromNodeId = generateDeterministicNodeId(astNode);
-        metadata.toNodeId = generateDeterministicNodeId(capture.node);
+        metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
+        metadata.toNodeId = NodeIdGenerator.forAstNode(capture.node);
       } else if (capture.name.includes('implements') || capture.name.includes('interface')) {
         metadata.inheritanceType = 'implements';
         metadata.interface = capture.node.text;
-        metadata.fromNodeId = generateDeterministicNodeId(astNode);
-        metadata.toNodeId = generateDeterministicNodeId(capture.node);
+        metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
+        metadata.toNodeId = NodeIdGenerator.forAstNode(capture.node);
       }
     }
 
@@ -56,8 +56,8 @@ export class InheritanceRelationshipExtractor {
       if (superClass?.text) {
         metadata.inheritanceType = 'extends';
         metadata.superclass = superClass.text;
-        metadata.fromNodeId = generateDeterministicNodeId(astNode);
-        metadata.toNodeId = generateDeterministicNodeId(superClass);
+        metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
+        metadata.toNodeId = NodeIdGenerator.forAstNode(superClass);
       }
 
       // 检查接口实现
@@ -65,11 +65,11 @@ export class InheritanceRelationshipExtractor {
       if (superInterfaces?.text) {
         metadata.inheritanceType = 'implements';
         metadata.interfaces = superInterfaces.text;
-        metadata.fromNodeId = generateDeterministicNodeId(astNode);
+        metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
         // 对于多个接口，取第一个作为主要目标
         const firstInterface = this.extractFirstInterface(superInterfaces);
         if (firstInterface) {
-          metadata.toNodeId = generateDeterministicNodeId(firstInterface);
+          metadata.toNodeId = NodeIdGenerator.forAstNode(firstInterface);
         }
       }
     }

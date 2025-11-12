@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -80,23 +80,23 @@ export class AnnotationRelationshipExtractor {
    * 提取注解关系的节点
    */
   private extractAnnotationNodes(astNode: Parser.SyntaxNode, annotationType: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
     let toNodeId = 'unknown';
 
     if (annotationType === 'decorator') {
       const decoratorName = this.extractAnnotationName(astNode);
       if (decoratorName) {
-        toNodeId = this.generateNodeId(decoratorName, 'decorator', 'current_file.py');
+        toNodeId = NodeIdGenerator.forSymbol(decoratorName, 'decorator', 'current_file.py');
       }
     } else if (annotationType === 'type_annotation') {
       const typeName = this.extractTypeName(astNode);
       if (typeName) {
-        toNodeId = this.generateNodeId(typeName, 'type', 'current_file.py');
+        toNodeId = NodeIdGenerator.forSymbol(typeName, 'type', 'current_file.py');
       }
     } else if (annotationType === 'docstring') {
       const docstringContent = this.extractDocstringContent(astNode);
       if (docstringContent) {
-        toNodeId = this.generateNodeId('docstring', 'docstring', 'current_file.py');
+        toNodeId = NodeIdGenerator.forSymbol('docstring', 'docstring', 'current_file.py');
       }
     }
 
@@ -336,8 +336,8 @@ export class AnnotationRelationshipExtractor {
 
       if (annotationName && annotationType) {
         annotations.push({
-          sourceId: generateDeterministicNodeId(decoratorDecl),
-          targetId: this.generateNodeId(annotationName, 'decorator', filePath),
+          sourceId: NodeIdGenerator.forAstNode(decoratorDecl),
+          targetId: NodeIdGenerator.forSymbol(annotationName, 'decorator', filePath),
           annotationType,
           annotationName,
           parameters,
@@ -359,8 +359,8 @@ export class AnnotationRelationshipExtractor {
 
       if (typeName && annotationType) {
         annotations.push({
-          sourceId: generateDeterministicNodeId(typeAnnotation),
-          targetId: this.generateNodeId(typeName, 'type', filePath),
+          sourceId: NodeIdGenerator.forAstNode(typeAnnotation),
+          targetId: NodeIdGenerator.forSymbol(typeName, 'type', filePath),
           annotationType,
           annotationName: typeName,
           parameters,
@@ -381,8 +381,8 @@ export class AnnotationRelationshipExtractor {
 
       if (annotationType) {
         annotations.push({
-          sourceId: generateDeterministicNodeId(docstring),
-          targetId: this.generateNodeId('docstring', 'docstring', filePath),
+          sourceId: NodeIdGenerator.forAstNode(docstring),
+          targetId: NodeIdGenerator.forSymbol('docstring', 'docstring', filePath),
           annotationType,
           annotationName: 'docstring',
           parameters,

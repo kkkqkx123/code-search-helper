@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -83,20 +83,20 @@ export class CreationRelationshipExtractor {
    * 提取创建关系的节点
    */
   private extractCreationNodes(astNode: Parser.SyntaxNode, creationType: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
     let toNodeId = 'unknown';
 
     if (creationType === 'instantiation' || creationType === 'initialization') {
       // 对于实例化，提取类型信息
       const typeNode = this.extractTypeNode(astNode);
       if (typeNode) {
-        toNodeId = generateDeterministicNodeId(typeNode);
+        toNodeId = NodeIdGenerator.forAstNode(typeNode);
       }
     } else if (creationType === 'allocation') {
       // 对于内存分配，提取分配的变量
       const varNode = this.extractVariableNode(astNode);
       if (varNode) {
-        toNodeId = generateDeterministicNodeId(varNode);
+        toNodeId = NodeIdGenerator.forAstNode(varNode);
       }
     }
 
@@ -188,7 +188,7 @@ export class CreationRelationshipExtractor {
     for (const typeIdent of typeIdentifiers) {
       instances.push({
         structName: typeIdent.text,
-        structId: generateDeterministicNodeId(typeIdent)
+        structId: NodeIdGenerator.forAstNode(typeIdent)
       });
     }
 
@@ -212,7 +212,7 @@ export class CreationRelationshipExtractor {
     for (const typeIdent of typeIdentifiers) {
       instances.push({
         enumName: typeIdent.text,
-        enumId: generateDeterministicNodeId(typeIdent)
+        enumId: NodeIdGenerator.forAstNode(typeIdent)
       });
     }
 

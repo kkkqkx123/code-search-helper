@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -91,7 +91,7 @@ export class LifecycleRelationshipExtractor {
    * 提取生命周期关系的节点
    */
   private extractLifecycleNodes(astNode: Parser.SyntaxNode, operation: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
     let toNodeId = 'unknown';
 
     // 根据操作类型提取相关节点
@@ -99,19 +99,19 @@ export class LifecycleRelationshipExtractor {
       // 对于内存操作，尝试提取指针变量
       const pointerNode = this.extractPointerNode(astNode);
       if (pointerNode) {
-        toNodeId = generateDeterministicNodeId(pointerNode);
+        toNodeId = NodeIdGenerator.forAstNode(pointerNode);
       }
     } else if (operation === 'open' || operation === 'close') {
       // 对于文件操作，尝试提取文件指针
       const fileNode = this.extractFileNode(astNode);
       if (fileNode) {
-        toNodeId = generateDeterministicNodeId(fileNode);
+        toNodeId = NodeIdGenerator.forAstNode(fileNode);
       }
     } else if (operation === 'create' || operation === 'destroy') {
       // 对于资源操作，尝试提取资源对象
       const resourceNode = this.extractResourceNode(astNode);
       if (resourceNode) {
-        toNodeId = generateDeterministicNodeId(resourceNode);
+        toNodeId = NodeIdGenerator.forAstNode(resourceNode);
       }
     }
 

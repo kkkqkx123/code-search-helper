@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { RustHelperMethods } from './RustHelperMethods';
 import Parser from 'tree-sitter';
 
@@ -153,7 +153,7 @@ export class LifecycleRelationshipExtractor {
     if (this.hasStaticLifetime(node)) {
       return {
         operation: 'static_lifetime',
-        fromNodeId: generateDeterministicNodeId(node),
+        fromNodeId: NodeIdGenerator.forAstNode(node),
         toNodeId: 'static',
         lifetimeName: "'static",
         lifetimeType: 'static',

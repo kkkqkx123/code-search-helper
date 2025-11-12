@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { CSharpHelperMethods } from './CSharpHelperMethods';
 import Parser from 'tree-sitter';
 
@@ -18,8 +18,8 @@ export class LifecycleRelationshipExtractor {
     return {
       type: 'lifecycle',
       lifecycleType,
-      fromNodeId: managerNode ? generateDeterministicNodeId(managerNode) : 'unknown',
-      toNodeId: resourceNode ? generateDeterministicNodeId(resourceNode) : 'unknown',
+      fromNodeId: managerNode ? NodeIdGenerator.forAstNode(managerNode) : 'unknown',
+      toNodeId: resourceNode ? NodeIdGenerator.forAstNode(resourceNode) : 'unknown',
       resourceType: this.extractResourceType(astNode),
       location: {
         filePath: symbolTable?.filePath || 'current_file.cs',

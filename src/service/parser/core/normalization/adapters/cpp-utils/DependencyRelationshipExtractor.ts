@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -86,33 +86,33 @@ export class DependencyRelationshipExtractor {
    * 提取依赖关系的节点
    */
   private extractDependencyNodes(astNode: Parser.SyntaxNode, dependencyType: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
     let toNodeId = 'unknown';
 
     if (dependencyType === 'include') {
       const includePath = this.extractIncludePath(astNode);
       if (includePath) {
-        toNodeId = this.generateNodeId(includePath, 'header', includePath);
+        toNodeId = NodeIdGenerator.forSymbol(includePath, 'header', includePath, astNode.startPosition.row);
       }
     } else if (dependencyType === 'import') {
       const importPath = this.extractImportPath(astNode);
       if (importPath) {
-        toNodeId = this.generateNodeId(importPath, 'module', importPath);
+        toNodeId = NodeIdGenerator.forSymbol(importPath, 'module', importPath, astNode.startPosition.row);
       }
     } else if (dependencyType === 'using') {
       const usingTarget = this.extractUsingTarget(astNode);
       if (usingTarget) {
-        toNodeId = this.generateNodeId(usingTarget, 'using', 'current_file.cpp');
+        toNodeId = NodeIdGenerator.forSymbol(usingTarget, 'using', 'current_file.cpp', astNode.startPosition.row);
       }
     } else if (dependencyType === 'namespace') {
       const namespaceName = this.extractNamespaceName(astNode);
       if (namespaceName) {
-        toNodeId = this.generateNodeId(namespaceName, 'namespace', 'current_file.cpp');
+        toNodeId = NodeIdGenerator.forSymbol(namespaceName, 'namespace', 'current_file.cpp', astNode.startPosition.row);
       }
     } else if (dependencyType === 'module') {
       const moduleName = this.extractModuleName(astNode);
       if (moduleName) {
-        toNodeId = this.generateNodeId(moduleName, 'module', 'current_file.cpp');
+        toNodeId = NodeIdGenerator.forSymbol(moduleName, 'module', 'current_file.cpp', astNode.startPosition.row);
       }
     }
 
@@ -347,9 +347,6 @@ export class DependencyRelationshipExtractor {
   /**
    * 生成节点ID
    */
-  private generateNodeId(name: string, type: string, filePath: string): string {
-    return `${type}_${Buffer.from(`${filePath}_${name}`).toString('hex')}`;
-  }
 
   /**
    * 查找预处理器包含指令
@@ -436,8 +433,8 @@ export class DependencyRelationshipExtractor {
 
       if (includeInfo) {
         dependencies.push({
-          sourceId: generateDeterministicNodeId(includeStmt),
-          targetId: this.generateNodeId(includeInfo.source, 'header', includeInfo.source),
+          sourceId: NodeIdGenerator.forAstNode(includeStmt),
+          targetId: NodeIdGenerator.forSymbol(includeInfo.source, 'header', includeInfo.source, includeStmt.startPosition.row + 1),
           dependencyType: 'include',
           target: includeInfo.source,
           importedSymbols: includeInfo.importedSymbols,
@@ -456,8 +453,8 @@ export class DependencyRelationshipExtractor {
 
       if (usingInfo) {
         dependencies.push({
-          sourceId: generateDeterministicNodeId(usingStmt),
-          targetId: this.generateNodeId(usingInfo.target, 'using', filePath),
+          sourceId: NodeIdGenerator.forAstNode(usingStmt),
+          targetId: NodeIdGenerator.forSymbol(usingInfo.target, 'using', filePath, usingStmt.startPosition.row + 1),
           dependencyType: 'using',
           target: usingInfo.target,
           importedSymbols: usingInfo.symbols,
@@ -477,8 +474,8 @@ export class DependencyRelationshipExtractor {
 
       if (namespaceName) {
         dependencies.push({
-          sourceId: generateDeterministicNodeId(namespaceDef),
-          targetId: this.generateNodeId(namespaceName, 'namespace', filePath),
+          sourceId: NodeIdGenerator.forAstNode(namespaceDef),
+          targetId: NodeIdGenerator.forSymbol(namespaceName, 'namespace', filePath, namespaceDef.startPosition.row + 1),
           dependencyType: 'namespace',
           target: namespaceName,
           importedSymbols: [],

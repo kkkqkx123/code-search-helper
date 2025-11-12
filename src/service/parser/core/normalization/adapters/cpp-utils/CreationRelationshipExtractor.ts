@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -93,29 +93,29 @@ export class CreationRelationshipExtractor {
    * 提取创建关系的节点
    */
   private extractCreationNodes(astNode: Parser.SyntaxNode, creationType: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
     let toNodeId = 'unknown';
 
     if (creationType === 'instantiation' || creationType === 'initialization' || creationType === 'construction') {
       // 对于实例化，提取类型信息
       const typeNode = this.extractTypeNode(astNode);
       if (typeNode) {
-        toNodeId = generateDeterministicNodeId(typeNode);
+        toNodeId = NodeIdGenerator.forAstNode(typeNode);
       }
     } else if (creationType === 'allocation') {
       // 对于内存分配，提取分配的变量或类型
       const varNode = this.extractVariableNode(astNode);
       const typeNode = this.extractTypeNode(astNode);
       if (typeNode) {
-        toNodeId = generateDeterministicNodeId(typeNode);
+        toNodeId = NodeIdGenerator.forAstNode(typeNode);
       } else if (varNode) {
-        toNodeId = generateDeterministicNodeId(varNode);
+        toNodeId = NodeIdGenerator.forAstNode(varNode);
       }
     } else if (creationType === 'template_instantiation') {
       // 对于模板实例化，提取模板类型
       const templateNode = this.extractTemplateTypeNode(astNode);
       if (templateNode) {
-        toNodeId = generateDeterministicNodeId(templateNode);
+        toNodeId = NodeIdGenerator.forAstNode(templateNode);
       }
     }
 
@@ -364,7 +364,7 @@ export class CreationRelationshipExtractor {
     for (const typeIdent of typeIdentifiers) {
       instances.push({
         className: typeIdent.text,
-        classId: generateDeterministicNodeId(typeIdent),
+        classId: NodeIdGenerator.forAstNode(typeIdent),
         isTemplate: false
       });
     }
@@ -374,7 +374,7 @@ export class CreationRelationshipExtractor {
     for (const templateType of templateTypes) {
       instances.push({
         className: templateType.text,
-        classId: generateDeterministicNodeId(templateType),
+        classId: NodeIdGenerator.forAstNode(templateType),
         isTemplate: true
       });
     }
@@ -401,7 +401,7 @@ export class CreationRelationshipExtractor {
     for (const typeIdent of typeIdentifiers) {
       instances.push({
         structName: typeIdent.text,
-        structId: generateDeterministicNodeId(typeIdent),
+        structId: NodeIdGenerator.forAstNode(typeIdent),
         isTemplate: false
       });
     }
@@ -411,7 +411,7 @@ export class CreationRelationshipExtractor {
     for (const templateType of templateTypes) {
       instances.push({
         structName: templateType.text,
-        structId: generateDeterministicNodeId(templateType),
+        structId: NodeIdGenerator.forAstNode(templateType),
         isTemplate: true
       });
     }
@@ -507,8 +507,8 @@ export class CreationRelationshipExtractor {
 
       if (targetName && creationType) {
         creations.push({
-          sourceId: generateDeterministicNodeId(newExpr),
-          targetId: this.generateNodeId(targetName, 'class', filePath),
+          sourceId: NodeIdGenerator.forAstNode(newExpr),
+          targetId: NodeIdGenerator.forSymbol(targetName, 'class', filePath, newExpr.startPosition.row + 1),
           creationType,
           targetName,
           constructorInfo,
@@ -530,8 +530,8 @@ export class CreationRelationshipExtractor {
 
       if (targetName && creationType) {
         creations.push({
-          sourceId: generateDeterministicNodeId(constructorInit),
-          targetId: this.generateNodeId(targetName, 'member', filePath),
+          sourceId: NodeIdGenerator.forAstNode(constructorInit),
+          targetId: NodeIdGenerator.forSymbol(targetName, 'member', filePath, constructorInit.startPosition.row + 1),
           creationType,
           targetName,
           constructorInfo,
@@ -550,7 +550,4 @@ export class CreationRelationshipExtractor {
   /**
    * 生成节点ID
    */
-  private generateNodeId(name: string, type: string, filePath: string): string {
-    return `${type}_${Buffer.from(`${filePath}_${name}`).toString('hex')}`;
-  }
 }

@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { PythonHelperMethods } from './PythonHelperMethods';
 import Parser from 'tree-sitter';
 
@@ -339,7 +339,7 @@ export class ConcurrencyRelationshipExtractor {
       case 'with_statement':
       case 'async_with_statement':
         const context = astNode.childForFieldName('context');
-        return context ? generateDeterministicNodeId(context) : 'unknown';
+        return context ? NodeIdGenerator.forAstNode(context) : 'unknown';
         
       case 'await':
         return 'await-point';
@@ -348,24 +348,24 @@ export class ConcurrencyRelationshipExtractor {
         const func = astNode.childForFieldName('function');
         if (func?.type === 'attribute') {
           const object = func.childForFieldName('object');
-          return object ? generateDeterministicNodeId(object) : 'unknown';
+          return object ? NodeIdGenerator.forAstNode(object) : 'unknown';
         }
         return 'caller';
         
       case 'async_function_definition':
         const funcName = astNode.childForFieldName('name');
-        return funcName ? generateDeterministicNodeId(funcName) : 'unknown';
+        return funcName ? NodeIdGenerator.forAstNode(funcName) : 'unknown';
         
       case 'async_for_statement':
         const iter = astNode.childForFieldName('iter');
-        return iter ? generateDeterministicNodeId(iter) : 'unknown';
+        return iter ? NodeIdGenerator.forAstNode(iter) : 'unknown';
         
       case 'assignment':
         const right = astNode.childForFieldName('right');
-        return right ? generateDeterministicNodeId(right) : 'unknown';
+        return right ? NodeIdGenerator.forAstNode(right) : 'unknown';
         
       default:
-        return generateDeterministicNodeId(astNode);
+        return NodeIdGenerator.forAstNode(astNode);
     }
   }
 
@@ -380,21 +380,21 @@ export class ConcurrencyRelationshipExtractor {
         
       case 'await':
         const value = astNode.childForFieldName('value');
-        return value ? generateDeterministicNodeId(value) : 'unknown';
+        return value ? NodeIdGenerator.forAstNode(value) : 'unknown';
         
       case 'call':
         const func = astNode.childForFieldName('function');
-        return func ? generateDeterministicNodeId(func) : 'unknown';
+        return func ? NodeIdGenerator.forAstNode(func) : 'unknown';
         
       case 'async_function_definition':
-        return generateDeterministicNodeId(astNode);
+        return NodeIdGenerator.forAstNode(astNode);
         
       case 'async_for_statement':
         return 'async-loop-body';
         
       case 'assignment':
         const left = astNode.childForFieldName('left');
-        return left ? generateDeterministicNodeId(left) : 'unknown';
+        return left ? NodeIdGenerator.forAstNode(left) : 'unknown';
         
       default:
         return 'unknown';

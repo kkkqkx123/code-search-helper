@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { JavaHelperMethods } from './JavaHelperMethods';
 import Parser from 'tree-sitter';
 
@@ -24,10 +24,10 @@ export class DataFlowRelationshipExtractor {
     // 提取源和目标节点信息
     for (const capture of captures) {
       if (capture.name.includes('source') || capture.name.includes('parameter')) {
-        metadata.fromNodeId = generateDeterministicNodeId(capture.node);
+        metadata.fromNodeId = NodeIdGenerator.forAstNode(capture.node);
         metadata.sourceVariable = capture.node.text;
       } else if (capture.name.includes('target') || capture.name.includes('method')) {
-        metadata.toNodeId = generateDeterministicNodeId(capture.node);
+        metadata.toNodeId = NodeIdGenerator.forAstNode(capture.node);
         metadata.targetVariable = capture.node.text;
       }
     }
@@ -49,8 +49,8 @@ export class DataFlowRelationshipExtractor {
       const right = astNode.childForFieldName('right');
       
       if (left?.text && right?.text) {
-        metadata.fromNodeId = generateDeterministicNodeId(right);
-        metadata.toNodeId = generateDeterministicNodeId(left);
+        metadata.fromNodeId = NodeIdGenerator.forAstNode(right);
+        metadata.toNodeId = NodeIdGenerator.forAstNode(left);
         metadata.sourceVariable = right.text;
         metadata.targetVariable = left.text;
         metadata.flowType = 'variable_assignment';
@@ -62,8 +62,8 @@ export class DataFlowRelationshipExtractor {
       if (args && method?.text) {
         for (const arg of args.children || []) {
           if (arg.type === 'identifier' && arg.text) {
-            metadata.fromNodeId = generateDeterministicNodeId(arg);
-            metadata.toNodeId = generateDeterministicNodeId(method);
+            metadata.fromNodeId = NodeIdGenerator.forAstNode(arg);
+            metadata.toNodeId = NodeIdGenerator.forAstNode(method);
             metadata.sourceVariable = arg.text;
             metadata.targetVariable = method.text;
             metadata.flowType = 'parameter_passing';
@@ -74,7 +74,7 @@ export class DataFlowRelationshipExtractor {
     } else if (astNode.type === 'return_statement') {
       const value = astNode.childForFieldName('value');
       if (value?.text) {
-        metadata.fromNodeId = generateDeterministicNodeId(value);
+        metadata.fromNodeId = NodeIdGenerator.forAstNode(value);
         metadata.toNodeId = 'return';
         metadata.sourceVariable = value.text;
         metadata.targetVariable = 'return';
@@ -85,8 +85,8 @@ export class DataFlowRelationshipExtractor {
       const field = astNode.childForFieldName('field');
       
       if (object?.text && field?.text) {
-        metadata.fromNodeId = generateDeterministicNodeId(object);
-        metadata.toNodeId = generateDeterministicNodeId(field);
+        metadata.fromNodeId = NodeIdGenerator.forAstNode(object);
+        metadata.toNodeId = NodeIdGenerator.forAstNode(field);
         metadata.sourceVariable = object.text;
         metadata.targetVariable = field.text;
         metadata.flowType = 'field_access';

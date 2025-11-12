@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -48,7 +48,7 @@ export class SemanticRelationshipExtractor {
 
     return {
       type: 'semantic',
-      fromNodeId: generateDeterministicNodeId(astNode),
+      fromNodeId: NodeIdGenerator.forAstNode(astNode),
       toNodeId: 'unknown', // 需要更复杂的分析来确定目标
       semanticType,
       pattern,

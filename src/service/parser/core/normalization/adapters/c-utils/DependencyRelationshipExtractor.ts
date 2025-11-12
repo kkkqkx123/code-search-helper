@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -78,13 +78,13 @@ export class DependencyRelationshipExtractor {
    * 提取依赖关系的节点
    */
   private extractDependencyNodes(astNode: Parser.SyntaxNode, dependencyType: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
     let toNodeId = 'unknown';
 
     if (dependencyType === 'include') {
       const includePath = this.extractIncludePath(astNode);
       if (includePath) {
-        toNodeId = this.generateNodeId(includePath, 'header', includePath);
+        toNodeId = NodeIdGenerator.forSymbol(includePath, 'header', includePath, astNode.startPosition.row);
       }
     }
 
@@ -160,9 +160,6 @@ export class DependencyRelationshipExtractor {
   /**
    * 生成节点ID
    */
-  private generateNodeId(name: string, type: string, filePath: string): string {
-    return `${type}_${Buffer.from(`${filePath}_${name}`).toString('hex')}`;
-  }
 
   /**
    * 查找预处理器包含指令
@@ -215,8 +212,8 @@ export class DependencyRelationshipExtractor {
 
       if (includeInfo) {
         dependencies.push({
-          sourceId: generateDeterministicNodeId(includeStmt),
-          targetId: this.generateNodeId(includeInfo.source, 'header', includeInfo.source),
+          sourceId: NodeIdGenerator.forAstNode(includeStmt),
+          targetId: NodeIdGenerator.forSymbol(includeInfo.source, 'header', includeInfo.source, includeStmt.startPosition.row + 1),
           dependencyType: 'include',
           target: includeInfo.source,
           importedSymbols: includeInfo.importedSymbols,

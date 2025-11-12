@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -91,30 +91,30 @@ export class CreationRelationshipExtractor {
    * 提取创建关系的节点
    */
   private extractCreationNodes(astNode: Parser.SyntaxNode, creationType: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
     let toNodeId = 'unknown';
 
     if (creationType === 'instantiation' || creationType === 'implicit_creation') {
       // 对于对象实例化，提取类型信息
       const typeNode = this.extractTypeNode(astNode);
       if (typeNode) {
-        toNodeId = generateDeterministicNodeId(typeNode);
+        toNodeId = NodeIdGenerator.forAstNode(typeNode);
       }
     } else if (creationType === 'array_creation') {
       // 对于数组创建，提取数组类型
       const arrayTypeNode = this.extractArrayTypeNode(astNode);
       if (arrayTypeNode) {
-        toNodeId = generateDeterministicNodeId(arrayTypeNode);
+        toNodeId = NodeIdGenerator.forAstNode(arrayTypeNode);
       }
     } else if (creationType === 'delegate_creation') {
       // 对于委托创建，提取委托类型
       const delegateTypeNode = this.extractDelegateTypeNode(astNode);
       if (delegateTypeNode) {
-        toNodeId = generateDeterministicNodeId(delegateTypeNode);
+        toNodeId = NodeIdGenerator.forAstNode(delegateTypeNode);
       }
     } else if (creationType === 'anonymous_object') {
       // 对于匿名对象，使用特殊标识
-      toNodeId = this.generateNodeId('anonymous_object', 'anonymous', 'current_file.cs');
+      toNodeId = NodeIdGenerator.forSymbol('anonymous_object', 'anonymous', 'current_file.cs', astNode.startPosition.row);
     }
 
     return { fromNodeId, toNodeId };
@@ -432,8 +432,8 @@ export class CreationRelationshipExtractor {
 
       if (targetName && creationType) {
         creations.push({
-          sourceId: generateDeterministicNodeId(objCreation),
-          targetId: this.generateNodeId(targetName, 'class', filePath),
+          sourceId: NodeIdGenerator.forAstNode(objCreation),
+          targetId: NodeIdGenerator.forSymbol(targetName, 'class', filePath, objCreation.startPosition.row + 1),
           creationType,
           targetName,
           constructorInfo,
@@ -455,8 +455,8 @@ export class CreationRelationshipExtractor {
 
       if (targetName && creationType) {
         creations.push({
-          sourceId: generateDeterministicNodeId(arrayCreation),
-          targetId: this.generateNodeId(targetName, 'array', filePath),
+          sourceId: NodeIdGenerator.forAstNode(arrayCreation),
+          targetId: NodeIdGenerator.forSymbol(targetName, 'array', filePath, arrayCreation.startPosition.row + 1),
           creationType,
           targetName,
           constructorInfo,
@@ -478,8 +478,8 @@ export class CreationRelationshipExtractor {
 
       if (targetName && creationType) {
         creations.push({
-          sourceId: generateDeterministicNodeId(anonymousObj),
-          targetId: this.generateNodeId(targetName, 'anonymous', filePath),
+          sourceId: NodeIdGenerator.forAstNode(anonymousObj),
+          targetId: NodeIdGenerator.forSymbol(targetName, 'anonymous', filePath, anonymousObj.startPosition.row + 1),
           creationType,
           targetName,
           constructorInfo,
@@ -501,8 +501,8 @@ export class CreationRelationshipExtractor {
 
       if (targetName && creationType) {
         creations.push({
-          sourceId: generateDeterministicNodeId(delegateCreation),
-          targetId: this.generateNodeId(targetName, 'delegate', filePath),
+          sourceId: NodeIdGenerator.forAstNode(delegateCreation),
+          targetId: NodeIdGenerator.forSymbol(targetName, 'delegate', filePath, delegateCreation.startPosition.row + 1),
           creationType,
           targetName,
           constructorInfo,
@@ -521,7 +521,4 @@ export class CreationRelationshipExtractor {
   /**
    * 生成节点ID
    */
-  private generateNodeId(name: string, type: string, filePath: string): string {
-    return `${type}_${Buffer.from(`${filePath}_${name}`).toString('hex')}`;
-  }
 }

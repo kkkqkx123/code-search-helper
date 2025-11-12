@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -98,27 +98,27 @@ export class CreationRelationshipExtractor {
    * 提取创建关系的节点
    */
   private extractCreationNodes(astNode: Parser.SyntaxNode, creationType: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
     let toNodeId = 'unknown';
 
     if (creationType === 'instantiation' || creationType === 'function_object') {
       // 对于实例化，提取类型信息
       const typeNode = this.extractTypeNode(astNode);
       if (typeNode) {
-        toNodeId = generateDeterministicNodeId(typeNode);
+        toNodeId = NodeIdGenerator.forAstNode(typeNode);
       }
     } else if (creationType === 'comprehension') {
       // 对于推导式，提取推导式类型
       const comprehensionType = this.extractComprehensionType(astNode);
       if (comprehensionType) {
-        toNodeId = this.generateNodeId(comprehensionType, 'comprehension', 'current_file.py');
+        toNodeId = NodeIdGenerator.forSymbol(comprehensionType, 'comprehension', 'current_file.py', astNode.startPosition.row);
       }
     } else if (creationType === 'closure') {
       // 对于闭包，提取lambda表达式
-      toNodeId = this.generateNodeId('lambda', 'closure', 'current_file.py');
+      toNodeId = NodeIdGenerator.forSymbol('lambda', 'closure', 'current_file.py', astNode.startPosition.row);
     } else if (creationType === 'generator') {
       // 对于生成器，提取生成器类型
-      toNodeId = this.generateNodeId('generator', 'generator', 'current_file.py');
+      toNodeId = NodeIdGenerator.forSymbol('generator', 'generator', 'current_file.py', astNode.startPosition.row);
     }
 
     return { fromNodeId, toNodeId };
@@ -307,7 +307,7 @@ export class CreationRelationshipExtractor {
           if (funcNode.text[0] === funcNode.text[0].toUpperCase()) {
             instances.push({
               className: funcNode.text,
-              classId: generateDeterministicNodeId(funcNode),
+              classId: NodeIdGenerator.forAstNode(funcNode),
               location: {
                 lineNumber: node.startPosition.row + 1,
                 columnNumber: node.startPosition.column + 1
@@ -342,7 +342,7 @@ export class CreationRelationshipExtractor {
           if (funcNode.text[0] === funcNode.text[0].toLowerCase()) {
             functionObjects.push({
               functionName: funcNode.text,
-              functionId: generateDeterministicNodeId(funcNode),
+              functionId: NodeIdGenerator.forAstNode(funcNode),
               location: {
                 lineNumber: node.startPosition.row + 1,
                 columnNumber: node.startPosition.column + 1
@@ -379,7 +379,7 @@ export class CreationRelationshipExtractor {
         if (comprehensionType) {
           comprehensions.push({
             comprehensionType,
-            comprehensionId: generateDeterministicNodeId(node),
+            comprehensionId: NodeIdGenerator.forAstNode(node),
             iterable,
             location: {
               lineNumber: node.startPosition.row + 1,
@@ -411,7 +411,7 @@ export class CreationRelationshipExtractor {
         const parameters = this.extractLambdaParameters(node);
         
         closures.push({
-          closureId: generateDeterministicNodeId(node),
+          closureId: NodeIdGenerator.forAstNode(node),
           parameters,
           location: {
             lineNumber: node.startPosition.row + 1,
@@ -440,9 +440,6 @@ export class CreationRelationshipExtractor {
   /**
    * 生成节点ID
    */
-  private generateNodeId(name: string, type: string, filePath: string): string {
-    return `${type}_${Buffer.from(`${filePath}_${name}`).toString('hex')}`;
-  }
 
   /**
    * 分析创建关系
@@ -466,7 +463,7 @@ export class CreationRelationshipExtractor {
     for (const instance of classInstances) {
       creations.push({
         sourceId: instance.classId,
-        targetId: this.generateNodeId(instance.className, 'class', filePath),
+        targetId: NodeIdGenerator.forSymbol(instance.className, 'class', filePath, instance.location.lineNumber),
         creationType: 'instantiation',
         targetName: instance.className,
         constructorInfo: { isConstructorCall: true },
@@ -482,7 +479,7 @@ export class CreationRelationshipExtractor {
     for (const funcObj of functionObjects) {
       creations.push({
         sourceId: funcObj.functionId,
-        targetId: this.generateNodeId(funcObj.functionName, 'function', filePath),
+        targetId: NodeIdGenerator.forSymbol(funcObj.functionName, 'function', filePath, funcObj.location.lineNumber),
         creationType: 'function_object',
         targetName: funcObj.functionName,
         constructorInfo: { isFunctionObject: true },
@@ -498,7 +495,7 @@ export class CreationRelationshipExtractor {
     for (const comprehension of comprehensions) {
       creations.push({
         sourceId: comprehension.comprehensionId,
-        targetId: this.generateNodeId(comprehension.comprehensionType, 'comprehension', filePath),
+        targetId: NodeIdGenerator.forSymbol(comprehension.comprehensionType, 'comprehension', filePath, comprehension.location.lineNumber),
         creationType: 'comprehension',
         targetName: comprehension.comprehensionType,
         constructorInfo: { 
@@ -517,7 +514,7 @@ export class CreationRelationshipExtractor {
     for (const closure of closures) {
       creations.push({
         sourceId: closure.closureId,
-        targetId: this.generateNodeId('lambda', 'closure', filePath),
+        targetId: NodeIdGenerator.forSymbol('lambda', 'closure', filePath, closure.location.lineNumber),
         creationType: 'closure',
         targetName: 'lambda',
         constructorInfo: { 

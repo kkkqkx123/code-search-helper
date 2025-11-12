@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { GoHelperMethods } from './GoHelperMethods';
 import Parser from 'tree-sitter';
 
@@ -140,27 +140,27 @@ export class ReferenceRelationshipExtractor {
    * 提取引用关系的节点
    */
   private extractReferenceNodes(astNode: Parser.SyntaxNode, referenceType: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(GoHelperMethods.findContainingFunction(astNode) || astNode);
-    let toNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(GoHelperMethods.findContainingFunction(astNode) || astNode);
+    let toNodeId = NodeIdGenerator.forAstNode(astNode);
 
     // 根据引用类型确定节点关系
     if (referenceType === 'function') {
       // 对于函数引用，目标节点是函数本身，源是引用位置
       const functionDecl = GoHelperMethods.findParentFunctionDeclaration(astNode);
       if (functionDecl) {
-        toNodeId = generateDeterministicNodeId(functionDecl);
+        toNodeId = NodeIdGenerator.forAstNode(functionDecl);
       }
     } else if (referenceType === 'variable') {
       // 对于变量引用，找到对应的变量声明
       const varDecl = GoHelperMethods.findVariableDeclaration(astNode);
       if (varDecl) {
-        toNodeId = generateDeterministicNodeId(varDecl);
+        toNodeId = NodeIdGenerator.forAstNode(varDecl);
       }
     } else if (referenceType === 'type') {
       // 对于类型引用，找到对应的类型声明
       const typeDecl = GoHelperMethods.findTypeDeclaration(astNode);
       if (typeDecl) {
-        toNodeId = generateDeterministicNodeId(typeDecl);
+        toNodeId = NodeIdGenerator.forAstNode(typeDecl);
       }
     }
 

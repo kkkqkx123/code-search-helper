@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { RustHelperMethods } from './RustHelperMethods';
 import Parser from 'tree-sitter';
 

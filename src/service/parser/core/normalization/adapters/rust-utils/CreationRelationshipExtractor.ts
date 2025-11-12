@@ -111,7 +111,7 @@ export class CreationRelationshipExtractor {
       }
     } else if (creationType === 'closure') {
       // 对于闭包，提取闭包表达式
-      toNodeId = this.generateNodeId('closure', 'closure', 'current_file.rs');
+      toNodeId = NodeIdGenerator.forSymbol('closure', 'closure', 'current_file.rs', astNode.startPosition.row);
     } else if (creationType === 'function_object') {
       // 对于函数对象，提取函数名
       const funcNode = this.extractFunctionNode(astNode);
@@ -120,12 +120,12 @@ export class CreationRelationshipExtractor {
       }
     } else if (creationType === 'iterator') {
       // 对于迭代器，提取迭代器类型
-      toNodeId = this.generateNodeId('iterator', 'iterator', 'current_file.rs');
+      toNodeId = NodeIdGenerator.forSymbol('iterator', 'iterator', 'current_file.rs', astNode.startPosition.row);
     } else if (creationType === 'collection') {
       // 对于集合，提取集合类型
       const collectionType = this.extractCollectionType(astNode);
       if (collectionType) {
-        toNodeId = this.generateNodeId(collectionType, 'collection', 'current_file.rs');
+        toNodeId = NodeIdGenerator.forSymbol(collectionType, 'collection', 'current_file.rs', astNode.startPosition.row);
       }
     }
 
@@ -397,9 +397,6 @@ export class CreationRelationshipExtractor {
   /**
    * 生成节点ID
    */
-  private generateNodeId(name: string, type: string, filePath: string): string {
-    return `${type}_${Buffer.from(`${filePath}_${name}`).toString('hex')}`;
-  }
 
   /**
    * 查找结构体实例
@@ -553,7 +550,7 @@ export class CreationRelationshipExtractor {
     for (const instance of structInstances) {
       creations.push({
         sourceId: instance.structId,
-        targetId: this.generateNodeId(instance.structName, 'struct', filePath),
+        targetId: NodeIdGenerator.forSymbol(instance.structName, 'struct', filePath, instance.location.lineNumber),
         creationType: 'instantiation',
         targetName: instance.structName,
         constructorInfo: { isConstructorCall: true },
@@ -569,7 +566,7 @@ export class CreationRelationshipExtractor {
     for (const enumCreation of enumCreations) {
       creations.push({
         sourceId: enumCreation.enumId,
-        targetId: this.generateNodeId(enumCreation.enumName, 'enum', filePath),
+        targetId: NodeIdGenerator.forSymbol(enumCreation.enumName, 'enum', filePath, enumCreation.location.lineNumber),
         creationType: 'enum_creation',
         targetName: `${enumCreation.enumName}::${enumCreation.variant}`,
         constructorInfo: { 
@@ -588,7 +585,7 @@ export class CreationRelationshipExtractor {
     for (const closure of closures) {
       creations.push({
         sourceId: closure.closureId,
-        targetId: this.generateNodeId('closure', 'closure', filePath),
+        targetId: NodeIdGenerator.forSymbol('closure', 'closure', filePath, closure.location.lineNumber),
         creationType: 'closure',
         targetName: 'closure',
         constructorInfo: { 

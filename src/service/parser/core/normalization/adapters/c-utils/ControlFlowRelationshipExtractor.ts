@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -88,7 +88,7 @@ export class ControlFlowRelationshipExtractor {
    * 提取控制流关系的节点
    */
   private extractControlFlowNodes(astNode: Parser.SyntaxNode, flowType: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
     let toNodeId = 'unknown';
 
     // 根据控制流类型提取相关节点
@@ -117,13 +117,13 @@ export class ControlFlowRelationshipExtractor {
     // 对于if语句，提取条件表达式
     const condition = astNode.childForFieldName('condition');
     if (condition) {
-      return generateDeterministicNodeId(condition);
+      return NodeIdGenerator.forAstNode(condition);
     }
 
     // 对于else语句，提取else分支
     const consequence = astNode.childForFieldName('consequence');
     if (consequence) {
-      return generateDeterministicNodeId(consequence);
+      return NodeIdGenerator.forAstNode(consequence);
     }
 
     return 'unknown';
@@ -136,13 +136,13 @@ export class ControlFlowRelationshipExtractor {
     // 对于循环语句，提取循环体
     const body = astNode.childForFieldName('body');
     if (body) {
-      return generateDeterministicNodeId(body);
+      return NodeIdGenerator.forAstNode(body);
     }
 
     // 对于for循环，还可以提取初始化、条件和更新部分
     const init = astNode.childForFieldName('initializer');
     if (init) {
-      return generateDeterministicNodeId(init);
+      return NodeIdGenerator.forAstNode(init);
     }
 
     return 'unknown';
@@ -155,13 +155,13 @@ export class ControlFlowRelationshipExtractor {
     // 对于switch语句，提取条件表达式
     const condition = astNode.childForFieldName('condition');
     if (condition) {
-      return generateDeterministicNodeId(condition);
+      return NodeIdGenerator.forAstNode(condition);
     }
 
     // 对于case语句，提取case值
     const value = astNode.childForFieldName('value');
     if (value) {
-      return generateDeterministicNodeId(value);
+      return NodeIdGenerator.forAstNode(value);
     }
 
     return 'unknown';
@@ -178,7 +178,7 @@ export class ControlFlowRelationshipExtractor {
         // 对于goto语句，提取标签
         const label = astNode.childForFieldName('label');
         if (label) {
-          return generateDeterministicNodeId(label);
+          return NodeIdGenerator.forAstNode(label);
         }
         break;
       case 'break_statement':
@@ -189,7 +189,7 @@ export class ControlFlowRelationshipExtractor {
         // 对于return语句，提取返回值
         const value = astNode.childForFieldName('value');
         if (value) {
-          return generateDeterministicNodeId(value);
+          return NodeIdGenerator.forAstNode(value);
         }
         break;
     }

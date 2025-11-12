@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { CSharpHelperMethods } from './CSharpHelperMethods';
 import Parser from 'tree-sitter';
 
@@ -18,8 +18,8 @@ export class SemanticRelationshipExtractor {
     return {
       type: 'semantic',
       semanticType,
-      fromNodeId: relatedNodes.from ? generateDeterministicNodeId(relatedNodes.from) : 'unknown',
-      toNodeId: relatedNodes.to ? generateDeterministicNodeId(relatedNodes.to) : 'unknown',
+      fromNodeId: relatedNodes.from ? NodeIdGenerator.forAstNode(relatedNodes.from) : 'unknown',
+      toNodeId: relatedNodes.to ? NodeIdGenerator.forAstNode(relatedNodes.to) : 'unknown',
       patternDetails,
       location: {
         filePath: symbolTable?.filePath || 'current_file.cs',

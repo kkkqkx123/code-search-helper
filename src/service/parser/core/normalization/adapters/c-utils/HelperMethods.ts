@@ -1,5 +1,5 @@
 import { SymbolInfo, SymbolTable } from '../../types';
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 import { C_NAME_CAPTURES, C_FUNCTION_NODE_TYPES, C_BLOCK_NODE_TYPES } from './constants';
 

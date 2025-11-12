@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -23,8 +23,8 @@ export class DataFlowRelationshipExtractor {
 
     return {
       type: 'data-flow',
-      fromNodeId: generateDeterministicNodeId(right),
-      toNodeId: generateDeterministicNodeId(left),
+      fromNodeId: NodeIdGenerator.forAstNode(right),
+      toNodeId: NodeIdGenerator.forAstNode(left),
       flowType,
       dataType,
       flowPath,

@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -91,7 +91,7 @@ export class InheritanceRelationshipExtractor {
       // 结构体名称作为fromNodeId
       const structName = astNode.childForFieldName('name');
       if (structName) {
-        fromNodeId = generateDeterministicNodeId(structName);
+        fromNodeId = NodeIdGenerator.forAstNode(structName);
       }
 
       // 查找嵌套的结构体字段
@@ -101,7 +101,7 @@ export class InheritanceRelationshipExtractor {
           if (child.type === 'field_declaration') {
             const fieldType = child.childForFieldName('type');
             if (fieldType && fieldType.type === 'type_identifier') {
-              toNodeId = generateDeterministicNodeId(fieldType);
+              toNodeId = NodeIdGenerator.forAstNode(fieldType);
               break;
             }
           }
@@ -109,12 +109,12 @@ export class InheritanceRelationshipExtractor {
       }
     } else if (astNode.type === 'field_declaration') {
       // 字段声明作为fromNodeId
-      fromNodeId = generateDeterministicNodeId(astNode);
+      fromNodeId = NodeIdGenerator.forAstNode(astNode);
 
       // 字段类型作为toNodeId
       const fieldType = astNode.childForFieldName('type');
       if (fieldType) {
-        toNodeId = generateDeterministicNodeId(fieldType);
+        toNodeId = NodeIdGenerator.forAstNode(fieldType);
       }
     }
 

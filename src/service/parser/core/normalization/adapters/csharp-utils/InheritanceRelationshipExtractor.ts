@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { CSharpHelperMethods } from './CSharpHelperMethods';
 import Parser from 'tree-sitter';
 
@@ -17,8 +17,8 @@ export class InheritanceRelationshipExtractor {
 
     return {
       type: 'inheritance',
-      fromNodeId: derivedType ? generateDeterministicNodeId(derivedType) : 'unknown',
-      toNodeId: baseTypes.length > 0 ? generateDeterministicNodeId(baseTypes[0]) : 'unknown',
+      fromNodeId: derivedType ? NodeIdGenerator.forAstNode(derivedType) : 'unknown',
+      toNodeId: baseTypes.length > 0 ? NodeIdGenerator.forAstNode(baseTypes[0]) : 'unknown',
       inheritanceType,
       baseTypes: baseTypes.map(type => type.text),
       location: {

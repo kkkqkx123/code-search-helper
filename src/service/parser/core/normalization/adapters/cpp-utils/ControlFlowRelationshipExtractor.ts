@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -41,7 +41,7 @@ export class ControlFlowRelationshipExtractor {
 
     return {
       type: 'control-flow',
-      fromNodeId: generateDeterministicNodeId(astNode),
+      fromNodeId: NodeIdGenerator.forAstNode(astNode),
       toNodeId: 'unknown', // 需要更复杂的分析来确定目标
       flowType,
       condition: astNode.childForFieldName('condition')?.text,

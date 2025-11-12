@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { JavaHelperMethods } from './JavaHelperMethods';
 import Parser from 'tree-sitter';
 
@@ -26,17 +26,17 @@ export class SemanticRelationshipExtractor {
       if (capture.name.includes('override')) {
         metadata.semanticType = 'overrides';
         metadata.overriddenMethod = capture.node.text;
-        metadata.fromNodeId = generateDeterministicNodeId(astNode);
-        metadata.toNodeId = generateDeterministicNodeId(capture.node);
+        metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
+        metadata.toNodeId = NodeIdGenerator.forAstNode(capture.node);
       } else if (capture.name.includes('implement')) {
         metadata.semanticType = 'implements';
         metadata.implementedInterface = capture.node.text;
-        metadata.fromNodeId = generateDeterministicNodeId(astNode);
-        metadata.toNodeId = generateDeterministicNodeId(capture.node);
+        metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
+        metadata.toNodeId = NodeIdGenerator.forAstNode(capture.node);
       } else if (capture.name.includes('annotation')) {
         metadata.annotation = capture.node.text;
-        metadata.fromNodeId = generateDeterministicNodeId(astNode);
-        metadata.toNodeId = generateDeterministicNodeId(capture.node);
+        metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
+        metadata.toNodeId = NodeIdGenerator.forAstNode(capture.node);
       }
     }
 
@@ -60,9 +60,9 @@ export class SemanticRelationshipExtractor {
       const methodName = astNode.childForFieldName('name');
       if (methodName?.text) {
         metadata.overriddenMethod = methodName.text;
-        metadata.toNodeId = generateDeterministicNodeId(methodName);
+        metadata.toNodeId = NodeIdGenerator.forAstNode(methodName);
       }
-      metadata.fromNodeId = generateDeterministicNodeId(astNode);
+      metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
     }
 
     // 检查是否是重载方法
@@ -76,8 +76,8 @@ export class SemanticRelationshipExtractor {
           if (overloadedMethods.length > 0) {
             metadata.semanticType = 'overloads';
             metadata.overloadedMethod = methodName.text;
-            metadata.fromNodeId = generateDeterministicNodeId(astNode);
-            metadata.toNodeId = generateDeterministicNodeId(overloadedMethods[0]);
+            metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
+            metadata.toNodeId = NodeIdGenerator.forAstNode(overloadedMethods[0]);
           }
         }
       }
@@ -87,21 +87,21 @@ export class SemanticRelationshipExtractor {
     if (text.includes('@Configuration') || text.includes('@Bean')) {
       metadata.semanticType = 'configures';
       metadata.configuredComponent = this.extractConfiguredComponent(astNode);
-      metadata.fromNodeId = generateDeterministicNodeId(astNode);
+      metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
     }
 
     if (text.includes('@EventListener') || text.includes('@Subscribe') || 
         text.includes('@Observer') || text.includes('@EventHandler')) {
       metadata.semanticType = 'observes';
       metadata.observedEvent = this.extractObservedEvent(astNode);
-      metadata.fromNodeId = generateDeterministicNodeId(astNode);
+      metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
     }
 
     // 检查是否是委托模式
     if (text.includes('@Delegate') || this.isDelegatePattern(astNode)) {
       metadata.semanticType = 'delegates';
       metadata.delegatedMethod = this.extractDelegatedMethod(astNode);
-      metadata.fromNodeId = generateDeterministicNodeId(astNode);
+      metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
     }
 
     // 检查是否是依赖注入
@@ -109,7 +109,7 @@ export class SemanticRelationshipExtractor {
         text.includes('@Resource') || text.includes('@Value')) {
       metadata.semanticType = 'configures'; // 将depends-on映射为configures以匹配基类类型
       metadata.dependency = this.extractDependency(astNode);
-      metadata.fromNodeId = generateDeterministicNodeId(astNode);
+      metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
     }
   }
 

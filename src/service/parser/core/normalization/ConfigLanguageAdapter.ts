@@ -8,6 +8,7 @@ import { LoggerService } from '../../../../utils/LoggerService';
 import { LRUCache } from '../../../../utils/cache/LRUCache';
 import { PerformanceMonitor } from '../../../../infrastructure/monitoring/PerformanceMonitor';
 import { ContentHashUtils } from '../../../../utils/cache/ContentHashUtils';
+import { NodeIdGenerator } from '../../../../utils/deterministic-node-id';
 
 /**
  * 配置语言适配器选项接口
@@ -445,38 +446,24 @@ export abstract class ConfigLanguageAdapter implements ILanguageAdapter {
   }
 
   /**
-  * 生成节点ID
-  */
-  // 保留原有的简单哈希方法以备后用
-  protected simpleHash(content: string): string {
-    let hash = 0;
-    for (let i = 0; i < content.length; i++) {
-      const char = content.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
-    }
-    return Math.abs(hash).toString(16);
-  }
-
-  /**
-   * 生成缓存键
-   */
+    * 生成缓存键
+    */
   protected generateCacheKey(queryResults: any[], queryType: string, language: string): string {
     const resultHash = this.hashResults(queryResults);
     return `${language}:${queryType}:${resultHash}`;
   }
 
   /**
-   * 哈希查询结果
-   */
+    * 哈希查询结果
+    */
   protected hashResults(queryResults: any[]): string {
     const content = queryResults.map(r => r?.captures?.[0]?.node?.text || '').join('|');
     return this.simpleHash(content);
   }
 
   /**
-   * 简单哈希函数
-   */
+    * 简单哈希函数
+    */
   protected simpleHash(str: string): string {
     return ContentHashUtils.generateContentHash(str);
   }

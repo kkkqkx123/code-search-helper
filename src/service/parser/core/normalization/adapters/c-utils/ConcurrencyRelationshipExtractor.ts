@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -97,7 +97,7 @@ export class ConcurrencyRelationshipExtractor {
    * 提取并发关系的节点
    */
   private extractConcurrencyNodes(astNode: Parser.SyntaxNode, operation: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
     let toNodeId = 'unknown';
 
     // 根据操作类型提取相关节点
@@ -105,25 +105,25 @@ export class ConcurrencyRelationshipExtractor {
       // 对于线程操作，尝试提取线程ID
       const threadIdNode = this.extractThreadIdNode(astNode);
       if (threadIdNode) {
-        toNodeId = generateDeterministicNodeId(threadIdNode);
+        toNodeId = NodeIdGenerator.forAstNode(threadIdNode);
       }
     } else if (operation === 'lock' || operation === 'unlock') {
       // 对于互斥锁操作，尝试提取互斥锁对象
       const mutexNode = this.extractMutexNode(astNode);
       if (mutexNode) {
-        toNodeId = generateDeterministicNodeId(mutexNode);
+        toNodeId = NodeIdGenerator.forAstNode(mutexNode);
       }
     } else if (operation === 'wait' || operation === 'signal') {
       // 对于条件变量操作，尝试提取条件变量
       const condNode = this.extractConditionVariableNode(astNode);
       if (condNode) {
-        toNodeId = generateDeterministicNodeId(condNode);
+        toNodeId = NodeIdGenerator.forAstNode(condNode);
       }
     } else if (operation.includes('semaphore')) {
       // 对于信号量操作，尝试提取信号量
       const semNode = this.extractSemaphoreNode(astNode);
       if (semNode) {
-        toNodeId = generateDeterministicNodeId(semNode);
+        toNodeId = NodeIdGenerator.forAstNode(semNode);
       }
     }
 

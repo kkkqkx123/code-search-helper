@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { PythonHelperMethods } from './PythonHelperMethods';
 import Parser from 'tree-sitter';
 
@@ -361,15 +361,15 @@ export class DataFlowRelationshipExtractor {
       case 'annotated_assignment':
       case 'augmented_assignment':
         const right = astNode.childForFieldName('right');
-        return right ? generateDeterministicNodeId(right) : 'unknown';
+        return right ? NodeIdGenerator.forAstNode(right) : 'unknown';
         
       case 'call':
         const args = astNode.childForFieldName('arguments');
-        return args ? generateDeterministicNodeId(args) : 'unknown';
+        return args ? NodeIdGenerator.forAstNode(args) : 'unknown';
         
       case 'return_statement':
         const value = astNode.childForFieldName('value');
-        return value ? generateDeterministicNodeId(value) : 'unknown';
+        return value ? NodeIdGenerator.forAstNode(value) : 'unknown';
         
       default:
         return 'unknown';
@@ -385,11 +385,11 @@ export class DataFlowRelationshipExtractor {
       case 'annotated_assignment':
       case 'augmented_assignment':
         const left = astNode.childForFieldName('left');
-        return left ? generateDeterministicNodeId(left) : 'unknown';
+        return left ? NodeIdGenerator.forAstNode(left) : 'unknown';
         
       case 'call':
         const func = astNode.childForFieldName('function');
-        return func ? generateDeterministicNodeId(func) : 'unknown';
+        return func ? NodeIdGenerator.forAstNode(func) : 'unknown';
         
       case 'return_statement':
         return 'function_return';

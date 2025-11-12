@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { GoHelperMethods } from './GoHelperMethods';
 import Parser from 'tree-sitter';
 
@@ -133,8 +133,8 @@ export class CreationRelationshipExtractor {
    * 提取创建关系的节点
    */
   private extractCreationNodes(astNode: Parser.SyntaxNode, creationType: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(GoHelperMethods.findContainingFunction(astNode) || astNode);
-    let toNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(GoHelperMethods.findContainingFunction(astNode) || astNode);
+    let toNodeId = NodeIdGenerator.forAstNode(astNode);
 
     // 对于创建操作，from是创建者，to是被创建的对象
     // 在这个情况下，astNode就是被创建的对象，所以toNodeId是它本身

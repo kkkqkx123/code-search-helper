@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -84,28 +84,28 @@ export class DependencyRelationshipExtractor {
    * 提取依赖关系的节点
    */
   private extractDependencyNodes(astNode: Parser.SyntaxNode, dependencyType: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
     let toNodeId = 'unknown';
 
     if (dependencyType === 'using') {
       const usingTarget = this.extractUsingTarget(astNode);
       if (usingTarget) {
-        toNodeId = this.generateNodeId(usingTarget, 'using', 'current_file.cs');
+        toNodeId = NodeIdGenerator.forSymbol(usingTarget, 'using', 'current_file.cs', astNode.startPosition.row);
       }
     } else if (dependencyType === 'namespace') {
       const namespaceName = this.extractNamespaceName(astNode);
       if (namespaceName) {
-        toNodeId = this.generateNodeId(namespaceName, 'namespace', 'current_file.cs');
+        toNodeId = NodeIdGenerator.forSymbol(namespaceName, 'namespace', 'current_file.cs', astNode.startPosition.row);
       }
     } else if (dependencyType === 'extern_alias') {
       const aliasName = this.extractExternAliasName(astNode);
       if (aliasName) {
-        toNodeId = this.generateNodeId(aliasName, 'extern_alias', 'current_file.cs');
+        toNodeId = NodeIdGenerator.forSymbol(aliasName, 'extern_alias', 'current_file.cs', astNode.startPosition.row);
       }
     } else if (dependencyType === 'assembly') {
       const assemblyName = this.extractAssemblyName(astNode);
       if (assemblyName) {
-        toNodeId = this.generateNodeId(assemblyName, 'assembly', 'current_file.cs');
+        toNodeId = NodeIdGenerator.forSymbol(assemblyName, 'assembly', 'current_file.cs', astNode.startPosition.row);
       }
     }
 
@@ -322,9 +322,6 @@ export class DependencyRelationshipExtractor {
   /**
    * 生成节点ID
    */
-  private generateNodeId(name: string, type: string, filePath: string): string {
-    return `${type}_${Buffer.from(`${filePath}_${name}`).toString('hex')}`;
-  }
 
   /**
    * 查找using指令
@@ -427,8 +424,8 @@ export class DependencyRelationshipExtractor {
 
       if (usingInfo) {
         dependencies.push({
-          sourceId: generateDeterministicNodeId(usingDirective),
-          targetId: this.generateNodeId(usingInfo.target, 'using', filePath),
+          sourceId: NodeIdGenerator.forAstNode(usingDirective),
+          targetId: NodeIdGenerator.forSymbol(usingInfo.target, 'using', filePath, usingDirective.startPosition.row + 1),
           dependencyType: 'using',
           target: usingInfo.target,
           importedSymbols: usingInfo.symbols,
@@ -447,8 +444,8 @@ export class DependencyRelationshipExtractor {
 
       if (namespaceInfo) {
         dependencies.push({
-          sourceId: generateDeterministicNodeId(namespaceDecl),
-          targetId: this.generateNodeId(namespaceInfo.name, 'namespace', filePath),
+          sourceId: NodeIdGenerator.forAstNode(namespaceDecl),
+          targetId: NodeIdGenerator.forSymbol(namespaceInfo.name, 'namespace', filePath, namespaceDecl.startPosition.row + 1),
           dependencyType: 'namespace',
           target: namespaceInfo.name,
           importedSymbols: [],
@@ -468,8 +465,8 @@ export class DependencyRelationshipExtractor {
 
       if (aliasName) {
         dependencies.push({
-          sourceId: generateDeterministicNodeId(externAlias),
-          targetId: this.generateNodeId(aliasName, 'extern_alias', filePath),
+          sourceId: NodeIdGenerator.forAstNode(externAlias),
+          targetId: NodeIdGenerator.forSymbol(aliasName, 'extern_alias', filePath, externAlias.startPosition.row + 1),
           dependencyType: 'extern_alias',
           target: aliasName,
           importedSymbols: [aliasName],
@@ -488,8 +485,8 @@ export class DependencyRelationshipExtractor {
 
       if (assemblyName) {
         dependencies.push({
-          sourceId: generateDeterministicNodeId(assemblyAttr),
-          targetId: this.generateNodeId(assemblyName, 'assembly', filePath),
+          sourceId: NodeIdGenerator.forAstNode(assemblyAttr),
+          targetId: NodeIdGenerator.forSymbol(assemblyName, 'assembly', filePath, assemblyAttr.startPosition.row + 1),
           dependencyType: 'assembly',
           target: assemblyName,
           importedSymbols: [assemblyName],

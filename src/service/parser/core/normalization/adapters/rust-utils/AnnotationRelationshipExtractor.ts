@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -86,21 +86,21 @@ export class AnnotationRelationshipExtractor {
    * 提取注解关系的节点
    */
   private extractAnnotationNodes(astNode: Parser.SyntaxNode, annotationType: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
     let toNodeId = 'unknown';
 
     if (annotationType === 'attribute' || annotationType === 'derive') {
       const attributeName = this.extractAnnotationName(astNode);
       if (attributeName) {
-        toNodeId = this.generateNodeId(attributeName, 'attribute', 'current_file.rs');
+        toNodeId = NodeIdGenerator.forSymbol(attributeName, 'attribute', 'current_file.rs', 0);
       }
     } else if (annotationType === 'macro') {
       const macroName = this.extractMacroName(astNode);
       if (macroName) {
-        toNodeId = this.generateNodeId(macroName, 'macro', 'current_file.rs');
+        toNodeId = NodeIdGenerator.forSymbol(macroName, 'macro', 'current_file.rs', 0);
       }
     } else if (annotationType === 'doc_comment') {
-      toNodeId = this.generateNodeId('doc_comment', 'doc_comment', 'current_file.rs');
+      toNodeId = NodeIdGenerator.forSymbol('doc_comment', 'doc_comment', 'current_file.rs', 0);
     }
 
     return { fromNodeId, toNodeId };
@@ -349,8 +349,8 @@ export class AnnotationRelationshipExtractor {
 
       if (annotationName && annotationType) {
         annotations.push({
-          sourceId: generateDeterministicNodeId(attrDecl),
-          targetId: this.generateNodeId(annotationName, 'attribute', filePath),
+          sourceId: NodeIdGenerator.forAstNode(attrDecl),
+          targetId: NodeIdGenerator.forSymbol(annotationName, 'attribute', filePath, 0),
           annotationType,
           annotationName,
           parameters,
@@ -372,8 +372,8 @@ export class AnnotationRelationshipExtractor {
 
       if (macroName && annotationType) {
         annotations.push({
-          sourceId: generateDeterministicNodeId(macroInvocation),
-          targetId: this.generateNodeId(macroName, 'macro', filePath),
+          sourceId: NodeIdGenerator.forAstNode(macroInvocation),
+          targetId: NodeIdGenerator.forSymbol(macroName, 'macro', filePath, 0),
           annotationType,
           annotationName: macroName,
           parameters,
@@ -394,8 +394,8 @@ export class AnnotationRelationshipExtractor {
 
       if (annotationType) {
         annotations.push({
-          sourceId: generateDeterministicNodeId(docComment),
-          targetId: this.generateNodeId('doc_comment', 'doc_comment', filePath),
+          sourceId: NodeIdGenerator.forAstNode(docComment),
+          targetId: NodeIdGenerator.forSymbol('doc_comment', 'doc_comment', filePath, 0),
           annotationType,
           annotationName: 'doc_comment',
           parameters,

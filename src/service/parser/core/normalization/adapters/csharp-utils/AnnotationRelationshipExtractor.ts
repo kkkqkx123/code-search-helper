@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -80,23 +80,23 @@ export class AnnotationRelationshipExtractor {
    * 提取注解关系的节点
    */
   private extractAnnotationNodes(astNode: Parser.SyntaxNode, annotationType: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
     let toNodeId = 'unknown';
 
     if (annotationType === 'attribute') {
       const attributeName = this.extractAnnotationName(astNode);
       if (attributeName) {
-        toNodeId = this.generateNodeId(attributeName, 'attribute', 'current_file.cs');
+        toNodeId = NodeIdGenerator.forSymbol(attributeName, 'attribute', 'current_file.cs');
       }
     } else if (annotationType === 'compiler_directive') {
       const directiveName = this.extractDirectiveName(astNode);
       if (directiveName) {
-        toNodeId = this.generateNodeId(directiveName, 'directive', 'current_file.cs');
+        toNodeId = NodeIdGenerator.forSymbol(directiveName, 'directive', 'current_file.cs');
       }
     } else if (annotationType === 'metadata') {
       const metadataName = this.extractMetadataName(astNode);
       if (metadataName) {
-        toNodeId = this.generateNodeId(metadataName, 'metadata', 'current_file.cs');
+        toNodeId = NodeIdGenerator.forSymbol(metadataName, 'metadata', 'current_file.cs');
       }
     }
 
@@ -312,8 +312,8 @@ export class AnnotationRelationshipExtractor {
 
       if (annotationName && annotationType) {
         annotations.push({
-          sourceId: generateDeterministicNodeId(attrDecl),
-          targetId: this.generateNodeId(annotationName, 'attribute', filePath),
+          sourceId: NodeIdGenerator.forAstNode(attrDecl),
+          targetId: NodeIdGenerator.forSymbol(annotationName, 'attribute', filePath),
           annotationType,
           annotationName,
           parameters,
@@ -335,8 +335,8 @@ export class AnnotationRelationshipExtractor {
 
       if (directiveName && annotationType) {
         annotations.push({
-          sourceId: generateDeterministicNodeId(directive),
-          targetId: this.generateNodeId(directiveName, 'directive', filePath),
+          sourceId: NodeIdGenerator.forAstNode(directive),
+          targetId: NodeIdGenerator.forSymbol(directiveName, 'directive', filePath),
           annotationType,
           annotationName: directiveName,
           parameters,
@@ -358,8 +358,8 @@ export class AnnotationRelationshipExtractor {
 
       if (metadataName && annotationType) {
         annotations.push({
-          sourceId: generateDeterministicNodeId(externAlias),
-          targetId: this.generateNodeId(metadataName, 'metadata', filePath),
+          sourceId: NodeIdGenerator.forAstNode(externAlias),
+          targetId: NodeIdGenerator.forSymbol(metadataName, 'metadata', filePath),
           annotationType,
           annotationName: metadataName,
           parameters,

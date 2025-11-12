@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { JavaHelperMethods } from './JavaHelperMethods';
 import Parser from 'tree-sitter';
 
@@ -26,18 +26,18 @@ export class ConcurrencyRelationshipExtractor {
       if (capture.name.includes('synchronized') || capture.name.includes('lock')) {
         metadata.concurrencyType = 'synchronizes';
         metadata.lockedResource = capture.node.text;
-        metadata.fromNodeId = generateDeterministicNodeId(astNode);
-        metadata.toNodeId = generateDeterministicNodeId(capture.node);
+        metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
+        metadata.toNodeId = NodeIdGenerator.forAstNode(capture.node);
       } else if (capture.name.includes('thread') || capture.name.includes('start')) {
         metadata.concurrencyType = 'manages';
         metadata.managedThread = capture.node.text;
-        metadata.fromNodeId = generateDeterministicNodeId(astNode);
-        metadata.toNodeId = generateDeterministicNodeId(capture.node);
+        metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
+        metadata.toNodeId = NodeIdGenerator.forAstNode(capture.node);
       } else if (capture.name.includes('wait') || capture.name.includes('notify')) {
         metadata.concurrencyType = 'communicates';
         metadata.communicationPoint = capture.node.text;
-        metadata.fromNodeId = generateDeterministicNodeId(astNode);
-        metadata.toNodeId = generateDeterministicNodeId(capture.node);
+        metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
+        metadata.toNodeId = NodeIdGenerator.forAstNode(capture.node);
       }
     }
 
@@ -61,14 +61,14 @@ export class ConcurrencyRelationshipExtractor {
       const lockObject = astNode.childForFieldName('value');
       if (lockObject?.text) {
         metadata.lockedResource = lockObject.text;
-        metadata.toNodeId = generateDeterministicNodeId(lockObject);
+        metadata.toNodeId = NodeIdGenerator.forAstNode(lockObject);
       }
-      metadata.fromNodeId = generateDeterministicNodeId(astNode);
+      metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
     } else if (text.includes('synchronized') || text.includes('ReentrantLock') || 
                text.includes('Lock') || text.includes('ReadWriteLock')) {
       metadata.concurrencyType = 'synchronizes';
       metadata.lockedResource = this.extractLockResource(astNode);
-      metadata.fromNodeId = generateDeterministicNodeId(astNode);
+      metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
     }
 
     // 检查线程管理
@@ -76,7 +76,7 @@ export class ConcurrencyRelationshipExtractor {
         text.includes('ThreadPoolExecutor') || text.includes('ForkJoinPool')) {
       metadata.concurrencyType = 'manages';
       metadata.managedThread = this.extractThreadResource(astNode);
-      metadata.fromNodeId = generateDeterministicNodeId(astNode);
+      metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
     }
 
     // 检查线程间通信
@@ -85,7 +85,7 @@ export class ConcurrencyRelationshipExtractor {
         text.includes('CyclicBarrier') || text.includes('Semaphore')) {
       metadata.concurrencyType = 'communicates';
       metadata.communicationPoint = this.extractCommunicationPoint(astNode);
-      metadata.fromNodeId = generateDeterministicNodeId(astNode);
+      metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
     }
 
     // 检查竞态条件
@@ -93,7 +93,7 @@ export class ConcurrencyRelationshipExtractor {
         text.includes('ConcurrentHashMap') || text.includes('CopyOnWriteArrayList')) {
       metadata.concurrencyType = 'races';
       metadata.raceCondition = this.extractRaceCondition(astNode);
-      metadata.fromNodeId = generateDeterministicNodeId(astNode);
+      metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
     }
   }
 

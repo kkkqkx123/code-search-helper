@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { PythonHelperMethods } from './PythonHelperMethods';
 import Parser from 'tree-sitter';
 
@@ -276,25 +276,25 @@ export class ControlFlowRelationshipExtractor {
     switch (astNode.type) {
       case 'if_statement':
         const condition = astNode.childForFieldName('condition');
-        return condition ? generateDeterministicNodeId(condition) : 'unknown';
+        return condition ? NodeIdGenerator.forAstNode(condition) : 'unknown';
         
       case 'for_statement':
         const iter = astNode.childForFieldName('iter');
-        return iter ? generateDeterministicNodeId(iter) : 'unknown';
+        return iter ? NodeIdGenerator.forAstNode(iter) : 'unknown';
         
       case 'while_statement':
         const whileCondition = astNode.childForFieldName('condition');
-        return whileCondition ? generateDeterministicNodeId(whileCondition) : 'unknown';
+        return whileCondition ? NodeIdGenerator.forAstNode(whileCondition) : 'unknown';
         
       case 'try_statement':
         return 'try-block';
         
       case 'with_statement':
         const context = astNode.childForFieldName('context');
-        return context ? generateDeterministicNodeId(context) : 'unknown';
+        return context ? NodeIdGenerator.forAstNode(context) : 'unknown';
         
       default:
-        return generateDeterministicNodeId(astNode);
+        return NodeIdGenerator.forAstNode(astNode);
     }
   }
 
@@ -308,7 +308,7 @@ export class ControlFlowRelationshipExtractor {
         
       case 'for_statement':
         const target = astNode.childForFieldName('target');
-        return target ? generateDeterministicNodeId(target) : 'unknown';
+        return target ? NodeIdGenerator.forAstNode(target) : 'unknown';
         
       case 'while_statement':
         return 'while-body';

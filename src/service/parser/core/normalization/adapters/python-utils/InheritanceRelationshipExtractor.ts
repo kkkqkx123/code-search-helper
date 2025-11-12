@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -93,7 +93,7 @@ export class InheritanceRelationshipExtractor {
    * 提取继承关系的节点
    */
   private extractInheritanceNodes(astNode: Parser.SyntaxNode, inheritanceType: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
     let toNodeId = 'unknown';
 
     const className = this.extractClassName(astNode);
@@ -102,7 +102,7 @@ export class InheritanceRelationshipExtractor {
     if (baseClasses.length > 0) {
       // 对于多个基类，创建一个组合的toNodeId
       const baseClassNames = baseClasses.map(cls => cls.name).join(',');
-      toNodeId = this.generateNodeId(baseClassNames, 'inheritance', 'current_file.py');
+      toNodeId = NodeIdGenerator.forSymbol(baseClassNames, 'inheritance', 'current_file.py');
     }
 
     return { fromNodeId, toNodeId };
@@ -361,8 +361,8 @@ export class InheritanceRelationshipExtractor {
         const baseClassNames = baseClasses.map(cls => cls.name).join(',');
         
         inheritanceRelationships.push({
-          sourceId: generateDeterministicNodeId(classDef),
-          targetId: this.generateNodeId(baseClassNames, 'inheritance', filePath),
+          sourceId: NodeIdGenerator.forAstNode(classDef),
+          targetId: NodeIdGenerator.forSymbol(baseClassNames, 'inheritance', filePath),
           inheritanceType,
           baseClasses: baseClasses.map(cls => cls.name),
           inheritanceInfo,

@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -16,8 +16,8 @@ export class DataFlowRelationshipExtractor {
 
     return {
       type: 'data-flow',
-      fromNodeId: right ? generateDeterministicNodeId(right) : 'unknown',
-      toNodeId: left ? generateDeterministicNodeId(left) : 'unknown',
+      fromNodeId: right ? NodeIdGenerator.forAstNode(right) : 'unknown',
+      toNodeId: left ? NodeIdGenerator.forAstNode(left) : 'unknown',
       flowType: 'variable_assignment',
       dataType: 'variable',
       flowPath: [right?.text || 'unknown', left?.text || 'unknown'],

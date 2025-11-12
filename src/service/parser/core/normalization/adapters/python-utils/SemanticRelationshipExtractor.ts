@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { PythonHelperMethods } from './PythonHelperMethods';
 import Parser from 'tree-sitter';
 
@@ -198,14 +198,14 @@ export class SemanticRelationshipExtractor {
     switch (astNode.type) {
       case 'class_definition':
         const superclasses = astNode.childForFieldName('superclasses');
-        return superclasses ? generateDeterministicNodeId(superclasses) : 'unknown';
+        return superclasses ? NodeIdGenerator.forAstNode(superclasses) : 'unknown';
         
       case 'decorated_definition':
         const decorators = astNode.childForFieldName('decorators');
-        return decorators ? generateDeterministicNodeId(decorators) : 'unknown';
+        return decorators ? NodeIdGenerator.forAstNode(decorators) : 'unknown';
         
       default:
-        return generateDeterministicNodeId(astNode);
+        return NodeIdGenerator.forAstNode(astNode);
     }
   }
 
@@ -216,12 +216,12 @@ export class SemanticRelationshipExtractor {
     switch (astNode.type) {
       case 'class_definition':
         const name = astNode.childForFieldName('name');
-        return name ? generateDeterministicNodeId(name) : 'unknown';
+        return name ? NodeIdGenerator.forAstNode(name) : 'unknown';
         
       case 'decorated_definition':
         const definition = astNode.childForFieldName('definition');
         const defName = definition?.childForFieldName('name');
-        return defName ? generateDeterministicNodeId(defName) : 'unknown';
+        return defName ? NodeIdGenerator.forAstNode(defName) : 'unknown';
         
       default:
         return 'unknown';

@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { JavaHelperMethods } from './JavaHelperMethods';
 import Parser from 'tree-sitter';
 
@@ -26,18 +26,18 @@ export class LifecycleRelationshipExtractor {
       if (capture.name.includes('instantiated') || capture.name.includes('constructor')) {
         metadata.lifecycleType = 'instantiates';
         metadata.instantiatedClass = capture.node.text;
-        metadata.fromNodeId = generateDeterministicNodeId(astNode);
-        metadata.toNodeId = generateDeterministicNodeId(capture.node);
+        metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
+        metadata.toNodeId = NodeIdGenerator.forAstNode(capture.node);
       } else if (capture.name.includes('close') || capture.name.includes('destroy')) {
         metadata.lifecycleType = 'destroys';
         metadata.destroyedResource = capture.node.text;
-        metadata.fromNodeId = generateDeterministicNodeId(astNode);
-        metadata.toNodeId = generateDeterministicNodeId(capture.node);
+        metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
+        metadata.toNodeId = NodeIdGenerator.forAstNode(capture.node);
       } else if (capture.name.includes('init') || capture.name.includes('initialize')) {
         metadata.lifecycleType = 'initializes';
         metadata.initializedResource = capture.node.text;
-        metadata.fromNodeId = generateDeterministicNodeId(astNode);
-        metadata.toNodeId = generateDeterministicNodeId(capture.node);
+        metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
+        metadata.toNodeId = NodeIdGenerator.forAstNode(capture.node);
       }
     }
 
@@ -59,8 +59,8 @@ export class LifecycleRelationshipExtractor {
       if (type?.text) {
         metadata.lifecycleType = 'instantiates';
         metadata.instantiatedClass = type.text;
-        metadata.fromNodeId = generateDeterministicNodeId(astNode);
-        metadata.toNodeId = generateDeterministicNodeId(type);
+        metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
+        metadata.toNodeId = NodeIdGenerator.forAstNode(type);
       }
     }
 
@@ -70,9 +70,9 @@ export class LifecycleRelationshipExtractor {
       const constructorName = astNode.childForFieldName('name');
       if (constructorName?.text) {
         metadata.initializedResource = constructorName.text;
-        metadata.toNodeId = generateDeterministicNodeId(constructorName);
+        metadata.toNodeId = NodeIdGenerator.forAstNode(constructorName);
       }
-      metadata.fromNodeId = generateDeterministicNodeId(astNode);
+      metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
     }
 
     // 提取析构关系（finalizer）
@@ -81,9 +81,9 @@ export class LifecycleRelationshipExtractor {
       const methodName = astNode.childForFieldName('name');
       if (methodName?.text) {
         metadata.destroyedResource = methodName.text;
-        metadata.toNodeId = generateDeterministicNodeId(methodName);
+        metadata.toNodeId = NodeIdGenerator.forAstNode(methodName);
       }
-      metadata.fromNodeId = generateDeterministicNodeId(astNode);
+      metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
     }
 
     // 检查资源管理
@@ -91,21 +91,21 @@ export class LifecycleRelationshipExtractor {
     if (text.includes('try-with-resources') || text.includes('AutoCloseable')) {
       metadata.lifecycleType = 'manages';
       metadata.managedResource = this.extractManagedResource(astNode);
-      metadata.fromNodeId = generateDeterministicNodeId(astNode);
+      metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
     }
 
     // 检查Spring生命周期
     if (text.includes('@PostConstruct') || text.includes('@PreDestroy')) {
       metadata.lifecycleType = text.includes('@PostConstruct') ? 'initializes' : 'destroys';
       metadata.lifecycleAnnotation = text.includes('@PostConstruct') ? '@PostConstruct' : '@PreDestroy';
-      metadata.fromNodeId = generateDeterministicNodeId(astNode);
+      metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
     }
 
     // 检查初始化块
     if (astNode.type === 'block' && astNode.parent?.type === 'class_body') {
       metadata.lifecycleType = 'initializes';
       metadata.initializationBlock = 'static';
-      metadata.fromNodeId = generateDeterministicNodeId(astNode);
+      metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
     }
   }
 

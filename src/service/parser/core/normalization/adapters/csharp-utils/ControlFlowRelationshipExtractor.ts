@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { CSharpHelperMethods } from './CSharpHelperMethods';
 import Parser from 'tree-sitter';
 
@@ -19,8 +19,8 @@ export class ControlFlowRelationshipExtractor {
     return {
       type: 'control-flow',
       controlFlowType,
-      fromNodeId: sourceNode ? generateDeterministicNodeId(sourceNode) : 'unknown',
-      toNodeId: targetNode ? generateDeterministicNodeId(targetNode) : 'unknown',
+      fromNodeId: sourceNode ? NodeIdGenerator.forAstNode(sourceNode) : 'unknown',
+      toNodeId: targetNode ? NodeIdGenerator.forAstNode(targetNode) : 'unknown',
       condition,
       location: {
         filePath: symbolTable?.filePath || 'current_file.cs',

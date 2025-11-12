@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { JavaHelperMethods } from './JavaHelperMethods';
 import Parser from 'tree-sitter';
 
@@ -26,23 +26,23 @@ export class ControlFlowRelationshipExtractor {
             if (capture.name.includes('condition') || capture.name.includes('if')) {
                 metadata.controlFlowType = 'conditional';
                 metadata.condition = capture.node.text;
-                metadata.fromNodeId = generateDeterministicNodeId(astNode);
-                metadata.toNodeId = generateDeterministicNodeId(capture.node);
+                metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
+                metadata.toNodeId = NodeIdGenerator.forAstNode(capture.node);
             } else if (capture.name.includes('loop') || capture.name.includes('for') || capture.name.includes('while')) {
                 metadata.controlFlowType = 'loop';
                 metadata.loopCondition = capture.node.text;
-                metadata.fromNodeId = generateDeterministicNodeId(astNode);
-                metadata.toNodeId = generateDeterministicNodeId(capture.node);
+                metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
+                metadata.toNodeId = NodeIdGenerator.forAstNode(capture.node);
             } else if (capture.name.includes('exception') || capture.name.includes('try') || capture.name.includes('catch')) {
                 metadata.controlFlowType = 'exception';
                 metadata.exceptionType = capture.node.text;
-                metadata.fromNodeId = generateDeterministicNodeId(astNode);
-                metadata.toNodeId = generateDeterministicNodeId(capture.node);
+                metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
+                metadata.toNodeId = NodeIdGenerator.forAstNode(capture.node);
             } else if (capture.name.includes('callback') || capture.name.includes('lambda')) {
                 metadata.controlFlowType = 'callback';
                 metadata.callbackFunction = capture.node.text;
-                metadata.fromNodeId = generateDeterministicNodeId(astNode);
-                metadata.toNodeId = generateDeterministicNodeId(capture.node);
+                metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
+                metadata.toNodeId = NodeIdGenerator.forAstNode(capture.node);
             }
         }
 
@@ -64,9 +64,9 @@ export class ControlFlowRelationshipExtractor {
             const condition = astNode.childForFieldName('condition');
             if (condition?.text) {
                 metadata.condition = condition.text;
-                metadata.toNodeId = generateDeterministicNodeId(condition);
+                metadata.toNodeId = NodeIdGenerator.forAstNode(condition);
             }
-            metadata.fromNodeId = generateDeterministicNodeId(astNode);
+            metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
         }
 
         // 提取循环控制流
@@ -76,7 +76,7 @@ export class ControlFlowRelationshipExtractor {
             const condition = astNode.childForFieldName('condition');
             if (condition?.text) {
                 metadata.loopCondition = condition.text;
-                metadata.toNodeId = generateDeterministicNodeId(condition);
+                metadata.toNodeId = NodeIdGenerator.forAstNode(condition);
             } else {
                 // 对于for循环，尝试从for子句中提取条件
                 const forClause = astNode.childForFieldName('init') ||
@@ -84,10 +84,10 @@ export class ControlFlowRelationshipExtractor {
                     astNode.childForFieldName('body');
                 if (forClause?.text) {
                     metadata.loopCondition = forClause.text;
-                    metadata.toNodeId = generateDeterministicNodeId(forClause);
+                    metadata.toNodeId = NodeIdGenerator.forAstNode(forClause);
                 }
             }
-            metadata.fromNodeId = generateDeterministicNodeId(astNode);
+            metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
         }
 
         // 提取异常控制流
@@ -96,7 +96,7 @@ export class ControlFlowRelationshipExtractor {
             const tryBlock = astNode.childForFieldName('body');
             if (tryBlock?.text) {
                 metadata.tryBlock = tryBlock.text;
-                metadata.toNodeId = generateDeterministicNodeId(tryBlock);
+                metadata.toNodeId = NodeIdGenerator.forAstNode(tryBlock);
             }
 
             // 检查catch子句
@@ -107,7 +107,7 @@ export class ControlFlowRelationshipExtractor {
                     return parameter?.text || 'unknown';
                 });
             }
-            metadata.fromNodeId = generateDeterministicNodeId(astNode);
+            metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
         }
 
         // 提取switch控制流
@@ -116,16 +116,16 @@ export class ControlFlowRelationshipExtractor {
             const value = astNode.childForFieldName('value');
             if (value?.text) {
                 metadata.switchValue = value.text;
-                metadata.toNodeId = generateDeterministicNodeId(value);
+                metadata.toNodeId = NodeIdGenerator.forAstNode(value);
             }
-            metadata.fromNodeId = generateDeterministicNodeId(astNode);
+            metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
         }
 
         // 提取回调控制流
         if (astNode.type === 'lambda_expression') {
             metadata.controlFlowType = 'callback';
             metadata.lambdaExpression = astNode.text;
-            metadata.fromNodeId = generateDeterministicNodeId(astNode);
+            metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
 
             // 尝试找到回调的目标方法
             const parent = astNode.parent;
@@ -133,7 +133,7 @@ export class ControlFlowRelationshipExtractor {
                 const method = parent.childForFieldName('name');
                 if (method?.text) {
                     metadata.callbackTarget = method.text;
-                    metadata.toNodeId = generateDeterministicNodeId(method);
+                    metadata.toNodeId = NodeIdGenerator.forAstNode(method);
                 }
             }
         }
@@ -147,8 +147,8 @@ export class ControlFlowRelationshipExtractor {
                 if (controlFlowMethods.some(cf => method.text.toLowerCase().includes(cf))) {
                     metadata.controlFlowType = 'method-control-flow';
                     metadata.controlMethod = method.text;
-                    metadata.fromNodeId = generateDeterministicNodeId(astNode);
-                    metadata.toNodeId = generateDeterministicNodeId(method);
+                    metadata.fromNodeId = NodeIdGenerator.forAstNode(astNode);
+                    metadata.toNodeId = NodeIdGenerator.forAstNode(method);
                 }
             }
         }

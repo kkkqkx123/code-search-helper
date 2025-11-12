@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { RustHelperMethods } from './RustHelperMethods';
 import Parser from 'tree-sitter';
 
@@ -129,8 +129,8 @@ export class InheritanceRelationshipExtractor {
       
       return {
         operation: traitNode ? 'trait_implementation' : 'inherent_implementation',
-        fromNodeId: typeNode ? generateDeterministicNodeId(typeNode) : 'unknown',
-        toNodeId: traitNode ? generateDeterministicNodeId(traitNode) : 'inherent_impl',
+        fromNodeId: typeNode ? NodeIdGenerator.forAstNode(typeNode) : 'unknown',
+        toNodeId: traitNode ? NodeIdGenerator.forAstNode(traitNode) : 'inherent_impl',
         traitName: traitNode?.text,
         typeName: typeNode?.text,
         isGeneric: this.hasGenericParameters(node),
@@ -141,7 +141,7 @@ export class InheritanceRelationshipExtractor {
     if (node.type === 'trait_item') {
       return {
         operation: 'trait_definition',
-        fromNodeId: generateDeterministicNodeId(node),
+        fromNodeId: NodeIdGenerator.forAstNode(node),
         toNodeId: 'trait_base',
         traitName: this.extractTraitName(node),
         isGeneric: this.hasGenericParameters(node),
@@ -155,8 +155,8 @@ export class InheritanceRelationshipExtractor {
       
       return {
         operation: 'trait_bound',
-        fromNodeId: firstBound ? this.generateDeterministicNodeIdFromString(firstBound.type) : 'unknown',
-        toNodeId: firstBound ? this.generateDeterministicNodeIdFromString(firstBound.trait) : 'unknown',
+        fromNodeId: firstBound ? NodeIdGenerator.forFallback('trait_bound', firstBound.type) : 'unknown',
+        toNodeId: firstBound ? NodeIdGenerator.forFallback('trait_bound', firstBound.trait) : 'unknown',
         traitName: firstBound?.trait,
         typeName: firstBound?.type,
         isGeneric: false,
@@ -332,10 +332,6 @@ export class InheritanceRelationshipExtractor {
   /**
    * 从字符串生成确定性节点ID
    */
-  private generateDeterministicNodeIdFromString(text: string): string {
-    // 简单实现：基于文本生成ID
-    return `string:${text.replace(/[^a-zA-Z0-9]/g, '_')}`;
-  }
 
   /**
    * 分析trait方法的实现

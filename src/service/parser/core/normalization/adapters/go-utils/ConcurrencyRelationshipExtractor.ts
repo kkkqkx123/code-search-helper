@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { GoHelperMethods } from './GoHelperMethods';
 import Parser from 'tree-sitter';
 
@@ -17,8 +17,8 @@ export class ConcurrencyRelationshipExtractor {
 
     return {
       type: 'concurrency',
-      fromNodeId: sourceNode ? generateDeterministicNodeId(sourceNode) : 'unknown',
-      toNodeId: targetNode ? generateDeterministicNodeId(targetNode) : 'unknown',
+      fromNodeId: sourceNode ? NodeIdGenerator.forAstNode(sourceNode) : 'unknown',
+      toNodeId: targetNode ? NodeIdGenerator.forAstNode(targetNode) : 'unknown',
       concurrencyType,
       synchronizationMechanism: this.extractSynchronizationMechanism(astNode),
       sharedResources: this.extractSharedResources(astNode),

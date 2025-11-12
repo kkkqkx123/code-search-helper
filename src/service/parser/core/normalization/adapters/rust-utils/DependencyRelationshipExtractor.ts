@@ -92,22 +92,22 @@ export class DependencyRelationshipExtractor {
     if (dependencyType === 'use') {
       const usePath = this.extractUsePath(astNode);
       if (usePath) {
-        toNodeId = this.generateNodeId(usePath, 'module', usePath);
+        toNodeId = NodeIdGenerator.forSymbol(usePath, 'module', usePath, 0);
       }
     } else if (dependencyType === 'extern_crate') {
       const crateName = this.extractCrateName(astNode);
       if (crateName) {
-        toNodeId = this.generateNodeId(crateName, 'crate', crateName);
+        toNodeId = NodeIdGenerator.forSymbol(crateName, 'crate', crateName, 0);
       }
     } else if (dependencyType === 'mod') {
       const moduleName = this.extractModuleName(astNode);
       if (moduleName) {
-        toNodeId = this.generateNodeId(moduleName, 'module', 'current_file.rs');
+        toNodeId = NodeIdGenerator.forSymbol(moduleName, 'module', 'current_file.rs', 0);
       }
     } else if (dependencyType === 'macro_use' || dependencyType === 'macro_export') {
       const macroName = this.extractMacroName(astNode);
       if (macroName) {
-        toNodeId = this.generateNodeId(macroName, 'macro', 'current_file.rs');
+        toNodeId = NodeIdGenerator.forSymbol(macroName, 'macro', 'current_file.rs', 0);
       }
     }
 
@@ -457,7 +457,7 @@ export class DependencyRelationshipExtractor {
       if (importInfo && target) {
         dependencies.push({
           sourceId: NodeIdGenerator.forAstNode(useDecl),
-          targetId: this.generateNodeId(target, 'module', target),
+          targetId: NodeIdGenerator.forSymbol(target, 'module', target, 0),
           dependencyType: dependencyType || 'use',
           target,
           importedSymbols,
@@ -481,7 +481,7 @@ export class DependencyRelationshipExtractor {
       if (target) {
         dependencies.push({
           sourceId: NodeIdGenerator.forAstNode(externCrateDecl),
-          targetId: this.generateNodeId(target, 'crate', target),
+          targetId: NodeIdGenerator.forSymbol(target, 'crate', target, 0),
           dependencyType: dependencyType || 'extern_crate',
           target,
           importedSymbols,
@@ -505,7 +505,7 @@ export class DependencyRelationshipExtractor {
       if (target) {
         dependencies.push({
           sourceId: NodeIdGenerator.forAstNode(modDecl),
-          targetId: this.generateNodeId(target, 'module', filePath),
+          targetId: NodeIdGenerator.forSymbol(target, 'module', filePath, 0),
           dependencyType: dependencyType || 'mod',
           target,
           importedSymbols,

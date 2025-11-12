@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { GoHelperMethods } from './GoHelperMethods';
 import Parser from 'tree-sitter';
 
@@ -83,23 +83,23 @@ export class DependencyRelationshipExtractor {
    * 提取依赖关系的节点
    */
   private extractDependencyNodes(astNode: Parser.SyntaxNode, dependencyType: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
     let toNodeId = 'unknown';
 
     if (dependencyType === 'import') {
       const importPath = this.extractImportPath(astNode);
       if (importPath) {
-        toNodeId = this.generateNodeId(importPath, 'module', importPath);
+        toNodeId = NodeIdGenerator.forSymbol(importPath, 'module', importPath, astNode.startPosition.row);
       }
     } else if (dependencyType === 'package') {
       const packageName = this.extractPackageName(astNode);
       if (packageName) {
-        toNodeId = this.generateNodeId(packageName, 'package', 'current_file.go');
+        toNodeId = NodeIdGenerator.forSymbol(packageName, 'package', 'current_file.go', astNode.startPosition.row);
       }
     } else if (dependencyType === 'qualified_identifier') {
       const qualifiedTarget = this.extractQualifiedTarget(astNode);
       if (qualifiedTarget) {
-        toNodeId = this.generateNodeId(qualifiedTarget, 'qualified', 'current_file.go');
+        toNodeId = NodeIdGenerator.forSymbol(qualifiedTarget, 'qualified', 'current_file.go', astNode.startPosition.row);
       }
     }
 
@@ -329,9 +329,6 @@ export class DependencyRelationshipExtractor {
   /**
    * 生成节点ID
    */
-  private generateNodeId(name: string, type: string, filePath: string): string {
-    return `${type}_${Buffer.from(`${filePath}_${name}`).toString('hex')}`;
-  }
 
   /**
    * 查找导入语句
@@ -402,8 +399,8 @@ export class DependencyRelationshipExtractor {
 
       if (importInfo) {
         dependencies.push({
-          sourceId: generateDeterministicNodeId(importStmt),
-          targetId: this.generateNodeId(importInfo.source, 'module', importInfo.source),
+          sourceId: NodeIdGenerator.forAstNode(importStmt),
+          targetId: NodeIdGenerator.forSymbol(importInfo.source, 'module', importInfo.source, importStmt.startPosition.row + 1),
           dependencyType: 'import',
           target: importInfo.source,
           importedSymbols: importInfo.importedSymbols,
@@ -422,8 +419,8 @@ export class DependencyRelationshipExtractor {
 
       if (packageInfo) {
         dependencies.push({
-          sourceId: generateDeterministicNodeId(packageStmt),
-          targetId: this.generateNodeId(packageInfo.name, 'package', filePath),
+          sourceId: NodeIdGenerator.forAstNode(packageStmt),
+          targetId: NodeIdGenerator.forSymbol(packageInfo.name, 'package', filePath, packageStmt.startPosition.row + 1),
           dependencyType: 'package',
           target: packageInfo.name,
           importedSymbols: [],

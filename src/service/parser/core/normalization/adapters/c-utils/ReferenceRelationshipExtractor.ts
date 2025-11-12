@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -85,12 +85,12 @@ export class ReferenceRelationshipExtractor {
    * 提取引用关系的节点
    */
   private extractReferenceNodes(astNode: Parser.SyntaxNode, referenceType: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
     let toNodeId = 'unknown';
 
     const referenceName = this.extractReferenceName(astNode);
     if (referenceName) {
-      toNodeId = this.generateNodeId(referenceName, referenceType, 'current_file.c');
+      toNodeId = NodeIdGenerator.forSymbol(referenceName, referenceType, 'current_file.c');
     }
 
     return { fromNodeId, toNodeId };
@@ -250,8 +250,8 @@ export class ReferenceRelationshipExtractor {
       const referenceType = this.determineReferenceType(identifier);
 
       references.push({
-        sourceId: generateDeterministicNodeId(identifier),
-        targetId: this.generateNodeId(identifierName, 'identifier', filePath),
+        sourceId: NodeIdGenerator.forAstNode(identifier),
+        targetId: NodeIdGenerator.forSymbol(identifierName, 'identifier', filePath),
         referenceType,
         referenceName: identifierName,
         location: {
@@ -271,8 +271,8 @@ export class ReferenceRelationshipExtractor {
         const referenceType = this.determineReferenceType(fieldExpr);
 
         references.push({
-          sourceId: generateDeterministicNodeId(fieldExpr),
-          targetId: this.generateNodeId(fieldName, 'field', filePath),
+          sourceId: NodeIdGenerator.forAstNode(fieldExpr),
+          targetId: NodeIdGenerator.forSymbol(fieldName, 'field', filePath),
           referenceType,
           referenceName: fieldName,
           location: {

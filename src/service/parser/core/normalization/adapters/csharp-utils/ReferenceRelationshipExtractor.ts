@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -109,12 +109,12 @@ export class ReferenceRelationshipExtractor {
    * 提取引用关系的节点
    */
   private extractReferenceNodes(astNode: Parser.SyntaxNode, referenceType: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
     let toNodeId = 'unknown';
 
     const referenceName = this.extractReferenceName(astNode);
     if (referenceName) {
-      toNodeId = this.generateNodeId(referenceName, referenceType, 'current_file.cs');
+      toNodeId = NodeIdGenerator.forSymbol(referenceName, referenceType, 'current_file.cs');
     }
 
     return { fromNodeId, toNodeId };
@@ -414,8 +414,8 @@ export class ReferenceRelationshipExtractor {
 
       if (referenceType) {
         references.push({
-          sourceId: generateDeterministicNodeId(identifier),
-          targetId: this.generateNodeId(identifierName, referenceType, filePath),
+          sourceId: NodeIdGenerator.forAstNode(identifier),
+          targetId: NodeIdGenerator.forSymbol(identifierName, referenceType, filePath),
           referenceType,
           referenceName: identifierName,
           typeInfo,
@@ -439,8 +439,8 @@ export class ReferenceRelationshipExtractor {
         const namespaceInfo = this.extractNamespaceInfo(memberAccess);
 
         references.push({
-          sourceId: generateDeterministicNodeId(memberAccess),
-          targetId: this.generateNodeId(memberName, referenceType || 'field', filePath),
+          sourceId: NodeIdGenerator.forAstNode(memberAccess),
+          targetId: NodeIdGenerator.forSymbol(memberName, referenceType || 'field', filePath),
           referenceType: referenceType || 'field',
           referenceName: memberName,
           namespaceInfo,
@@ -462,8 +462,8 @@ export class ReferenceRelationshipExtractor {
 
       if (referenceType && typeName) {
         references.push({
-          sourceId: generateDeterministicNodeId(typeRef),
-          targetId: this.generateNodeId(typeName, referenceType, filePath),
+          sourceId: NodeIdGenerator.forAstNode(typeRef),
+          targetId: NodeIdGenerator.forSymbol(typeName, referenceType, filePath),
           referenceType,
           referenceName: typeName,
           typeInfo,
@@ -484,8 +484,8 @@ export class ReferenceRelationshipExtractor {
 
       if (referenceType) {
         references.push({
-          sourceId: generateDeterministicNodeId(thisBaseRef),
-          targetId: this.generateNodeId(referenceName, referenceType, filePath),
+          sourceId: NodeIdGenerator.forAstNode(thisBaseRef),
+          targetId: NodeIdGenerator.forSymbol(referenceName, referenceType, filePath),
           referenceType,
           referenceName,
           location: {

@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { GoHelperMethods } from './GoHelperMethods';
 import Parser from 'tree-sitter';
 
@@ -122,21 +122,21 @@ export class AnnotationRelationshipExtractor {
    * 提取注解关系的节点
    */
   private extractAnnotationNodes(astNode: Parser.SyntaxNode, annotationType: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
     let toNodeId = 'unknown';
 
     if (annotationType === 'struct_tag') {
       // 对于结构体标签，目标是相关的字段声明
       if (astNode.type === 'string_literal' && astNode.parent?.type === 'field_declaration') {
-        toNodeId = generateDeterministicNodeId(astNode.parent);
+        toNodeId = NodeIdGenerator.forAstNode(astNode.parent);
       } else if (astNode.type === 'field_identifier' && astNode.parent?.type === 'field_declaration') {
-        toNodeId = generateDeterministicNodeId(astNode.parent);
+        toNodeId = NodeIdGenerator.forAstNode(astNode.parent);
       }
     } else if (annotationType === 'comment') {
       // 对于注释，目标通常是注释所关联的后续声明
       const associatedNode = this.findNodeAssociatedWithComment(astNode);
       if (associatedNode) {
-        toNodeId = generateDeterministicNodeId(associatedNode);
+        toNodeId = NodeIdGenerator.forAstNode(associatedNode);
       }
     }
 

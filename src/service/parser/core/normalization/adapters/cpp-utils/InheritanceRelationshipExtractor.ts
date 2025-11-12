@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { CppHelperMethods } from './CppHelperMethods';
 import Parser from 'tree-sitter';
 
@@ -25,8 +25,8 @@ export class InheritanceRelationshipExtractor {
 
         return {
           type: 'inheritance',
-          fromNodeId: generateDeterministicNodeId(childClass),
-          toNodeId: generateDeterministicNodeId(parentClass),
+          fromNodeId: NodeIdGenerator.forAstNode(childClass),
+          toNodeId: NodeIdGenerator.forAstNode(parentClass),
           inheritanceType: 'extends',
           location: {
             filePath: symbolTable?.filePath || 'current_file.cpp',
@@ -47,8 +47,8 @@ export class InheritanceRelationshipExtractor {
 
           return {
             type: 'inheritance',
-            fromNodeId: generateDeterministicNodeId(parentStruct),
-            toNodeId: generateDeterministicNodeId(structType),
+            fromNodeId: NodeIdGenerator.forAstNode(parentStruct),
+            toNodeId: NodeIdGenerator.forAstNode(structType),
             inheritanceType: 'embedded_struct',
             location: {
               filePath: symbolTable?.filePath || 'current_file.cpp',

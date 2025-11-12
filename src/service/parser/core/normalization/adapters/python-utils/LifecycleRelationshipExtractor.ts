@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { PythonHelperMethods } from './PythonHelperMethods';
 import Parser from 'tree-sitter';
 
@@ -463,7 +463,7 @@ export class LifecycleRelationshipExtractor {
         const func = astNode.childForFieldName('function');
         if (func?.type === 'attribute') {
           const object = func.childForFieldName('object');
-          return object ? generateDeterministicNodeId(object) : 'unknown';
+          return object ? NodeIdGenerator.forAstNode(object) : 'unknown';
         }
         return 'caller';
         
@@ -472,10 +472,10 @@ export class LifecycleRelationshipExtractor {
         
       case 'function_definition':
         const methodName = astNode.childForFieldName('name');
-        return methodName ? generateDeterministicNodeId(methodName) : 'unknown';
+        return methodName ? NodeIdGenerator.forAstNode(methodName) : 'unknown';
         
       default:
-        return generateDeterministicNodeId(astNode);
+        return NodeIdGenerator.forAstNode(astNode);
     }
   }
 
@@ -486,14 +486,14 @@ export class LifecycleRelationshipExtractor {
     switch (astNode.type) {
       case 'call':
         const func = astNode.childForFieldName('function');
-        return func ? generateDeterministicNodeId(func) : 'unknown';
+        return func ? NodeIdGenerator.forAstNode(func) : 'unknown';
         
       case 'class_definition':
         const className = astNode.childForFieldName('name');
-        return className ? generateDeterministicNodeId(className) : 'unknown';
+        return className ? NodeIdGenerator.forAstNode(className) : 'unknown';
         
       case 'function_definition':
-        return generateDeterministicNodeId(astNode);
+        return NodeIdGenerator.forAstNode(astNode);
         
       default:
         return 'unknown';

@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -89,23 +89,23 @@ export class DependencyRelationshipExtractor {
    * 提取依赖关系的节点
    */
   private extractDependencyNodes(astNode: Parser.SyntaxNode, dependencyType: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
     let toNodeId = 'unknown';
 
     if (dependencyType === 'import') {
       const importPath = this.extractImportPath(astNode);
       if (importPath) {
-        toNodeId = this.generateNodeId(importPath, 'module', importPath);
+        toNodeId = NodeIdGenerator.forSymbol(importPath, 'module', importPath, astNode.startPosition.row);
       }
     } else if (dependencyType === 'from_import' || dependencyType === 'relative_import') {
       const modulePath = this.extractFromModulePath(astNode);
       if (modulePath) {
-        toNodeId = this.generateNodeId(modulePath, 'module', modulePath);
+        toNodeId = NodeIdGenerator.forSymbol(modulePath, 'module', modulePath, astNode.startPosition.row);
       }
     } else if (dependencyType === 'wildcard_import') {
       const modulePath = this.extractFromModulePath(astNode);
       if (modulePath) {
-        toNodeId = this.generateNodeId(`${modulePath}.*`, 'wildcard_module', modulePath);
+        toNodeId = NodeIdGenerator.forSymbol(`${modulePath}.*`, 'wildcard_module', modulePath, astNode.startPosition.row);
       }
     }
 
@@ -377,9 +377,6 @@ export class DependencyRelationshipExtractor {
   /**
    * 生成节点ID
    */
-  private generateNodeId(name: string, type: string, filePath: string): string {
-    return `${type}_${Buffer.from(`${filePath}_${name}`).toString('hex')}`;
-  }
 
   /**
    * 查找导入语句
@@ -437,8 +434,8 @@ export class DependencyRelationshipExtractor {
 
       if (importInfo && target) {
         dependencies.push({
-          sourceId: generateDeterministicNodeId(importStmt),
-          targetId: this.generateNodeId(target, 'module', target),
+          sourceId: NodeIdGenerator.forAstNode(importStmt),
+          targetId: NodeIdGenerator.forSymbol(target, 'module', target, importStmt.startPosition.row),
           dependencyType: dependencyType || 'import',
           target,
           importedSymbols,
