@@ -28,10 +28,11 @@ export class ContentAnalyzer implements IContentAnalyzer {
 
   constructor(
     @inject(TYPES.LoggerService) private logger: LoggerService,
+    @inject(TYPES.InfrastructureConfigService) private configService: InfrastructureConfigService,
     @inject(TYPES.DetectionService) detectionService: DetectionService
   ) {
     this.cacheService = new CacheService(logger);
-    this.performanceMonitor = new PerformanceMonitor(logger);
+    this.performanceMonitor = new PerformanceMonitor(logger, configService);
     this.detectionService = detectionService;
   }
 

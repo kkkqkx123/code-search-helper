@@ -62,10 +62,10 @@ export class PerformanceMonitor implements IPerformanceMonitor {
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
-    configService?: InfrastructureConfigService
+    configService: InfrastructureConfigService
   ) {
     this.logger = logger;
-    this.configService = configService || this.createDefaultConfigService();
+    this.configService = configService;
     this.metrics = this.initializeMetrics();
     this.loadConfiguration();
   }
@@ -643,22 +643,6 @@ export class PerformanceMonitor implements IPerformanceMonitor {
     };
   }
 
-
-  /**
-   * 创建默认配置服务（用于测试和向后兼容）
-   */
-  private createDefaultConfigService(): InfrastructureConfigService {
-    // 创建一个简单的默认配置服务实例
-    // 注意：这里需要提供必要的依赖
-    const mockConfigService = {
-      get: () => ({}),
-      set: () => { },
-      has: () => false,
-      clear: () => { }
-    } as any;
-
-    return new InfrastructureConfigService(this.logger, mockConfigService);
-  }
 
   /**
    * 重置缓存统计

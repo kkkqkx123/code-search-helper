@@ -125,6 +125,7 @@ export const TYPES = {
   ICircuitBreaker: Symbol.for('ICircuitBreaker'),
   NebulaQueryUtils: Symbol.for('NebulaQueryUtils'),
   NebulaDataBatchProcessor: Symbol.for('NebulaDataBatchProcessor'),
+  SpaceValidator: Symbol.for('SpaceValidator'),
   INebulaDataBatchProcessor: Symbol.for('INebulaDataBatchProcessor'),
   NebulaFileDataService: Symbol.for('NebulaFileDataService'),
   NebulaSpaceManager: Symbol.for('NebulaSpaceManager'),

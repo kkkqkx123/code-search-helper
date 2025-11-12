@@ -44,6 +44,7 @@ import { NebulaIndexManager, INebulaIndexManager } from '../../database/nebula/N
 import { SpaceNameUtils, ISpaceNameUtils } from '../../database/nebula/SpaceNameUtils';
 import { NebulaDataBatchProcessor, INebulaDataBatchProcessor } from '../../database/nebula/batch/NebulaDataBatchProcessor';
 import { NebulaFileDataService, INebulaFileDataService } from '../../database/nebula/file/NebulaFileDataService';
+import { SpaceValidator } from '../../database/nebula/validation/SpaceValidator';
 
 // Nebula客户端服务
 import { NebulaClient } from '../../database/nebula/client/NebulaClient';
@@ -126,6 +127,9 @@ export class DatabaseServiceRegistrar {
       container.bind<INebulaDataBatchProcessor>(TYPES.INebulaDataBatchProcessor).to(NebulaDataBatchProcessor).inSingletonScope();
       container.bind<NebulaFileDataService>(TYPES.NebulaFileDataService).to(NebulaFileDataService).inSingletonScope();
       container.bind<INebulaFileDataService>(TYPES.INebulaFileDataService).to(NebulaFileDataService).inSingletonScope();
+
+      // Nebula 验证服务
+      container.bind<SpaceValidator>(TYPES.SpaceValidator).to(SpaceValidator).inSingletonScope();
 
       // Nebula 会话和连接管理服务
       container.bind<ConnectionPool>(TYPES.IConnectionPool).to(ConnectionPool).inSingletonScope();

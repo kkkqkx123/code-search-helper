@@ -100,7 +100,12 @@ export abstract class ConfigLanguageAdapter implements ILanguageAdapter {
     };
 
     if (this.options.enablePerformanceMonitoring) {
-      this.performanceMonitor = new PerformanceMonitor(this.logger);
+      this.performanceMonitor = new PerformanceMonitor(this.logger, new InfrastructureConfigService(this.logger, {
+        get: () => ({}),
+        set: () => { },
+        has: () => false,
+        clear: () => { }
+      } as any));
     }
 
     if (this.options.enableCaching) {

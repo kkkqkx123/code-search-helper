@@ -3,10 +3,12 @@ import { LoggerService } from '../../../../utils/LoggerService';
 import { SimilarityOptions } from '../../types/SimilarityTypes';
 import { ContentFeature } from '../types/CoordinationTypes';
 import { DetectionService } from '../../../parser/detection/DetectionService';
+import { InfrastructureConfigService } from '../../../../infrastructure/config/InfrastructureConfigService';
 
 describe('ContentAnalyzer', () => {
   let analyzer: ContentAnalyzer;
   let mockLogger: jest.Mocked<LoggerService>;
+  let mockConfigService: jest.Mocked<InfrastructureConfigService>;
   let mockDetectionService: jest.Mocked<DetectionService>;
 
   beforeEach(() => {
@@ -15,6 +17,22 @@ describe('ContentAnalyzer', () => {
       info: jest.fn(),
       warn: jest.fn(),
       error: jest.fn()
+    } as any;
+
+    mockConfigService = {
+      getConfig: jest.fn().mockReturnValue({
+        qdrant: {
+          performance: {
+            monitoringInterval: 30000,
+            enableDetailedLogging: true,
+            performanceThresholds: {
+              queryExecutionTime: 5000,
+              memoryUsage: 80,
+              responseTime: 2000
+            }
+          }
+        }
+      })
     } as any;
 
     mockDetectionService = {
@@ -27,7 +45,7 @@ describe('ContentAnalyzer', () => {
       detectLanguageByParserConfig: jest.fn()
     } as any;
 
-    analyzer = new ContentAnalyzer(mockLogger, mockDetectionService);
+    analyzer = new ContentAnalyzer(mockLogger, mockConfigService, mockDetectionService);
   });
 
   describe('analyzeContent', () => {

@@ -9,6 +9,7 @@ import { NebulaConfigService } from '../../config/service/NebulaConfigService';
 import { GraphConfigService } from '../../config/service/GraphConfigService';
 import { EventListener } from '../../types';
 import { IQueryRunner } from './query/QueryRunner';
+import { SpaceValidator, SpaceValidationResult, SpaceValidationErrorType } from './validation/SpaceValidator';
 import { EventEmitter } from 'events';
 
 export interface INebulaConnectionManager extends IConnectionManager {
@@ -17,6 +18,9 @@ export interface INebulaConnectionManager extends IConnectionManager {
   executeTransaction(queries: Array<{ query: string; params?: Record<string, any> }>): Promise<NebulaQueryResult[]>;
   // 配置管理
   getConfig(): NebulaConfig;
+  // Space 验证
+  validateSpace(spaceName: string, forceValidate?: boolean): Promise<SpaceValidationResult>;
+  clearSpaceCache(spaceName?: string): void;
   updateConfig(config: Partial<NebulaConfig>): void;
 }
 
@@ -29,6 +33,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   private connectionStatus: NebulaConnectionStatus;
   private config!: NebulaConfig;
   private eventEmitter: EventEmitter;
+  private spaceValidator: SpaceValidator;
   private queryRunner: IQueryRunner;
 
   constructor(
@@ -36,6 +41,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.NebulaConfigService) nebulaConfigService: NebulaConfigService,
     @inject(TYPES.GraphConfigService) graphConfigService: GraphConfigService,
+    @inject(TYPES.SpaceValidator) spaceValidator: SpaceValidator,
     @inject(TYPES.IQueryRunner) queryRunner: IQueryRunner
   ) {
     this.databaseLogger = databaseLogger;
@@ -43,6 +49,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     this.nebulaConfigService = nebulaConfigService;
     this.graphConfigService = graphConfigService;
     this.eventEmitter = new EventEmitter();
+    this.spaceValidator = spaceValidator;
     this.queryRunner = queryRunner;
     this.connectionStatus = {
       connected: false,
@@ -101,6 +108,49 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       });
 
       // 简单的连接测试
+      // 验证配置的 space（如果存在）
+      if (this.config.space) {
+        const spaceValidation = await this.spaceValidator.validateSpace(this.config.space);
+        if (!spaceValidation.isValid) {
+          const errorMessage = spaceValidation.error?.message || 'Space validation failed';
+          this.errorHandler.handleError(
+            new Error(`Space validation failed for '${this.config.space}': ${errorMessage}`),
+            {
+              component: 'NebulaConnectionManager',
+              operation: 'connect',
+              spaceName: this.config.space,
+              validationError: spaceValidation.error
+            }
+          );
+
+          // 记录验证失败事件
+          await this.logDatabaseEvent({
+            type: DatabaseEventType.CONNECTION_ERROR,
+            source: 'nebula',
+            timestamp: new Date(),
+            data: {
+              message: 'Space validation failed',
+              spaceName: this.config.space,
+              error: errorMessage,
+              suggestions: spaceValidation.error?.suggestions
+            }
+          });
+
+          return false;
+        }
+
+        // 记录验证成功事件
+        await this.logDatabaseEvent({
+          type: DatabaseEventType.SERVICE_INITIALIZED,
+          source: 'nebula',
+          timestamp: new Date(),
+          data: {
+            message: 'Space validation successful',
+            spaceName: this.config.space,
+            spaceInfo: spaceValidation.spaceInfo
+          }
+        });
+      }
       await this.queryRunner.execute('YIELD 1 AS connection_test;');
 
       // 设置连接状态
@@ -285,6 +335,51 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       handler: listener,
       unsubscribe: () => this.eventEmitter.off(eventType, listener)
     };
+
   }
 
+
+  /**
+   * 验证 space
+   * @param spaceName space 名称
+   * @param forceValidate 是否强制验证（忽略缓存）
+   * @returns 验证结果
+   */
+  async validateSpace(spaceName: string, forceValidate: boolean = false): Promise<SpaceValidationResult> {
+    try {
+      return await this.spaceValidator.validateSpace(spaceName, forceValidate);
+    } catch (error: any) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.errorHandler.handleError(
+        new Error(`Space validation failed: ${errorMessage}`),
+        { component: 'NebulaConnectionManager', operation: 'validateSpace', spaceName }
+      );
+
+      return {
+        isValid: false,
+        exists: false,
+        isAccessible: false,
+        error: {
+          type: SpaceValidationErrorType.UNKNOWN_ERROR,
+          message: `Space validation failed: ${errorMessage}`,
+          details: error
+        }
+      };
+    }
+  }
+
+  /**
+   * 清除 space 验证缓存
+   * @param spaceName 可选，指定要清除的 space 名称，不指定则清除所有缓存
+   */
+  clearSpaceCache(spaceName?: string): void {
+    try {
+      this.spaceValidator.clearCache(spaceName);
+    } catch (error: any) {
+      this.errorHandler.handleError(
+        error instanceof Error ? error : new Error('Failed to clear space cache'),
+        { component: 'NebulaConnectionManager', operation: 'clearSpaceCache', spaceName }
+      );
+    }
+  }
 }

@@ -40,7 +40,12 @@ class MockNebulaConfigService extends NebulaConfigService {
 
 class MockPerformanceMonitor extends PerformanceMonitor {
   constructor(logger: LoggerService) {
-    super(logger);
+    super(logger, new InfrastructureConfigService(logger, {
+      get: () => ({}),
+      set: () => { },
+      has: () => false,
+      clear: () => { }
+    } as any));
   }
   startOperation = jest.fn().mockReturnValue('operation-id');
   endOperation = jest.fn();

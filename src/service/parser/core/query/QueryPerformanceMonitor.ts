@@ -7,7 +7,12 @@ import { InfrastructureConfigService } from '../../../../infrastructure/config/I
  * 使用项目现有的监控模块
  */
 export class QueryPerformanceMonitor {
-  private static performanceMonitor = new PerformanceMonitor(new LoggerService());
+  private static performanceMonitor = new PerformanceMonitor(new LoggerService(), new InfrastructureConfigService(new LoggerService(), {
+    get: () => ({}),
+    set: () => { },
+    has: () => false,
+    clear: () => { }
+  } as any));
   private static queryMetrics = new Map<string, {
     count: number;
     totalTime: number;

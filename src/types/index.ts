@@ -84,6 +84,7 @@ export const TYPES = {
   ISpaceNameUtils: Symbol.for('ISpaceNameUtils'),
   IConnectionPool: Symbol.for('IConnectionPool'),
   NebulaDataBatchProcessor: Symbol.for('NebulaDataBatchProcessor'),
+  SpaceValidator: Symbol.for('SpaceValidator'),
 
   // 通用文件处理服务
   UniversalTextStrategy: Symbol.for('UniversalTextStrategy'),
