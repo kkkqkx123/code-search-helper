@@ -2,6 +2,8 @@ import { Container } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
+import { EmbedderFactory } from '../../embedders/EmbedderFactory';
+import { EmbeddingCacheService } from '../../embedders/EmbeddingCacheService';
 
 // 图服务基础设施
 import { GraphCacheService } from '../../service/caching/GraphCacheService';
@@ -50,29 +52,46 @@ import { DatabaseHealthChecker } from '../../service/monitoring/DatabaseHealthCh
 import { TreeSitterCacheCleanupStrategy } from '../../infrastructure/cleanup/strategies/TreeSitterCacheCleanupStrategy';
 import { LRUCacheCleanupStrategy } from '../../infrastructure/cleanup/strategies/LRUCacheCleanupStrategy';
 import { GarbageCollectionStrategy } from '../../infrastructure/cleanup/strategies/GarbageCollectionStrategy';
-import { FaultToleranceHandler } from '../../utils/FaultToleranceHandler';
+import { FaultToleranceHandler, FaultToleranceOptions } from '../../utils/FaultToleranceHandler';
 import { DatabaseErrorHandler } from '../../database/error/DatabaseErrorHandler';
 
 // 基础设施管理器
 import { InfrastructureManager } from '../../infrastructure/InfrastructureManager';
 
 export class InfrastructureServiceRegistrar {
-  static register(container: Container): void {
+  static registerBasicServices(container: Container): void {
     try {
-      // 基础设施服务
+      // 基础设施服务 - 不依赖ConfigService的服务
       container.bind<LoggerService>(TYPES.LoggerService).to(LoggerService).inSingletonScope();
       container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
+
+      // 批处理策略 - 基础策略，不依赖ConfigService
+      container.bind<SemanticBatchStrategy>(TYPES.SemanticBatchStrategy).to(SemanticBatchStrategy).inSingletonScope();
+      container.bind<QdrantBatchStrategy>(TYPES.QdrantBatchStrategy).to(QdrantBatchStrategy).inSingletonScope();
+      container.bind<NebulaBatchStrategy>(TYPES.NebulaBatchStrategy).to(NebulaBatchStrategy).inSingletonScope();
+      container.bind<GraphBatchStrategy>(TYPES.GraphBatchStrategy).to(GraphBatchStrategy).inSingletonScope();
+      container.bind<EmbeddingBatchStrategy>(TYPES.EmbeddingBatchStrategy).to(EmbeddingBatchStrategy).inSingletonScope();
+      container.bind<BatchStrategyFactory>(TYPES.BatchStrategyFactory).to(BatchStrategyFactory).inSingletonScope();
+      // 注意：GraphConfigService可能还没有注册，所以这里使用默认配置
       container.bind<FaultToleranceHandler>(TYPES.FaultToleranceHandler).toDynamicValue(context => {
         const logger = context.get<LoggerService>(TYPES.LoggerService);
         const cache = context.get<GraphMappingCache>(TYPES.GraphMappingCache);
-        const graphConfigService = context.get<GraphConfigService>(TYPES.GraphConfigService);
-
-        const options = graphConfigService.getFaultToleranceOptions();
+        
+        // 使用默认的容错配置选项
+        const defaultOptions: Partial<FaultToleranceOptions> = {
+          maxRetries: 3,
+          retryDelay: 1000,
+          exponentialBackoff: true,
+          circuitBreakerEnabled: true,
+          circuitBreakerFailureThreshold: 5,
+          circuitBreakerTimeout: 3000,
+          fallbackStrategy: 'cache'
+        };
 
         return new FaultToleranceHandler(
           logger,
           cache,
-          options
+          defaultOptions
         );
       }).inSingletonScope();
 
@@ -99,11 +118,16 @@ export class InfrastructureServiceRegistrar {
       container.bind<GraphQueryValidator>(TYPES.GraphQueryValidator).to(GraphQueryValidator).inSingletonScope();
       container.bind<MappingCacheManager>(TYPES.MappingCacheManager).to(MappingCacheManager).inSingletonScope();
 
-      // 绑定CacheConfig，从GraphCacheConfigService获取配置
-      container.bind<any>(TYPES.CacheConfig).toDynamicValue(context => {
-        const graphCacheConfigService = context.get<GraphCacheConfigService>(TYPES.GraphCacheConfigService);
-        return graphCacheConfigService.getConfig();
-      }).inSingletonScope();
+      // 绑定CacheConfig，使用默认配置避免循环依赖
+      container.bind<any>(TYPES.CacheConfig).toConstantValue({
+        maxSize: 10000,
+        defaultTTL: 300,
+        maxMemory: 100 * 1024 * 1024,
+        enableCompression: true,
+        compressionThreshold: 1024,
+        enableStats: true,
+        compressionLevel: 6
+      });
 
       // 图映射缓存服务
       container.bind<GraphMappingCache>(TYPES.GraphMappingCache).to(GraphMappingCache).inSingletonScope();
@@ -118,75 +142,18 @@ export class InfrastructureServiceRegistrar {
         // Disable auto-collection in test environment to prevent open handles
         const isTestEnvironment = process.env.NODE_ENV === 'test';
         const options = isTestEnvironment ? { enableAutoCollection: false } : {};
-container.bind<PerformanceMetricsCollector>(TYPES.PerformanceMetricsCollector).toConstantValue(
-  new PerformanceMetricsCollector(
-    container.get<LoggerService>(TYPES.LoggerService),
-    container.get<PerformanceDashboard>(TYPES.PerformanceDashboard),
-    container.get<GraphMappingCache>(TYPES.GraphMappingCache),
-    options
-  )
-);
+        container.bind<PerformanceMetricsCollector>(TYPES.PerformanceMetricsCollector).toConstantValue(
+          new PerformanceMetricsCollector(
+            container.get<LoggerService>(TYPES.LoggerService),
+            container.get<PerformanceDashboard>(TYPES.PerformanceDashboard),
+            container.get<GraphMappingCache>(TYPES.GraphMappingCache),
+            options
+          )
+        );
 
         console.log('PerformanceMetricsCollector bound');
       } catch (error: any) {
         console.error('Error binding PerformanceMetricsCollector:', error);
-        console.error('Error stack:', error?.stack);
-        throw error;
-      }
-
-      console.log('Attempting to bind BatchProcessingService...');
-      try {
-        container.bind<BatchProcessingService>(TYPES.BatchProcessingService).toConstantValue(
-          new BatchProcessingService(
-            container.get<LoggerService>(TYPES.LoggerService),
-            container.get<ErrorHandlerService>(TYPES.ErrorHandlerService),
-            container.get<ConfigService>(TYPES.ConfigService),
-            container.get<IMemoryMonitorService>(TYPES.MemoryMonitorService),
-            container.get<BatchStrategyFactory>(TYPES.BatchStrategyFactory),
-            container.get<SemanticBatchStrategy>(TYPES.SemanticBatchStrategy)
-          )
-        );
-        console.log('BatchProcessingService bound');
-      } catch (error: any) {
-        console.error('Error binding BatchProcessingService:', error);
-        console.error('Error stack:', error?.stack);
-        throw error;
-      }
-
-      console.log('Attempting to bind BatchStrategyFactory...');
-      try {
-        container.bind<BatchStrategyFactory>(TYPES.BatchStrategyFactory).toConstantValue(
-          new BatchStrategyFactory(
-            container.get<LoggerService>(TYPES.LoggerService),
-            container.get<SemanticBatchStrategy>(TYPES.SemanticBatchStrategy),
-            container.get<QdrantBatchStrategy>(TYPES.QdrantBatchStrategy),
-            container.get<NebulaBatchStrategy>(TYPES.NebulaBatchStrategy),
-            container.get<GraphBatchStrategy>(TYPES.GraphBatchStrategy),
-            container.get<EmbeddingBatchStrategy>(TYPES.EmbeddingBatchStrategy)
-          )
-        );
-        console.log('BatchStrategyFactory bound');
-      } catch (error: any) {
-        console.error('Error binding BatchStrategyFactory:', error);
-        console.error('Error stack:', error?.stack);
-        throw error;
-      }
-
-      console.log('Attempting to bind AutoOptimizationAdvisor...');
-      try {
-        container.bind<AutoOptimizationAdvisor>(TYPES.AutoOptimizationAdvisor).toConstantValue(
-          new AutoOptimizationAdvisor(
-            container.get<LoggerService>(TYPES.LoggerService),
-            container.get<PerformanceDashboard>(TYPES.PerformanceDashboard),
-            container.get<PerformanceMetricsCollector>(TYPES.PerformanceMetricsCollector),
-            container.get<BatchProcessingService>(TYPES.BatchProcessingService),
-            container.get<GraphMappingCache>(TYPES.GraphMappingCache),
-            {} // 默认选项
-          )
-        );
-        console.log('AutoOptimizationAdvisor bound');
-      } catch (error: any) {
-        console.error('Error binding AutoOptimizationAdvisor:', error);
         console.error('Error stack:', error?.stack);
         throw error;
       }
@@ -218,6 +185,76 @@ container.bind<PerformanceMetricsCollector>(TYPES.PerformanceMetricsCollector).t
       container.bind<PerformanceMonitor>(TYPES.PerformanceMonitor).to(PerformanceMonitor).inSingletonScope();
       container.bind<DatabaseHealthChecker>(TYPES.HealthChecker).to(DatabaseHealthChecker).inSingletonScope();
 
+      // SQLite基础设施
+      container.bind<SqliteInfrastructure>(TYPES.SqliteInfrastructure).to(SqliteInfrastructure).inSingletonScope();
+      container.bind<SqliteStateManager>(TYPES.SqliteStateManager).to(SqliteStateManager).inSingletonScope();
+
+      // 数据库迁移管理
+      container.bind<MigrationManager>(TYPES.MigrationManager).to(MigrationManager).inSingletonScope();
+      container.bind<DatabaseMigrationRunner>(TYPES.DatabaseMigrationRunner).to(DatabaseMigrationRunner).inSingletonScope();
+    } catch (error: any) {
+      console.error('Error registering basic infrastructure services:', error);
+      console.error('Error stack:', error?.stack);
+      throw error;
+    }
+  }
+
+  static registerAdvancedServices(container: Container): void {
+    try {
+      console.log('Attempting to bind BatchProcessingService...');
+      try {
+        // 修改为动态绑定，延迟初始化直到ConfigService可用
+        container.bind<BatchProcessingService>(TYPES.BatchProcessingService).toDynamicValue(context => {
+          console.log('Creating BatchProcessingService dynamically...');
+          const logger = context.get<LoggerService>(TYPES.LoggerService);
+          const errorHandler = context.get<ErrorHandlerService>(TYPES.ErrorHandlerService);
+          const configService = context.get<ConfigService>(TYPES.ConfigService);
+          const memoryMonitorService = context.get<IMemoryMonitorService>(TYPES.MemoryMonitorService);
+          const batchStrategyFactory = context.get<BatchStrategyFactory>(TYPES.BatchStrategyFactory);
+          const semanticBatchStrategy = context.get<SemanticBatchStrategy>(TYPES.SemanticBatchStrategy);
+
+          console.log('All dependencies retrieved, creating BatchProcessingService...');
+          const batchProcessingService = new BatchProcessingService(
+            logger,
+            errorHandler,
+            configService,
+            memoryMonitorService,
+            batchStrategyFactory,
+            semanticBatchStrategy
+          );
+          
+          console.log('BatchProcessingService created successfully');
+          return batchProcessingService;
+        }).inSingletonScope();
+        console.log('BatchProcessingService bound');
+      } catch (error: any) {
+        console.error('Error binding BatchProcessingService:', error);
+        console.error('Error stack:', error?.stack);
+        throw error;
+      }
+
+      // 设置延迟注入的配置服务
+      this.setupDelayedConfigInjection(container);
+
+      console.log('Attempting to bind AutoOptimizationAdvisor...');
+      try {
+        container.bind<AutoOptimizationAdvisor>(TYPES.AutoOptimizationAdvisor).toConstantValue(
+          new AutoOptimizationAdvisor(
+            container.get<LoggerService>(TYPES.LoggerService),
+            container.get<PerformanceDashboard>(TYPES.PerformanceDashboard),
+            container.get<PerformanceMetricsCollector>(TYPES.PerformanceMetricsCollector),
+            container.get<BatchProcessingService>(TYPES.BatchProcessingService),
+            container.get<GraphMappingCache>(TYPES.GraphMappingCache),
+            {} // 默认选项
+          )
+        );
+        console.log('AutoOptimizationAdvisor bound');
+      } catch (error: any) {
+        console.error('Error binding AutoOptimizationAdvisor:', error);
+        console.error('Error stack:', error?.stack);
+        throw error;
+      }
+
       // 基础设施管理器 - 使用动态绑定确保正确的初始化顺序
       container.bind<InfrastructureManager>(TYPES.InfrastructureManager).toDynamicValue(context => {
         const logger = context.get<LoggerService>(TYPES.LoggerService);
@@ -240,18 +277,47 @@ container.bind<PerformanceMetricsCollector>(TYPES.PerformanceMetricsCollector).t
 
         return infrastructureManager;
       }).inSingletonScope();
-
-      // SQLite基础设施
-      container.bind<SqliteInfrastructure>(TYPES.SqliteInfrastructure).to(SqliteInfrastructure).inSingletonScope();
-      container.bind<SqliteStateManager>(TYPES.SqliteStateManager).to(SqliteStateManager).inSingletonScope();
-
-      // 数据库迁移管理
-      container.bind<MigrationManager>(TYPES.MigrationManager).to(MigrationManager).inSingletonScope();
-      container.bind<DatabaseMigrationRunner>(TYPES.DatabaseMigrationRunner).to(DatabaseMigrationRunner).inSingletonScope();
     } catch (error: any) {
-      console.error('Error registering infrastructure services:', error);
+      console.error('Error registering advanced infrastructure services:', error);
       console.error('Error stack:', error?.stack);
       throw error;
     }
+  }
+
+  /**
+   * 设置延迟配置注入，解决循环依赖问题
+   */
+  static setupDelayedConfigInjection(container: Container): void {
+    try {
+      // 获取配置服务和需要延迟注入的服务
+      const configService = container.get<ConfigService>(TYPES.ConfigService);
+      
+      // 设置 EmbedderFactory 的配置服务
+      if (container.isBound(TYPES.EmbedderFactory)) {
+        const embedderFactory = container.get<EmbedderFactory>(TYPES.EmbedderFactory);
+        if (typeof embedderFactory.setConfigService === 'function') {
+          embedderFactory.setConfigService(configService);
+        }
+      }
+      
+      // 设置 EmbeddingCacheService 的配置服务
+      if (container.isBound(TYPES.EmbeddingCacheService)) {
+        const embeddingCacheService = container.get<EmbeddingCacheService>(TYPES.EmbeddingCacheService);
+        if (typeof embeddingCacheService.setConfigService === 'function') {
+          embeddingCacheService.setConfigService(configService);
+        }
+      }
+    } catch (error: any) {
+      console.error('Error setting up delayed config injection:', error);
+      console.error('Error stack:', error?.stack);
+      throw error;
+    }
+  }
+
+  // 保持向后兼容性的方法
+  static register(container: Container): void {
+    console.warn('InfrastructureServiceRegistrar.register() is deprecated. Use registerBasicServices() and registerAdvancedServices() instead.');
+    this.registerBasicServices(container);
+    // 注意：这里不调用registerAdvancedServices，因为ConfigService可能还没有注册
   }
 }

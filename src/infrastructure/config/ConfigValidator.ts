@@ -210,8 +210,8 @@ export class ConfigValidator {
     }
 
     // 验证内存阈值
-    if (typeof batch.memoryThreshold !== 'number' || batch.memoryThreshold < 10 || batch.memoryThreshold > 95) {
-      errors.push(`${service} batch memory threshold must be a number between 10 and 95`);
+    if (typeof batch.memoryThreshold !== 'number' || batch.memoryThreshold < 0.1 || batch.memoryThreshold > 0.95) {
+      errors.push(`${service} batch memory threshold must be a number between 0.1 and 0.95`);
     }
 
     // 验证处理超时时间

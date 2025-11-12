@@ -1,3 +1,5 @@
+import { injectable, inject, optional } from 'inversify';
+import { TYPES } from '../../../types';
 import { CodeChunk } from '../processing/types/CodeChunk';
 import { ChunkingOptions, EnhancedChunkingOptions, DEFAULT_ENHANCED_CHUNKING_OPTIONS } from '../processing/strategies/types/SegmentationTypes';
 import { IChunkPostProcessor, PostProcessingContext } from './IChunkPostProcessor';
@@ -16,13 +18,17 @@ import { IComplexityCalculator } from '../processing/strategies/types/Segmentati
  * 分段后处理协调器
  * 协调执行各种后处理策略，增强现有ChunkingCoordinator的功能
  */
+@injectable()
 export class ChunkPostProcessorCoordinator {
   private chunkingProcessors: IChunkPostProcessor[];
   private chunkProcessingProcessors: IChunkPostProcessor[];
   private logger?: LoggerService;
   private complexityCalculator?: IComplexityCalculator;
 
-  constructor(logger?: LoggerService, complexityCalculator?: IComplexityCalculator) {
+  constructor(
+    @inject(TYPES.LoggerService) @optional() logger?: LoggerService,
+    @inject(TYPES.ComplexityCalculator) @optional() complexityCalculator?: IComplexityCalculator
+  ) {
     this.chunkingProcessors = [];
     this.chunkProcessingProcessors = [];
     this.logger = logger;

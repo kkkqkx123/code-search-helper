@@ -20,8 +20,8 @@ export class ChunkFilter implements ISegmentationProcessor, IChunkFilter {
 
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService,
-    qualityEvaluator?: ContentQualityEvaluator,
-    chunkMerger?: ChunkMerger
+    @inject(TYPES.ContentQualityEvaluator) qualityEvaluator?: ContentQualityEvaluator,
+    @inject(TYPES.ChunkMerger) chunkMerger?: ChunkMerger
   ) {
     this.logger = logger;
     this.qualityEvaluator = qualityEvaluator;

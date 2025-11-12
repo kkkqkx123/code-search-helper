@@ -24,12 +24,12 @@ export class EmbeddingCacheService {
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService | Logger,
-    @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
-    @inject(TYPES.ConfigService) configService: ConfigService
+    @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
-    this.configService = configService;
+    // 延迟初始化 configService 以避免循环依赖
+    this.configService = null as any;
 
     // 简化配置获取
     this.defaultTTL = parseInt(process.env.EMBEDDING_CACHE_TTL || '86400'); // 默认24小时（秒）
@@ -100,18 +100,32 @@ export class EmbeddingCacheService {
   }
 
   /**
+   * 设置配置服务（延迟注入）
+   */
+  setConfigService(configService: ConfigService): void {
+    this.configService = configService;
+  }
+
+  /**
    * 启动定期清理
    */
   private startCleanupInterval(): void {
     try {
       // 从配置中获取清理间隔，默认为10分钟
-      const cleanupInterval = this.configService.get('caching')?.cleanupInterval || 600000;
+      let cleanupInterval = 600000; // 默认10分钟
+      if (this.configService) {
+        try {
+          cleanupInterval = this.configService.get('caching')?.cleanupInterval || 600000;
+        } catch (error) {
+          this.logger.warn('Failed to get cache cleanup interval from config, using default value', { error });
+        }
+      }
       this.cleanupInterval = setInterval(() => {
         this.cleanup();
       }, cleanupInterval);
     } catch (error) {
       // 如果配置服务未初始化，使用默认的清理间隔
-      this.logger.warn('Failed to get cache cleanup interval from config, using default value', { error });
+      this.logger.warn('Failed to start cleanup interval, using default value', { error });
       this.cleanupInterval = setInterval(() => {
         this.cleanup();
       }, 600000); // 默认10分钟

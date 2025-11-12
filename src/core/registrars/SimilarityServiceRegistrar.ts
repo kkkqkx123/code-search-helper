@@ -106,25 +106,31 @@ export class SimilarityServiceRegistrar {
         .inSingletonScope();
 
       // 注册批处理计算器
-      container.bind<GenericBatchCalculator>(TYPES.GenericBatchCalculator)
-        .to(GenericBatchCalculator)
-        .inSingletonScope();
+      try {
+        container.bind<GenericBatchCalculator>(TYPES.GenericBatchCalculator)
+          .to(GenericBatchCalculator)
+          .inSingletonScope();
 
-      container.bind<SemanticOptimizedBatchCalculator>(TYPES.SemanticOptimizedBatchCalculator)
-        .to(SemanticOptimizedBatchCalculator)
-        .inSingletonScope();
+        container.bind<SemanticOptimizedBatchCalculator>(TYPES.SemanticOptimizedBatchCalculator)
+          .to(SemanticOptimizedBatchCalculator)
+          .inSingletonScope();
 
-      container.bind<HybridOptimizedBatchCalculator>(TYPES.HybridOptimizedBatchCalculator)
-        .to(HybridOptimizedBatchCalculator)
-        .inSingletonScope();
+        container.bind<HybridOptimizedBatchCalculator>(TYPES.HybridOptimizedBatchCalculator)
+          .to(HybridOptimizedBatchCalculator)
+          .inSingletonScope();
 
-      container.bind<AdaptiveBatchCalculator>(TYPES.AdaptiveBatchCalculator)
-        .to(AdaptiveBatchCalculator)
-        .inSingletonScope();
+        container.bind<AdaptiveBatchCalculator>(TYPES.AdaptiveBatchCalculator)
+          .to(AdaptiveBatchCalculator)
+          .inSingletonScope();
 
-      container.bind<BatchCalculatorFactory>(TYPES.BatchCalculatorFactory)
-        .to(BatchCalculatorFactory)
-        .inSingletonScope();
+        container.bind<BatchCalculatorFactory>(TYPES.BatchCalculatorFactory)
+          .to(BatchCalculatorFactory)
+          .inSingletonScope();
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger?.error('Error binding batch calculators', { error: errorMessage });
+        throw error;
+      }
 
       // 注册相似度服务初始化器
       container.bind<SimilarityServiceInitializer>(TYPES.SimilarityServiceInitializer)
@@ -133,7 +139,13 @@ export class SimilarityServiceRegistrar {
 
       logger?.info('Similarity services registered successfully');
     } catch (error) {
-      logger?.error('Failed to register similarity services:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      logger?.error('Failed to register similarity services', { error: errorMessage, stack: errorStack });
+      console.error('Failed to register similarity services:', errorMessage);
+      if (errorStack) {
+        console.error('Stack trace:', errorStack);
+      }
       throw error;
     }
   }

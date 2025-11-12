@@ -198,7 +198,7 @@ export class QueryLoader {
    * @returns 查询类型数组
    */
   static async discoverQueryTypes(language: string): Promise<string[]> {
-    const queryDir = `../constants/queries/${this.getQueryFileName(language)}`;
+    const queryDir = `../../../constants/queries/${this.getQueryFileName(language)}`;
 
     try {
       // 尝试动态读取目录结构

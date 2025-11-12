@@ -21,8 +21,10 @@ import { ProjectStateManager } from '../../service/project/ProjectStateManager';
 import { CoreStateService } from '../../service/project/services/CoreStateService';
 import { StorageStateService } from '../../service/project/services/StorageStateService';
 
-// 简化的索引服务
+// 索引服务
 import { VectorIndexService } from '../../service/index/VectorIndexService';
+import { GraphIndexService } from '../../service/index/GraphIndexService';
+import { HybridIndexService } from '../../service/index/HybridIndexService';
 
 // 性能优化服务
 import { PerformanceOptimizerService } from '../../infrastructure/batching/PerformanceOptimizerService';
@@ -96,6 +98,12 @@ import { NebulaConnectionMonitor } from '../../database/nebula/NebulaConnectionM
 import { MemoryMonitorService } from '../../service/memory/MemoryMonitorService';
 import { IMemoryMonitorService } from '../../service/memory/interfaces/IMemoryMonitorService';
 
+// 图索引性能监控
+import { IGraphIndexPerformanceMonitor, GraphIndexMetric, GraphIndexPerformanceStats } from '../../infrastructure/monitoring/GraphIndexMetrics';
+
+// 图构建服务
+import { GraphConstructionService } from '../../service/graph/construction/GraphConstructionService';
+
 
 
 export class BusinessServiceRegistrar {
@@ -104,6 +112,12 @@ export class BusinessServiceRegistrar {
 
     try {
       logger?.info('Registering business services...');
+      
+      // 首先注册相似度服务，确保所有依赖都可用
+      logger?.info('Registering similarity services first...');
+      SimilarityServiceRegistrar.register(container);
+      logger?.info('Similarity services registered successfully');
+      
       // 文件系统服务
       container.bind<FileSystemTraversal>(TYPES.FileSystemTraversal).to(FileSystemTraversal).inSingletonScope();
       container.bind<FileHashManager>(TYPES.FileHashManager).to(FileHashManagerImpl).inSingletonScope();
@@ -121,10 +135,13 @@ export class BusinessServiceRegistrar {
       container.bind<StorageStateService>(TYPES.StorageStateService).to(StorageStateService).inSingletonScope();
       container.bind<ProjectStateManager>(TYPES.ProjectStateManager).to(ProjectStateManager).inSingletonScope();
 
+      // 图构建服务
+      container.bind<GraphConstructionService>(TYPES.GraphConstructionService).to(GraphConstructionService).inSingletonScope();
 
-
-      // 简化的索引服务架构
+      // 索引服务架构
       container.bind<VectorIndexService>(TYPES.VectorIndexService).to(VectorIndexService).inSingletonScope();
+      container.bind<GraphIndexService>(TYPES.GraphIndexService).to(GraphIndexService).inSingletonScope();
+      container.bind<HybridIndexService>(TYPES.HybridIndexService).to(HybridIndexService).inSingletonScope();
 
       // 忽略规则管理器 - 使用 toDynamicValue 确保正确注入依赖
       container.bind<IgnoreRuleManager>(TYPES.IgnoreRuleManager).toDynamicValue(context => {
@@ -135,11 +152,7 @@ export class BusinessServiceRegistrar {
       // 性能优化服务
       container.bind<PerformanceOptimizerService>(TYPES.PerformanceOptimizerService).to(PerformanceOptimizerService).inSingletonScope();
 
-      // 批处理服务已在 InfrastructureServiceRegistrar 中注册
-      container.bind<SemanticBatchStrategy>(TYPES.SemanticBatchStrategy).to(SemanticBatchStrategy).inSingletonScope();
-      container.bind<QdrantBatchStrategy>(TYPES.QdrantBatchStrategy).to(QdrantBatchStrategy).inSingletonScope();
-      container.bind<NebulaBatchStrategy>(TYPES.NebulaBatchStrategy).to(NebulaBatchStrategy).inSingletonScope();
-      container.bind<EmbeddingBatchStrategy>(TYPES.EmbeddingBatchStrategy).to(EmbeddingBatchStrategy).inSingletonScope();
+      // 批处理策略已在 InfrastructureServiceRegistrar 中注册
 
       // 分段配置服务
       container.bind<SegmentationConfigService>(TYPES.SegmentationConfigService).to(SegmentationConfigService).inSingletonScope();
@@ -365,12 +378,125 @@ export class BusinessServiceRegistrar {
       container.bind<number>(TYPES.MemoryLimitMB).toConstantValue(500);
       container.bind<number>(TYPES.MemoryCheckIntervalMs).toConstantValue(5000);
 
-      // 注册相似度服务
-      SimilarityServiceRegistrar.register(container);
+      // 图索引性能监控 - 使用模拟实现
+      container.bind<IGraphIndexPerformanceMonitor>(TYPES.GraphIndexPerformanceMonitor).toDynamicValue(context => {
+        const logger = context.get<LoggerService>(TYPES.LoggerService);
+        const stats = new Map<string, GraphIndexPerformanceStats>();
+        
+        return {
+          recordMetric: (metric: GraphIndexMetric) => {
+            logger?.debug(`Recording graph index metric: ${metric.operation} for project ${metric.projectId}`);
+            
+            // 更新统计信息
+            if (!stats.has(metric.projectId)) {
+              stats.set(metric.projectId, {
+                projectId: metric.projectId,
+                totalOperations: 0,
+                successfulOperations: 0,
+                failedOperations: 0,
+                averageOperationTime: 0,
+                totalFilesProcessed: 0,
+                totalNodesCreated: 0,
+                totalRelationshipsCreated: 0,
+                averageBatchSize: 0,
+                successRate: 0,
+                lastUpdated: Date.now(),
+                operations: {
+                  startIndexing: 0,
+                  stopIndexing: 0,
+                  processBatch: 0,
+                  storeFiles: 0,
+                  createSpace: 0
+                }
+              });
+            }
+            
+            const projectStats = stats.get(metric.projectId)!;
+            projectStats.totalOperations++;
+            projectStats.operations[metric.operation]++;
+            
+            if (metric.success) {
+              projectStats.successfulOperations++;
+            } else {
+              projectStats.failedOperations++;
+            }
+            
+            projectStats.successRate = projectStats.successfulOperations / projectStats.totalOperations;
+            
+            // 更新平均操作时间
+            const totalTime = projectStats.averageOperationTime * (projectStats.totalOperations - 1) + metric.duration;
+            projectStats.averageOperationTime = totalTime / projectStats.totalOperations;
+            
+            // 更新其他统计信息
+            if (metric.metadata.fileCount) {
+              projectStats.totalFilesProcessed += metric.metadata.fileCount;
+            }
+            if (metric.metadata.nodesCreated) {
+              projectStats.totalNodesCreated += metric.metadata.nodesCreated;
+            }
+            if (metric.metadata.relationshipsCreated) {
+              projectStats.totalRelationshipsCreated += metric.metadata.relationshipsCreated;
+            }
+            if (metric.metadata.batchSize) {
+              const totalBatchSize = projectStats.averageBatchSize * (projectStats.totalOperations - 1) + metric.metadata.batchSize;
+              projectStats.averageBatchSize = totalBatchSize / projectStats.totalOperations;
+            }
+            
+            projectStats.lastUpdated = Date.now();
+          },
+          
+          getPerformanceStats: (projectId: string) => {
+            return stats.get(projectId) || null;
+          },
+          
+          getAllPerformanceStats: () => {
+            return new Map(stats);
+          },
+          
+          clearProjectStats: (projectId: string) => {
+            stats.delete(projectId);
+          },
+          
+          clearAllStats: () => {
+            stats.clear();
+          },
+          
+          getPerformanceReport: (projectId?: string) => {
+            const allStats = projectId ? 
+              (stats.get(projectId) ? [stats.get(projectId)!] : []) : 
+              Array.from(stats.values());
+            
+            const totalProjects = allStats.length;
+            const totalOperations = allStats.reduce((sum, stat) => sum + stat.totalOperations, 0);
+            const overallSuccessRate = totalOperations > 0 ? 
+              allStats.reduce((sum, stat) => sum + stat.successfulOperations, 0) / totalOperations : 0;
+            const averageOperationTime = totalOperations > 0 ? 
+              allStats.reduce((sum, stat) => sum + stat.averageOperationTime * stat.totalOperations, 0) / totalOperations : 0;
+            
+            return {
+              summary: {
+                totalProjects,
+                totalOperations,
+                overallSuccessRate,
+                averageOperationTime
+              },
+              projectStats: allStats.map(stat => ({
+                projectId: stat.projectId,
+                stats: stat
+              }))
+            };
+          }
+        };
+      }).inSingletonScope();
 
       logger?.info('Business services registered successfully');
-    } catch (error) {
+    } catch (error: any) {
       logger?.error('Failed to register business services:', error);
+      logger?.error('Error details:', {
+        message: error?.message,
+        stack: error?.stack,
+        kind: error?.kind
+      });
       throw error;
     }
   }

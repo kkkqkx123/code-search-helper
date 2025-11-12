@@ -18,6 +18,7 @@ export class EmbedderFactory {
   private cacheService: EmbeddingCacheService;
   private embedders: Map<string, Embedder> = new Map();
   private defaultProvider: string;
+  private configService: ConfigService | null = null;
   // 缓存提供商信息，仅在初始化时校验所有提供商
   private providerInfoCache: Map<string, {
     name: string;
@@ -39,8 +40,7 @@ export class EmbedderFactory {
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
-    @inject(TYPES.EmbeddingCacheService) cacheService: EmbeddingCacheService,
-    @inject(TYPES.ConfigService) private configService: ConfigService
+    @inject(TYPES.EmbeddingCacheService) cacheService: EmbeddingCacheService
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
@@ -55,6 +55,13 @@ export class EmbedderFactory {
 
     // 初始化嵌入器
     this.initializeEmbedders();
+  }
+
+  /**
+   * 设置配置服务（延迟注入）
+   */
+  setConfigService(configService: ConfigService): void {
+    this.configService = configService;
   }
 
   /**
@@ -510,30 +517,32 @@ export class EmbedderFactory {
   private getEmbedderMaxBatchSize(provider: string): number {
     try {
       // 尝试从配置服务获取配置
-      const embeddingBatchConfig = this.configService.get('embeddingBatch');
-      if (embeddingBatchConfig) {
-        // 根据提供商名称获取对应的批处理限制
-        switch(provider) {
-          case 'openai':
-            return embeddingBatchConfig.providerBatchLimits.openai;
-          case 'siliconflow':
-            return embeddingBatchConfig.providerBatchLimits.siliconflow;
-          case 'ollama':
-            return embeddingBatchConfig.providerBatchLimits.ollama;
-          case 'gemini':
-            return embeddingBatchConfig.providerBatchLimits.gemini;
-          case 'mistral':
-            return embeddingBatchConfig.providerBatchLimits.mistral;
-          case 'custom1':
-            return embeddingBatchConfig.providerBatchLimits.custom1;
-          case 'custom2':
-            return embeddingBatchConfig.providerBatchLimits.custom2;
-          case 'custom3':
-            return embeddingBatchConfig.providerBatchLimits.custom3;
-          case 'similarity':
-            return embeddingBatchConfig.providerBatchLimits.similarity;
-          default:
-            return embeddingBatchConfig.defaultBatchSize;
+      if (this.configService) {
+        const embeddingBatchConfig = this.configService.get('embeddingBatch');
+        if (embeddingBatchConfig) {
+          // 根据提供商名称获取对应的批处理限制
+          switch(provider) {
+            case 'openai':
+              return embeddingBatchConfig.providerBatchLimits.openai;
+            case 'siliconflow':
+              return embeddingBatchConfig.providerBatchLimits.siliconflow;
+            case 'ollama':
+              return embeddingBatchConfig.providerBatchLimits.ollama;
+            case 'gemini':
+              return embeddingBatchConfig.providerBatchLimits.gemini;
+            case 'mistral':
+              return embeddingBatchConfig.providerBatchLimits.mistral;
+            case 'custom1':
+              return embeddingBatchConfig.providerBatchLimits.custom1;
+            case 'custom2':
+              return embeddingBatchConfig.providerBatchLimits.custom2;
+            case 'custom3':
+              return embeddingBatchConfig.providerBatchLimits.custom3;
+            case 'similarity':
+              return embeddingBatchConfig.providerBatchLimits.similarity;
+            default:
+              return embeddingBatchConfig.defaultBatchSize;
+          }
         }
       }
     } catch (error) {

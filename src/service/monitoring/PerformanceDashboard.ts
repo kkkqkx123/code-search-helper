@@ -119,7 +119,12 @@ export class PerformanceDashboard {
 
       this.logger.info('PerformanceDashboard initialized');
     } catch (error) {
-      logger.error('Failed to initialize PerformanceDashboard', { error: (error as Error).message, stack: (error as Error).stack });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      logger.error('Failed to initialize PerformanceDashboard', {
+        error: errorMessage,
+        stack: errorStack
+      });
       throw error;
     }
   }
@@ -138,6 +143,7 @@ export class PerformanceDashboard {
     // 检查是否触发警报
     await this.checkAlerts(metric);
 
+    // 记录性能指标（调试级别）
     this.logger.debug('Recorded performance metric', {
       metricName: metric.metricName,
       value: metric.value,
@@ -278,7 +284,6 @@ export class PerformanceDashboard {
     }
 
     // 实现聚合逻辑（这里简化处理）
-    // 实现聚合逻辑（这里简化处理）
     return filteredMetrics.map(m => ({
       timestamp: m.timestamp,
       value: m.value as number
@@ -302,6 +307,7 @@ export class PerformanceDashboard {
         // 特殊处理缓存命中率：检查统计数据是否充足
         const cacheStats = await this.cache.getStats();
         if (!cacheStats.hasSufficientData) {
+          // 记录缓存命中率检查信息（调试级别）
           this.logger.debug('Skipping cache hit rate alert - insufficient data', {
             totalAccesses: cacheStats.hits + cacheStats.misses,
             requiredAccesses: this.MIN_STATISTICALLY_SIGNIFICANT_ACCESSES

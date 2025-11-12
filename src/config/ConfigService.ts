@@ -44,7 +44,8 @@ export class ConfigService {
     @inject(TYPES.ProjectNamingConfigService) private projectNamingConfigService: ProjectNamingConfigService,
     @inject(TYPES.EmbeddingBatchConfigService) private embeddingBatchConfigService: EmbeddingBatchConfigService,
     @inject(TYPES.GraphCacheConfigService) private graphCacheConfigService: GraphCacheConfigService,
-    @inject(TYPES.SimilarityService) private similarityConfigService: SimilarityConfigService,
+    // 移除 SimilarityService 的直接依赖以避免循环依赖
+    // @inject(TYPES.SimilarityService) private similarityConfigService: SimilarityConfigService,
   ) { }
 
 
@@ -65,7 +66,12 @@ export class ConfigService {
       const projectNaming = this.projectNamingConfigService.getConfig();
       const embeddingBatch = this.embeddingBatchConfigService.getConfig();
       const graphCache = this.graphCacheConfigService.getConfig();
-      const similarity = this.similarityConfigService.getConfig();
+      
+      // 动态导入 SimilarityConfigService 来获取相似度配置
+      const { SimilarityConfigService } = await import('./service/SimilarityConfigService');
+      const similarityConfigService = new SimilarityConfigService();
+      const similarity = similarityConfigService.loadConfig();
+      
       // 提供默认的热重载配置
       const hotReload = this.getDefaultHotReloadConfig();
 
@@ -113,7 +119,13 @@ export class ConfigService {
         similarity, // 添加相似度配置
       };
     } catch (error) {
-      throw new Error(`Failed to initialize configuration: ${error}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      console.error('Failed to initialize configuration:', errorMessage);
+      if (errorStack) {
+        console.error('Stack trace:', errorStack);
+      }
+      throw new Error(`Failed to initialize configuration: ${errorMessage}`);
     }
   }
 
@@ -143,6 +155,30 @@ export class ConfigService {
     if (!this.config) {
       throw new Error('Configuration not initialized. Call initialize() first.');
     }
-    return { ...this.config };
+    return this.config;
+  }
+
+  /**
+   * 更新配置
+   */
+  update<K extends keyof AppConfig>(key: K, value: AppConfig[K]): void {
+    if (!this.config) {
+      throw new Error('Configuration not initialized. Call initialize() first.');
+    }
+    this.config[key] = value;
+  }
+
+  /**
+   * 检查配置是否已初始化
+   */
+  isInitialized(): boolean {
+    return this.config !== null;
+  }
+
+  /**
+   * 重置配置
+   */
+  reset(): void {
+    this.config = null;
   }
 }

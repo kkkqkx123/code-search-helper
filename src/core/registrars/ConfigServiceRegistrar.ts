@@ -48,8 +48,14 @@ export class ConfigServiceRegistrar {
       // 主配置服务
       container.bind<ConfigService>(TYPES.ConfigService).to(ConfigService).inSingletonScope();
     } catch (error: any) {
-      console.error('Error registering config services:', error);
+      console.error('Error in ConfigServiceRegistrar.register:', error);
+      console.error('Error type:', typeof error);
+      console.error('Error name:', error?.name);
+      console.error('Error message:', error?.message);
       console.error('Error stack:', error?.stack);
+      if (error && typeof error === 'object' && 'kind' in error) {
+        console.error('Error kind:', (error as any).kind);
+      }
       throw error;
     }
   }

@@ -32,7 +32,12 @@ export class GraphMappingCache {
         }
       });
     } catch (error) {
-      logger.error('Failed to initialize GraphMappingCache', { error: (error as Error).message, stack: (error as Error).stack });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      logger.error('Failed to initialize GraphMappingCache', {
+        error: errorMessage,
+        stack: errorStack
+      });
       throw error;
     }
   }

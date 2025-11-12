@@ -1,4 +1,5 @@
-import { injectable } from 'inversify';
+import { injectable, inject } from 'inversify';
+import { TYPES } from '../../../types';
 import { IBatchStrategy, BatchContext, BatchProcessingOptions } from '../types';
 import { LoggerService } from '../../../utils/LoggerService';
 
@@ -9,7 +10,7 @@ import { LoggerService } from '../../../utils/LoggerService';
 @injectable()
 export class GraphBatchStrategy implements IBatchStrategy {
   constructor(
-    private logger: LoggerService
+    @inject(TYPES.LoggerService) private logger: LoggerService
   ) {}
 
   /**

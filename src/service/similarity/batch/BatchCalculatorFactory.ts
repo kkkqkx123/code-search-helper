@@ -25,10 +25,10 @@ export class BatchCalculatorFactory implements IBatchCalculatorFactory {
   constructor(
     @inject(TYPES.LoggerService) private logger?: LoggerService,
     // 注入具体的计算器实现
-    @inject(GenericBatchCalculator) private genericCalculator?: GenericBatchCalculator,
-    @inject(SemanticOptimizedBatchCalculator) private semanticCalculator?: SemanticOptimizedBatchCalculator,
-    @inject(HybridOptimizedBatchCalculator) private hybridCalculator?: HybridOptimizedBatchCalculator,
-    @inject(AdaptiveBatchCalculator) private adaptiveCalculator?: AdaptiveBatchCalculator
+    @inject(TYPES.GenericBatchCalculator) private genericCalculator?: GenericBatchCalculator,
+    @inject(TYPES.SemanticOptimizedBatchCalculator) private semanticCalculator?: SemanticOptimizedBatchCalculator,
+    @inject(TYPES.HybridOptimizedBatchCalculator) private hybridCalculator?: HybridOptimizedBatchCalculator,
+    @inject(TYPES.AdaptiveBatchCalculator) private adaptiveCalculator?: AdaptiveBatchCalculator
   ) {
     this.initializeCalculators();
   }

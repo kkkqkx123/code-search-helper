@@ -5,9 +5,48 @@ import { ConfigService } from '../../config/ConfigService';
 import { DatabaseType } from '../types';
 import { ConfigValidationUtil } from './ConfigValidator';
 import { BaseConfigTemplate } from './BaseServiceConfig';
-import { EnvVarOptimizer } from './EnvVarOptimizer';
 import { CommonConfig } from './types';
 import { InfrastructureConfig } from './InfrastructureConfigTypes';
+
+/**
+ * 环境变量工具函数
+ */
+class EnvUtils {
+  static getEnvValue(key: string): string | undefined {
+    return process.env[key];
+  }
+
+  static getEnvValueWithDefault(key: string, defaultValue: string): string {
+    const value = this.getEnvValue(key);
+    return value !== undefined ? value : defaultValue;
+  }
+
+  static getEnvNumberValue(key: string, defaultValue: number): number {
+    const value = this.getEnvValue(key);
+    if (value === undefined) {
+      return defaultValue;
+    }
+    const parsedValue = parseInt(value, 10);
+    return isNaN(parsedValue) ? defaultValue : parsedValue;
+  }
+
+  static getEnvBooleanValue(key: string, defaultValue: boolean): boolean {
+    const value = this.getEnvValue(key);
+    if (value === undefined) {
+      return defaultValue;
+    }
+    return value.toLowerCase() !== 'false';
+  }
+
+  static getEnvFloatValue(key: string, defaultValue: number): number {
+    const value = this.getEnvValue(key);
+    if (value === undefined) {
+      return defaultValue;
+    }
+    const parsedValue = parseFloat(value);
+    return isNaN(parsedValue) ? defaultValue : parsedValue;
+  }
+}
 
 @injectable()
 export class InfrastructureConfigService {
@@ -27,121 +66,113 @@ export class InfrastructureConfigService {
   }
 
   private loadInfrastructureConfigFromEnv(): InfrastructureConfig {
-    // 在加载配置时检查是否有使用旧的环境变量命名
-    const legacyVars = EnvVarOptimizer.checkForLegacyEnvVars();
-    if (legacyVars.length > 0) {
-      this.logger.warn('Detected usage of legacy environment variable names. Consider updating to new standardized names.', {
-        legacyVars
-      });
-    }
-
     return {
       common: {
-        enableCache: EnvVarOptimizer.getEnvBooleanValue('INFRA_COMMON_ENABLE_CACHE', true),
-        enableMonitoring: EnvVarOptimizer.getEnvBooleanValue('INFRA_COMMON_ENABLE_MONITORING', true),
-        enableBatching: EnvVarOptimizer.getEnvBooleanValue('INFRA_COMMON_ENABLE_BATCHING', true),
-        logLevel: (EnvVarOptimizer.getEnvValue('INFRA_COMMON_LOG_LEVEL') as any) || 'info',
-        enableHealthChecks: EnvVarOptimizer.getEnvBooleanValue('INFRA_COMMON_ENABLE_HEALTH_CHECKS', true),
-        healthCheckInterval: EnvVarOptimizer.getEnvNumberValue('INFRA_COMMON_HEALTH_CHECK_INTERVAL', 3000),
-        gracefulShutdownTimeout: EnvVarOptimizer.getEnvNumberValue('INFRA_COMMON_GRACEFUL_SHUTDOWN_TIMEOUT', 10000)
+        enableCache: EnvUtils.getEnvBooleanValue('INFRA_CACHE_ENABLED', true),
+        enableMonitoring: EnvUtils.getEnvBooleanValue('INFRA_MONITORING_ENABLED', true),
+        enableBatching: EnvUtils.getEnvBooleanValue('INFRA_BATCHING_ENABLED', true),
+        logLevel: (EnvUtils.getEnvValue('INFRA_LOG_LEVEL') as any) || 'info',
+        enableHealthChecks: EnvUtils.getEnvBooleanValue('INFRA_HEALTH_CHECKS_ENABLED', true),
+        healthCheckInterval: EnvUtils.getEnvNumberValue('INFRA_HEALTH_CHECK_INTERVAL', 30000),
+        gracefulShutdownTimeout: EnvUtils.getEnvNumberValue('INFRA_SHUTDOWN_TIMEOUT', 10000)
       },
       qdrant: {
         cache: {
-          defaultTTL: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_CACHE_DEFAULT_TTL', 30000),
-          maxEntries: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_CACHE_MAX_ENTRIES', 10000),
-          cleanupInterval: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_CACHE_CLEANUP_INTERVAL', 60000),
-          enableStats: EnvVarOptimizer.getEnvBooleanValue('INFRA_QDRANT_CACHE_ENABLE_STATS', true),
+          defaultTTL: EnvUtils.getEnvNumberValue('INFRA_QDRANT_CACHE_TTL', 30000),
+          maxEntries: EnvUtils.getEnvNumberValue('INFRA_QDRANT_CACHE_MAX_ENTRIES', 10000),
+          cleanupInterval: EnvUtils.getEnvNumberValue('INFRA_QDRANT_CACHE_CLEANUP_INTERVAL', 60000),
+          enableStats: EnvUtils.getEnvBooleanValue('INFRA_QDRANT_CACHE_STATS_ENABLED', true),
           databaseSpecific: {}
         },
         performance: {
-          monitoringInterval: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_MONITORING_INTERVAL', 1000),  // 设置为最低允许值
-          metricsRetentionPeriod: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_METRICS_RETENTION_PERIOD', 8640000),
-          enableDetailedLogging: EnvVarOptimizer.getEnvBooleanValue('INFRA_QDRANT_PERFORMANCE_ENABLE_DETAILED_LOGGING', true),
+          monitoringInterval: EnvUtils.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_INTERVAL', 1000),
+          metricsRetentionPeriod: EnvUtils.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_RETENTION', 8640000),
+          enableDetailedLogging: EnvUtils.getEnvBooleanValue('INFRA_QDRANT_PERFORMANCE_LOGGING_ENABLED', true),
           performanceThresholds: {
-            queryExecutionTime: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_QUERY_EXECUTION_TIME', 1000),
-            memoryUsage: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_MEMORY_USAGE', 80),
-            responseTime: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_RESPONSE_TIME', 50)
+            queryExecutionTime: EnvUtils.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_QUERY_TIMEOUT', 1000),
+            memoryUsage: EnvUtils.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_MEMORY_THRESHOLD', 80),
+            responseTime: EnvUtils.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_RESPONSE_THRESHOLD', 50)
           },
           databaseSpecific: {}
         },
         batch: {
-          maxConcurrentOperations: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_BATCH_MAX_CONCURRENT_OPERATIONS', 5),
-          defaultBatchSize: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_BATCH_DEFAULT_BATCH_SIZE', 50),
-          maxBatchSize: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_BATCH_MAX_BATCH_SIZE', 500),
-          minBatchSize: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_BATCH_MIN_BATCH_SIZE', 10),
-          memoryThreshold: EnvVarOptimizer.getEnvFloatValue('INFRA_QDRANT_BATCH_MEMORY_THRESHOLD', 0.80),
-          processingTimeout: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_BATCH_PROCESSING_TIMEOUT', 3000),
-          retryAttempts: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_BATCH_RETRY_ATTEMPTS', 3),
-          retryDelay: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_BATCH_RETRY_DELAY', 1000),
-          adaptiveBatchingEnabled: EnvVarOptimizer.getEnvBooleanValue('INFRA_QDRANT_BATCH_ADAPTIVE_BATCHING_ENABLED', true),
-          performanceThreshold: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_BATCH_PERFORMANCE_THRESHOLD', 1000),
-          adjustmentFactor: EnvVarOptimizer.getEnvFloatValue('INFRA_QDRANT_BATCH_ADJUSTMENT_FACTOR', 0.1),
+          maxConcurrentOperations: EnvUtils.getEnvNumberValue('INFRA_QDRANT_BATCH_CONCURRENCY', 5),
+          defaultBatchSize: EnvUtils.getEnvNumberValue('INFRA_QDRANT_BATCH_SIZE_DEFAULT', 50),
+          maxBatchSize: EnvUtils.getEnvNumberValue('INFRA_QDRANT_BATCH_SIZE_MAX', 500),
+          minBatchSize: EnvUtils.getEnvNumberValue('INFRA_QDRANT_BATCH_SIZE_MIN', 10),
+          memoryThreshold: EnvUtils.getEnvFloatValue('INFRA_QDRANT_BATCH_MEMORY_THRESHOLD', 0.80),
+          processingTimeout: EnvUtils.getEnvNumberValue('INFRA_QDRANT_BATCH_PROCESSING_TIMEOUT', 3000),
+          retryAttempts: EnvUtils.getEnvNumberValue('INFRA_QDRANT_BATCH_RETRY_ATTEMPTS', 3),
+          retryDelay: EnvUtils.getEnvNumberValue('INFRA_QDRANT_BATCH_RETRY_DELAY', 1000),
+          adaptiveBatchingEnabled: EnvUtils.getEnvBooleanValue('INFRA_QDRANT_BATCH_ADAPTIVE_ENABLED', true),
+          performanceThreshold: EnvUtils.getEnvNumberValue('INFRA_QDRANT_BATCH_PERFORMANCE_THRESHOLD', 1000),
+          adjustmentFactor: EnvUtils.getEnvFloatValue('INFRA_QDRANT_BATCH_ADJUSTMENT_FACTOR', 0.1),
           databaseSpecific: {}
         },
         vector: {
-          defaultCollection: EnvVarOptimizer.getEnvValue('INFRA_QDRANT_VECTOR_DEFAULT_COLLECTION') || 'default',
+          defaultCollection: EnvUtils.getEnvValue('INFRA_QDRANT_VECTOR_COLLECTION_DEFAULT') || 'default',
           collectionOptions: {
-            vectorSize: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_VECTOR_COLLECTION_VECTOR_SIZE', 1536),
-            distance: (EnvVarOptimizer.getEnvValue('INFRA_QDRANT_VECTOR_COLLECTION_DISTANCE') as any) || 'Cosine',
+            vectorSize: EnvUtils.getEnvNumberValue('INFRA_QDRANT_VECTOR_SIZE', 1536),
+            distance: (EnvUtils.getEnvValue('INFRA_QDRANT_VECTOR_DISTANCE') as any) || 'Cosine',
             indexing: {
-              type: EnvVarOptimizer.getEnvValue('INFRA_QDRANT_VECTOR_COLLECTION_INDEXING_TYPE') || 'hnsw',
+              type: EnvUtils.getEnvValue('INFRA_QDRANT_VECTOR_INDEX_TYPE') || 'hnsw',
               options: {}
             }
           },
           searchOptions: {
-            limit: EnvVarOptimizer.getEnvNumberValue('INFRA_QDRANT_VECTOR_SEARCH_LIMIT', 10),
-            threshold: EnvVarOptimizer.getEnvFloatValue('INFRA_QDRANT_VECTOR_SEARCH_THRESHOLD', 0.5),
-            exactSearch: EnvVarOptimizer.getEnvBooleanValue('INFRA_QDRANT_VECTOR_SEARCH_EXACT_SEARCH', false)
+            limit: EnvUtils.getEnvNumberValue('INFRA_QDRANT_VECTOR_SEARCH_LIMIT', 10),
+            threshold: EnvUtils.getEnvFloatValue('INFRA_QDRANT_VECTOR_SEARCH_THRESHOLD', 0.5),
+            exactSearch: EnvUtils.getEnvBooleanValue('INFRA_QDRANT_VECTOR_SEARCH_EXACT_ENABLED', false)
           }
         }
       },
       nebula: {
         cache: {
-          defaultTTL: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_CACHE_DEFAULT_TTL', 30000),
-          maxEntries: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_CACHE_MAX_ENTRIES', 10000),
-          cleanupInterval: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_CACHE_CLEANUP_INTERVAL', 60000),
-          enableStats: EnvVarOptimizer.getEnvBooleanValue('INFRA_NEBULA_CACHE_ENABLE_STATS', true),
+          defaultTTL: EnvUtils.getEnvNumberValue('INFRA_NEBULA_CACHE_TTL', 30000),
+          maxEntries: EnvUtils.getEnvNumberValue('INFRA_NEBULA_CACHE_MAX_ENTRIES', 10000),
+          cleanupInterval: EnvUtils.getEnvNumberValue('INFRA_NEBULA_CACHE_CLEANUP_INTERVAL', 60000),
+          enableStats: EnvUtils.getEnvBooleanValue('INFRA_NEBULA_CACHE_STATS_ENABLED', true),
           databaseSpecific: {}
         },
         performance: {
-          monitoringInterval: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_PERFORMANCE_MONITORING_INTERVAL', 1000),  // 设置为最低允许值
-          metricsRetentionPeriod: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_PERFORMANCE_METRICS_RETENTION_PERIOD', 8640000),
-          enableDetailedLogging: EnvVarOptimizer.getEnvBooleanValue('INFRA_NEBULA_PERFORMANCE_ENABLE_DETAILED_LOGGING', true),
+          monitoringInterval: EnvUtils.getEnvNumberValue('INFRA_NEBULA_PERFORMANCE_INTERVAL', 1000),
+          metricsRetentionPeriod: EnvUtils.getEnvNumberValue('INFRA_NEBULA_PERFORMANCE_RETENTION', 8640000),
+          enableDetailedLogging: EnvUtils.getEnvBooleanValue('INFRA_NEBULA_PERFORMANCE_LOGGING_ENABLED', true),
           performanceThresholds: {
-            queryExecutionTime: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_PERFORMANCE_QUERY_EXECUTION_TIME', 1000),
-            memoryUsage: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_PERFORMANCE_MEMORY_USAGE', 80),
-            responseTime: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_PERFORMANCE_RESPONSE_TIME', 500)
+            queryExecutionTime: EnvUtils.getEnvNumberValue('INFRA_NEBULA_PERFORMANCE_QUERY_TIMEOUT', 1000),
+            memoryUsage: EnvUtils.getEnvNumberValue('INFRA_NEBULA_PERFORMANCE_MEMORY_THRESHOLD', 80),
+            responseTime: EnvUtils.getEnvNumberValue('INFRA_NEBULA_PERFORMANCE_RESPONSE_THRESHOLD', 500)
           },
           databaseSpecific: {}
         },
         batch: {
-          maxConcurrentOperations: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_BATCH_MAX_CONCURRENT_OPERATIONS', 5),
-          defaultBatchSize: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_BATCH_DEFAULT_BATCH_SIZE', 50),
-          maxBatchSize: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_BATCH_MAX_BATCH_SIZE', 500),
-          minBatchSize: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_BATCH_MIN_BATCH_SIZE', 10),
-          memoryThreshold: EnvVarOptimizer.getEnvFloatValue('INFRA_NEBULA_BATCH_MEMORY_THRESHOLD', 0.80),
-          processingTimeout: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_BATCH_PROCESSING_TIMEOUT', 300000),
-          retryAttempts: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_BATCH_RETRY_ATTEMPTS', 3),
-          retryDelay: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_BATCH_RETRY_DELAY', 100),
-          adaptiveBatchingEnabled: EnvVarOptimizer.getEnvBooleanValue('INFRA_NEBULA_BATCH_ADAPTIVE_BATCHING_ENABLED', true),
-          performanceThreshold: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_BATCH_PERFORMANCE_THRESHOLD', 1000),
-          adjustmentFactor: EnvVarOptimizer.getEnvFloatValue('INFRA_NEBULA_BATCH_ADJUSTMENT_FACTOR', 0.1),
+          maxConcurrentOperations: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_CONCURRENCY', 5),
+          defaultBatchSize: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_SIZE_DEFAULT', 50),
+          maxBatchSize: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_SIZE_MAX', 500),
+          minBatchSize: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_SIZE_MIN', 10),
+          memoryThreshold: EnvUtils.getEnvFloatValue('INFRA_NEBULA_BATCH_MEMORY_THRESHOLD', 0.80),
+          processingTimeout: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_PROCESSING_TIMEOUT', 300000),
+          retryAttempts: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_RETRY_ATTEMPTS', 3),
+          retryDelay: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_RETRY_DELAY', 100),
+          adaptiveBatchingEnabled: EnvUtils.getEnvBooleanValue('INFRA_NEBULA_BATCH_ADAPTIVE_ENABLED', true),
+          performanceThreshold: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_PERFORMANCE_THRESHOLD', 1000),
+          adjustmentFactor: EnvUtils.getEnvFloatValue('INFRA_NEBULA_BATCH_ADJUSTMENT_FACTOR', 0.1),
           databaseSpecific: {}
         },
         graph: {
-          defaultSpace: EnvVarOptimizer.getEnvValue('INFRA_NEBULA_GRAPH_DEFAULT_SPACE') || 'default',
+          defaultSpace: EnvUtils.getEnvValue('INFRA_NEBULA_GRAPH_SPACE_DEFAULT') || 'default',
           spaceOptions: {
-            partitionNum: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_GRAPH_SPACE_PARTITION_NUM', 10),
-            replicaFactor: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_GRAPH_SPACE_REPLICA_FACTOR', 1),
-            vidType: (EnvVarOptimizer.getEnvValue('INFRA_NEBULA_GRAPH_SPACE_VID_TYPE') as any) || 'FIXED_STRING'
+            partitionNum: EnvUtils.getEnvNumberValue('INFRA_NEBULA_GRAPH_PARTITION_COUNT', 10),
+            replicaFactor: EnvUtils.getEnvNumberValue('INFRA_NEBULA_GRAPH_REPLICA_FACTOR', 1),
+            vidType: (EnvUtils.getEnvValue('INFRA_NEBULA_GRAPH_VID_TYPE') as any) || 'FIXED_STRING'
           },
           queryOptions: {
-            timeout: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_GRAPH_QUERY_TIMEOUT', 30000),
-            retryAttempts: EnvVarOptimizer.getEnvNumberValue('INFRA_NEBULA_GRAPH_QUERY_RETRY_ATTEMPTS', 3)
+            timeout: EnvUtils.getEnvNumberValue('INFRA_NEBULA_GRAPH_QUERY_TIMEOUT', 30000),
+            retryAttempts: EnvUtils.getEnvNumberValue('INFRA_NEBULA_GRAPH_QUERY_RETRIES', 3)
           },
           schemaManagement: {
-            autoCreateTags: EnvVarOptimizer.getEnvBooleanValue('INFRA_NEBULA_GRAPH_SCHEMA_AUTO_CREATE_TAGS', false),
-            autoCreateEdges: EnvVarOptimizer.getEnvBooleanValue('INFRA_NEBULA_GRAPH_SCHEMA_AUTO_CREATE_EDGES', false)
+            autoCreateTags: EnvUtils.getEnvBooleanValue('INFRA_NEBULA_GRAPH_SCHEMA_TAGS_AUTO', false),
+            autoCreateEdges: EnvUtils.getEnvBooleanValue('INFRA_NEBULA_GRAPH_SCHEMA_EDGES_AUTO', false)
           }
         }
       }
@@ -257,7 +288,7 @@ export class InfrastructureConfigService {
           defaultBatchSize: 25,
           maxBatchSize: 100,
           minBatchSize: 5,
-          memoryThreshold: 70,
+          memoryThreshold: 0.70,
           processingTimeout: 30000,
           retryAttempts: 2,
           retryDelay: 1000,
@@ -307,7 +338,7 @@ export class InfrastructureConfigService {
           defaultBatchSize: 25,
           maxBatchSize: 100,
           minBatchSize: 5,
-          memoryThreshold: 70,
+          memoryThreshold: 0.70,
           processingTimeout: 30000,
           retryAttempts: 2,
           retryDelay: 100,
@@ -372,7 +403,7 @@ export class InfrastructureConfigService {
           defaultBatchSize: 10,
           maxBatchSize: 50,
           minBatchSize: 1,
-          memoryThreshold: 50,
+          memoryThreshold: 0.50,
           processingTimeout: 10000,
           retryAttempts: 1,
           retryDelay: 2000,
@@ -422,7 +453,7 @@ export class InfrastructureConfigService {
           defaultBatchSize: 10,
           maxBatchSize: 50,
           minBatchSize: 1,
-          memoryThreshold: 50,
+          memoryThreshold: 0.50,
           processingTimeout: 10000,
           retryAttempts: 1,
           retryDelay: 200,

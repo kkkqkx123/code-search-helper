@@ -83,11 +83,23 @@ export class PerformanceMetricsCollector {
       if (this.options.enableAutoCollection) {
         // 延迟启动自动收集，以避免在系统刚启动时没有足够数据就发出警报
         setTimeout(() => {
-          this.startAutoCollection();
+          try {
+            this.startAutoCollection();
+          } catch (error) {
+            this.logger.error('Error starting auto collection', { 
+              error: error instanceof Error ? error.message : String(error),
+              stack: error instanceof Error ? error.stack : undefined
+            });
+          }
         }, 30000); // 30秒后开始收集
       }
     } catch (error) {
-      logger.error('Failed to initialize PerformanceMetricsCollector', { error: (error as Error).message, stack: (error as Error).stack });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      logger.error('Failed to initialize PerformanceMetricsCollector', { 
+        error: errorMessage, 
+        stack: errorStack
+      });
       throw error;
     }
   }
@@ -150,7 +162,7 @@ export class PerformanceMetricsCollector {
     if (rule) {
       rule.enabled = false;
       this.logger.debug('Disabled collection rule', { metricName });
-      return true;
+      return false;
     }
     return false;
   }
@@ -177,7 +189,7 @@ export class PerformanceMetricsCollector {
       } catch (error) {
         this.logger.error('Error collecting metric', {
           metricName: rule.metricName,
-          error: (error as Error).message
+          error: error instanceof Error ? error.message : String(error)
         });
       }
     }
@@ -206,7 +218,7 @@ export class PerformanceMetricsCollector {
     } catch (error) {
       this.logger.error('Error collecting manual metric', {
         metricName,
-        error: (error as Error).message
+        error: error instanceof Error ? error.message : String(error)
       });
       return false;
     }

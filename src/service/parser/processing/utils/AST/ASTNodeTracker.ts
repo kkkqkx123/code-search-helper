@@ -1,3 +1,5 @@
+import { injectable, inject, optional, unmanaged } from 'inversify';
+import { TYPES } from '../../../../../types';
 import { Tree } from 'tree-sitter';
 import { ContentHashIDGenerator } from '../ContentHashIDGenerator';
 import { SimilarityUtils } from '../../../../similarity/utils/SimilarityUtils';
@@ -16,6 +18,7 @@ export interface TrackingStats {
  * AST节点跟踪器 - 支持内容哈希和相似度检测
  * 合并了原始ASTNodeTracker和EnhancedASTNodeTracker的功能
  */
+@injectable()
 export class ASTNodeTracker {
   private usedNodes: Set<string> = new Set();
   private nodeCache: Map<string, ASTNode> = new Map();
@@ -32,11 +35,11 @@ export class ASTNodeTracker {
   private similarityUtils: SimilarityUtils;
 
   constructor(
-    similarityUtils: SimilarityUtils,
-    maxCacheSize: number = 10000,
-    enableContentHashing: boolean = true,
-    similarityThreshold: number = 0.8,
-    logger?: LoggerService
+    @inject(TYPES.SimilarityUtils) similarityUtils: SimilarityUtils,
+    @unmanaged() maxCacheSize: number = 10000,
+    @unmanaged() enableContentHashing: boolean = true,
+    @unmanaged() similarityThreshold: number = 0.8,
+    @inject(TYPES.LoggerService) @optional() logger?: LoggerService
   ) {
     this.similarityUtils = similarityUtils;
     this.maxCacheSize = maxCacheSize;
