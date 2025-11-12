@@ -37,7 +37,7 @@ export function withPerformanceMonitoring<T extends any[], R>(
       
       // 可以将性能数据存储到监控系统（如果存在）
       if (this && typeof this === 'object' && 'performanceAdapter' in this && this.performanceAdapter) {
-        (this as any).performanceAdapter?.recordOperation?.(propertyName, 1, Date.now() - startTime);
+        (this as any).performanceAdapter?.recordOperation?.(propertyName, Date.now() - startTime);
       }
       
       return result;
@@ -99,7 +99,7 @@ export function withPerformanceMonitoringAndMetadata<T extends any[], R extends 
       
       // 可以将性能数据存储到监控系统（如果存在）
       if (this && typeof this === 'object' && 'performanceAdapter' in this && this.performanceAdapter) {
-        (this as any).performanceAdapter?.recordOperation?.(propertyName, 1, Date.now() - startTime);
+        (this as any).performanceAdapter?.recordOperation?.(propertyName, Date.now() - startTime);
       }
       
       return result;

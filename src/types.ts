@@ -34,7 +34,6 @@ export const TYPES = {
   EventToLogBridge: Symbol.for('EventToLogBridge'),
   PerformanceMonitor: Symbol.for('PerformanceMonitor'),
   DatabasePerformanceMonitor: Symbol.for('DatabasePerformanceMonitor'),
-  VectorPerformanceMonitor: Symbol.for('VectorPerformanceMonitor'),
 
   // 4. Qdrant 服务模块
   QdrantService: Symbol.for('QdrantService'),

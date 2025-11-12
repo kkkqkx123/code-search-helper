@@ -3,7 +3,7 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { IQdrantConnectionManager } from '../../qdrant/QdrantConnectionManager';
 import { DatabaseLoggerService } from '../../common/DatabaseLoggerService';
-import { PerformanceMonitor } from '../../common/PerformanceMonitor';
+import { PerformanceMonitor } from '../../../infrastructure/monitoring/PerformanceMonitor';
 import { VectorDistance, CollectionCreateOptions, DEFAULT_COLLECTION_OPTIONS } from '../../qdrant/QdrantTypes';
 
 // Mock dependencies

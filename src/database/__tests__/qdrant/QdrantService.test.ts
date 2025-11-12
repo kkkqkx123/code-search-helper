@@ -10,18 +10,10 @@ import { IQdrantQueryUtils } from '../../qdrant/QdrantQueryUtils';
 import { IQdrantProjectManager } from '../../qdrant/QdrantProjectManager';
 import { IVectorStore, VectorPoint, CollectionInfo, SearchOptions, SearchResult } from '../../qdrant/IVectorStore';
 import { DatabaseLoggerService } from '../../common/DatabaseLoggerService';
-import { PerformanceMonitor } from '../../common/PerformanceMonitor';
+import { PerformanceMonitor } from '../../../infrastructure/monitoring/PerformanceMonitor';
 import {
-  QdrantConfig,
   VectorDistance,
-  CollectionCreateOptions,
-  VectorUpsertOptions,
-  VectorSearchOptions,
-  QueryFilter,
-  BatchResult,
-  ProjectInfo,
   QdrantEventType,
-  QdrantEvent
 } from '../../qdrant/QdrantTypes';
 
 // Mock dependencies

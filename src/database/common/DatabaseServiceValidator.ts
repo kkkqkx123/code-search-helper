@@ -1,4 +1,4 @@
-import { DatabaseError, DatabaseErrorType } from './DatabaseError';
+import { DatabaseError } from './DatabaseError';
 
 /**
  * 数据库服务验证器

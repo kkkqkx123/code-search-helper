@@ -5,7 +5,7 @@ import { DatabaseLoggerService } from './DatabaseLoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { DatabaseEventType, Subscription } from './DatabaseEventTypes';
 import { DatabaseError, DatabaseErrorType } from './DatabaseError';
-import { PerformanceMonitor } from './PerformanceMonitor';
+import { PerformanceMonitor } from '../../infrastructure/monitoring/PerformanceMonitor';
 
 /**
  * 抽象数据库服务基类
@@ -145,10 +145,8 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
     try {
       const result = await this.projectManager.createProjectSpace(projectPath, config);
       
-      const duration = this.performanceMonitor.recordOperation('createProjectSpace', Date.now() - startTime, {
-        projectPath,
-        config: !!config
-      });
+      const operationDuration = Date.now() - startTime;
+      this.performanceMonitor.recordOperation('createProjectSpace', operationDuration);
       
       await this.databaseLogger.logDatabaseEvent({
         type: DatabaseEventType.SPACE_CREATED,
@@ -203,9 +201,8 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
     try {
       const result = await this.projectManager.deleteProjectSpace(projectPath);
       
-      const duration = this.performanceMonitor.recordOperation('deleteProjectSpace', Date.now() - startTime, {
-        projectPath
-      });
+      const operationDuration = Date.now() - startTime;
+      this.performanceMonitor.recordOperation('deleteProjectSpace', operationDuration);
       
       await this.databaseLogger.logDatabaseEvent({
         type: DatabaseEventType.SPACE_DELETED,
@@ -260,9 +257,8 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
     try {
       const result = await this.projectManager.getProjectSpaceInfo(projectPath);
       
-      const duration = this.performanceMonitor.recordOperation('getProjectSpaceInfo', Date.now() - startTime, {
-        projectPath
-      });
+      const operationDuration = Date.now() - startTime;
+      this.performanceMonitor.recordOperation('getProjectSpaceInfo', operationDuration);
       
       await this.databaseLogger.logDatabaseEvent({
         type: DatabaseEventType.INFO_RETRIEVED,
@@ -317,10 +313,8 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
     try {
       const result = await this.projectManager.insertProjectData(projectPath, data);
       
-      const duration = this.performanceMonitor.recordOperation('insertData', Date.now() - startTime, {
-        projectPath,
-        dataSize: JSON.stringify(data).length
-      });
+      const operationDuration = Date.now() - startTime;
+      this.performanceMonitor.recordOperation('insertData', operationDuration);
       
       await this.databaseLogger.logDatabaseEvent({
         type: DatabaseEventType.DATA_INSERTED,
@@ -376,11 +370,8 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
     try {
       const result = await this.projectManager.updateProjectData(projectPath, id, data);
       
-      const duration = this.performanceMonitor.recordOperation('updateData', Date.now() - startTime, {
-        projectPath,
-        id,
-        dataSize: JSON.stringify(data).length
-      });
+      const operationDuration = Date.now() - startTime;
+      this.performanceMonitor.recordOperation('updateData', operationDuration);
       
       await this.databaseLogger.logDatabaseEvent({
         type: DatabaseEventType.DATA_UPDATED,
@@ -438,10 +429,8 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
     try {
       const result = await this.projectManager.deleteProjectData(projectPath, id);
       
-      const duration = this.performanceMonitor.recordOperation('deleteData', Date.now() - startTime, {
-        projectPath,
-        id
-      });
+      const operationDuration = Date.now() - startTime;
+      this.performanceMonitor.recordOperation('deleteData', operationDuration);
       
       await this.databaseLogger.logDatabaseEvent({
         type: DatabaseEventType.DATA_DELETED,
@@ -498,10 +487,8 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
     try {
       const result = await this.projectManager.searchProjectData(projectPath, query);
       
-      const duration = this.performanceMonitor.recordOperation('searchData', Date.now() - startTime, {
-        projectPath,
-        querySize: JSON.stringify(query).length
-      });
+      const operationDuration = Date.now() - startTime;
+      this.performanceMonitor.recordOperation('searchData', operationDuration);
       
       await this.databaseLogger.logDatabaseEvent({
         type: DatabaseEventType.DATA_QUERIED,
@@ -558,10 +545,8 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
     try {
       const result = await this.projectManager.getProjectDataById(projectPath, id);
       
-      const duration = this.performanceMonitor.recordOperation('getDataById', Date.now() - startTime, {
-        projectPath,
-        id
-      });
+      const operationDuration = Date.now() - startTime;
+      this.performanceMonitor.recordOperation('getDataById', operationDuration);
       
       await this.databaseLogger.logDatabaseEvent({
         type: DatabaseEventType.DATA_RETRIEVED,

@@ -6,7 +6,7 @@ import { IQdrantCollectionManager } from '../../qdrant/QdrantCollectionManager';
 import { IQdrantVectorOperations } from '../../qdrant/QdrantVectorOperations';
 import { IQdrantQueryUtils } from '../../qdrant/QdrantQueryUtils';
 import { DatabaseLoggerService } from '../../common/DatabaseLoggerService';
-import { PerformanceMonitor } from '../../common/PerformanceMonitor';
+import { PerformanceMonitor } from '../../../infrastructure/monitoring/PerformanceMonitor';
 import { VectorPoint, CollectionInfo, SearchOptions, SearchResult } from '../../qdrant/IVectorStore';
 import { VectorDistance, ProjectInfo } from '../../qdrant/QdrantTypes';
 

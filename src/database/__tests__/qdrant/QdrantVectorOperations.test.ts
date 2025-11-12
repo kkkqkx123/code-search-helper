@@ -5,7 +5,7 @@ import { IQdrantConnectionManager } from '../../qdrant/QdrantConnectionManager';
 import { IQdrantCollectionManager } from '../../qdrant/QdrantCollectionManager';
 import { VectorPoint, SearchOptions, SearchResult } from '../../qdrant/IVectorStore';
 import { DatabaseLoggerService } from '../../common/DatabaseLoggerService';
-import { PerformanceMonitor } from '../../common/PerformanceMonitor';
+import { PerformanceMonitor } from '../../../infrastructure/monitoring/PerformanceMonitor';
 import {
   VectorUpsertOptions,
   VectorSearchOptions,

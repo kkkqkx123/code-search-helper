@@ -20,7 +20,7 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../config/ConfigService';
 import { DatabaseLoggerService } from '../../common/DatabaseLoggerService';
-import { PerformanceMonitor } from '../../common/PerformanceMonitor';
+import { PerformanceMonitor } from '../../../infrastructure/monitoring/PerformanceMonitor';
 import { QdrantClient } from '@qdrant/js-client-rest';
 import { ConnectionStatus, QdrantEventType, QdrantEvent } from '../../qdrant/QdrantTypes';
 

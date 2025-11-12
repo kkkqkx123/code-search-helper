@@ -3,7 +3,30 @@ import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { IPerformanceMonitor, PerformanceMetrics, OperationContext, OperationResult, ParsingOperationMetric, NormalizationOperationMetric, ChunkingOperationMetric } from './types';
 import { InfrastructureConfigService } from '../config/InfrastructureConfigService';
-import { DatabaseType } from '../types';
+
+/**
+ * 性能指标接口
+ */
+interface PerformanceMetric {
+  count: number;
+  totalDuration: number;
+  minDuration: number;
+  maxDuration: number;
+  lastExecutionTime: Date;
+}
+
+/**
+ * 操作统计接口
+ */
+export interface OperationStats {
+  operation: string;
+  count: number;
+  averageDuration: number;
+  minDuration: number;
+  maxDuration: number;
+  totalDuration: number;
+  lastExecutionTime: Date;
+}
 
 @injectable()
 export class PerformanceMonitor implements IPerformanceMonitor {
@@ -19,6 +42,9 @@ export class PerformanceMonitor implements IPerformanceMonitor {
   private batchFailures: number = 0;
   // 通用操作监控相关属性
   private operationContexts: Map<string, OperationContext> = new Map();
+  
+  // 操作统计相关属性
+  private operationMetrics: Map<string, PerformanceMetric> = new Map();
 
   // 配置值缓存
   private monitoringIntervalMs: number = 30000;
@@ -193,6 +219,7 @@ export class PerformanceMonitor implements IPerformanceMonitor {
     this.batchSizes = [];
     this.batchSuccesses = 0;
     this.batchFailures = 0;
+    this.operationMetrics.clear();
     this.metrics = this.initializeMetrics();
   }
 
@@ -344,4 +371,109 @@ export class PerformanceMonitor implements IPerformanceMonitor {
   }
 
   
+  /**
+   * 记录操作性能（简化版本）
+   * @param operation 操作名称
+   * @param duration 持续时间（毫秒）
+   */
+  recordOperation(operation: string, duration: number): void {
+    // 记录查询执行时间
+    this.recordQueryExecution(duration);
+    
+    // 记录操作特定日志
+    this.logger.debug('Operation recorded', { operation, duration });
+    
+    // 检查阈值并记录警告
+    if (duration > this.queryExecutionTimeThreshold) {
+      this.logger.warn('Operation exceeded threshold', { 
+        operation, 
+        duration,
+        threshold: this.queryExecutionTimeThreshold
+      });
+    }
+    
+    // 更新操作统计
+    this.updateOperationStats(operation, duration);
+  }
+  
+  /**
+   * 更新操作统计
+   */
+  private updateOperationStats(operation: string, duration: number): void {
+    // 获取或创建操作指标
+    const metric = this.operationMetrics.get(operation) || {
+      count: 0,
+      totalDuration: 0,
+      minDuration: Infinity,
+      maxDuration: 0,
+      lastExecutionTime: new Date()
+    };
+
+    // 更新指标统计
+    metric.count++;
+    metric.totalDuration += duration;
+    metric.minDuration = Math.min(metric.minDuration, duration);
+    metric.maxDuration = Math.max(metric.maxDuration, duration);
+    metric.lastExecutionTime = new Date();
+
+    // 保存更新后的指标
+    this.operationMetrics.set(operation, metric);
+  }
+
+  /**
+   * 获取操作的性能统计
+   * @param operation 操作名称
+   * @returns 性能统计信息
+   */
+  getOperationStats(operation: string): OperationStats | null {
+    const metric = this.operationMetrics.get(operation);
+    if (!metric) {
+      return null;
+    }
+
+    return {
+      operation,
+      count: metric.count,
+      averageDuration: metric.count > 0 ? metric.totalDuration / metric.count : 0,
+      minDuration: metric.minDuration === Infinity ? 0 : metric.minDuration,
+      maxDuration: metric.maxDuration,
+      totalDuration: metric.totalDuration,
+      lastExecutionTime: metric.lastExecutionTime
+    };
+  }
+
+  /**
+   * 获取所有操作的性能统计
+   * @returns 所有操作的性能统计
+   */
+  getAllOperationStats(): OperationStats[] {
+    const stats: OperationStats[] = [];
+    for (const [operation, metric] of this.operationMetrics.entries()) {
+      stats.push({
+        operation,
+        count: metric.count,
+        averageDuration: metric.count > 0 ? metric.totalDuration / metric.count : 0,
+        minDuration: metric.minDuration === Infinity ? 0 : metric.minDuration,
+        maxDuration: metric.maxDuration,
+        totalDuration: metric.totalDuration,
+        lastExecutionTime: metric.lastExecutionTime
+      });
+    }
+    return stats;
+  }
+
+  /**
+   * 重置特定操作的性能统计
+   * @param operation 操作名称
+   */
+  resetOperationStats(operation: string): void {
+    this.operationMetrics.delete(operation);
+  }
+
+  /**
+   * 重置所有操作的性能统计
+   */
+  resetAllOperationStats(): void {
+    this.operationMetrics.clear();
+  }
 }

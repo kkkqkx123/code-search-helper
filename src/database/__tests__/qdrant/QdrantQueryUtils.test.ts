@@ -5,7 +5,7 @@ import { IQdrantConnectionManager } from '../../qdrant/QdrantConnectionManager';
 import { SearchOptions } from '../../qdrant/IVectorStore';
 import { QueryFilter } from '../../qdrant/QdrantTypes';
 import { DatabaseLoggerService } from '../../common/DatabaseLoggerService';
-import { PerformanceMonitor } from '../../common/PerformanceMonitor';
+import { PerformanceMonitor } from '../../../infrastructure/monitoring/PerformanceMonitor';
 
 // Mock dependencies
 const mockLogger = {

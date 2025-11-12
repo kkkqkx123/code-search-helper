@@ -6,7 +6,7 @@ import { INebulaSpaceManager } from '../../nebula/space/NebulaSpaceManager';
 import { INebulaConnectionManager } from '../../nebula/NebulaConnectionManager';
 import { INebulaQueryBuilder } from '../../nebula/query/NebulaQueryBuilder';
 import { INebulaDataOperations } from '../../nebula/operation/NebulaDataOperations';
-import { PerformanceMonitor } from '../../common/PerformanceMonitor';
+import { PerformanceMonitor } from '../../../infrastructure/monitoring/PerformanceMonitor';
 import {
   NebulaNode,
   NebulaRelationship,

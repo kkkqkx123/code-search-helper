@@ -59,7 +59,7 @@ export class QdrantVectorOperations implements IQdrantVectorOperations {
     @inject(TYPES.IQdrantConnectionManager) connectionManager: IQdrantConnectionManager,
     @inject(TYPES.IQdrantCollectionManager) collectionManager: IQdrantCollectionManager,
     @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
-    @inject(TYPES.DatabasePerformanceMonitor) performanceMonitor: PerformanceMonitor
+    @inject(TYPES.PerformanceMonitor) performanceMonitor: PerformanceMonitor
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;

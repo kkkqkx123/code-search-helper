@@ -9,7 +9,6 @@ import { IHealthChecker } from '../../infrastructure/monitoring/types';
 import { BatchProcessingService } from '../../infrastructure/batching/BatchProcessingService';
 import { CacheService } from '../../infrastructure/caching/CacheService';
 import { PerformanceMonitor } from '../../infrastructure/monitoring/PerformanceMonitor';
-import { DatabasePerformanceMonitor } from '../../service/monitoring/DatabasePerformanceMonitor';
 import { DatabaseHealthChecker } from '../../service/monitoring/DatabaseHealthChecker';
 import { GraphOperation, BatchResult } from '../../infrastructure/batching/types';
 
@@ -19,7 +18,7 @@ export class NebulaInfrastructure implements IDatabaseInfrastructure {
 
   private logger: LoggerService;
   private cacheService: ICacheService;
-  private performanceMonitor: DatabasePerformanceMonitor;
+  private performanceMonitor: PerformanceMonitor;
   private batchOptimizer: BatchProcessingService;
   private healthChecker: IHealthChecker;
   private initialized = false;
@@ -27,7 +26,7 @@ export class NebulaInfrastructure implements IDatabaseInfrastructure {
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.CacheService) cacheService: CacheService,
-    @inject(TYPES.DatabasePerformanceMonitor) performanceMonitor: DatabasePerformanceMonitor,
+    @inject(TYPES.PerformanceMonitor) performanceMonitor: PerformanceMonitor,
     @inject(TYPES.BatchProcessingService) batchOptimizer: BatchProcessingService,
     @inject(TYPES.HealthChecker) healthChecker: DatabaseHealthChecker
   ) {
@@ -45,7 +44,7 @@ export class NebulaInfrastructure implements IDatabaseInfrastructure {
     return this.cacheService;
   }
 
-  getPerformanceMonitor(): DatabasePerformanceMonitor {
+  getPerformanceMonitor(): PerformanceMonitor {
     this.ensureInitialized();
     return this.performanceMonitor;
   }
@@ -137,12 +136,7 @@ export class NebulaInfrastructure implements IDatabaseInfrastructure {
     duration: number,
     success: boolean
   ): Promise<void> {
-    await this.performanceMonitor.recordNebulaOperation(
-      operation,
-      spaceName,
-      duration,
-      success
-    );
+    this.performanceMonitor.recordOperation(`nebula:${operation}:${spaceName}`, duration);
     this.logger.debug('Recorded graph operation', {
       operation,
       spaceName,

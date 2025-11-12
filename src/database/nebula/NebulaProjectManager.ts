@@ -10,7 +10,7 @@ import { INebulaDataOperations } from './operation/NebulaDataOperations';
 import { IProjectManager } from '../common/IDatabaseService';
 import { DatabaseError, DatabaseErrorType } from '../common/DatabaseError';
 import { DatabaseServiceValidator } from '../common/DatabaseServiceValidator';
-import { PerformanceMonitor } from '../common/PerformanceMonitor';
+import { PerformanceMonitor } from '../../infrastructure/monitoring/PerformanceMonitor';
 import {
   NebulaNode,
   NebulaRelationship,
@@ -61,7 +61,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
     @inject(TYPES.INebulaConnectionManager) connectionManager: INebulaConnectionManager,
     @inject(TYPES.INebulaQueryBuilder) queryBuilder: INebulaQueryBuilder,
     @inject(TYPES.INebulaDataOperations) dataOperations: INebulaDataOperations,
-    @inject(TYPES.DatabasePerformanceMonitor) performanceMonitor: PerformanceMonitor
+    @inject(TYPES.PerformanceMonitor) performanceMonitor: PerformanceMonitor
   ) {
     this.databaseLogger = databaseLogger;
     this.errorHandler = errorHandler;
@@ -113,10 +113,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       // 记录性能指标
       const duration = Date.now() - startTime;
-      this.performanceMonitor.recordOperation('createSpaceForProject', duration, {
-        projectPath,
-        config: !!config
-      });
+      this.performanceMonitor.recordOperation('createSpaceForProject', duration);
 
       return success;
     } catch (error) {
@@ -189,9 +186,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       // 记录性能指标
       const duration = Date.now() - startTime;
-      this.performanceMonitor.recordOperation('deleteSpaceForProject', duration, {
-        projectPath
-      });
+      this.performanceMonitor.recordOperation('deleteSpaceForProject', duration);
 
       return success;
     } catch (error) {
@@ -437,10 +432,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       // 记录性能指标
       const duration = Date.now() - startTime;
-      this.performanceMonitor.recordOperation('insertNodesForProject', duration, {
-        projectPath,
-        nodeCount: nodes.length
-      });
+      this.performanceMonitor.recordOperation('insertNodesForProject', duration);
 
       return success;
     } catch (error) {
@@ -1025,11 +1017,7 @@ export class NebulaProjectManager implements INebulaProjectManager {
 
       // 记录性能指标
       const duration = Date.now() - startTime;
-      this.performanceMonitor.recordOperation('searchProjectData', duration, {
-        projectPath,
-        queryType: typeof query === 'object' ? query.type : 'string',
-        resultsCount: result.length
-      });
+      this.performanceMonitor.recordOperation('searchProjectData', duration);
 
       this.emitEvent(NebulaEventType.QUERY_EXECUTED, {
         projectPath,

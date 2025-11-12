@@ -5,7 +5,7 @@ import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
 import { TYPES } from '../../types';
 import { DatabaseLoggerService } from '../common/DatabaseLoggerService';
-import { PerformanceMonitor } from '../common/PerformanceMonitor';
+import { PerformanceMonitor } from '../../infrastructure/monitoring/PerformanceMonitor';
 import { DatabaseEventType } from '../common/DatabaseEventTypes';
 import {
   QdrantConfig,
@@ -55,7 +55,7 @@ export class QdrantConnectionManager implements IQdrantConnectionManager {
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
-    @inject(TYPES.DatabasePerformanceMonitor) performanceMonitor: PerformanceMonitor
+    @inject(TYPES.PerformanceMonitor) performanceMonitor: PerformanceMonitor
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
@@ -99,11 +99,7 @@ export class QdrantConnectionManager implements IQdrantConnectionManager {
       await this.client!.getCollections();
 
       const duration = Date.now() - startTime;
-      this.performanceMonitor.recordOperation('qdrant_connection', duration, {
-        host: this.config.host,
-        port: this.config.port,
-        useHttps: this.config.useHttps
-      });
+      this.performanceMonitor.recordOperation('qdrant_connection', duration);
 
       this.isConnectedFlag = true;
       this.connectionStatus = ConnectionStatus.CONNECTED;
@@ -240,7 +236,7 @@ export class QdrantConnectionManager implements IQdrantConnectionManager {
       this.eventListeners.set(type, []);
     }
     this.eventListeners.get(type)!.push(listener);
-    
+
     // 返回订阅对象，允许取消订阅
     const subscription = {
       id: `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -256,7 +252,7 @@ export class QdrantConnectionManager implements IQdrantConnectionManager {
         }
       }
     };
-    
+
     return subscription;
   }
 

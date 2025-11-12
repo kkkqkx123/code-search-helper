@@ -8,7 +8,7 @@ import { IPerformanceMonitor } from '../../infrastructure/monitoring/types';
 import { IHealthChecker } from '../../infrastructure/monitoring/types';
 import { BatchProcessingService } from '../../infrastructure/batching/BatchProcessingService';
 import { CacheService } from '../../infrastructure/caching/CacheService';
-import { VectorPerformanceMonitor } from '../../service/monitoring/VectorPerformanceMonitor';
+import { PerformanceMonitor } from '../../infrastructure/monitoring/PerformanceMonitor';
 import { DatabaseHealthChecker } from '../../service/monitoring/DatabaseHealthChecker';
 import { InfrastructureConfigService } from '../../infrastructure/config/InfrastructureConfigService';
 
@@ -18,7 +18,7 @@ export class QdrantInfrastructure implements IDatabaseInfrastructure {
 
   private logger: LoggerService;
   private cacheService: ICacheService;
-  private performanceMonitor: VectorPerformanceMonitor;
+  private performanceMonitor: PerformanceMonitor;
   private batchOptimizer: BatchProcessingService;
   private healthChecker: IHealthChecker;
   private configService: InfrastructureConfigService;
@@ -27,7 +27,7 @@ export class QdrantInfrastructure implements IDatabaseInfrastructure {
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.CacheService) cacheService: CacheService,
-    @inject(TYPES.VectorPerformanceMonitor) performanceMonitor: VectorPerformanceMonitor,
+    @inject(TYPES.PerformanceMonitor) performanceMonitor: PerformanceMonitor,
     @inject(TYPES.BatchProcessingService) batchOptimizer: BatchProcessingService,
     @inject(TYPES.HealthChecker) healthChecker: DatabaseHealthChecker,
     @inject(TYPES.InfrastructureConfigService) configService: InfrastructureConfigService
@@ -47,7 +47,7 @@ export class QdrantInfrastructure implements IDatabaseInfrastructure {
     return this.cacheService;
   }
 
-  getPerformanceMonitor(): VectorPerformanceMonitor {
+  getPerformanceMonitor(): PerformanceMonitor {
     this.ensureInitialized();
     return this.performanceMonitor;
   }
@@ -140,31 +140,6 @@ export class QdrantInfrastructure implements IDatabaseInfrastructure {
     return data;
   }
 
-  async recordVectorOperation(
-    operation: 'insert' | 'search' | 'update' | 'delete',
-    collectionName: string,
-    vectorCount: number,
-    dimension: number,
-    duration: number,
-    success: boolean
-  ): Promise<void> {
-    await this.performanceMonitor.recordVectorOperation(
-      operation,
-      collectionName,
-      vectorCount,
-      dimension,
-      duration,
-      success
-    );
-    this.logger.debug('Recorded vector operation', {
-      operation,
-      collectionName,
-      vectorCount,
-      duration,
-      success
-    });
-  }
-
   async executeVectorBatch<T>(
     items: T[],
     operation: (batch: T[]) => Promise<any>,
@@ -189,14 +164,7 @@ export class QdrantInfrastructure implements IDatabaseInfrastructure {
     const duration = Date.now() - startTime;
 
     // 记录批处理性能
-    await this.recordVectorOperation(
-      'insert', // 假设是插入操作，实际应该从参数获取
-      'batch',
-      items.length,
-      0, // 向量维度在实际应用中应该从数据获取
-      duration,
-      true
-    );
+    this.performanceMonitor.recordOperation(`qdrant_batch_insert:${items.length}`, duration);
 
     return batchResult.results;
   }

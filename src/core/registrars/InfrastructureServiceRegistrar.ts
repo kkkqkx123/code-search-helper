@@ -13,13 +13,10 @@ import { GraphQueryValidator } from '../../service/graph/query/GraphQueryValidat
 // 性能监控服务
 import { PerformanceDashboard } from '../../service/monitoring/PerformanceDashboard';
 import { PerformanceMetricsCollector } from '../../service/monitoring/PerformanceMetricsCollector';
-import { DatabasePerformanceMonitor } from '../../service/monitoring/DatabasePerformanceMonitor';
-import { VectorPerformanceMonitor } from '../../service/monitoring/VectorPerformanceMonitor';
 import { AutoOptimizationAdvisor } from '../../service/optimization/AutoOptimizationAdvisor';
 import { BatchProcessingOptimizer } from '../../service/optimization/BatchProcessingOptimizer';
 import { GraphMappingCache } from '../../service/graph/caching/GraphMappingCache';
 import { MappingCacheManager } from '../../service/graph/caching/MappingCacheManager';
-import { GraphCacheConfigService } from '../../config/service/GraphCacheConfigService';
 
 // 基础设施配置服务
 import { InfrastructureConfigService } from '../../infrastructure/config/InfrastructureConfigService';
@@ -184,10 +181,12 @@ export class InfrastructureServiceRegistrar {
 
       // 基础设施核心服务（在CleanupManager外部注册，确保正确的依赖顺序）
       container.bind<CacheService>(TYPES.CacheService).to(CacheService).inSingletonScope();
+      // 统一的性能监控器
       container.bind<PerformanceMonitor>(TYPES.PerformanceMonitor).to(PerformanceMonitor).inSingletonScope();
-      // 专门的性能监控器
-      // DatabasePerformanceMonitor 的绑定已移至 DatabaseServiceRegistrar
-      container.bind<VectorPerformanceMonitor>(TYPES.VectorPerformanceMonitor).to(VectorPerformanceMonitor).inSingletonScope();
+      // 为数据库服务提供相同的实例
+      container.bind<PerformanceMonitor>(TYPES.DatabasePerformanceMonitor)
+        .toDynamicValue(context => context.get<PerformanceMonitor>(TYPES.PerformanceMonitor))
+        .inSingletonScope();
       container.bind<DatabaseHealthChecker>(TYPES.HealthChecker).to(DatabaseHealthChecker).inSingletonScope();
 
       // SQLite基础设施

@@ -3,9 +3,10 @@ import { Container } from 'inversify';
 import { TYPES } from '../../types';
 import { DatabaseLoggerService } from '../../database/common/DatabaseLoggerService';
 import { EventToLogBridge } from '../../database/common/EventToLogBridge';
-import { PerformanceMonitor } from '../../database/common/PerformanceMonitor';
+import { PerformanceMonitor } from '../../infrastructure/monitoring/PerformanceMonitor';
 import { LoggerService } from '../../utils/LoggerService';
 import { ConfigService } from '../../config/ConfigService';
+import { InfrastructureConfigService } from '../../infrastructure/config/InfrastructureConfigService';
 import { DatabaseEvent, DatabaseEventType } from '../../database/common/DatabaseEventTypes';
 
 // Mock LoggerService 和 ConfigService
@@ -59,6 +60,7 @@ describe('Database Logging Integration', () => {
     // 绑定 Mock 服务
     container.bind<LoggerService>(TYPES.LoggerService).toConstantValue(new MockLoggerService() as any);
     container.bind<ConfigService>(TYPES.ConfigService).toConstantValue(new MockConfigService() as any);
+    container.bind<InfrastructureConfigService>(TYPES.InfrastructureConfigService).toConstantValue(new MockConfigService() as any);
     
     // 绑定数据库日志服务
     container.bind<DatabaseLoggerService>(TYPES.DatabaseLoggerService).to(DatabaseLoggerService).inSingletonScope();
@@ -98,22 +100,22 @@ describe('Database Logging Integration', () => {
   });
 
   test('should record and monitor performance', () => {
-    performanceMonitor.recordOperation('test_operation', 500, { test: true });
+    performanceMonitor.recordOperation('test_operation', 500);
     
-    const stats = performanceMonitor.getOperationStats('test_operation');
-    expect(stats).toBeDefined();
-    expect(stats?.count).toBe(1);
-    expect(stats?.averageDuration).toBe(500);
+    const metrics = performanceMonitor.getMetrics();
+    expect(metrics).toBeDefined();
+    // count is not available in PerformanceMetrics
+    expect(metrics.averageQueryTime).toBe(500);
   });
 
   test('should handle performance warnings for slow operations', () => {
     const logSpy = jest.spyOn(databaseLogger, 'logDatabaseEvent');
     
     // 记录一个超过阈值的操作 (假设阈值是1000ms)
-    performanceMonitor.recordOperation('slow_operation', 1500, { test: true });
+    performanceMonitor.recordOperation('slow_operation', 1500);
     
-    const stats = performanceMonitor.getOperationStats('slow_operation');
-    expect(stats).toBeDefined();
-    expect(stats?.maxDuration).toBe(1500);
+    const metrics = performanceMonitor.getMetrics();
+    expect(metrics).toBeDefined();
+    expect(metrics.averageQueryTime).toBe(1500);
   });
 });

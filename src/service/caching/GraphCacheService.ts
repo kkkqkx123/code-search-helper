@@ -26,20 +26,23 @@ export class GraphCacheService implements ICacheService {
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
+    @inject(TYPES.GraphCacheConfigService) graphCacheConfigService: GraphCacheConfigService,
     @inject(TYPES.CacheConfig) config?: CacheConfig
   ) {
     this.logger = logger;
     // 使用graph缓存配置服务来获取配置
+    const graphConfig = graphCacheConfigService.getConfig();
     this.config = {
-      maxSize: 1000,
-      defaultTTL: 300000, // 5分钟默认TTL
-      maxMemory: 50 * 1024 * 1024, // 50MB
-      enableCompression: true,
-      compressionThreshold: 1024,
-      enableStats: true,
-      maxEntries: 10000,
+      maxSize: graphConfig.maxSize,
+      defaultTTL: graphConfig.defaultTTL * 1000, // 转换为毫秒
+      maxMemory: graphConfig.maxMemory,
+      enableCompression: graphConfig.enableCompression,
+      compressionThreshold: graphConfig.compressionThreshold,
+      enableStats: graphConfig.enableStats,
+      maxEntries: graphConfig.maxSize,
       cleanupInterval: 60000, // 1分钟清理间隔
       databaseSpecific: {}, // 添加缺失的 databaseSpecific 字段
+      compressionLevel: graphConfig.compressionLevel,
       ...config
     };
 

@@ -1,12 +1,11 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { IDatabaseService } from './IDatabaseService';
-import { NebulaClient } from '../nebula/client/NebulaClient';
 import { QdrantService } from '../qdrant/QdrantService';
 import { DatabaseConfigManager } from './DatabaseConfigManager';
 import { DatabaseLoggerService } from './DatabaseLoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
-import { DatabaseError, DatabaseErrorType } from './DatabaseError';
+import { DatabaseError } from './DatabaseError';
 import { diContainer } from '../../core/DIContainer';  // 导入DI容器
 import { DatabaseEventType } from './DatabaseEventTypes';  // 导入事件类型
 
@@ -59,7 +58,7 @@ export interface FeatureConfig {
 @injectable()
 export class DatabaseServiceFactory {
   private configManager: DatabaseConfigManager;
-  
+
   constructor(
     @inject(TYPES.DatabaseLoggerService) private logger: DatabaseLoggerService,
     @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService
@@ -133,7 +132,7 @@ export class DatabaseServiceFactory {
     try {
       // 从DI容器获取QdrantService实例
       const qdrantService = diContainer.get<QdrantService>(TYPES.QdrantService);
-      
+
       // 配置Qdrant服务
       await this.configureService(qdrantService, config);
 
@@ -158,7 +157,7 @@ export class DatabaseServiceFactory {
     try {
       // 从DI容器获取NebulaProjectManager实例，它实现了IDatabaseService接口
       const nebulaProjectManager = diContainer.get<any>(TYPES.INebulaProjectManager);
-      
+
       // 配置Nebula服务
       await this.configureService(nebulaProjectManager, config);
 

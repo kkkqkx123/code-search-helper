@@ -26,7 +26,7 @@ import { BaseDatabaseService } from '../common/BaseDatabaseService';
 import { IDatabaseService, IConnectionManager, IProjectManager } from '../common/IDatabaseService';
 import { DatabaseEventType, QdrantEventType as UnifiedQdrantEventType } from '../common/DatabaseEventTypes';
 import { DatabaseLoggerService } from '../common/DatabaseLoggerService';
-import { PerformanceMonitor } from '../common/PerformanceMonitor';
+import { PerformanceMonitor } from '../../infrastructure/monitoring/PerformanceMonitor';
 import { DatabaseError, DatabaseErrorType } from '../common/DatabaseError';
 import { Subscription } from '../common/DatabaseEventTypes';
 
@@ -59,7 +59,7 @@ export class QdrantService extends BaseDatabaseService implements IVectorStore, 
     @inject(TYPES.IQdrantQueryUtils) queryUtils: IQdrantQueryUtils,
     @inject(TYPES.IQdrantProjectManager) projectManager: IQdrantProjectManager,
     @inject(TYPES.DatabaseLoggerService) private databaseLogger: DatabaseLoggerService,
-    @inject(TYPES.DatabasePerformanceMonitor) private performanceMonitor: PerformanceMonitor
+    @inject(TYPES.PerformanceMonitor) private performanceMonitor: PerformanceMonitor
   ) {
     // 调用父类构造函数，提供必要的依赖
     super(
@@ -188,11 +188,7 @@ export class QdrantService extends BaseDatabaseService implements IVectorStore, 
       const result = await this.vectorOperations.upsertVectorsWithOptions(collectionName, vectors, options);
       const duration = Date.now() - startTime;
 
-      this.performanceMonitor.recordOperation('upsert_vectors', duration, {
-        collectionName,
-        vectorCount: vectors.length,
-        batchSize: vectors.length
-      });
+      this.performanceMonitor.recordOperation('upsert_vectors', duration);
 
       return result;
     } catch (error) {
@@ -233,11 +229,7 @@ export class QdrantService extends BaseDatabaseService implements IVectorStore, 
       const results = await this.vectorOperations.searchVectorsWithOptions(collectionName, query, options);
       const duration = Date.now() - startTime;
 
-      this.performanceMonitor.recordOperation('search_vectors', duration, {
-        collectionName,
-        queryLength: query.length,
-        resultCount: results.length
-      });
+      this.performanceMonitor.recordOperation('search_vectors', duration);
 
       await this.databaseLogger.logQueryPerformance(`search in ${collectionName}`, duration, results.length);
 

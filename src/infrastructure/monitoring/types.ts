@@ -31,17 +31,6 @@ export interface GraphDatabaseMetric {
   };
 }
 
-export interface VectorOperationMetric {
-  operation: 'insert' | 'search' | 'update' | 'delete';
-  collectionName: string;
-  vectorCount: number;
-  dimension: number;
-  duration: number;
-  success: boolean;
-  timestamp: number;
-  throughput: number; // vectors per second
-}
-
 /**
  * 解析操作指标
  */
@@ -102,6 +91,7 @@ export interface ChunkingOperationMetric {
   };
 }
 
+
 /**
  * 操作上下文
  */
@@ -133,10 +123,11 @@ export interface IPerformanceMonitor {
   updateSystemHealthStatus(status: 'healthy' | 'degraded' | 'error'): void;
   getMetrics(): PerformanceMetrics;
   resetMetrics(): void;
-
-  // 新增解析和标准化操作监控
   startOperation(operationType: string, metadata?: Record<string, any>): string;
   endOperation(operationId: string, result?: Partial<OperationResult>): void;
+  
+  // 新增：简化的 recordOperation 方法
+  recordOperation(operation: string, duration: number): void;
 }
 
 export interface MetricsCollector {

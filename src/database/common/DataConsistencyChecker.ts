@@ -3,7 +3,6 @@ import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { QdrantService } from '../qdrant/QdrantService';
 import { IGraphService } from '../../service/graph/core/IGraphService';
-import { GraphPersistenceResult } from '../../service/graph/core/types';
 
 export interface ConsistencyCheckResult {
   isConsistent: boolean;
