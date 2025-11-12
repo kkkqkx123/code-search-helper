@@ -5,7 +5,7 @@
 
 import { injectable } from 'inversify';
 import { LoggerService } from '../../../utils/LoggerService';
-import { MemoryMonitorService } from '../../../service/memory/MemoryMonitorService';
+import { IMemoryMonitorService } from '../../memory/interfaces/IMemoryMonitorService';
 import { ErrorThresholdInterceptor } from '../processing/utils/protection/ErrorThresholdInterceptor';
 import { CleanupManager } from '../../../infrastructure/cleanup/CleanupManager';
 import { IServiceContainer } from '../../../interfaces/IServiceContainer';
@@ -26,7 +26,7 @@ import {
 export class GuardCoordinator implements IGuardCoordinator {
   private static instance: GuardCoordinator;
   private logger?: LoggerService;
-  private memoryMonitorService: MemoryMonitorService;
+  private memoryMonitorService: IMemoryMonitorService;
   private errorThresholdInterceptor: ErrorThresholdInterceptor;
   private cleanupManager: CleanupManager;
   private serviceContainer: IServiceContainer;
@@ -34,7 +34,7 @@ export class GuardCoordinator implements IGuardCoordinator {
   private memoryCheckIntervalMs: number;
 
   constructor(
-    memoryMonitorService: MemoryMonitorService,
+    memoryMonitorService: IMemoryMonitorService,
     errorThresholdInterceptor: ErrorThresholdInterceptor,
     cleanupManager: CleanupManager,
     serviceContainer: IServiceContainer,
@@ -55,7 +55,7 @@ export class GuardCoordinator implements IGuardCoordinator {
    * 获取单例实例
    */
   static getInstance(
-    memoryMonitorService: MemoryMonitorService,
+    memoryMonitorService: IMemoryMonitorService,
     errorThresholdInterceptor: ErrorThresholdInterceptor,
     cleanupManager: CleanupManager,
     serviceContainer: IServiceContainer,
@@ -104,6 +104,7 @@ export class GuardCoordinator implements IGuardCoordinator {
    * 开始监控
    */
   startMonitoring(): void {
+    this.memoryMonitorService.startMonitoring();
     this.logger?.info('Memory monitoring started');
   }
 
@@ -111,6 +112,7 @@ export class GuardCoordinator implements IGuardCoordinator {
    * 停止监控
    */
   stopMonitoring(): void {
+    this.memoryMonitorService.stopMonitoring();
     this.logger?.info('Memory monitoring stopped');
   }
 
@@ -118,15 +120,16 @@ export class GuardCoordinator implements IGuardCoordinator {
    * 检查内存使用情况
    */
   checkMemoryUsage(): MemoryStatus {
-    // 简化的内存检查实现
-    const memUsage = process.memoryUsage();
-    const usagePercent = (memUsage.heapUsed / memUsage.heapTotal) * 100;
+    // 使用 MemoryMonitorService 获取内存状态
+    const memoryStatus = this.memoryMonitorService.getMemoryStatus();
+    const memUsage = process.memoryUsage(); // 获取 arrayBuffers
+    
     return {
-      isWithinLimit: usagePercent < 80, // 80% 阈值
-      usagePercent,
-      heapUsed: memUsage.heapUsed,
-      heapTotal: memUsage.heapTotal,
-      external: memUsage.external,
+      isWithinLimit: memoryStatus.heapUsedPercent < 0.8,
+      usagePercent: memoryStatus.heapUsedPercent * 100,
+      heapUsed: memoryStatus.heapUsed,
+      heapTotal: memoryStatus.heapTotal,
+      external: memoryStatus.external,
       arrayBuffers: memUsage.arrayBuffers || 0
     };
   }
@@ -136,6 +139,7 @@ export class GuardCoordinator implements IGuardCoordinator {
    */
   async forceCleanup(): Promise<void> {
     this.logger?.info('Force cleanup triggered');
+    this.memoryMonitorService.triggerCleanup('lightweight');
   }
 
   /**
@@ -143,21 +147,31 @@ export class GuardCoordinator implements IGuardCoordinator {
    */
   gracefulDegradation(): void {
     this.logger?.info('Graceful degradation activated');
+    // 触发深度清理
+    this.memoryMonitorService.triggerCleanup('deep');
   }
 
   /**
    * 获取内存统计
    */
   getMemoryStats(): MemoryStats {
-    const current = process.memoryUsage();
-    const usagePercent = (current.heapUsed / current.heapTotal) * 100;
+    // 使用 MemoryMonitorService 的统计功能
+    const memoryStats = this.memoryMonitorService.getMemoryStats();
+    const memUsage = process.memoryUsage(); // 获取 arrayBuffers
+    
     return {
-      current,
+      current: {
+        heapUsed: memoryStats.current.heapUsed,
+        heapTotal: memoryStats.current.heapTotal,
+        external: memoryStats.current.external,
+        rss: memoryStats.current.rss,
+        arrayBuffers: memUsage.arrayBuffers || 0
+      },
       limit: this.memoryLimitMB * 1024 * 1024,
-      usagePercent,
-      isWithinLimit: usagePercent < 80,
-      trend: 'stable', // 简化实现
-      averageUsage: usagePercent
+      usagePercent: memoryStats.current.heapUsedPercent * 100,
+      isWithinLimit: memoryStats.current.heapUsedPercent < 0.8,
+      trend: memoryStats.current.trend,
+      averageUsage: memoryStats.current.averageUsage
     };
   }
 
@@ -165,14 +179,23 @@ export class GuardCoordinator implements IGuardCoordinator {
    * 获取内存历史
    */
   getMemoryHistory(): MemoryHistory[] {
-    // 简化实现，返回空数组
-    return [];
+    // 使用 MemoryMonitorService 获取历史记录
+    const history = this.memoryMonitorService.getMemoryHistory();
+    return history.map(item => ({
+      timestamp: item.timestamp.getTime(),
+      heapUsed: item.heapUsed,
+      heapTotal: item.heapTotal,
+      external: item.external,
+      rss: item.rss,
+      arrayBuffers: 0 // MemoryMonitorService 历史记录中没有 arrayBuffers
+    }));
   }
 
   /**
    * 清除历史
    */
   clearHistory(): void {
+    this.memoryMonitorService.clearHistory();
     this.logger?.info('Memory history cleared');
   }
 
@@ -181,6 +204,7 @@ export class GuardCoordinator implements IGuardCoordinator {
    */
   setMemoryLimit(limitMB: number): void {
     this.memoryLimitMB = limitMB;
+    this.memoryMonitorService.setMemoryLimit?.(limitMB);
     this.logger?.info(`Memory limit set to ${limitMB}MB`);
   }
 
@@ -188,12 +212,7 @@ export class GuardCoordinator implements IGuardCoordinator {
    * 强制垃圾回收
    */
   forceGarbageCollection(): void {
-    if (global.gc) {
-      global.gc();
-      this.logger?.info('Manual garbage collection triggered');
-    } else {
-      this.logger?.warn('Manual garbage collection not available');
-    }
+    this.memoryMonitorService.forceGarbageCollection();
   }
 
   /**

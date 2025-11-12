@@ -13,8 +13,6 @@ import { ICleanupContext, ICleanupResult } from '../../../infrastructure/cleanup
 @injectable()
 export class MemoryGuard {
   private memoryLimit: number;
-  private readonly checkInterval: number;
-  private memoryCheckTimer?: NodeJS.Timeout;
   private isMonitoring: boolean = false;
   private logger?: LoggerService;
   private memoryMonitor: IMemoryMonitorService;
@@ -23,13 +21,11 @@ export class MemoryGuard {
   constructor(
     @inject(TYPES.MemoryMonitorService) memoryMonitor: IMemoryMonitorService,
     @inject(TYPES.MemoryLimitMB) memoryLimitMB: number = 500,
-    @inject(TYPES.MemoryCheckIntervalMs) checkIntervalMs: number = 5000,
     @inject(TYPES.LoggerService) logger?: LoggerService,
     @inject(TYPES.CleanupManager) cleanupManager?: CleanupManager
   ) {
     this.memoryMonitor = memoryMonitor;
     this.memoryLimit = memoryLimitMB * 1024 * 1024; // 转换为字节
-    this.checkInterval = checkIntervalMs;
     this.logger = logger;
     this.cleanupManager = cleanupManager;
 
@@ -46,12 +42,14 @@ export class MemoryGuard {
       return;
     }
 
+    // 委托给 MemoryMonitorService
+    this.memoryMonitor.startMonitoring();
     this.isMonitoring = true;
-    this.memoryCheckTimer = setInterval(() => {
-      this.checkMemoryUsage();
-    }, this.checkInterval);
+    
+    // 添加内存压力事件监听器
+    this.memoryMonitor.addEventListener('pressure', this.handleMemoryPressure.bind(this));
 
-    this.logger?.info(`Memory monitoring started (limit: ${this.memoryLimit / 1024 / 1024}MB, interval: ${this.checkInterval}ms)`);
+    this.logger?.info(`Memory monitoring started (limit: ${this.memoryLimit / 1024 / 1024}MB)`);
   }
 
   /**
@@ -62,13 +60,40 @@ export class MemoryGuard {
       return;
     }
 
-    if (this.memoryCheckTimer) {
-      clearInterval(this.memoryCheckTimer);
-      this.memoryCheckTimer = undefined;
-    }
-
+    // 委托给 MemoryMonitorService
+    this.memoryMonitor.stopMonitoring();
+    
+    // 移除事件监听器
+    this.memoryMonitor.removeEventListener('pressure', this.handleMemoryPressure.bind(this));
+    
     this.isMonitoring = false;
     this.logger?.info('Memory monitoring stopped');
+  }
+
+  /**
+   * 处理内存压力事件
+   */
+  private handleMemoryPressure(event: any): void {
+    if (event.type === 'pressure') {
+      this.logger?.warn('Memory pressure detected', event.details);
+      
+      // 根据压力级别执行相应操作
+      switch (event.details.level) {
+        case 'warning':
+          // 轻度压力，记录日志
+          this.logger?.info('Memory pressure warning level');
+          break;
+        case 'critical':
+          // 严重压力，触发清理
+          this.forceCleanup();
+          break;
+        case 'emergency':
+          // 紧急压力，触发清理和降级
+          this.forceCleanup();
+          this.gracefulDegradation();
+          break;
+      }
+    }
   }
 
   /**
@@ -85,27 +110,15 @@ export class MemoryGuard {
     try {
       // 使用统一的内存监控服务获取内存状态
       const memoryStatus = this.memoryMonitor.getMemoryStatus();
-      const heapUsed = memoryStatus.heapUsed;
-      const heapTotal = memoryStatus.heapTotal;
-      const external = memoryStatus.external;
       const memUsage = process.memoryUsage();
       const arrayBuffers = memUsage.arrayBuffers || 0;
 
-      const isWithinLimit = heapUsed <= this.memoryLimit;
-      const usagePercent = (heapUsed / this.memoryLimit) * 100;
+      const isWithinLimit = memoryStatus.heapUsed <= this.memoryLimit;
+      const usagePercent = (memoryStatus.heapUsed / this.memoryLimit) * 100;
 
       // 如果内存使用过高，记录警告
       if (!isWithinLimit) {
-        this.logger?.warn(`Memory usage exceeds limit: ${this.formatBytes(heapUsed)} > ${this.formatBytes(this.memoryLimit)} (${usagePercent.toFixed(1)}%)`);
-
-        // 触发清理
-        this.forceCleanup();
-
-        // 如果仍然超过限制，触发降级处理
-        if (!this.memoryMonitor.isWithinLimit?.()) {
-          this.logger?.warn('Memory still exceeds limit after cleanup, triggering graceful degradation');
-          this.gracefulDegradation();
-        }
+        this.logger?.warn(`Memory usage exceeds limit: ${this.formatBytes(memoryStatus.heapUsed)} > ${this.formatBytes(this.memoryLimit)} (${usagePercent.toFixed(1)}%)`);
       } else if (usagePercent > 80) {
         this.logger?.warn(`High memory usage detected: ${usagePercent.toFixed(1)}%`);
       }
@@ -113,9 +126,9 @@ export class MemoryGuard {
       return {
         isWithinLimit,
         usagePercent,
-        heapUsed,
-        heapTotal,
-        external,
+        heapUsed: memoryStatus.heapUsed,
+        heapTotal: memoryStatus.heapTotal,
+        external: memoryStatus.external,
         arrayBuffers
       };
     } catch (error) {

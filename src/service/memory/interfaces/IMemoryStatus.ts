@@ -13,6 +13,8 @@ export interface IMemoryStatus {
   rss: number;
   /** 外部内存使用量（字节） */
   external: number;
+  /** 数组缓冲区内存使用量（字节） */
+  arrayBuffers: number;
   /** 是否达到警告阈值 */
   isWarning: boolean;
   /** 是否达到严重阈值 */
@@ -29,6 +31,26 @@ export interface IMemoryStatus {
   limitUsagePercent?: number;
   /** 时间戳 */
   timestamp: Date;
+  
+  // 新增监控指标
+  /** RSS内存使用百分比（相对于堆内存总量） */
+  rssPercent: number;
+  /** 外部内存使用百分比（相对于堆内存总量） */
+  externalPercent: number;
+  /** 数组缓冲区内存使用百分比（相对于堆内存总量） */
+  arrayBuffersPercent: number;
+  /** 内存使用增长率（相对于上次检查） */
+  growthRate: number;
+  /** 预计达到限制的时间（秒，如果有限制且趋势为增长） */
+  timeToLimit?: number;
+  /** 内存健康评分（0-100，100为最佳） */
+  healthScore: number;
+  /** 内存压力等级 */
+  pressureLevel: 'low' | 'moderate' | 'high' | 'critical';
+  /** 垃圾回收效率（0-1，基于历史数据） */
+  gcEfficiency?: number;
+  /** 内存碎片化程度（0-1，基于堆使用情况） */
+  fragmentationLevel: number;
 }
 
 /**
@@ -80,6 +102,7 @@ export interface IMemoryHistoryItem {
   heapTotal: number;
   rss: number;
   external: number;
+  arrayBuffers: number;
 }
 
 /**

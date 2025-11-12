@@ -39,16 +39,20 @@ export class ApiServer {
   private graphAnalysisRoutes: GraphAnalysisRoutes;
   private hotReloadRoutes: HotReloadRoutes;
   private graphStatsRoutes: GraphStatsRoutes;
-  private indexSyncService: HybridIndexService | VectorIndexService;
+  private hybridIndexService: HybridIndexService;
   private embedderFactory: EmbedderFactory;
   private qdrantService: QdrantService;
   private nebulaClient: NebulaClient;
   private projectStateManager: ProjectStateManager;
   private qdrantCollectionViewRoutes: QdrantCollectionViewRoutes;
 
-  constructor(logger: Logger, indexSyncService: HybridIndexService | VectorIndexService, embedderFactory: EmbedderFactory, qdrantService: QdrantService, port: number = 3010) {
+  constructor(logger: Logger, hybridIndexService: HybridIndexService | VectorIndexService, embedderFactory: EmbedderFactory, qdrantService: QdrantService, port: number = 3010) {
     this.logger = logger;
-    this.indexSyncService = indexSyncService;
+    // Type guard: ensure hybridIndexService is HybridIndexService
+    if (!this.isHybridIndexService(hybridIndexService)) {
+      throw new Error('hybridIndexService must be an instance of HybridIndexService');
+    }
+    this.hybridIndexService = hybridIndexService;
     this.embedderFactory = embedderFactory;
     this.qdrantService = qdrantService;
     // 从依赖注入容器获取Nebula客户端(包含服务功能)
@@ -67,18 +71,17 @@ export class ApiServer {
     );
     // 创建一个简单的错误处理器实例
     const errorHandler = new (require('../utils/ErrorHandlerService').ErrorHandlerService)();
-    this.projectLookupService = new ProjectLookupService(this.projectIdManager, errorHandler, this.indexSyncService);
+    this.projectLookupService = new ProjectLookupService(this.projectIdManager, errorHandler, this.hybridIndexService);
     // 从依赖注入容器获取ProjectStateManager和混合索引服务
     this.projectStateManager = diContainer.get<ProjectStateManager>(TYPES.ProjectStateManager);
-    const hybridIndexService = diContainer.get<HybridIndexService>(TYPES.HybridIndexService);
 
     // 初始化热更新配置服务
     const hotReloadConfigService = diContainer.get<HotReloadConfigService>(TYPES.HotReloadConfigService);
     // 初始化统一映射服务
     const unifiedMappingService = diContainer.get<any>(TYPES.UnifiedMappingService);
 
-    this.projectRoutes = new ProjectRoutes(this.projectIdManager, this.projectLookupService, logger, this.projectStateManager, hybridIndexService, hotReloadConfigService, unifiedMappingService);
-    this.indexingRoutes = new IndexingRoutes(this.indexSyncService, this.projectIdManager, this.embedderFactory, logger, this.projectStateManager);
+    this.projectRoutes = new ProjectRoutes(this.projectIdManager, this.projectLookupService, logger, this.projectStateManager, this.hybridIndexService, hotReloadConfigService, unifiedMappingService);
+    this.indexingRoutes = new IndexingRoutes(this.hybridIndexService, this.projectIdManager, this.embedderFactory, logger, this.projectStateManager);
 
     // 从依赖注入容器获取文件搜索服务
     const fileSearchService = diContainer.get<any>(TYPES.FileSearchService);
@@ -565,6 +568,10 @@ export class ApiServer {
         };
       }
     }
+  }
+
+  private isHybridIndexService(service: HybridIndexService | VectorIndexService): service is HybridIndexService {
+    return 'indexService' in service && 'graphIndexService' in service;
   }
 
   start(): void {

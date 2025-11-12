@@ -94,6 +94,7 @@ import { NebulaConnectionMonitor } from '../../database/nebula/NebulaConnectionM
 
 // 内存监控服务
 import { MemoryMonitorService } from '../../service/memory/MemoryMonitorService';
+import { IMemoryMonitorService } from '../../service/memory/interfaces/IMemoryMonitorService';
 
 
 
@@ -278,12 +279,11 @@ export class BusinessServiceRegistrar {
         return errorThresholdInterceptor;
       }).inSingletonScope();
       container.bind<MemoryGuard>(TYPES.MemoryGuard).toDynamicValue(context => {
-        const memoryMonitorService = context.get<MemoryMonitorService>(TYPES.MemoryMonitorService);
+        const memoryMonitorService = context.get<IMemoryMonitorService>(TYPES.MemoryMonitorService);
         const memoryLimitMB = context.get<number>(TYPES.MemoryLimitMB);
-        const memoryCheckIntervalMs = context.get<number>(TYPES.MemoryCheckIntervalMs);
         const logger = context.get<LoggerService>(TYPES.LoggerService);
         const cleanupManager = context.get<CleanupManager>(TYPES.CleanupManager);
-        return new MemoryGuard(memoryMonitorService, memoryLimitMB, memoryCheckIntervalMs, logger, cleanupManager);
+        return new MemoryGuard(memoryMonitorService, memoryLimitMB, logger, cleanupManager);
       }).inSingletonScope();
       container.bind<BackupFileProcessor>(TYPES.BackupFileProcessor).toDynamicValue(context => {
         const logger = context.get<LoggerService>(TYPES.LoggerService);
@@ -319,7 +319,7 @@ export class BusinessServiceRegistrar {
 
       // UnifiedGuardCoordinator - 使用依赖倒置的统一保护机制协调器
       container.bind<GuardCoordinator>(TYPES.UnifiedGuardCoordinator).toDynamicValue(context => {
-        const memoryMonitorService = context.get<MemoryMonitorService>(TYPES.MemoryMonitorService);
+        const memoryMonitorService = context.get<IMemoryMonitorService>(TYPES.MemoryMonitorService);
         const errorThresholdInterceptor = context.get<ErrorThresholdInterceptor>(TYPES.ErrorThresholdManager);
         const cleanupManager = context.get<CleanupManager>(TYPES.CleanupManager);
         const serviceContainer = context.get<IServiceContainer>(TYPES.ServiceContainer);
@@ -359,7 +359,7 @@ export class BusinessServiceRegistrar {
       container.bind<NebulaConnectionMonitor>(TYPES.NebulaConnectionMonitor).to(NebulaConnectionMonitor).inSingletonScope();
 
       // 内存监控服务
-      container.bind<MemoryMonitorService>(TYPES.MemoryMonitorService).to(MemoryMonitorService).inSingletonScope();
+      container.bind<IMemoryMonitorService>(TYPES.MemoryMonitorService).to(MemoryMonitorService).inSingletonScope();
 
       // MemoryGuard 参数
       container.bind<number>(TYPES.MemoryLimitMB).toConstantValue(500);
