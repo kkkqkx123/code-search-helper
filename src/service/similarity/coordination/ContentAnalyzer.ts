@@ -12,6 +12,7 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { CacheService } from '../../../infrastructure/caching/CacheService';
 import { createHash } from 'crypto';
 import { PerformanceMonitor } from '../../../infrastructure/monitoring/PerformanceMonitor';
+import { InfrastructureConfigService } from '../../../infrastructure/config/InfrastructureConfigService';
 import { DetectionService } from '../../../service/parser/detection/DetectionService';
 import { ComplexityCalculator, CodeComplexityConfig } from '../../../utils/processing/ComplexityCalculator';
 

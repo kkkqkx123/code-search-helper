@@ -355,6 +355,7 @@ export class InfrastructureManager {
       performanceMonitor,
       batchOptimizer,
       null as any, // healthChecker - 将通过注册表模式设置
+      this.infrastructureConfigService // 添加配置服务
     );
     this.databaseInfrastructures.set(DatabaseType.QDRANT, qdrantInfrastructure);
 

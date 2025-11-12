@@ -1,5 +1,6 @@
 import { PerformanceMonitor } from '../../../../infrastructure/monitoring/PerformanceMonitor';
 import { LoggerService } from '../../../../utils/LoggerService';
+import { InfrastructureConfigService } from '../../../../infrastructure/config/InfrastructureConfigService';
 
 /**
  * 查询性能监控器

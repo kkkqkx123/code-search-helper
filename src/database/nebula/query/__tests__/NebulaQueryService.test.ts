@@ -1,7 +1,7 @@
 import { NebulaQueryService, INebulaQueryService } from '../NebulaQueryService';
 import { DatabaseLoggerService } from '../../../common/DatabaseLoggerService';
 import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
-import { PerformanceMonitor } from '../../../common/PerformanceMonitor';
+import { PerformanceMonitor } from '../../../../infrastructure/monitoring/PerformanceMonitor';
 import { NebulaConfigService } from '../../../../config/service/NebulaConfigService';
 import { INebulaConnectionManager } from '../../NebulaConnectionManager';
 import { IQueryRunner } from '../QueryRunner';

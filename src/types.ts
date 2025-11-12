@@ -234,7 +234,6 @@ export const TYPES = {
   PerformanceMetricsCollector: Symbol.for('PerformanceMetricsCollector'),
   AutoOptimizationAdvisor: Symbol.for('AutoOptimizationAdvisor'),
   PerformanceBenchmark: Symbol.for('PerformanceBenchmark'),
-  CachePerformanceMonitor: Symbol.for('CachePerformanceMonitor'),
   BatchProcessingOptimizer: Symbol.for('BatchProcessingOptimizer'),
 
   // 29. 通用文件处理服务

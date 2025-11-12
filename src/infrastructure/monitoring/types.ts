@@ -91,6 +91,24 @@ export interface ChunkingOperationMetric {
   };
 }
 
+/**
+ * 缓存性能统计接口
+ */
+export interface CachePerformanceStats {
+  hitRate: number;
+  missRate: number;
+  evictionRate: number;
+  averageResponseTime: number; // 毫秒
+  totalRequests: number;
+  hits: number;
+  misses: number;
+  evictions: number;
+  size: number;
+  memoryUsage: number; // 字节
+  hitRateTrend: 'increasing' | 'decreasing' | 'stable';
+  timestamp: number;
+}
+
 
 /**
  * 操作上下文
@@ -128,6 +146,13 @@ export interface IPerformanceMonitor {
   
   // 新增：简化的 recordOperation 方法
   recordOperation(operation: string, duration: number): void;
+  
+  // 缓存监控相关方法
+  recordCacheOperation(operation: string, duration: number, cacheType?: string): void;
+  recordCacheHit(cacheType?: string): void;
+  recordCacheMiss(cacheType?: string): void;
+  recordCacheEviction(cacheType?: string): void;
+  getCacheStats(): CachePerformanceStats;
 }
 
 export interface MetricsCollector {

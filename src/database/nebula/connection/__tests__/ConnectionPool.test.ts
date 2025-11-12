@@ -3,6 +3,8 @@ import { LoggerService } from '../../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
 import { NebulaConfigService } from '../../../../config/service/NebulaConfigService';
 import { PerformanceMonitor } from '../../../../infrastructure/monitoring/PerformanceMonitor';
+import { InfrastructureConfigService } from '../../../../infrastructure/config/InfrastructureConfigService';
+import { ConfigService } from '../../../../config/ConfigService';
 import { ConnectionWarmer } from '../ConnectionWarmer';
 import { LoadBalancer, LoadBalanceStrategy } from '../LoadBalancer';
 import { NebulaConfig } from '../../NebulaTypes';
@@ -19,6 +21,12 @@ class MockLoggerService extends LoggerService {
 class MockErrorHandlerService extends ErrorHandlerService {
   handleError = jest.fn();
 }
+class MockConfigService extends ConfigService {
+  get = jest.fn().mockReturnValue({});
+  set = jest.fn();
+  has = jest.fn().mockReturnValue(false);
+  clear = jest.fn();
+}
 
 class MockNebulaConfigService extends NebulaConfigService {
   getConfig = jest.fn().mockReturnValue({
@@ -31,6 +39,9 @@ class MockNebulaConfigService extends NebulaConfigService {
 }
 
 class MockPerformanceMonitor extends PerformanceMonitor {
+  constructor(logger: LoggerService) {
+    super(logger);
+  }
   startOperation = jest.fn().mockReturnValue('operation-id');
   endOperation = jest.fn();
   recordOperation = jest.fn();

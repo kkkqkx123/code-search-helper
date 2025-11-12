@@ -15,7 +15,7 @@ import { IQdrantVectorOperations } from '../../database/qdrant/QdrantVectorOpera
 import { IQdrantQueryUtils } from '../../database/qdrant/QdrantQueryUtils';
 import { IQdrantProjectManager } from '../../database/qdrant/QdrantProjectManager';
 import { DatabaseLoggerService } from '../../database/common/DatabaseLoggerService';
-import { PerformanceMonitor } from '../../database/common/PerformanceMonitor';
+import { PerformanceMonitor } from '../../infrastructure/monitoring/PerformanceMonitor';
 
 // 确保在测试环境中运行
 process.env.NODE_ENV = 'test';

@@ -5,7 +5,7 @@ import { TYPES } from '../../types';
 import { IQdrantConnectionManager } from './QdrantConnectionManager';
 import { SearchOptions } from './IVectorStore';
 import { DatabaseLoggerService } from '../common/DatabaseLoggerService';
-import { PerformanceMonitor } from '../common/PerformanceMonitor';
+import { PerformanceMonitor } from '../../infrastructure/monitoring/PerformanceMonitor';
 import { DatabaseEventType } from '../common/DatabaseEventTypes';
 import {
   QueryFilter,

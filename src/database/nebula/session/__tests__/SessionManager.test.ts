@@ -3,6 +3,7 @@ import { LoggerService } from '../../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
 import { NebulaConfigService } from '../../../../config/service/NebulaConfigService';
 import { PerformanceMonitor } from '../../../../infrastructure/monitoring/PerformanceMonitor';
+import { InfrastructureConfigService } from '../../../../infrastructure/config/InfrastructureConfigService';
 import { IConnectionPool } from '../../connection/ConnectionPool';
 import { NebulaConfig } from '../../NebulaTypes';
 

@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
-import { IPerformanceMonitor, PerformanceMetrics, OperationContext, OperationResult, ParsingOperationMetric, NormalizationOperationMetric, ChunkingOperationMetric } from './types';
+import { IPerformanceMonitor, PerformanceMetrics, OperationContext, OperationResult, ParsingOperationMetric, NormalizationOperationMetric, ChunkingOperationMetric, CachePerformanceStats } from './types';
 import { InfrastructureConfigService } from '../config/InfrastructureConfigService';
 
 /**
@@ -42,9 +42,16 @@ export class PerformanceMonitor implements IPerformanceMonitor {
   private batchFailures: number = 0;
   // 通用操作监控相关属性
   private operationContexts: Map<string, OperationContext> = new Map();
-  
+
   // 操作统计相关属性
   private operationMetrics: Map<string, PerformanceMetric> = new Map();
+
+  // 缓存监控相关属性
+  private cacheHitsByType: Map<string, number> = new Map();
+  private cacheMissesByType: Map<string, number> = new Map();
+  private cacheEvictionsByType: Map<string, number> = new Map();
+  private cacheResponseTimes: Map<string, number[]> = new Map();
+  private cacheHistory: CachePerformanceStats[] = [];
 
   // 配置值缓存
   private monitoringIntervalMs: number = 30000;
@@ -55,10 +62,10 @@ export class PerformanceMonitor implements IPerformanceMonitor {
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
-    @inject(TYPES.InfrastructureConfigService) configService: InfrastructureConfigService
+    configService?: InfrastructureConfigService
   ) {
     this.logger = logger;
-    this.configService = configService;
+    this.configService = configService || this.createDefaultConfigService();
     this.metrics = this.initializeMetrics();
     this.loadConfiguration();
   }
@@ -220,6 +227,7 @@ export class PerformanceMonitor implements IPerformanceMonitor {
     this.batchSuccesses = 0;
     this.batchFailures = 0;
     this.operationMetrics.clear();
+    this.resetCacheStats(); // 重置缓存统计
     this.metrics = this.initializeMetrics();
   }
 
@@ -370,7 +378,7 @@ export class PerformanceMonitor implements IPerformanceMonitor {
     // 可以根据需要记录到特定的指标数组
   }
 
-  
+
   /**
    * 记录操作性能（简化版本）
    * @param operation 操作名称
@@ -379,23 +387,23 @@ export class PerformanceMonitor implements IPerformanceMonitor {
   recordOperation(operation: string, duration: number): void {
     // 记录查询执行时间
     this.recordQueryExecution(duration);
-    
+
     // 记录操作特定日志
     this.logger.debug('Operation recorded', { operation, duration });
-    
+
     // 检查阈值并记录警告
     if (duration > this.queryExecutionTimeThreshold) {
-      this.logger.warn('Operation exceeded threshold', { 
-        operation, 
+      this.logger.warn('Operation exceeded threshold', {
+        operation,
         duration,
         threshold: this.queryExecutionTimeThreshold
       });
     }
-    
+
     // 更新操作统计
     this.updateOperationStats(operation, duration);
   }
-  
+
   /**
    * 更新操作统计
    */
@@ -466,6 +474,210 @@ export class PerformanceMonitor implements IPerformanceMonitor {
    * 重置特定操作的性能统计
    * @param operation 操作名称
    */
+
+  // 缓存监控相关方法实现
+
+  /**
+   * 记录缓存操作
+   * @param operation 操作名称
+   * @param duration 持续时间（毫秒）
+   * @param cacheType 缓存类型（可选）
+   */
+  recordCacheOperation(operation: string, duration: number, cacheType?: string): void {
+    const operationName = cacheType ? `cache.${cacheType}.${operation}` : `cache.${operation}`;
+    this.recordOperation(operationName, duration);
+
+    // 记录缓存响应时间
+    if (cacheType) {
+      if (!this.cacheResponseTimes.has(cacheType)) {
+        this.cacheResponseTimes.set(cacheType, []);
+      }
+      const times = this.cacheResponseTimes.get(cacheType)!;
+      times.push(duration);
+
+      // 只保留最近100次响应时间
+      if (times.length > 100) {
+        times.splice(0, times.length - 100);
+      }
+    }
+  }
+
+  /**
+   * 记录缓存命中
+   * @param cacheType 缓存类型（可选）
+   */
+  recordCacheHit(cacheType?: string): void {
+    this.updateCacheHitRate(true);
+
+    if (cacheType) {
+      const currentHits = this.cacheHitsByType.get(cacheType) || 0;
+      this.cacheHitsByType.set(cacheType, currentHits + 1);
+    }
+  }
+
+  /**
+   * 记录缓存未命中
+   * @param cacheType 缓存类型（可选）
+   */
+  recordCacheMiss(cacheType?: string): void {
+    this.updateCacheHitRate(false);
+
+    if (cacheType) {
+      const currentMisses = this.cacheMissesByType.get(cacheType) || 0;
+      this.cacheMissesByType.set(cacheType, currentMisses + 1);
+    }
+  }
+
+  /**
+   * 记录缓存驱逐
+   * @param cacheType 缓存类型（可选）
+   */
+  recordCacheEviction(cacheType?: string): void {
+    if (cacheType) {
+      const currentEvictions = this.cacheEvictionsByType.get(cacheType) || 0;
+      this.cacheEvictionsByType.set(cacheType, currentEvictions + 1);
+    }
+  }
+
+  /**
+   * 获取缓存性能统计
+   * @returns 缓存性能统计信息
+   */
+  getCacheStats(): CachePerformanceStats {
+    // 计算总体统计
+    const totalHits = Array.from(this.cacheHitsByType.values()).reduce((sum, hits) => sum + hits, 0) + this.cacheHits;
+    const totalMisses = Array.from(this.cacheMissesByType.values()).reduce((sum, misses) => sum + misses, 0) + this.cacheMisses;
+    const totalEvictions = Array.from(this.cacheEvictionsByType.values()).reduce((sum, evictions) => sum + evictions, 0);
+    const totalRequests = totalHits + totalMisses;
+
+    // 计算平均响应时间
+    let averageResponseTime = 0;
+    if (this.cacheResponseTimes.size > 0) {
+      const allTimes = Array.from(this.cacheResponseTimes.values()).flat();
+      if (allTimes.length > 0) {
+        averageResponseTime = allTimes.reduce((sum, time) => sum + time, 0) / allTimes.length;
+      }
+    }
+
+    // 计算命中率趋势
+    const hitRateTrend = this.calculateCacheHitRateTrend();
+
+    const stats: CachePerformanceStats = {
+      hitRate: totalRequests > 0 ? totalHits / totalRequests : 0,
+      missRate: totalRequests > 0 ? totalMisses / totalRequests : 0,
+      evictionRate: totalRequests > 0 ? totalEvictions / totalRequests : 0,
+      averageResponseTime,
+      totalRequests,
+      hits: totalHits,
+      misses: totalMisses,
+      evictions: totalEvictions,
+      size: 0, // 需要从实际缓存服务获取
+      memoryUsage: 0, // 需要从实际缓存服务获取
+      hitRateTrend,
+      timestamp: Date.now()
+    };
+
+    // 保存到历史记录
+    this.cacheHistory.push(stats);
+
+    // 限制历史记录大小
+    if (this.cacheHistory.length > 1000) {
+      this.cacheHistory = this.cacheHistory.slice(-500);
+    }
+
+    return stats;
+  }
+
+  /**
+   * 计算缓存命中率趋势
+   */
+  private calculateCacheHitRateTrend(): 'increasing' | 'decreasing' | 'stable' {
+    if (this.cacheHistory.length < 2) {
+      return 'stable';
+    }
+
+    const recentStats = this.cacheHistory.slice(-10); // 最近10个数据点
+    if (recentStats.length < 2) {
+      return 'stable';
+    }
+
+    const first = recentStats[0].hitRate;
+    const last = recentStats[recentStats.length - 1].hitRate;
+
+    const change = last - first;
+    if (change > 0.05) return 'increasing';
+    if (change < -0.05) return 'decreasing';
+    return 'stable';
+  }
+
+  /**
+   * 获取特定缓存类型的统计
+   * @param cacheType 缓存类型
+   * @returns 特定缓存类型的统计信息
+   */
+  getCacheStatsByType(cacheType: string): {
+    hits: number;
+    misses: number;
+    evictions: number;
+    hitRate: number;
+    averageResponseTime: number;
+  } {
+    const hits = this.cacheHitsByType.get(cacheType) || 0;
+    const misses = this.cacheMissesByType.get(cacheType) || 0;
+    const evictions = this.cacheEvictionsByType.get(cacheType) || 0;
+    const totalRequests = hits + misses;
+
+    // 计算平均响应时间
+    let averageResponseTime = 0;
+    const times = this.cacheResponseTimes.get(cacheType);
+    if (times && times.length > 0) {
+      averageResponseTime = times.reduce((sum, time) => sum + time, 0) / times.length;
+    }
+
+    return {
+      hits,
+      misses,
+      evictions,
+      hitRate: totalRequests > 0 ? hits / totalRequests : 0,
+      averageResponseTime
+    };
+  }
+
+
+  /**
+   * 创建默认配置服务（用于测试和向后兼容）
+   */
+  private createDefaultConfigService(): InfrastructureConfigService {
+    // 创建一个简单的默认配置服务实例
+    // 注意：这里需要提供必要的依赖
+    const mockConfigService = {
+      get: () => ({}),
+      set: () => { },
+      has: () => false,
+      clear: () => { }
+    } as any;
+
+    return new InfrastructureConfigService(this.logger, mockConfigService);
+  }
+
+  /**
+   * 重置缓存统计
+   * @param cacheType 缓存类型（可选，如果不提供则重置所有）
+   */
+  resetCacheStats(cacheType?: string): void {
+    if (cacheType) {
+      this.cacheHitsByType.delete(cacheType);
+      this.cacheMissesByType.delete(cacheType);
+      this.cacheEvictionsByType.delete(cacheType);
+      this.cacheResponseTimes.delete(cacheType);
+    } else {
+      this.cacheHitsByType.clear();
+      this.cacheMissesByType.clear();
+      this.cacheEvictionsByType.clear();
+      this.cacheResponseTimes.clear();
+      this.cacheHistory = [];
+    }
+  }
   resetOperationStats(operation: string): void {
     this.operationMetrics.delete(operation);
   }
@@ -475,5 +687,7 @@ export class PerformanceMonitor implements IPerformanceMonitor {
    */
   resetAllOperationStats(): void {
     this.operationMetrics.clear();
+  
+  
   }
 }

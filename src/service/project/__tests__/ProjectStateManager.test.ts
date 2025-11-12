@@ -21,7 +21,7 @@ import { IQdrantQueryUtils } from '../../../database/qdrant/QdrantQueryUtils';
 import { IQdrantProjectManager } from '../../../database/qdrant/QdrantProjectManager';
 import { ASTCodeSplitter } from '../../parser/processing/strategies/implementations/ASTCodeSplitter';
 import { DatabaseLoggerService } from '../../../database/common/DatabaseLoggerService';
-import { PerformanceMonitor } from '../../../database/common/PerformanceMonitor';
+import { PerformanceMonitor } from '../../../infrastructure/monitoring/PerformanceMonitor';
 import { VectorIndexService } from '../../index/VectorIndexService';
 import { HybridIndexService } from '../../index/HybridIndexService';
 import { ChunkToVectorCoordinationService } from '../../parser/ChunkToVectorCoordinationService';

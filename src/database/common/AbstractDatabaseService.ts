@@ -155,14 +155,14 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
         data: { 
           message: `Project space created for: ${projectPath}`,
           projectPath,
-          duration
+          operationDuration
         }
       });
 
-      this.emitEvent('project_space_created', { projectPath, duration });
+      this.emitEvent('project_space_created', { projectPath, duration: operationDuration });
       return result;
     } catch (error) {
-      const duration = Date.now() - startTime;
+      const operationDuration = Date.now() - startTime;
       const dbError = DatabaseError.fromError(
         error instanceof Error ? error : new Error(String(error)),
         { 
@@ -180,7 +180,7 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
         data: { 
           message: `Failed to create project space for: ${projectPath}`,
           projectPath,
-          duration,
+          operationDuration,
           error: dbError.message 
         },
         error: dbError
@@ -211,14 +211,14 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
         data: { 
           message: `Project space deleted for: ${projectPath}`,
           projectPath,
-          duration
+          operationDuration
         }
       });
 
-      this.emitEvent('project_space_deleted', { projectPath, duration });
+      this.emitEvent('project_space_deleted', { projectPath, operationDuration });
       return result;
     } catch (error) {
-      const duration = Date.now() - startTime;
+      const operationDuration = Date.now() - startTime;
       const dbError = DatabaseError.fromError(
         error instanceof Error ? error : new Error(String(error)),
         { 
@@ -236,7 +236,7 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
         data: { 
           message: `Failed to delete project space for: ${projectPath}`,
           projectPath,
-          duration,
+          operationDuration,
           error: dbError.message 
         },
         error: dbError
@@ -267,14 +267,14 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
         data: { 
           message: `Project space info retrieved for: ${projectPath}`,
           projectPath,
-          duration
+          operationDuration
         }
       });
 
-      this.emitEvent('project_space_info_retrieved', { projectPath, duration });
+      this.emitEvent('project_space_info_retrieved', { projectPath, operationDuration });
       return result;
     } catch (error) {
-      const duration = Date.now() - startTime;
+      const operationDuration = Date.now() - startTime;
       const dbError = DatabaseError.fromError(
         error instanceof Error ? error : new Error(String(error)),
         { 
@@ -292,7 +292,7 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
         data: { 
           message: `Failed to get project space info for: ${projectPath}`,
           projectPath,
-          duration,
+          operationDuration,
           error: dbError.message 
         },
         error: dbError
@@ -324,14 +324,14 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
           message: `Data inserted for project: ${projectPath}`,
           projectPath,
           dataSize: JSON.stringify(data).length,
-          duration
+          operationDuration
         }
       });
 
-      this.emitEvent('data_inserted', { projectPath, dataSize: JSON.stringify(data).length, duration });
+      this.emitEvent('data_inserted', { projectPath, dataSize: JSON.stringify(data).length, operationDuration });
       return result;
     } catch (error) {
-      const duration = Date.now() - startTime;
+      const operationDuration = Date.now() - startTime;
       const dbError = DatabaseError.fromError(
         error instanceof Error ? error : new Error(String(error)),
         { 
@@ -349,7 +349,7 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
         data: { 
           message: `Failed to insert data for project: ${projectPath}`,
           projectPath,
-          duration,
+          operationDuration,
           error: dbError.message 
         },
         error: dbError
@@ -382,14 +382,14 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
           projectPath,
           id,
           dataSize: JSON.stringify(data).length,
-          duration
+          operationDuration
         }
       });
 
-      this.emitEvent('data_updated', { projectPath, id, dataSize: JSON.stringify(data).length, duration });
+      this.emitEvent('data_updated', { projectPath, id, dataSize: JSON.stringify(data).length, operationDuration });
       return result;
     } catch (error) {
-      const duration = Date.now() - startTime;
+      const operationDuration = Date.now() - startTime;
       const dbError = DatabaseError.fromError(
         error instanceof Error ? error : new Error(String(error)),
         { 
@@ -408,7 +408,7 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
           message: `Failed to update data for project: ${projectPath}, id: ${id}`,
           projectPath,
           id,
-          duration,
+          operationDuration,
           error: dbError.message 
         },
         error: dbError
@@ -440,14 +440,14 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
           message: `Data deleted for project: ${projectPath}, id: ${id}`,
           projectPath,
           id,
-          duration
+          operationDuration
         }
       });
 
-      this.emitEvent('data_deleted', { projectPath, id, duration });
+      this.emitEvent('data_deleted', { projectPath, id, operationDuration });
       return result;
     } catch (error) {
-      const duration = Date.now() - startTime;
+      const operationDuration = Date.now() - startTime;
       const dbError = DatabaseError.fromError(
         error instanceof Error ? error : new Error(String(error)),
         { 
@@ -466,7 +466,7 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
           message: `Failed to delete data for project: ${projectPath}, id: ${id}`,
           projectPath,
           id,
-          duration,
+          operationDuration,
           error: dbError.message 
         },
         error: dbError
@@ -499,14 +499,14 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
           projectPath,
           querySize: JSON.stringify(query).length,
           resultCount: result.length,
-          duration
+          operationDuration
         }
       });
 
-      this.emitEvent('data_queried', { projectPath, querySize: JSON.stringify(query).length, resultCount: result.length, duration });
+      this.emitEvent('data_queried', { projectPath, querySize: JSON.stringify(query).length, resultCount: result.length, operationDuration });
       return result;
     } catch (error) {
-      const duration = Date.now() - startTime;
+      const operationDuration = Date.now() - startTime;
       const dbError = DatabaseError.fromError(
         error instanceof Error ? error : new Error(String(error)),
         { 
@@ -524,7 +524,7 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
         data: { 
           message: `Failed to search data for project: ${projectPath}`,
           projectPath,
-          duration,
+          operationDuration,
           error: dbError.message 
         },
         error: dbError
@@ -556,14 +556,14 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
           message: `Data retrieved by ID for project: ${projectPath}, id: ${id}`,
           projectPath,
           id,
-          duration
+          operationDuration
         }
       });
 
-      this.emitEvent('data_retrieved', { projectPath, id, duration });
+      this.emitEvent('data_retrieved', { projectPath, id, operationDuration });
       return result;
     } catch (error) {
-      const duration = Date.now() - startTime;
+      const operationDuration = Date.now() - startTime;
       const dbError = DatabaseError.fromError(
         error instanceof Error ? error : new Error(String(error)),
         { 
@@ -582,7 +582,7 @@ export abstract class AbstractDatabaseService implements IDatabaseService {
           message: `Failed to get data by ID for project: ${projectPath}, id: ${id}`,
           projectPath,
           id,
-          duration,
+          operationDuration,
           error: dbError.message 
         },
         error: dbError
