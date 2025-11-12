@@ -21,6 +21,7 @@ export const TYPES = {
   TreeSitterConfigService: Symbol.for('TreeSitterConfigService'),
   ProjectNamingConfigService: Symbol.for('ProjectNamingConfigService'),
   SimilarityConfigService: Symbol.for('SimilarityConfigService'),
+  InfrastructureConfigService: Symbol.for('InfrastructureConfigService'),
 
   // 连接管理器
   NebulaConnectionManager: Symbol.for('NebulaConnectionManager'),
@@ -52,6 +53,7 @@ export const TYPES = {
 
   // 嵌入服务
   EmbedderFactory: Symbol.for('EmbedderFactory'),
+  EmbeddingCacheService: Symbol.for('EmbeddingCacheService'),
 
   // 项目管理
   ProjectIdManager: Symbol.for('ProjectIdManager'),
@@ -174,6 +176,7 @@ export const TYPES = {
   QdrantBatchStrategy: Symbol.for('QdrantBatchStrategy'),
   NebulaBatchStrategy: Symbol.for('NebulaBatchStrategy'),
   EmbeddingBatchStrategy: Symbol.for('EmbeddingBatchStrategy'),
+  GraphBatchStrategy: Symbol.for('GraphBatchStrategy'),
 
   // 事件监听器
   EventListener: Symbol.for('EventListener'),
@@ -193,7 +196,15 @@ export const TYPES = {
   QueryPipeline: Symbol.for('QueryPipeline'),
   ParallelQueryExecutor: Symbol.for('ParallelQueryExecutor'),
   MemoryOptimizer: Symbol.for('MemoryOptimizer'),
-} as const;
+  QueryCache: Symbol.for('QueryCache'),
+
+  // 项目映射服务
+  UnifiedMappingService: Symbol.for('UnifiedMappingService'),
+
+  // 数据库服务
+  SqliteDatabaseService: Symbol.for('SqliteDatabaseService'),
+  NebulaClient: Symbol.for('NebulaClient'),
+  } as const;
 
 // 确保TYPES的类型被正确识别
 export type TypesType = typeof TYPES;

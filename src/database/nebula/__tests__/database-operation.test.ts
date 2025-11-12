@@ -15,6 +15,56 @@ import { QueryPipeline } from '../query/QueryPipeline';
 import { ParallelQueryExecutor } from '../query/ParallelQueryExecutor';
 import { MemoryOptimizer } from '../memory/MemoryOptimizer';
 import { NebulaConfig } from '../NebulaTypes';
+import { ProjectMappingService } from '../../../database/ProjectMappingService';
+import { SqliteDatabaseService } from '../../../database/splite/SqliteDatabaseService';
+import { InfrastructureConfigService } from '../../../infrastructure/config/InfrastructureConfigService';
+import { ConfigService } from '../../../config/ConfigService';
+import { BatchProcessingService } from '../../../infrastructure/batching/BatchProcessingService';
+import { ExponentialBackoffRetryStrategy } from '../retry/RetryStrategy';
+import { CircuitBreaker } from '../circuit-breaker/CircuitBreaker';
+import { SemanticBatchStrategy } from '../../../infrastructure/batching/strategies/SemanticBatchStrategy';
+import { QdrantBatchStrategy } from '../../../infrastructure/batching/strategies/QdrantBatchStrategy';
+import { NebulaBatchStrategy } from '../../../infrastructure/batching/strategies/NebulaBatchStrategy';
+import { GraphBatchStrategy } from '../../../infrastructure/batching/strategies/GraphBatchStrategy';
+import { EmbeddingBatchStrategy } from '../../../infrastructure/batching/strategies/EmbeddingBatchStrategy';
+import { BatchStrategyFactory } from '../../../infrastructure/batching/strategies/BatchStrategyFactory';
+import { EmbedderFactory } from '../../../embedders/EmbedderFactory';
+import { EmbeddingCacheService } from '../../../embedders/EmbeddingCacheService';
+
+// Mock ConfigService for testing
+class MockConfigService {
+  getConfig() {
+    return {
+      nebula: {},
+      qdrant: {},
+      embedding: {},
+      logging: {},
+      monitoring: {},
+      memoryMonitor: {},
+      fileProcessing: {},
+      batchProcessing: {},
+      project: {},
+      indexing: {},
+      treeSitter: {},
+      projectNaming: {},
+      embeddingBatch: {},
+      graphCache: {},
+    };
+  }
+}
+
+// Mock MemoryMonitorService for testing
+class MockMemoryMonitorService {
+  startMonitoring() {}
+  stopMonitoring() {}
+  getMemoryStatus() {
+    return { usedMemoryMB: 0, totalMemoryMB: 0, percentUsed: 0, heapUsed: 0, heapTotal: 0 };
+  }
+  isMemoryAvailable() {
+    return true;
+  }
+  onMemoryWarning() {}
+}
 
 // Note: This test file is designed to work with a real Nebula Graph database
 // Make sure you have a Nebula Graph instance running before executing these tests
@@ -37,8 +87,35 @@ describe('Nebula Graph Database Operation Tests', () => {
     // Setup real services
     container.bind<LoggerService>(TYPES.LoggerService).to(LoggerService).inSingletonScope();
     container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
+    
+    // Bind infrastructure and database services
+    container.bind<ConfigService>(TYPES.ConfigService).toConstantValue(new MockConfigService() as any);
+    container.bind<InfrastructureConfigService>(TYPES.InfrastructureConfigService).to(InfrastructureConfigService).inSingletonScope();
+    container.bind<SqliteDatabaseService>(TYPES.SqliteDatabaseService).to(SqliteDatabaseService).inSingletonScope();
+    container.bind<ProjectMappingService>(TYPES.UnifiedMappingService).to(ProjectMappingService).inSingletonScope();
+    
     container.bind<NebulaConfigService>(TYPES.NebulaConfigService).to(NebulaConfigService).inSingletonScope();
     container.bind<PerformanceMonitor>(TYPES.PerformanceMonitor).to(PerformanceMonitor).inSingletonScope();
+
+    // Bind batch processing and resilience services
+    container.bind<MockMemoryMonitorService>(TYPES.MemoryMonitorService).toConstantValue(new MockMemoryMonitorService() as any);
+    
+    // Bind embedding cache and factory services (required by SemanticBatchStrategy)
+    container.bind<EmbeddingCacheService>(TYPES.EmbeddingCacheService).to(EmbeddingCacheService).inSingletonScope();
+    container.bind<EmbedderFactory>(TYPES.EmbedderFactory).to(EmbedderFactory).inSingletonScope();
+    
+    // Bind batch processing strategies
+    container.bind<SemanticBatchStrategy>(SemanticBatchStrategy).to(SemanticBatchStrategy).inSingletonScope();
+    container.bind<SemanticBatchStrategy>(TYPES.SemanticBatchStrategy).to(SemanticBatchStrategy).inSingletonScope();
+    container.bind<QdrantBatchStrategy>(TYPES.QdrantBatchStrategy).to(QdrantBatchStrategy).inSingletonScope();
+    container.bind<NebulaBatchStrategy>(TYPES.NebulaBatchStrategy).to(NebulaBatchStrategy).inSingletonScope();
+    container.bind<GraphBatchStrategy>(TYPES.GraphBatchStrategy).to(GraphBatchStrategy).inSingletonScope();
+    container.bind<EmbeddingBatchStrategy>(TYPES.EmbeddingBatchStrategy).to(EmbeddingBatchStrategy).inSingletonScope();
+    container.bind<BatchStrategyFactory>(BatchStrategyFactory).to(BatchStrategyFactory).inSingletonScope();
+    
+    container.bind<BatchProcessingService>(TYPES.BatchProcessingService).to(BatchProcessingService).inSingletonScope();
+    container.bind<ExponentialBackoffRetryStrategy>(TYPES.IRetryStrategy).to(ExponentialBackoffRetryStrategy).inSingletonScope();
+    container.bind<CircuitBreaker>(TYPES.ICircuitBreaker).to(CircuitBreaker).inSingletonScope();
 
     // Bind all our custom services
     container.bind<ConnectionWarmer>(TYPES.ConnectionWarmer).to(ConnectionWarmer).inSingletonScope();
