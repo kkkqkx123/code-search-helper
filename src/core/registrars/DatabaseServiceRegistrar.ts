@@ -83,7 +83,7 @@ export class DatabaseServiceRegistrar {
       // 数据库日志和监控服务
       container.bind<DatabaseLoggerService>(TYPES.DatabaseLoggerService).to(DatabaseLoggerService).inSingletonScope();
       container.bind<EventToLogBridge>(TYPES.EventToLogBridge).to(EventToLogBridge).inSingletonScope();
-      // 数据库层的PerformanceMonitor，使用独立的符号避免与基础设施层冲突
+      // 数据库层的PerformanceMonitor，使用database/common/PerformanceMonitor实现
       container.bind<PerformanceMonitor>(TYPES.DatabasePerformanceMonitor).to(PerformanceMonitor).inSingletonScope();
 
       // Qdrant 向量数据库服务

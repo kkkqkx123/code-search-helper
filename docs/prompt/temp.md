@@ -1,3 +1,12 @@
+分析当前 .env:104-104
+```
+EMBEDDING_BATCH_SIZE = 64
+```中设置的批处理大小与 .env:114-114
+```
+EMBEDDING_PROVIDER_SIMILARITY_BATCH_SIZE = 64
+```中单独设置的单独用于相似度计算的provider的配置是否完全独立。此外，需要分析
+
+
 src\service\parser\processing\utils\html\HTMLContentExtractor.ts是否越权
 
 stragety的supportedLanguages硬编码，需要统一为src\service\parser\constants\language-constants.ts

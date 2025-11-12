@@ -186,7 +186,7 @@ export class InfrastructureServiceRegistrar {
       container.bind<CacheService>(TYPES.CacheService).to(CacheService).inSingletonScope();
       container.bind<PerformanceMonitor>(TYPES.PerformanceMonitor).to(PerformanceMonitor).inSingletonScope();
       // 专门的性能监控器
-      container.bind<DatabasePerformanceMonitor>(TYPES.DatabasePerformanceMonitor).to(DatabasePerformanceMonitor).inSingletonScope();
+      // DatabasePerformanceMonitor 的绑定已移至 DatabaseServiceRegistrar
       container.bind<VectorPerformanceMonitor>(TYPES.VectorPerformanceMonitor).to(VectorPerformanceMonitor).inSingletonScope();
       container.bind<DatabaseHealthChecker>(TYPES.HealthChecker).to(DatabaseHealthChecker).inSingletonScope();
 
