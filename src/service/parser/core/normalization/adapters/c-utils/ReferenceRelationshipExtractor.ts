@@ -90,7 +90,7 @@ export class ReferenceRelationshipExtractor {
 
     const referenceName = this.extractReferenceName(astNode);
     if (referenceName) {
-      toNodeId = NodeIdGenerator.forSymbol(referenceName, referenceType, 'current_file.c');
+      toNodeId = NodeIdGenerator.forSymbol(referenceName, referenceType, 'current_file.c', astNode.startPosition.row + 1);
     }
 
     return { fromNodeId, toNodeId };
@@ -251,7 +251,7 @@ export class ReferenceRelationshipExtractor {
 
       references.push({
         sourceId: NodeIdGenerator.forAstNode(identifier),
-        targetId: NodeIdGenerator.forSymbol(identifierName, 'identifier', filePath),
+        targetId: NodeIdGenerator.forSymbol(identifierName, 'identifier', filePath, identifier.startPosition.row + 1),
         referenceType,
         referenceName: identifierName,
         location: {
@@ -272,7 +272,7 @@ export class ReferenceRelationshipExtractor {
 
         references.push({
           sourceId: NodeIdGenerator.forAstNode(fieldExpr),
-          targetId: NodeIdGenerator.forSymbol(fieldName, 'field', filePath),
+          targetId: NodeIdGenerator.forSymbol(fieldName, 'field', filePath, fieldExpr.startPosition.row + 1),
           referenceType,
           referenceName: fieldName,
           location: {

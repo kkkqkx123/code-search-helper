@@ -84,12 +84,12 @@ export class AnnotationRelationshipExtractor {
     if (annotationType === 'attribute') {
       const attributeName = this.extractAnnotationName(astNode);
       if (attributeName) {
-        toNodeId = NodeIdGenerator.forSymbol(attributeName, 'attribute', 'current_file.c');
+        toNodeId = NodeIdGenerator.forSymbol(attributeName, 'attribute', 'current_file.c', astNode.startPosition.row + 1);
       }
     } else if (annotationType === 'type_annotation') {
       const typeName = this.extractTypeName(astNode);
       if (typeName) {
-        toNodeId = NodeIdGenerator.forSymbol(typeName, 'type', 'current_file.c');
+        toNodeId = NodeIdGenerator.forSymbol(typeName, 'type', 'current_file.c', astNode.startPosition.row + 1);
       }
     }
 

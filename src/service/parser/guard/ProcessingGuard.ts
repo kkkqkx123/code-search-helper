@@ -64,7 +64,7 @@ export class ProcessingGuard {
         getMemoryHistory: () => [],
         clearHistory: () => { }
       } as any,
-      100, 1000, logger || new LoggerService()
+      100, logger || new LoggerService()
     );
     this.detectionService = detectionService || new DetectionService(logger);
     this.fallbackEngine = fallbackEngine || new IntelligentFallbackEngine(logger);

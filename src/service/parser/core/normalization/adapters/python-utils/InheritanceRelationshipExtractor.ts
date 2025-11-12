@@ -102,7 +102,7 @@ export class InheritanceRelationshipExtractor {
     if (baseClasses.length > 0) {
       // 对于多个基类，创建一个组合的toNodeId
       const baseClassNames = baseClasses.map(cls => cls.name).join(',');
-      toNodeId = NodeIdGenerator.forSymbol(baseClassNames, 'inheritance', 'current_file.py');
+      toNodeId = NodeIdGenerator.forSymbol(baseClassNames, 'inheritance', 'current_file.py', astNode.startPosition.row + 1);
     }
 
     return { fromNodeId, toNodeId };
@@ -362,7 +362,7 @@ export class InheritanceRelationshipExtractor {
         
         inheritanceRelationships.push({
           sourceId: NodeIdGenerator.forAstNode(classDef),
-          targetId: NodeIdGenerator.forSymbol(baseClassNames, 'inheritance', filePath),
+          targetId: NodeIdGenerator.forSymbol(baseClassNames, 'inheritance', filePath, classDef.startPosition.row + 1),
           inheritanceType,
           baseClasses: baseClasses.map(cls => cls.name),
           inheritanceInfo,

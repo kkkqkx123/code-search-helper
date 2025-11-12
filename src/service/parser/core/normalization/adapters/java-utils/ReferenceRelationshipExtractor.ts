@@ -104,7 +104,7 @@ export class ReferenceRelationshipExtractor {
 
     const referenceName = this.extractReferenceName(astNode);
     if (referenceName) {
-      toNodeId = NodeIdGenerator.forSymbol(referenceName, referenceType, 'current_file.java');
+      toNodeId = NodeIdGenerator.forSymbol(referenceName, referenceType, 'current_file.java', astNode.startPosition.row + 1);
     }
 
     return { fromNodeId, toNodeId };
@@ -372,7 +372,7 @@ export class ReferenceRelationshipExtractor {
       if (referenceType) {
         references.push({
           sourceId: NodeIdGenerator.forAstNode(identifier),
-          targetId: NodeIdGenerator.forSymbol(identifierName, referenceType, filePath),
+          targetId: NodeIdGenerator.forSymbol(identifierName, referenceType, filePath, identifier.startPosition.row + 1),
           referenceType,
           referenceName: identifierName,
           templateInfo,
@@ -397,7 +397,7 @@ export class ReferenceRelationshipExtractor {
 
         references.push({
           sourceId: NodeIdGenerator.forAstNode(fieldExpr),
-          targetId: NodeIdGenerator.forSymbol(fieldName, referenceType, filePath),
+          targetId: NodeIdGenerator.forSymbol(fieldName, referenceType, filePath, fieldExpr.startPosition.row + 1),
           referenceType,
           referenceName: fieldName,
           namespaceInfo,
@@ -420,7 +420,7 @@ export class ReferenceRelationshipExtractor {
       if (referenceType && templateName) {
         references.push({
           sourceId: NodeIdGenerator.forAstNode(templateRef),
-          targetId: NodeIdGenerator.forSymbol(templateName, referenceType, filePath),
+          targetId: NodeIdGenerator.forSymbol(templateName, referenceType, filePath, templateRef.startPosition.row + 1),
           referenceType,
           referenceName: templateName,
           templateInfo,

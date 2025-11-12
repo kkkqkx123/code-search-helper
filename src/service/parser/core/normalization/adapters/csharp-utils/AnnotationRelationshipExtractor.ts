@@ -86,17 +86,17 @@ export class AnnotationRelationshipExtractor {
     if (annotationType === 'attribute') {
       const attributeName = this.extractAnnotationName(astNode);
       if (attributeName) {
-        toNodeId = NodeIdGenerator.forSymbol(attributeName, 'attribute', 'current_file.cs');
+        toNodeId = NodeIdGenerator.forSymbol(attributeName, 'attribute', 'current_file.cs', astNode.startPosition.row + 1);
       }
     } else if (annotationType === 'compiler_directive') {
       const directiveName = this.extractDirectiveName(astNode);
       if (directiveName) {
-        toNodeId = NodeIdGenerator.forSymbol(directiveName, 'directive', 'current_file.cs');
+        toNodeId = NodeIdGenerator.forSymbol(directiveName, 'directive', 'current_file.cs', astNode.startPosition.row + 1);
       }
     } else if (annotationType === 'metadata') {
       const metadataName = this.extractMetadataName(astNode);
       if (metadataName) {
-        toNodeId = NodeIdGenerator.forSymbol(metadataName, 'metadata', 'current_file.cs');
+        toNodeId = NodeIdGenerator.forSymbol(metadataName, 'metadata', 'current_file.cs', astNode.startPosition.row + 1);
       }
     }
 
@@ -313,7 +313,7 @@ export class AnnotationRelationshipExtractor {
       if (annotationName && annotationType) {
         annotations.push({
           sourceId: NodeIdGenerator.forAstNode(attrDecl),
-          targetId: NodeIdGenerator.forSymbol(annotationName, 'attribute', filePath),
+          targetId: NodeIdGenerator.forSymbol(annotationName, 'attribute', filePath, attrDecl.startPosition.row + 1),
           annotationType,
           annotationName,
           parameters,
@@ -336,7 +336,7 @@ export class AnnotationRelationshipExtractor {
       if (directiveName && annotationType) {
         annotations.push({
           sourceId: NodeIdGenerator.forAstNode(directive),
-          targetId: NodeIdGenerator.forSymbol(directiveName, 'directive', filePath),
+          targetId: NodeIdGenerator.forSymbol(directiveName, 'directive', filePath, directive.startPosition.row + 1),
           annotationType,
           annotationName: directiveName,
           parameters,
@@ -359,7 +359,7 @@ export class AnnotationRelationshipExtractor {
       if (metadataName && annotationType) {
         annotations.push({
           sourceId: NodeIdGenerator.forAstNode(externAlias),
-          targetId: NodeIdGenerator.forSymbol(metadataName, 'metadata', filePath),
+          targetId: NodeIdGenerator.forSymbol(metadataName, 'metadata', filePath, externAlias.startPosition.row + 1),
           annotationType,
           annotationName: metadataName,
           parameters,

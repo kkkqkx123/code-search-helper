@@ -86,17 +86,17 @@ export class AnnotationRelationshipExtractor {
     if (annotationType === 'decorator') {
       const decoratorName = this.extractAnnotationName(astNode);
       if (decoratorName) {
-        toNodeId = NodeIdGenerator.forSymbol(decoratorName, 'decorator', 'current_file.py');
+        toNodeId = NodeIdGenerator.forSymbol(decoratorName, 'decorator', 'current_file.py', astNode.startPosition.row + 1);
       }
     } else if (annotationType === 'type_annotation') {
       const typeName = this.extractTypeName(astNode);
       if (typeName) {
-        toNodeId = NodeIdGenerator.forSymbol(typeName, 'type', 'current_file.py');
+        toNodeId = NodeIdGenerator.forSymbol(typeName, 'type', 'current_file.py', astNode.startPosition.row + 1);
       }
     } else if (annotationType === 'docstring') {
       const docstringContent = this.extractDocstringContent(astNode);
       if (docstringContent) {
-        toNodeId = NodeIdGenerator.forSymbol('docstring', 'docstring', 'current_file.py');
+        toNodeId = NodeIdGenerator.forSymbol('docstring', 'docstring', 'current_file.py', astNode.startPosition.row + 1);
       }
     }
 
@@ -337,7 +337,7 @@ export class AnnotationRelationshipExtractor {
       if (annotationName && annotationType) {
         annotations.push({
           sourceId: NodeIdGenerator.forAstNode(decoratorDecl),
-          targetId: NodeIdGenerator.forSymbol(annotationName, 'decorator', filePath),
+          targetId: NodeIdGenerator.forSymbol(annotationName, 'decorator', filePath, decoratorDecl.startPosition.row + 1),
           annotationType,
           annotationName,
           parameters,
@@ -360,7 +360,7 @@ export class AnnotationRelationshipExtractor {
       if (typeName && annotationType) {
         annotations.push({
           sourceId: NodeIdGenerator.forAstNode(typeAnnotation),
-          targetId: NodeIdGenerator.forSymbol(typeName, 'type', filePath),
+          targetId: NodeIdGenerator.forSymbol(typeName, 'type', filePath, typeAnnotation.startPosition.row + 1),
           annotationType,
           annotationName: typeName,
           parameters,
@@ -382,7 +382,7 @@ export class AnnotationRelationshipExtractor {
       if (annotationType) {
         annotations.push({
           sourceId: NodeIdGenerator.forAstNode(docstring),
-          targetId: NodeIdGenerator.forSymbol('docstring', 'docstring', filePath),
+          targetId: NodeIdGenerator.forSymbol('docstring', 'docstring', filePath, docstring.startPosition.row + 1),
           annotationType,
           annotationName: 'docstring',
           parameters,

@@ -84,7 +84,7 @@ export class AnnotationRelationshipExtractor {
     if (annotationType === 'annotation' || annotationType === 'marker_annotation') {
       const annotationName = this.extractAnnotationName(astNode);
       if (annotationName) {
-        toNodeId = NodeIdGenerator.forSymbol(annotationName, 'annotation', 'current_file.java');
+        toNodeId = NodeIdGenerator.forSymbol(annotationName, 'annotation', 'current_file.java', astNode.startPosition.row + 1);
       }
     }
 
@@ -212,7 +212,7 @@ export class AnnotationRelationshipExtractor {
       if (annotationName && annotationType) {
         annotations.push({
           sourceId: NodeIdGenerator.forAstNode(annotationDecl),
-          targetId: NodeIdGenerator.forSymbol(annotationName, 'annotation', filePath),
+          targetId: NodeIdGenerator.forSymbol(annotationName, 'annotation', filePath, annotationDecl.startPosition.row + 1),
           annotationType,
           annotationName,
           parameters,

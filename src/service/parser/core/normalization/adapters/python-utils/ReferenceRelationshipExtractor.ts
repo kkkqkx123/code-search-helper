@@ -105,7 +105,7 @@ export class ReferenceRelationshipExtractor {
 
     const referenceName = this.extractReferenceName(astNode);
     if (referenceName) {
-      toNodeId = NodeIdGenerator.forSymbol(referenceName, 'reference', 'current_file.py');
+      toNodeId = NodeIdGenerator.forSymbol(referenceName, 'reference', 'current_file.py', astNode.startPosition.row + 1);
     }
 
     return { fromNodeId, toNodeId };
@@ -424,7 +424,7 @@ export class ReferenceRelationshipExtractor {
       if (referenceType && referenceName) {
         references.push({
           sourceId: NodeIdGenerator.forAstNode(identifier),
-          targetId: NodeIdGenerator.forSymbol(referenceName, 'reference', filePath),
+          targetId: NodeIdGenerator.forSymbol(referenceName, 'reference', filePath, identifier.startPosition.row + 1),
           referenceType,
           referenceName,
           referenceInfo,
@@ -446,7 +446,7 @@ export class ReferenceRelationshipExtractor {
       if (referenceType && referenceName) {
         references.push({
           sourceId: NodeIdGenerator.forAstNode(attribute),
-          targetId: NodeIdGenerator.forSymbol(referenceName, 'reference', filePath),
+          targetId: NodeIdGenerator.forSymbol(referenceName, 'reference', filePath, attribute.startPosition.row + 1),
           referenceType,
           referenceName,
           referenceInfo,
@@ -468,7 +468,7 @@ export class ReferenceRelationshipExtractor {
       if (referenceType && referenceName) {
         references.push({
           sourceId: NodeIdGenerator.forAstNode(subscript),
-          targetId: NodeIdGenerator.forSymbol(referenceName, 'reference', filePath),
+          targetId: NodeIdGenerator.forSymbol(referenceName, 'reference', filePath, subscript.startPosition.row + 1),
           referenceType,
           referenceName,
           referenceInfo,

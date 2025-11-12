@@ -99,7 +99,6 @@ describe('MemoryGuard', () => {
     memoryGuard = new MemoryGuard(
       mockMemoryMonitor,
       500, // 500MB limit
-      5000, // 5 second interval
       mockLogger,
       mockCleanupManager
     );
@@ -203,7 +202,6 @@ describe('MemoryGuard', () => {
       const guardWithoutCleanup = new MemoryGuard(
         mockMemoryMonitor,
         500,
-        5000,
         mockLogger
         // No cleanup manager
       );

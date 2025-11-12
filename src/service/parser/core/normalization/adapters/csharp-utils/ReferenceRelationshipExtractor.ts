@@ -114,7 +114,7 @@ export class ReferenceRelationshipExtractor {
 
     const referenceName = this.extractReferenceName(astNode);
     if (referenceName) {
-      toNodeId = NodeIdGenerator.forSymbol(referenceName, referenceType, 'current_file.cs');
+      toNodeId = NodeIdGenerator.forSymbol(referenceName, referenceType, 'current_file.cs', astNode.startPosition.row + 1);
     }
 
     return { fromNodeId, toNodeId };
@@ -415,7 +415,7 @@ export class ReferenceRelationshipExtractor {
       if (referenceType) {
         references.push({
           sourceId: NodeIdGenerator.forAstNode(identifier),
-          targetId: NodeIdGenerator.forSymbol(identifierName, referenceType, filePath),
+          targetId: NodeIdGenerator.forSymbol(identifierName, referenceType, filePath, identifier.startPosition.row + 1),
           referenceType,
           referenceName: identifierName,
           typeInfo,
@@ -440,7 +440,7 @@ export class ReferenceRelationshipExtractor {
 
         references.push({
           sourceId: NodeIdGenerator.forAstNode(memberAccess),
-          targetId: NodeIdGenerator.forSymbol(memberName, referenceType || 'field', filePath),
+          targetId: NodeIdGenerator.forSymbol(memberName, referenceType || 'field', filePath, memberAccess.startPosition.row + 1),
           referenceType: referenceType || 'field',
           referenceName: memberName,
           namespaceInfo,
@@ -463,7 +463,7 @@ export class ReferenceRelationshipExtractor {
       if (referenceType && typeName) {
         references.push({
           sourceId: NodeIdGenerator.forAstNode(typeRef),
-          targetId: NodeIdGenerator.forSymbol(typeName, referenceType, filePath),
+          targetId: NodeIdGenerator.forSymbol(typeName, referenceType, filePath, typeRef.startPosition.row + 1),
           referenceType,
           referenceName: typeName,
           typeInfo,
@@ -485,7 +485,7 @@ export class ReferenceRelationshipExtractor {
       if (referenceType) {
         references.push({
           sourceId: NodeIdGenerator.forAstNode(thisBaseRef),
-          targetId: NodeIdGenerator.forSymbol(referenceName, referenceType, filePath),
+          targetId: NodeIdGenerator.forSymbol(referenceName, referenceType, filePath, thisBaseRef.startPosition.row + 1),
           referenceType,
           referenceName,
           location: {
