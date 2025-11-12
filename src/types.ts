@@ -140,10 +140,10 @@ export const TYPES = {
 
   // 14. Nebula 监控服务
   NebulaConnectionMonitor: Symbol.for('NebulaConnectionMonitor'),
-   ConnectionPool: Symbol.for('ConnectionPool'),
-   ConnectionHealthChecker: Symbol.for('ConnectionHealthChecker'),
-   ConnectionWarmer: Symbol.for('ConnectionWarmer'),
-   LoadBalancer: Symbol.for('LoadBalancer'),
+  ConnectionPool: Symbol.for('ConnectionPool'),
+  ConnectionHealthChecker: Symbol.for('ConnectionHealthChecker'),
+  ConnectionWarmer: Symbol.for('ConnectionWarmer'),
+  LoadBalancer: Symbol.for('LoadBalancer'),
 
   // 15. 图服务
   GraphService: Symbol.for('GraphService'),
@@ -193,8 +193,7 @@ export const TYPES = {
   // 22. 批处理优化服务
   VectorBatchOptimizer: Symbol.for('VectorBatchOptimizer'),
 
-  // 24. 高级映射相关服务
-  AdvancedMappingService: Symbol.for('AdvancedMappingService'),
+  // 24. 映射相关服务
   FaultToleranceHandler: Symbol.for('FaultToleranceHandler'),
   MappingRuleEngine: Symbol.for('MappingRuleEngine'),
   MappingCacheManager: Symbol.for('MappingCacheManager'),
@@ -208,10 +207,6 @@ export const TYPES = {
   JavaSymbolExtractor: Symbol.for('JavaSymbolExtractor'),
 
   // 26. 关系提取器相关
-  RelationshipExtractorFactory: Symbol.for('RelationshipExtractorFactory'),
-  // @deprecated ILanguageRelationshipExtractor is deprecated
-  // ILanguageRelationshipExtractor: Symbol.for('ILanguageRelationshipExtractor'),
-  // JavaScriptRelationshipExtractor: Symbol.for('JavaScriptRelationshipExtractor'),
   TypeScriptRelationshipExtractor: Symbol.for('TypeScriptRelationshipExtractor'),
   PythonRelationshipExtractor: Symbol.for('PythonRelationshipExtractor'),
   JavaRelationshipExtractor: Symbol.for('JavaRelationshipExtractor'),
@@ -304,9 +299,9 @@ export const TYPES = {
   ASTNodeTracker: Symbol.for('ASTNodeTracker'),
   ChunkFilter: Symbol.for('ChunkFilter'),
   ChunkRebalancer: Symbol.for('ChunkRebalancer'),
-   ChunkMerger: Symbol.for('ChunkMerger'),
+  ChunkMerger: Symbol.for('ChunkMerger'),
 
-   // 37. 优化的降级处理相关服务
+  // 37. 优化的降级处理相关服务
   OptimizedProcessingGuard: Symbol.for('OptimizedProcessingGuard'),
   UnifiedDetectionService: Symbol.for('UnifiedDetectionService'),
   DetectionService: Symbol.for('DetectionService'),

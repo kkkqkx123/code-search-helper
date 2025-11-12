@@ -8,9 +8,6 @@ import { GraphCacheService } from '../../service/caching/GraphCacheService';
 import { GraphPerformanceMonitor } from '../../service/graph/performance/GraphPerformanceMonitor';
 import { GraphQueryValidator } from '../../service/graph/query/GraphQueryValidator';
 
-// 高级映射服务
-import { AdvancedMappingService as SemanticRelationshipExtractor } from '../../service/graph/mapping/SemanticRelationshipExtractor';
-
 // 性能监控服务
 import { PerformanceDashboard } from '../../service/monitoring/PerformanceDashboard';
 import { PerformanceMetricsCollector } from '../../service/monitoring/PerformanceMetricsCollector';
@@ -108,8 +105,7 @@ export class InfrastructureServiceRegistrar {
         return graphCacheConfigService.getConfig();
       }).inSingletonScope();
 
-      // 高级映射服务
-      container.bind<SemanticRelationshipExtractor>(TYPES.AdvancedMappingService).to(SemanticRelationshipExtractor).inSingletonScope();
+      // 图映射缓存服务
       container.bind<GraphMappingCache>(TYPES.GraphMappingCache).to(GraphMappingCache).inSingletonScope();
 
       // 性能监控和优化服务

@@ -4,7 +4,6 @@ import { DataMappingValidator } from '../DataMappingValidator';
 import { GraphMappingCache } from '../../caching/GraphMappingCache';
 import { BatchProcessingService } from '../../../../infrastructure/batching/BatchProcessingService';
 import { FaultToleranceHandler } from '../../../../utils/FaultToleranceHandler';
-import { RelationshipExtractorFactory } from '../RelationshipExtractorFactory';
 import { GraphNodeType, GraphRelationshipType, FileAnalysisResult } from '../IGraphDataMappingService';
 import { CodeChunk } from '../../../parser/types';
 
@@ -48,15 +47,6 @@ const mockFaultToleranceHandler = {
       return { success: false, error };
     }
   }),
-};
-
-const mockRelationshipExtractorFactory = {
-  getExtractor: jest.fn(),
-  getSupportedLanguages: jest.fn().mockReturnValue(['javascript', 'typescript']),
-  registerExtractor: jest.fn(),
-  getSupportedRelationshipTypes: jest.fn().mockReturnValue(['call', 'inheritance']),
-  supportsRelationshipType: jest.fn(),
-  getAllSupportedRelationshipTypes: jest.fn().mockReturnValue(['call', 'inheritance', 'data-flow']),
 };
 
 const mockTransactionLogger = {

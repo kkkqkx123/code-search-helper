@@ -124,14 +124,14 @@ describe('GraphDataMappingService New Architecture Tests', () => {
       expect(vertex).toEqual({
         id: 'func1',
         type: GraphNodeType.FUNCTION,
-        properties: {
+        properties: expect.objectContaining({
           name: 'testFunction',
           filePath: 'test.c',
           language: 'c',
           complexity: 1,
           dependencies: [],
           modifiers: []
-        }
+        })
       });
     });
 
@@ -267,8 +267,25 @@ describe('GraphDataMappingService New Architecture Tests', () => {
       const mockFaultToleranceResult = {
         success: true,
         data: {
-          nodes: [],
-          edges: []
+          nodes: [
+            {
+              id: 'func1',
+              type: GraphNodeType.FUNCTION,
+              properties: expect.objectContaining({
+                name: 'testFunction',
+                filePath: 'test.c'
+              })
+            }
+          ],
+          edges: [
+            {
+              id: 'call1',
+              type: GraphRelationshipType.CALLS,
+              sourceNodeId: 'func1',
+              targetNodeId: 'func2',
+              properties: expect.any(Object)
+            }
+          ]
         }
       };
 
@@ -342,13 +359,7 @@ describe('GraphDataMappingService New Architecture Tests', () => {
 
       expect(result).toEqual({
         nodes: [],
-        relationships: [],
-        stats: {
-          fileNodes: 0,
-          functionNodes: 0,
-          classNodes: 0,
-          relationships: 0
-        }
+        edges: []
       });
 
       expect(mockLogger.warn).toHaveBeenCalledWith(

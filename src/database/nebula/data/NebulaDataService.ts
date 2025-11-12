@@ -4,6 +4,7 @@ import { TYPES } from '../../../types';
 import { DatabaseLoggerService } from '../../common/DatabaseLoggerService';
 import { DatabaseEventType } from '../../common/DatabaseEventTypes';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
+import { NodeIdGenerator } from '../../../utils/deterministic-node-id';
 
 export interface INebulaDataService {
   // 节点操作
@@ -73,7 +74,7 @@ export class NebulaDataService implements INebulaDataService {
       });
 
       // 生成节点ID
-      const nodeId = `${node.label}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const nodeId = NodeIdGenerator.forDatabase(node.label);
 
       // 构建插入节点的nGQL，使用安全的参数处理
       const propertyNames = Object.keys(node.properties).join(', ');
