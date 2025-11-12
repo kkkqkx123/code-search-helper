@@ -8,6 +8,7 @@ import { InfrastructureConfigService } from '../../../infrastructure/config/Infr
 import { IGraphIndexPerformanceMonitor } from '../../../infrastructure/monitoring/GraphIndexMetrics';
 import { IGraphConstructionService } from './IGraphConstructionService';
 import { GraphData } from '../caching/types';
+import { NodeIdGenerator } from '../../../utils/deterministic-node-id';
 import { CodeChunk } from '../../parser/types';
 import { GraphNode, GraphRelationship } from '../mapping/IGraphDataMappingService';
 import * as fs from 'fs/promises';
@@ -273,8 +274,13 @@ export class GraphConstructionService implements IGraphConstructionService {
    * 生成节点ID
    */
   private generateNodeId(chunk: CodeChunk): string {
-    const baseId = `${chunk.metadata.filePath}_${chunk.metadata.startLine}_${chunk.metadata.endLine}`;
-    return Buffer.from(baseId).toString('hex').substring(0, 16);
+    const filePath = chunk.metadata.filePath || 'unknown_file';
+    return NodeIdGenerator.forChunk(
+      filePath,
+      chunk.metadata.startLine,
+      chunk.metadata.endLine,
+      chunk.content
+    );
   }
 
   /**
@@ -288,7 +294,7 @@ export class GraphConstructionService implements IGraphConstructionService {
    * 生成关系ID
    */
   private generateRelationshipId(fromId: string, toId: string, type: string): string {
-    return `${fromId}_${type}_${toId}`;
+    return NodeIdGenerator.forRelationship(fromId, toId, type);
   }
 
   /**

@@ -7,6 +7,7 @@ import { EmbedderFactory } from '../../embedders/EmbedderFactory';
 import { TYPES } from '../../types';
 import * as path from 'path';
 import { promises as fs } from 'fs';
+import { NodeIdGenerator } from '../../utils/deterministic-node-id';
 
 /**
  * 文件向量索引器
@@ -54,7 +55,7 @@ export class FileVectorIndexer {
 
       // 构建文件向量索引
       const fileIndex: FileVectorIndex = {
-        id: this.generateFileId(filePath, projectId),
+        id: NodeIdGenerator.forFile(filePath, projectId),
         projectId,
         filePath,
         fileName,
@@ -144,7 +145,7 @@ export class FileVectorIndexer {
    */
   async deleteFileIndex(filePath: string, projectId: string): Promise<void> {
     try {
-      const fileId = this.generateFileId(filePath, projectId);
+      const fileId = NodeIdGenerator.forFile(filePath, projectId);
       await this.qdrantService.deletePoints(this.COLLECTION_NAME, [fileId]);
       this.logger.debug(`删除文件索引: ${filePath}`);
     } catch (error) {
@@ -166,7 +167,7 @@ export class FileVectorIndexer {
    */
   async shouldReindex(filePath: string, projectId: string): Promise<boolean> {
     try {
-      const fileId = this.generateFileId(filePath, projectId);
+      const fileId = NodeIdGenerator.forFile(filePath, projectId);
       const existingPoints = await this.qdrantService.scrollPoints(this.COLLECTION_NAME, {
         must: [
           {
@@ -197,9 +198,7 @@ export class FileVectorIndexer {
    * 生成文件ID
    */
   private generateFileId(filePath: string, projectId: string): string {
-    // 使用项目ID和文件路径的哈希值作为唯一ID
-    const crypto = require('crypto');
-    return crypto.createHash('sha256').update(`${projectId}:${filePath}`).digest('hex');
+    return NodeIdGenerator.forFile(filePath, projectId);
   }
 
   /**

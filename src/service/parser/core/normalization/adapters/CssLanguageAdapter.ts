@@ -1,5 +1,6 @@
 import { ILanguageAdapter, StandardizedQueryResult } from '../types';
 import { LoggerService } from '../../../../../utils/LoggerService';
+import { NodeIdGenerator } from '../../../../../utils/deterministic-node-id';
 type StandardType = StandardizedQueryResult['type'];
 
 /**
@@ -20,7 +21,7 @@ export class CssLanguageAdapter implements ILanguageAdapter {
       try {
         const extraInfo = this.extractExtraInfo(result);
         const astNode = result.captures?.[0]?.node;
-        const nodeId = astNode ? `${astNode.type}:${astNode.startPosition.row}:${astNode.startPosition.column}` : `fallback_${Date.now()}`;
+        const nodeId = NodeIdGenerator.safeForAstNode(astNode, queryType, this.extractName(result) || 'unknown');
 
         results.push({
           nodeId,

@@ -1,5 +1,6 @@
 import { createHash } from 'crypto';
 import { ASTNode } from '../types/ASTNode';
+import { NodeIdGenerator } from '../../../../utils/deterministic-node-id';
 
 /**
  * 内容哈希ID生成器 - 基于代码内容生成唯一ID
@@ -15,10 +16,14 @@ export class ContentHashIDGenerator {
    */
   static generateNodeId(node: ASTNode): string {
     const normalizedContent = this.normalizeContent(node.text);
-    const contentHash = this.generateContentHash(normalizedContent);
-
-    // 结合内容哈希、位置信息和类型生成唯一ID
-    return `${contentHash}-${node.startByte}-${node.endByte}-${node.type}`;
+    
+    // 使用中央ID生成服务，结合内容哈希和位置信息
+    return NodeIdGenerator.forSymbol(
+      normalizedContent.substring(0, 50), // 限制长度避免过长
+      node.type,
+      `content_hash_${node.startByte}-${node.endByte}`,
+      0
+    );
   }
 
   /**
@@ -26,9 +31,14 @@ export class ContentHashIDGenerator {
    */
   static generateChunkId(content: string, startLine: number, endLine: number, type?: string): string {
     const normalizedContent = this.normalizeContent(content);
-    const contentHash = this.generateContentHash(normalizedContent);
-
-    return `${contentHash}-${startLine}-${endLine}-${type || 'chunk'}`;
+    
+    // 使用中央ID生成服务
+    return NodeIdGenerator.forChunk(
+      'content_hash_chunk',
+      startLine,
+      endLine,
+      normalizedContent
+    );
   }
 
   /**

@@ -15,7 +15,7 @@ describe('generateDeterministicNodeId', () => {
     const id1 = generateDeterministicNodeId(node);
     const id2 = generateDeterministicNodeId(node);
 
-    expect(id1).toBe('function_definition:10:4');
+    expect(id1).toBe('ast:function_definition:10:4');
     expect(id1).toBe(id2);
   });
 
@@ -26,8 +26,8 @@ describe('generateDeterministicNodeId', () => {
     const id1 = generateDeterministicNodeId(node1);
     const id2 = generateDeterministicNodeId(node2);
 
-    expect(id1).toBe('function_definition:10:4');
-    expect(id2).toBe('call_expression:10:4');
+    expect(id1).toBe('ast:function_definition:10:4');
+    expect(id2).toBe('ast:call_expression:10:4');
     expect(id1).not.toBe(id2);
   });
 
@@ -40,9 +40,9 @@ describe('generateDeterministicNodeId', () => {
     const id2 = generateDeterministicNodeId(node2);
     const id3 = generateDeterministicNodeId(node3);
 
-    expect(id1).toBe('identifier:5:0');
-    expect(id2).toBe('identifier:5:1');
-    expect(id3).toBe('identifier:6:0');
+    expect(id1).toBe('ast:identifier:5:0');
+    expect(id2).toBe('ast:identifier:5:1');
+    expect(id3).toBe('ast:identifier:6:0');
     
     expect(id1).not.toBe(id2);
     expect(id1).not.toBe(id3);
@@ -52,7 +52,7 @@ describe('generateDeterministicNodeId', () => {
   it('should handle zero-indexed positions correctly', () => {
     const node = createMockNode('program', 0, 0);
     const id = generateDeterministicNodeId(node);
-    expect(id).toBe('program:0:0');
+    expect(id).toBe('ast:program:0:0');
   });
 
   it('should throw an error for a null node', () => {

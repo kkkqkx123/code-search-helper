@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -100,14 +100,14 @@ export class CreationRelationshipExtractor {
    * 提取创建关系的节点
    */
   private extractCreationNodes(astNode: Parser.SyntaxNode, creationType: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
     let toNodeId = 'unknown';
 
     if (creationType === 'instantiation' || creationType === 'enum_creation') {
       // 对于实例化，提取类型信息
       const typeNode = this.extractTypeNode(astNode);
       if (typeNode) {
-        toNodeId = generateDeterministicNodeId(typeNode);
+        toNodeId = NodeIdGenerator.forAstNode(typeNode);
       }
     } else if (creationType === 'closure') {
       // 对于闭包，提取闭包表达式
@@ -116,7 +116,7 @@ export class CreationRelationshipExtractor {
       // 对于函数对象，提取函数名
       const funcNode = this.extractFunctionNode(astNode);
       if (funcNode) {
-        toNodeId = generateDeterministicNodeId(funcNode);
+        toNodeId = NodeIdGenerator.forAstNode(funcNode);
       }
     } else if (creationType === 'iterator') {
       // 对于迭代器，提取迭代器类型
@@ -420,7 +420,7 @@ export class CreationRelationshipExtractor {
         if (funcNode?.type === 'type_identifier' && funcNode.text) {
           instances.push({
             structName: funcNode.text,
-            structId: generateDeterministicNodeId(funcNode),
+            structId: NodeIdGenerator.forAstNode(funcNode),
             location: {
               lineNumber: node.startPosition.row + 1,
               columnNumber: node.startPosition.column + 1
@@ -432,7 +432,7 @@ export class CreationRelationshipExtractor {
         if (typeNode?.text) {
           instances.push({
             structName: typeNode.text,
-            structId: generateDeterministicNodeId(typeNode),
+            structId: NodeIdGenerator.forAstNode(typeNode),
             location: {
               lineNumber: node.startPosition.row + 1,
               columnNumber: node.startPosition.column + 1
@@ -468,7 +468,7 @@ export class CreationRelationshipExtractor {
           enumCreations.push({
             enumName: typeNode.text,
             variant: variantNode.text,
-            enumId: generateDeterministicNodeId(node),
+            enumId: NodeIdGenerator.forAstNode(node),
             location: {
               lineNumber: node.startPosition.row + 1,
               columnNumber: node.startPosition.column + 1
@@ -503,7 +503,7 @@ export class CreationRelationshipExtractor {
         const isMove = this.isMoveClosure(node);
         
         closures.push({
-          closureId: generateDeterministicNodeId(node),
+          closureId: NodeIdGenerator.forAstNode(node),
           parameters,
           isAsync,
           isMove,

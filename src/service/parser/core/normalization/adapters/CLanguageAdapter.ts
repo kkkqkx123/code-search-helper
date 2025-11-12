@@ -1,6 +1,6 @@
 import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
 import { StandardizedQueryResult, SymbolInfo, SymbolTable } from '../types';
-import { generateDeterministicNodeId } from '../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 import { MetadataBuilder } from '../utils/MetadataBuilder';
 
@@ -275,7 +275,7 @@ export class CLanguageAdapter extends BaseLanguageAdapter {
 
         // 获取AST节点以生成确定性ID
         const astNode = result.captures?.[0]?.node;
-        const nodeId = astNode ? generateDeterministicNodeId(astNode) : `${standardType}:${name}:${Date.now()}`;
+        const nodeId = NodeIdGenerator.safeForAstNode(astNode, standardType, name);
 
         // 使用 MetadataBuilder 创建增强的元数据
         const builder = this.createMetadataBuilder(result, language)
@@ -319,7 +319,7 @@ export class CLanguageAdapter extends BaseLanguageAdapter {
         const errorBuilder = MetadataBuilder.fromComplete(this.createMetadata(result, language))
           .setError(errorForMetadata, { phase: 'normalization', queryType, filePath });
         results.push({
-          nodeId: `error_${Date.now()}`,
+          nodeId: NodeIdGenerator.forError('c_normalization'),
           type: 'expression',
           name: 'error',
           startLine: 0,

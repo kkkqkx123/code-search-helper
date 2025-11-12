@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -106,7 +106,7 @@ export class ReferenceRelationshipExtractor {
    * 提取引用关系的节点
    */
   private extractReferenceNodes(astNode: Parser.SyntaxNode, referenceType: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
     let toNodeId = 'unknown';
 
     const referenceName = this.extractReferenceName(astNode);
@@ -511,7 +511,7 @@ export class ReferenceRelationshipExtractor {
 
       if (referenceType && referenceName) {
         references.push({
-          sourceId: generateDeterministicNodeId(identifier),
+          sourceId: NodeIdGenerator.forAstNode(identifier),
           targetId: this.generateNodeId(referenceName, 'reference', filePath),
           referenceType,
           referenceName,
@@ -533,7 +533,7 @@ export class ReferenceRelationshipExtractor {
 
       if (referenceType && referenceName) {
         references.push({
-          sourceId: generateDeterministicNodeId(fieldAccess),
+          sourceId: NodeIdGenerator.forAstNode(fieldAccess),
           targetId: this.generateNodeId(referenceName, 'reference', filePath),
           referenceType,
           referenceName,
@@ -555,7 +555,7 @@ export class ReferenceRelationshipExtractor {
 
       if (referenceType && referenceName) {
         references.push({
-          sourceId: generateDeterministicNodeId(methodCall),
+          sourceId: NodeIdGenerator.forAstNode(methodCall),
           targetId: this.generateNodeId(referenceName, 'reference', filePath),
           referenceType,
           referenceName,
@@ -577,7 +577,7 @@ export class ReferenceRelationshipExtractor {
 
       if (referenceType && referenceName) {
         references.push({
-          sourceId: generateDeterministicNodeId(scopedIdentifier),
+          sourceId: NodeIdGenerator.forAstNode(scopedIdentifier),
           targetId: this.generateNodeId(referenceName, 'reference', filePath),
           referenceType,
           referenceName,

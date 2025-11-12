@@ -2,6 +2,7 @@ import { StandardizedQueryResult, IEnhancedHtmlLanguageAdapter } from '../types'
 import { ScriptBlock, StyleBlock } from '../../../processing/utils/html/LayeredHTMLConfig';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { ContentHashUtils } from '../../../../../utils/cache/ContentHashUtils';
+import { NodeIdGenerator } from '../../../../../utils/deterministic-node-id';
 type StandardType = StandardizedQueryResult['type'];
 
 /**
@@ -22,7 +23,7 @@ export class HtmlLanguageAdapter implements IEnhancedHtmlLanguageAdapter {
       try {
         const extraInfo = this.extractExtraInfo(result);
         const astNode = result.captures?.[0]?.node;
-        const nodeId = astNode ? `${astNode.type}:${astNode.startPosition.row}:${astNode.startPosition.column}` : `fallback_${Date.now()}`;
+        const nodeId = NodeIdGenerator.safeForAstNode(astNode, queryType, this.extractName(result) || 'unknown');
 
         results.push({
           nodeId,

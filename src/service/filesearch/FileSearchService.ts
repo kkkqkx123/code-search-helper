@@ -6,6 +6,7 @@ import { LoggerService } from '../../utils/LoggerService';
 import { FileVectorIndexer } from './FileVectorIndexer';
 import { FileQueryProcessor } from './FileQueryProcessor';
 import { FileSearchCache } from './FileSearchCache';
+import { NodeIdGenerator } from '../../utils/deterministic-node-id';
 import {
   FileSearchRequest,
   FileSearchResponse,
@@ -212,7 +213,7 @@ export class FileSearchService {
       this.logger.debug(`删除文件索引: ${filePath}`);
 
       // 生成文件ID
-      const fileId = projectId ? this.generateFileId(filePath, projectId) : filePath;
+      const fileId = projectId ? NodeIdGenerator.forFile(filePath, projectId) : NodeIdGenerator.forFile(filePath);
 
       // 从向量数据库中删除
       await this.qdrantService.deletePoints('file_vectors', [fileId]);
@@ -307,9 +308,7 @@ export class FileSearchService {
    * 生成文件ID
    */
   private generateFileId(filePath: string, projectId: string): string {
-    // 使用项目ID和文件路径的哈希值作为唯一ID
-    const crypto = require('crypto');
-    return crypto.createHash('sha256').update(`${projectId}:${filePath}`).digest('hex');
+    return NodeIdGenerator.forFile(filePath, projectId);
   }
 
   /**

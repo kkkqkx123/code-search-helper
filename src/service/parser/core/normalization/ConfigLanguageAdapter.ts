@@ -226,7 +226,7 @@ export abstract class ConfigLanguageAdapter implements ILanguageAdapter {
     const metadata = this.createConfigMetadata(result, language);
 
     return {
-      nodeId: this.generateNodeId(type, name, startLine, endLine, content, language),
+      nodeId: NodeIdGenerator.forConfig(type, name, startLine, endLine, content),
       type,
       name,
       startLine,
@@ -447,10 +447,15 @@ export abstract class ConfigLanguageAdapter implements ILanguageAdapter {
   /**
   * 生成节点ID
   */
-  protected generateNodeId(type: string, name: string, startLine: number, endLine: number, content: string, language: string): string {
-    // 生成确定性的节点ID
-    const contentHash = this.simpleHash(content);
-    return `${language}:${type}:${name}:${startLine}:${endLine}:${contentHash}`;
+  // 保留原有的简单哈希方法以备后用
+  protected simpleHash(content: string): string {
+    let hash = 0;
+    for (let i = 0; i < content.length; i++) {
+      const char = content.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash).toString(16);
   }
 
   /**
@@ -502,7 +507,7 @@ export abstract class ConfigLanguageAdapter implements ILanguageAdapter {
       };
 
       return {
-        nodeId: this.generateNodeId(type, name, startLine, endLine, content, language),
+        nodeId: NodeIdGenerator.forConfig(type, name, startLine, endLine, content),
         type,
         name,
         startLine,

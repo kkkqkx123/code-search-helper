@@ -177,7 +177,7 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
    */
   protected createStandardizedResult(result: any, queryType: string, language: string): StandardizedQueryResult {
     const astNode = result.captures?.[0]?.node;
-    const nodeId = astNode ? `${astNode.type}:${astNode.startPosition.row}:${astNode.startPosition.column}` : `fallback_${Date.now()}`;
+    const nodeId = NodeIdGenerator.safeForAstNode(astNode, queryType, this.extractName(result) || 'unknown');
 
     // Use MetadataBuilder to create enhanced metadata
     const metadataBuilder = this.createMetadataBuilder(result, language);
@@ -538,7 +538,7 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
     return queryResults.slice(0, 10).map((result, index) => {
       // 确保result不为null或undefined
       const safeResult = result || {};
-      const nodeId = `fallback_${language}_${index}_${Date.now()}`;
+      const nodeId = NodeIdGenerator.forFallback(language, `result_${index}`);
       const builder = new MetadataBuilder()
         .setLanguage(language)
         .setComplexity(1)

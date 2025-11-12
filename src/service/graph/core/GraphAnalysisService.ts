@@ -16,6 +16,7 @@ import {
   CodeGraphRelationship
 } from './types';
 import { IGraphAnalysisService } from './IGraphAnalysisService';
+import { NodeIdGenerator } from '../../../utils/deterministic-node-id';
 
 @injectable()
 export class GraphAnalysisService implements IGraphAnalysisService {
@@ -159,7 +160,7 @@ export class GraphAnalysisService implements IGraphAnalysisService {
     try {
       this.logger.info('Finding dependencies', { filePath, options });
 
-      const fileId = this.generateFileId(filePath);
+      const fileId = NodeIdGenerator.forFile(filePath);
       const direction = options.direction || 'outgoing';
       const depth = options.depth || 3;
 
@@ -195,7 +196,7 @@ export class GraphAnalysisService implements IGraphAnalysisService {
     try {
       this.logger.info('Finding impact', { filePath, options });
 
-      const fileId = this.generateFileId(filePath);
+      const fileId = NodeIdGenerator.forFile(filePath);
       const maxDepth = options.maxDepth || 3;
 
       // Build impact analysis query
@@ -886,8 +887,7 @@ export class GraphAnalysisService implements IGraphAnalysisService {
   }
 
   private generateFileId(filePath: string): string {
-    // Simple hash-based file ID generation
-    return `file_${filePath.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    return NodeIdGenerator.forFile(filePath);
   }
 
   private formatForLLM(result: GraphAnalysisResult): any {

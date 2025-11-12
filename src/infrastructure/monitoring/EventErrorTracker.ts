@@ -7,6 +7,7 @@ import {
   DatabaseEvent,
   DatabaseEventType
 } from '../../database/common/DatabaseEventTypes';
+import { NodeIdGenerator } from '../../utils/deterministic-node-id';
 
 /**
  * 错误级别枚举
@@ -552,8 +553,7 @@ export class EventErrorTracker implements IEventErrorTracker {
    * 生成错误ID
    */
   private generateErrorId(error: Error, category: ErrorCategory): string {
-    const message = error.message.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-    return `${category}_${message}_${Date.now()}`;
+    return NodeIdGenerator.forError(`${category}_${error.message.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`);
   }
 
   /**

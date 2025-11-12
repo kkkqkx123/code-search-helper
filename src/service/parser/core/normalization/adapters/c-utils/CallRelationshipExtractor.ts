@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 import { CHelperMethods } from '.';
 
@@ -17,8 +17,8 @@ export class CallRelationshipExtractor {
 
     return {
       type: 'call',
-      fromNodeId: callerNode ? generateDeterministicNodeId(callerNode) : 'unknown',
-      toNodeId: functionNode ? generateDeterministicNodeId(functionNode) : 'unknown',
+      fromNodeId: callerNode ? NodeIdGenerator.forAstNode(callerNode) : 'unknown',
+      toNodeId: functionNode ? NodeIdGenerator.forAstNode(functionNode) : 'unknown',
       callName: calleeName || 'unknown',
       callType: CHelperMethods.determineCallType(astNode, null),
       callContext,

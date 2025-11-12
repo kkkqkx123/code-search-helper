@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 
 /**
@@ -86,7 +86,7 @@ export class DependencyRelationshipExtractor {
    * 提取依赖关系的节点
    */
   private extractDependencyNodes(astNode: Parser.SyntaxNode, dependencyType: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = generateDeterministicNodeId(astNode);
+    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
     let toNodeId = 'unknown';
 
     if (dependencyType === 'use') {
@@ -364,7 +364,7 @@ export class DependencyRelationshipExtractor {
    * 生成节点ID
    */
   private generateNodeId(name: string, type: string, filePath: string): string {
-    return `${type}_${Buffer.from(`${filePath}_${name}`).toString('hex')}`;
+    return NodeIdGenerator.forSymbol(name, type, filePath, 0);
   }
 
   /**
@@ -456,7 +456,7 @@ export class DependencyRelationshipExtractor {
 
       if (importInfo && target) {
         dependencies.push({
-          sourceId: generateDeterministicNodeId(useDecl),
+          sourceId: NodeIdGenerator.forAstNode(useDecl),
           targetId: this.generateNodeId(target, 'module', target),
           dependencyType: dependencyType || 'use',
           target,
@@ -480,7 +480,7 @@ export class DependencyRelationshipExtractor {
 
       if (target) {
         dependencies.push({
-          sourceId: generateDeterministicNodeId(externCrateDecl),
+          sourceId: NodeIdGenerator.forAstNode(externCrateDecl),
           targetId: this.generateNodeId(target, 'crate', target),
           dependencyType: dependencyType || 'extern_crate',
           target,
@@ -504,7 +504,7 @@ export class DependencyRelationshipExtractor {
 
       if (target) {
         dependencies.push({
-          sourceId: generateDeterministicNodeId(modDecl),
+          sourceId: NodeIdGenerator.forAstNode(modDecl),
           targetId: this.generateNodeId(target, 'module', filePath),
           dependencyType: dependencyType || 'mod',
           target,

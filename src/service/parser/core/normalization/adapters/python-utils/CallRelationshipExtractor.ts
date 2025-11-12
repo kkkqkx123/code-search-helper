@@ -1,4 +1,4 @@
-import { generateDeterministicNodeId } from '../../../../../../utils/deterministic-node-id';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { PythonHelperMethods } from './PythonHelperMethods';
 import Parser from 'tree-sitter';
 
@@ -17,8 +17,8 @@ export class CallRelationshipExtractor {
 
     return {
       type: 'call',
-      fromNodeId: callerNode ? generateDeterministicNodeId(callerNode) : 'unknown',
-      toNodeId: generateDeterministicNodeId(astNode),
+      fromNodeId: callerNode ? NodeIdGenerator.forAstNode(callerNode) : 'unknown',
+      toNodeId: NodeIdGenerator.forAstNode(astNode),
       callName: calleeName || 'unknown',
       callType: this.determineCallType(astNode, null),
       callContext,
