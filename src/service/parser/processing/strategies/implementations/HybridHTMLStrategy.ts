@@ -15,14 +15,14 @@ import {
     HTMLFallbackProcessor,
     HTMLChunkFactory,
     HTMLResultMerger
-} from '../../../processing/utils/html';
+} from '../../utils/html';
 import Parser from 'tree-sitter';
 
 /**
  * 混合HTML处理器
  * 结合LayeredHTMLStrategy的内容分离能力和AST解析的精确性
  */
-export class HybridHTMLProcessor extends BaseStrategy {
+export class HybridHTMLStrategy extends BaseStrategy {
     private logger: Logger;
     private htmlAdapter: HtmlLanguageAdapter;
     private relationshipExtractor: HtmlRelationshipExtractor;

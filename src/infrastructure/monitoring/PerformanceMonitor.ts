@@ -62,7 +62,7 @@ export class PerformanceMonitor implements IPerformanceMonitor {
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
-    configService: InfrastructureConfigService
+    @inject(TYPES.InfrastructureConfigService) configService: InfrastructureConfigService
   ) {
     this.logger = logger;
     this.configService = configService;

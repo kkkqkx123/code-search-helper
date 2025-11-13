@@ -190,7 +190,6 @@ export class InfrastructureServiceRegistrar {
       container.bind<DatabaseHealthChecker>(TYPES.HealthChecker).to(DatabaseHealthChecker).inSingletonScope();
 
       // SQLite基础设施
-      container.bind<SqliteDatabaseService>(TYPES.SqliteDatabaseService).to(SqliteDatabaseService).inSingletonScope();
       container.bind<SqliteInfrastructure>(TYPES.SqliteInfrastructure).to(SqliteInfrastructure).inSingletonScope();
       container.bind<SqliteStateManager>(TYPES.SqliteStateManager).to(SqliteStateManager).inSingletonScope();
 

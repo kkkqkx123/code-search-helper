@@ -1,12 +1,12 @@
-import { HybridHTMLProcessor } from '../HybridHTMLProcessor';
+import { HybridHTMLStrategy } from '../HybridHTMLStrategy';
 import { IProcessingContext } from '../../../core/interfaces/IProcessingContext';
 
 describe('HybridHTMLProcessor', () => {
-  let strategy: HybridHTMLProcessor;
+  let strategy: HybridHTMLStrategy;
   let mockContext: IProcessingContext;
 
   beforeEach(() => {
-    strategy = new HybridHTMLProcessor({
+    strategy = new HybridHTMLStrategy({
       name: 'layered-html',
       enabled: true,
       supportedLanguages: ['html', 'htm']

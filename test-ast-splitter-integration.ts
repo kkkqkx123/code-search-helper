@@ -13,7 +13,7 @@ const mockTreeSitterService = {
   }
 };
 
-const mockLanguageDetectionService = {
+const mockDetectionService = {
   detectLanguage: (content: string, filePath?: string) => {
     return filePath?.split('.').pop() || 'javascript';
   }
@@ -29,20 +29,20 @@ const mockLoggerService = {
 
 const mockCacheService = {
   getFromCache: (key: string) => undefined,
-  setCache: (key: string, value: any, ttl?: number) => {},
-  clearAllCache: () => {},
+  setCache: (key: string, value: any, ttl?: number) => { },
+  clearAllCache: () => { },
   getCacheStats: () => ({ totalEntries: 0, hitCount: 0, missCount: 0, hitRate: 0 })
 };
 
 const mockPerformanceMonitor = {
-  recordQueryExecution: (executionTimeMs: number) => {},
-  updateBatchSize: (batchSize: number) => {},
-  recordBatchResult: (success: boolean) => {}
+  recordQueryExecution: (executionTimeMs: number) => { },
+  updateBatchSize: (batchSize: number) => { },
+  recordBatchResult: (success: boolean) => { }
 };
 
 // 绑定服务
 testContainer.bind(TYPES.TreeSitterService).toConstantValue(mockTreeSitterService as any);
-testContainer.bind(TYPES.LanguageDetectionService).toConstantValue(mockLanguageDetectionService as any);
+testContainer.bind(TYPES.DetectionService).toConstantValue(mockDetectionService as any);
 testContainer.bind(TYPES.LoggerService).toConstantValue(mockLoggerService as any);
 testContainer.bind(TYPES.CacheService).toConstantValue(mockCacheService as any);
 testContainer.bind(TYPES.PerformanceMonitor).toConstantValue(mockPerformanceMonitor as any);
@@ -50,7 +50,7 @@ testContainer.bind(TYPES.PerformanceMonitor).toConstantValue(mockPerformanceMoni
 // 创建ASTCodeSplitter实例
 const astSplitter = new ASTCodeSplitter(
   testContainer.get(TYPES.TreeSitterService),
-  testContainer.get(TYPES.LanguageDetectionService),
+  testContainer.get(TYPES.DetectionService),
   testContainer.get(TYPES.LoggerService),
   testContainer.get(TYPES.CacheService),
   testContainer.get(TYPES.PerformanceMonitor)
@@ -78,11 +78,11 @@ class ExampleClass {
 
 async function testIntegration() {
   console.log('Testing ASTCodeSplitter integration...');
-  
+
   try {
     const chunks = await astSplitter.split(testCode, 'test.js', 'javascript');
     console.log(`Generated ${chunks.length} chunks`);
-    
+
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
       console.log(`Chunk ${i + 1}:`);

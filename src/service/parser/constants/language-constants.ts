@@ -226,7 +226,7 @@ export const TEXT_FORMAT_LANGUAGES: LanguageConfig[] = [
     queryDir: 'env',
     hasSubdir: false,
     category: 'text_format',
-    extensions: ['.env'],
+    extensions: ['.env', '.env.*'],
     aliases: ['env', 'environment'],
     strategy: TEXT_FORMAT_STRATEGY
   },

@@ -8,7 +8,7 @@ export { BaseStrategy } from './base/BaseStrategy';
 
 // 策略实现导出 - 优化后保留的策略
 export { BracketSegmentationStrategy } from './implementations/BracketSegmentationStrategy';
-export { LayeredHTMLStrategy } from './implementations/LayeredHTMLStrategy';
+export { HybridHTMLStrategy } from './implementations/HybridHTMLStrategy';
 export { LineSegmentationStrategy } from './implementations/LineSegmentationStrategy';
 export { MarkdownSegmentationStrategy } from './implementations/MarkdownSegmentationStrategy';
 export { XMLSegmentationStrategy } from './implementations/XMLSegmentationStrategy';
@@ -38,7 +38,7 @@ export function createStrategy(strategyName: string, config?: any): any {
       return new (require('./implementations/BracketSegmentationStrategy').BracketSegmentationStrategy)(config);
 
     case 'layered-html':
-      return new (require('./implementations/LayeredHTMLStrategy').LayeredHTMLStrategy)(config);
+      return new (require('./implementations/HybridHTMLStrategy').HybridHTMLStrategy)(config);
 
     case 'line-segmentation':
       return new (require('./implementations/LineSegmentationStrategy').LineSegmentationStrategy)(config);

@@ -46,22 +46,22 @@ export class GraphSearchServiceNew implements IGraphSearchService {
 
   async initialize(): Promise<boolean> {
     try {
-      this.logger.info('Initializing graph search service');
+      this.logger.info('初始化图搜索服务');
 
-      // Ensure the graph database is initialized
+      // 确保图数据库已初始化
       if (!this.graphDatabase.isDatabaseConnected()) {
         const initialized = await this.graphDatabase.initialize();
         if (!initialized) {
-          throw new Error('Failed to initialize graph database');
+          throw new Error('图数据库初始化失败');
         }
       }
 
       this.isInitialized = true;
-      this.logger.info('Graph search service initialized successfully');
+      this.logger.info('图搜索服务初始化成功');
       return true;
     } catch (error) {
       this.errorHandler.handleError(
-        new Error(`Failed to initialize graph search service: ${error instanceof Error ? error.message : String(error)}`),
+        new Error(`图搜索服务初始化失败: ${error instanceof Error ? error.message : String(error)}`),
         { component: 'GraphSearchServiceNew', operation: 'initialize' }
       );
       return false;
@@ -75,21 +75,21 @@ export class GraphSearchServiceNew implements IGraphSearchService {
 
     const startTime = Date.now();
 
-    // Generate cache key based on query and options
+    // 根据查询和选项生成缓存键
     const cacheKey = this.generateCacheKey(query, options);
 
-    // Try to get result from cache first
+    // 首先尝试从缓存中获取结果
     const cachedResult = this.cacheService.getFromCache<GraphSearchResult>(cacheKey);
     if (cachedResult) {
       this.performanceMonitor.updateCacheHitRate(true);
-      this.logger.debug('Graph search result retrieved from cache', { cacheKey });
+      this.logger.debug('从缓存中检索到图搜索结果', { cacheKey });
       return cachedResult;
     }
 
     try {
-      this.logger.info('Executing graph search', { query, options });
+      this.logger.info('执行图搜索', { query, options });
 
-      // Build search query based on input
+      // 根据输入构建搜索查询
       const searchQuery = this.buildSearchQuery(query, options);
       const result = await this.graphDatabase.executeReadQuery(searchQuery.nGQL, searchQuery.params);
 
@@ -100,14 +100,14 @@ export class GraphSearchServiceNew implements IGraphSearchService {
         executionTime: Date.now() - startTime,
       };
 
-      // Cache the result if caching is enabled
-      const cacheTTL = this.configService.get('caching').defaultTTL || 300; // 5 minutes default
+      // 如果启用缓存，则缓存结果
+      const cacheTTL = this.configService.get('caching').defaultTTL || 300; // 默认5分钟
       this.cacheService.setCache(cacheKey, formattedResult, cacheTTL);
 
       this.performanceMonitor.updateCacheHitRate(false);
       this.performanceMonitor.recordQueryExecution(formattedResult.executionTime);
 
-      this.logger.info('Graph search completed', {
+      this.logger.info('图搜索完成', {
         query,
         resultCount: formattedResult.total,
         executionTime: formattedResult.executionTime,
@@ -128,12 +128,12 @@ export class GraphSearchServiceNew implements IGraphSearchService {
         errorContext
       );
 
-      this.logger.error('Graph search failed', {
+      this.logger.error('图搜索失败', {
         query,
         error: error instanceof Error ? error.message : String(error),
       });
 
-      // Return empty result in case of error
+      // 错误情况下返回空结果
       return {
         nodes: [],
         relationships: [],
@@ -147,7 +147,7 @@ export class GraphSearchServiceNew implements IGraphSearchService {
     const startTime = Date.now();
     const cacheKey = `nodeType_${nodeType}_${JSON.stringify(options)}`;
 
-    // Try to get result from cache first
+    // 首先尝试从缓存中获取结果
     const cachedResult = this.cacheService.getFromCache<GraphSearchResult>(cacheKey);
     if (cachedResult) {
       this.performanceMonitor.updateCacheHitRate(true);
@@ -155,7 +155,7 @@ export class GraphSearchServiceNew implements IGraphSearchService {
     }
 
     try {
-      this.logger.info('Searching by node type', { nodeType, options });
+      this.logger.info('按节点类型搜索', { nodeType, options });
 
       const searchQuery = this.buildNodeTypeQuery(nodeType, options);
       const result = await this.graphDatabase.executeReadQuery(searchQuery.nGQL, searchQuery.params);
@@ -167,7 +167,7 @@ export class GraphSearchServiceNew implements IGraphSearchService {
         executionTime: Date.now() - startTime,
       };
 
-      // Cache the result
+      // 缓存结果
       const cacheTTL = this.configService.get('caching').defaultTTL || 300;
       this.cacheService.setCache(cacheKey, formattedResult, cacheTTL);
 
@@ -175,7 +175,7 @@ export class GraphSearchServiceNew implements IGraphSearchService {
 
       return formattedResult;
     } catch (error) {
-      this.logger.error('Node type search failed', {
+      this.logger.error('节点类型搜索失败', {
         nodeType,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -193,7 +193,7 @@ export class GraphSearchServiceNew implements IGraphSearchService {
     const startTime = Date.now();
     const cacheKey = `relationshipType_${relationshipType}_${JSON.stringify(options)}`;
 
-    // Try to get result from cache first
+    // 首先尝试从缓存中获取结果
     const cachedResult = this.cacheService.getFromCache<GraphSearchResult>(cacheKey);
     if (cachedResult) {
       this.performanceMonitor.updateCacheHitRate(true);
@@ -201,7 +201,7 @@ export class GraphSearchServiceNew implements IGraphSearchService {
     }
 
     try {
-      this.logger.info('Searching by relationship type', { relationshipType, options });
+      this.logger.info('按关系类型搜索', { relationshipType, options });
 
       const searchQuery = this.buildRelationshipTypeQuery(relationshipType, options);
       const result = await this.graphDatabase.executeReadQuery(searchQuery.nGQL, searchQuery.params);
@@ -213,7 +213,7 @@ export class GraphSearchServiceNew implements IGraphSearchService {
         executionTime: Date.now() - startTime,
       };
 
-      // Cache the result
+      // 缓存结果
       const cacheTTL = this.configService.get('caching').defaultTTL || 300;
       this.cacheService.setCache(cacheKey, formattedResult, cacheTTL);
 
@@ -221,7 +221,7 @@ export class GraphSearchServiceNew implements IGraphSearchService {
 
       return formattedResult;
     } catch (error) {
-      this.logger.error('Relationship type search failed', {
+      this.logger.error('关系类型搜索失败', {
         relationshipType,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -239,7 +239,7 @@ export class GraphSearchServiceNew implements IGraphSearchService {
     const startTime = Date.now();
     const cacheKey = `path_${sourceId}_${targetId}_${JSON.stringify(options)}`;
 
-    // Try to get result from cache first
+    // 首先尝试从缓存中获取结果
     const cachedResult = this.cacheService.getFromCache<GraphSearchResult>(cacheKey);
     if (cachedResult) {
       this.performanceMonitor.updateCacheHitRate(true);
@@ -247,7 +247,7 @@ export class GraphSearchServiceNew implements IGraphSearchService {
     }
 
     try {
-      this.logger.info('Searching by path', { sourceId, targetId, options });
+      this.logger.info('按路径搜索', { sourceId, targetId, options });
 
       const searchQuery = this.buildPathQuery(sourceId, targetId, options);
       const result = await this.graphDatabase.executeReadQuery(searchQuery.nGQL, searchQuery.params);
@@ -259,7 +259,7 @@ export class GraphSearchServiceNew implements IGraphSearchService {
         executionTime: Date.now() - startTime,
       };
 
-      // Cache the result
+      // 缓存结果
       const cacheTTL = this.configService.get('caching').defaultTTL || 300;
       this.cacheService.setCache(cacheKey, formattedResult, cacheTTL);
 
@@ -267,7 +267,7 @@ export class GraphSearchServiceNew implements IGraphSearchService {
 
       return formattedResult;
     } catch (error) {
-      this.logger.error('Path search failed', {
+      this.logger.error('路径搜索失败', {
         sourceId,
         targetId,
         error: error instanceof Error ? error.message : String(error),
@@ -284,31 +284,31 @@ export class GraphSearchServiceNew implements IGraphSearchService {
 
   async getSearchSuggestions(query: string): Promise<string[]> {
     try {
-      this.logger.debug('Getting search suggestions', { query });
+      this.logger.debug('获取搜索建议', { query });
 
-      // In a real implementation, this would use more sophisticated suggestion algorithms
-      // For now, we'll return some mock suggestions based on the query
+      // 在实际实现中，这将使用更复杂的建议算法
+      // 目前，我们将根据查询返回一些模拟建议
       const suggestions: string[] = [];
 
       if (query.toLowerCase().includes('function')) {
-        suggestions.push('function name', 'function call', 'function definition');
+        suggestions.push('函数名', '函数调用', '函数定义');
       }
 
       if (query.toLowerCase().includes('class')) {
-        suggestions.push('class inheritance', 'class methods', 'class properties');
+        suggestions.push('类继承', '类方法', '类属性');
       }
 
       if (query.toLowerCase().includes('import')) {
-        suggestions.push('import path', 'import module', 'import dependency');
+        suggestions.push('导入路径', '导入模块', '导入依赖');
       }
 
       if (query.toLowerCase().includes('file')) {
-        suggestions.push('file path', 'file content', 'file dependency');
+        suggestions.push('文件路径', '文件内容', '文件依赖');
       }
 
-      return suggestions.slice(0, 5); // Return top 5 suggestions
+      return suggestions.slice(0, 5); // 返回前5个建议
     } catch (error) {
-      this.logger.error('Failed to get search suggestions', {
+      this.logger.error('获取搜索建议失败', {
         query,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -332,13 +332,13 @@ export class GraphSearchServiceNew implements IGraphSearchService {
 
   async close(): Promise<void> {
     try {
-      this.logger.info('Closing graph search service');
+      this.logger.info('关闭图搜索服务');
       this.isInitialized = false;
-      // Close any resources if needed
-      this.logger.info('Graph search service closed successfully');
+      // 如需要，关闭任何资源
+      this.logger.info('图搜索服务关闭成功');
     } catch (error) {
       this.errorHandler.handleError(
-        new Error(`Failed to close graph search service: ${error instanceof Error ? error.message : String(error)}`),
+        new Error(`关闭图搜索服务失败: ${error instanceof Error ? error.message : String(error)}`),
         { component: 'GraphSearchServiceNew', operation: 'close' }
       );
     }
@@ -347,53 +347,565 @@ export class GraphSearchServiceNew implements IGraphSearchService {
   isServiceInitialized(): boolean {
     return this.isInitialized;
   }
+  async isHealthy(): Promise<boolean> {
+    try {
+      // 检查服务是否已初始化
+      if (!this.isInitialized) {
+        return false;
+      }
 
+      // 检查Nebula Graph是否已启用
+      const nebulaEnabled = process.env.NEBULA_ENABLED?.toLowerCase() !== 'false';
+      if (!nebulaEnabled) {
+        // 如果Nebula被禁用，则认为服务健康但性能降级
+        this.logger.info('Nebula Graph已禁用，服务处于降级模式');
+        return true;
+      }
+
+      // 检查图数据库是否已连接
+      if (!this.graphDatabase.isDatabaseConnected()) {
+        return false;
+      }
+
+      // 尝试执行简单查询以验证连接
+      await this.graphDatabase.executeReadQuery('SHOW HOSTS', {});
+
+      return true;
+    } catch (error) {
+      this.logger.error('图服务健康检查失败', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      // 检查错误是否与Nebula Graph被禁用/未配置有关
+      const nebulaEnabled = process.env.NEBULA_ENABLED?.toLowerCase() !== 'false';
+      if (!nebulaEnabled) {
+        // 如果Nebula被禁用，则认为服务健康但性能降级
+        this.logger.info('尽管健康检查出错，Nebula Graph已禁用，服务处于降级模式');
+        return true;
+      }
+
+      return false;
+    }
+  }
+
+  async getStatus(): Promise<any> {
+    try {
+      const isHealthy = await this.isHealthy();
+      const isInitialized = this.isServiceInitialized();
+      const isDbConnected = this.graphDatabase.isDatabaseConnected();
+
+      return {
+        healthy: isHealthy,
+        initialized: isInitialized,
+        databaseConnected: isDbConnected,
+        serviceType: 'GraphSearchServiceNew',
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      this.logger.error('获取图服务状态失败', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      return {
+        healthy: false,
+        initialized: false,
+        databaseConnected: false,
+        serviceType: 'GraphSearchServiceNew',
+        error: error instanceof Error ? error.message : String(error),
+        timestamp: new Date().toISOString()
+      };
+    }
+  }
   private generateCacheKey(query: string, options: GraphSearchOptions): string {
     return `graph_search_${query}_${JSON.stringify(options)}`;
   }
 
+  async createSpace(projectId: string, config?: any): Promise<boolean> {
+    try {
+      this.logger.info('创建图空间', { projectId, config });
+
+      // 根据配置构建 CREATE SPACE 查询
+      const spaceConfig = {
+        partition_num: config?.partition_num || 10,
+        replica_factor: config?.replica_factor || 1,
+        vid_type: config?.vid_type || 'FIXED_STRING(30)',
+        charset: config?.charset || 'utf8',
+        collate: config?.collate || 'utf8_bin',
+        ...config
+      };
+
+      const nGQL = `
+        CREATE SPACE IF NOT EXISTS \`${projectId}\` (
+          partition_num = ${spaceConfig.partition_num},
+          replica_factor = ${spaceConfig.replica_factor},
+          vid_type = '${spaceConfig.vid_type}',
+          charset = '${spaceConfig.charset}',
+          collate = '${spaceConfig.collate}'
+        )
+      `;
+
+      const result = await this.graphDatabase.executeWriteQuery(nGQL, {});
+
+      this.logger.info('图空间创建成功', { projectId });
+      return result !== null;
+    } catch (error) {
+      this.logger.error('创建图空间失败', {
+        projectId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return false;
+    }
+  }
+
+  async dropSpace(projectId: string): Promise<boolean> {
+    try {
+      this.logger.info('删除图空间', { projectId });
+
+      const nGQL = `DROP SPACE IF EXISTS \`${projectId}\``;
+      const result = await this.graphDatabase.executeWriteQuery(nGQL, {});
+
+      this.logger.info('图空间删除成功', { projectId });
+      return result !== null;
+    } catch (error) {
+      this.logger.error('删除图空间失败', {
+        projectId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return false;
+    }
+  }
+
+  async clearSpace(projectId: string): Promise<boolean> {
+    try {
+      this.logger.info('清空图空间', { projectId });
+
+      // 切换到对应的空间
+      await this.graphDatabase.executeWriteQuery(`USE \`${projectId}\``, {});
+
+      // 获取所有标签（节点类型）
+      const tagResult = await this.graphDatabase.executeReadQuery('SHOW TAGS', {});
+      const tags = tagResult?.rows?.map((row: any[]) => row[0]) || [];
+
+      // 获取所有边类型
+      const edgeResult = await this.graphDatabase.executeReadQuery('SHOW EDGES', {});
+      const edges = edgeResult?.rows?.map((row: any[]) => row[0]) || [];
+
+      // 删除所有边
+      for (const edgeType of edges) {
+        const deleteEdgesQuery = `MATCH ()-[e:\`${edgeType}\`]->() DELETE e`;
+        await this.graphDatabase.executeWriteQuery(deleteEdgesQuery, {});
+      }
+
+      // 删除所有节点
+      for (const tag of tags) {
+        const deleteNodesQuery = `MATCH (n:\`${tag}\`) DELETE n`;
+        await this.graphDatabase.executeWriteQuery(deleteNodesQuery, {});
+      }
+
+      this.logger.info('图空间清空成功', { projectId });
+      return true;
+    } catch (error) {
+      this.logger.error('清空图空间失败', {
+        projectId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return false;
+    }
+  }
+
+  async getSpaceInfo(projectId: string): Promise<any> {
+    try {
+      this.logger.info('获取图空间信息', { projectId });
+
+      // 获取空间信息
+      const spaceResult = await this.graphDatabase.executeReadQuery('SHOW SPACES', {});
+      const spaceInfo = spaceResult?.rows?.find((row: string[]) => row[0] === projectId);
+
+      if (!spaceInfo) {
+        throw new Error(`Space ${projectId} does not exist`);
+      }
+
+      // 从SHOW SPACES结果中获取空间详细信息
+      const spaceName = spaceInfo[0];
+      const partitionNum = spaceInfo[1];
+      const replicaFactor = spaceInfo[3];
+
+      // 获取更详细的空间信息
+      const spaceDetailsResult = await this.graphDatabase.executeReadQuery(`DESCRIBE SPACE \`${projectId}\``, {});
+      const spaceDetails = spaceDetailsResult?.rows?.[0];
+      const vidType = spaceDetails ? spaceDetails[3] : 'FIXED_STRING(30)'; // 通常在第4列
+
+      // 获取空间状态（在线/离线等）
+      const statusResult = await this.graphDatabase.executeReadQuery('SHOW HOSTS', {});
+      const onlineHosts = statusResult?.rows?.filter((row: string[]) => row[4] === 'ONLINE').length || 0; // 假设第5列是状态
+      const status = onlineHosts > 0 ? 'ready' : 'unavailable';
+
+      // 获取节点和边的总数
+      await this.graphDatabase.executeWriteQuery(`USE \`${projectId}\``, {});
+      const nodesResult = await this.graphDatabase.executeReadQuery('LOOKUP ON * LIMIT 1', {});
+      const nodeCount = nodesResult?.rows?.length || 0;
+
+      const edgesResult = await this.graphDatabase.executeReadQuery('MATCH ()-[e]->() RETURN count(e) AS edgeCount', {});
+      const edgeCount = edgesResult?.rows?.[0]?.[0] || 0;
+
+      return {
+        spaceName,
+        partitionNum,
+        replicaFactor,
+        vidType,
+        status,
+        nodeCount,
+        edgeCount,
+        createdAt: spaceInfo[5] || 'unknown', // 假设第6列是创建时间
+        spaceId: spaceInfo[2] || 'unknown' // 假设第3列是空间ID
+      };
+    } catch (error) {
+      this.logger.error('获取图空间信息失败', {
+        projectId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  }
+
+  async batchInsertNodes(nodes: any[], projectId: string): Promise<any> {
+    try {
+      this.logger.info('批量插入节点', { projectId, nodeCount: nodes.length });
+
+      if (!nodes || nodes.length === 0) {
+        return {
+          success: true,
+          insertedCount: 0,
+          failedCount: 0,
+          errors: []
+        };
+      }
+
+      // 切换到对应的空间
+      await this.graphDatabase.executeWriteQuery(`USE \`${projectId}\``, {});
+
+      let insertedCount = 0;
+      const errors: string[] = [];
+      const batchSize = 100; // 每批处理100个节点
+
+      for (let i = 0; i < nodes.length; i += batchSize) {
+        const batch = nodes.slice(i, i + batchSize);
+        const insertPromises = batch.map(node => {
+          try {
+            // 构建INSERT查询
+            const nodeId = node.id || node._id || `node_${Date.now()}_${Math.random()}`;
+            const nodeType = node.type || node.label || 'default';
+            const properties = node.properties || node.props || {};
+
+            // 构建属性字符串
+            const propKeys = Object.keys(properties);
+            const propNames = propKeys.join(', ');
+            const propValues = propKeys.map(key => {
+              const value = properties[key];
+              if (typeof value === 'string') {
+                return `'${value.replace(/'/g, "\\'")}'`;
+              } else if (typeof value === 'number' || typeof value === 'boolean') {
+                return String(value);
+              } else {
+                return `'${JSON.stringify(value)}'`;
+              }
+            }).join(', ');
+
+            const nGQL = `
+              INSERT VERTEX \`${nodeType}\` (${propNames})
+              VALUES "${nodeId}": (${propValues})
+            `;
+
+            return this.graphDatabase.executeWriteQuery(nGQL, {});
+          } catch (err) {
+            errors.push(`Node ${node.id || i}: ${err instanceof Error ? err.message : String(err)}`);
+            return Promise.resolve(null);
+          }
+        });
+
+        const results = await Promise.allSettled(insertPromises);
+        results.forEach(result => {
+          if (result.status === 'fulfilled') {
+            insertedCount++;
+          } else {
+            errors.push(result.reason);
+          }
+        });
+      }
+
+      const failedCount = nodes.length - insertedCount;
+
+      return {
+        success: failedCount === 0,
+        insertedCount,
+        failedCount,
+        errors
+      };
+    } catch (error) {
+      this.logger.error('批量插入节点失败', {
+        projectId,
+        nodeCount: nodes.length,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  }
+
+  async batchInsertEdges(edges: any[], projectId: string): Promise<any> {
+    try {
+      this.logger.info('批量插入边', { projectId, edgeCount: edges.length });
+
+      if (!edges || edges.length === 0) {
+        return {
+          success: true,
+          insertedCount: 0,
+          failedCount: 0,
+          errors: []
+        };
+      }
+
+      // 切换到对应的空间
+      await this.graphDatabase.executeWriteQuery(`USE \`${projectId}\``, {});
+
+      let insertedCount = 0;
+      const errors: string[] = [];
+      const batchSize = 100; // 每批处理100个边
+
+      for (let i = 0; i < edges.length; i += batchSize) {
+        const batch = edges.slice(i, i + batchSize);
+        const insertPromises = batch.map(edge => {
+          try {
+            // 构建INSERT查询
+            const sourceId = edge.sourceId || edge.src || edge.from;
+            const targetId = edge.targetId || edge.dst || edge.to;
+            const edgeType = edge.type || edge.edgeType || 'default';
+            const properties = edge.properties || edge.props || {};
+
+            // 构建属性字符串
+            const propKeys = Object.keys(properties);
+            const propNames = propKeys.join(', ');
+            const propValues = propKeys.map(key => {
+              const value = properties[key];
+              if (typeof value === 'string') {
+                return `'${value.replace(/'/g, "\\'")}'`;
+              } else if (typeof value === 'number' || typeof value === 'boolean') {
+                return String(value);
+              } else {
+                return `'${JSON.stringify(value)}'`;
+              }
+            }).join(', ');
+
+            const nGQL = `
+              INSERT EDGE \`${edgeType}\` (${propNames})
+              VALUES "${sourceId}" -> "${targetId}": (${propValues})
+            `;
+
+            return this.graphDatabase.executeWriteQuery(nGQL, {});
+          } catch (err) {
+            errors.push(`Edge from ${edge.sourceId} to ${edge.targetId}: ${err instanceof Error ? err.message : String(err)}`);
+            return Promise.resolve(null);
+          }
+        });
+
+        const results = await Promise.allSettled(insertPromises);
+        results.forEach(result => {
+          if (result.status === 'fulfilled') {
+            insertedCount++;
+          } else {
+            errors.push(result.reason);
+          }
+        });
+      }
+
+      const failedCount = edges.length - insertedCount;
+
+      return {
+        success: failedCount === 0,
+        insertedCount,
+        failedCount,
+        errors
+      };
+    } catch (error) {
+      this.logger.error('批量插入边失败', {
+        projectId,
+        edgeCount: edges.length,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  }
+
+  async batchDeleteNodes(nodeIds: string[], projectId: string): Promise<boolean> {
+    try {
+      this.logger.info('批量删除节点', { projectId, nodeCount: nodeIds.length });
+
+      if (!nodeIds || nodeIds.length === 0) {
+        return true;
+      }
+
+      // 切换到对应的空间
+      await this.graphDatabase.executeWriteQuery(`USE \`${projectId}\``, {});
+
+      const batchSize = 100; // 每批处理100个节点
+      let success = true;
+      const errors: string[] = [];
+
+      for (let i = 0; i < nodeIds.length; i += batchSize) {
+        const batch = nodeIds.slice(i, i + batchSize);
+        const nodeIdsStr = batch.map(id => `"${id}"`).join(', ');
+
+        try {
+          // 删除节点及其关联的边
+          const nGQL = `DELETE VERTEX ${nodeIdsStr} WITH EDGE`;
+          await this.graphDatabase.executeWriteQuery(nGQL, {});
+        } catch (err) {
+          success = false;
+          errors.push(`Batch ${i / batchSize}: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+
+      if (errors.length > 0) {
+        this.logger.warn('批量删除节点部分失败', { projectId, errors });
+      } else {
+        this.logger.info('节点删除成功', { projectId, nodeCount: nodeIds.length });
+      }
+
+      return success;
+    } catch (error) {
+      this.logger.error('批量删除节点失败', {
+        projectId,
+        nodeCount: nodeIds.length,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return false;
+    }
+  }
   private buildSearchQuery(query: string, options: GraphSearchOptions): { nGQL: string; params: Record<string, any> } {
-    // Default search query - this would be more sophisticated in a real implementation
-    // For now, we'll create a basic query that searches for nodes matching the query string
-    const { limit = 10, depth = 2, relationshipTypes, nodeTypes } = options;
+    // 默认搜索查询 - 这是一个更加智能的实现
+    const { limit = 10, depth = 2, relationshipTypes, nodeTypes, searchType = 'keyword' } = options;
 
-    // Build a query based on the search term
-    // This is a simplified implementation - a real implementation would use more sophisticated search
-    let nGQL = `
-      LOOKUP ON * WHERE * CONTAINS "${query}"
-      YIELD vertex AS node
-      LIMIT ${limit}
-    `;
+    let nGQL = '';
+    const params: Record<string, any> = {};
 
-    // If specific node types are requested
-    if (nodeTypes && nodeTypes.length > 0) {
-      const nodeTypeClause = nodeTypes.join(', ');
-      nGQL = `
-        GO ${depth} STEPS FROM "${query}" OVER * 
-        YIELD dst(edge) AS destination
-        | FETCH PROP ON ${nodeTypeClause} $-.destination YIELD vertex AS node
-        LIMIT ${limit}
-      `;
+    // 根据搜索类型构建不同的查询
+    switch (searchType) {
+      case 'keyword': // 关键词搜索
+        // 使用 LOOKUP 语句进行文本搜索
+        if (nodeTypes && nodeTypes.length > 0) {
+          // 如果指定了节点类型，只在这些类型中搜索
+          const nodeTypeClause = nodeTypes.map(type => `\`${type}\``).join(', ');
+          nGQL = `
+            LOOKUP ON ${nodeTypeClause} WHERE * CONTAINS "${query}"
+            YIELD vertex AS node
+            LIMIT ${limit}
+          `;
+        } else {
+          // 否则在所有标签中搜索
+          nGQL = `
+            LOOKUP ON * WHERE * CONTAINS "${query}"
+            YIELD vertex AS node
+            LIMIT ${limit}
+          `;
+        }
+        break;
+
+      case 'exact': // 精确搜索 - 查找具有特定ID的节点
+        nGQL = `
+          FETCH PROP ON * "${query}"
+          YIELD vertex AS node
+        `;
+        break;
+
+      case 'neighbor': // 邻居搜索 - 查找与查询节点相关的节点
+        if (nodeTypes && nodeTypes.length > 0) {
+          const nodeTypeClause = nodeTypes.map(type => `\`${type}\``).join(', ');
+          nGQL = `
+            GO ${depth} STEPS FROM "${query}" OVER *
+            YIELD dst(edge) AS destination
+            | FETCH PROP ON ${nodeTypeClause} $-.destination YIELD vertex AS node
+            LIMIT ${limit}
+          `;
+        } else if (relationshipTypes && relationshipTypes.length > 0) {
+          const relationshipTypeClause = relationshipTypes.map(type => `\`${type}\``).join(', ');
+          nGQL = `
+            GO ${depth} STEPS FROM "${query}" OVER ${relationshipTypeClause}
+            YIELD dst(edge) AS destination
+            | FETCH PROP ON * $-.destination YIELD vertex AS node
+            LIMIT ${limit}
+          `;
+        } else {
+          nGQL = `
+            GO ${depth} STEPS FROM "${query}" OVER *
+            YIELD dst(edge) AS destination
+            | FETCH PROP ON * $-.destination YIELD vertex AS node
+            LIMIT ${limit}
+          `;
+        }
+        break;
+
+      case 'path': // 路径搜索 - 搜索两个节点之间的路径
+        // 这里假设查询格式为 "sourceId,targetId"
+        const ids = query.split(',');
+        if (ids.length >= 2) {
+          const sourceId = ids[0];
+          const targetId = ids[1];
+          nGQL = `
+            FIND SHORTEST PATH FROM "${sourceId}" TO "${targetId}" OVER * UPTO ${depth} STEPS
+            YIELD path AS p
+            LIMIT ${limit}
+          `;
+        } else {
+          // 如果没有提供目标ID，则搜索从源节点出发的路径
+          nGQL = `
+            GO ${depth} STEPS FROM "${query}" OVER *
+            YIELD path AS p
+            LIMIT ${limit}
+          `;
+        }
+        break;
+
+      case 'schema': // 模式搜索 - 根据节点类型或关系类型搜索
+        if (nodeTypes && nodeTypes.length > 0) {
+          const nodeTypeClause = nodeTypes.map(type => `\`${type}\``).join(', ');
+          nGQL = `
+            LOOKUP ON ${nodeTypeClause}
+            YIELD vertex AS node
+            LIMIT ${limit}
+          `;
+        } else if (relationshipTypes && relationshipTypes.length > 0) {
+          const relTypeClause = relationshipTypes.map(type => `\`${type}\``).join(', ');
+          nGQL = `
+            GO 1 STEPS FROM "${query}" OVER ${relTypeClause}
+            YIELD dst(edge) AS destination
+            | FETCH PROP ON * $-.destination YIELD vertex AS node
+            LIMIT ${limit}
+          `;
+        } else {
+          nGQL = `
+            LOOKUP ON * WHERE * CONTAINS "${query}"
+            YIELD vertex AS node
+            LIMIT ${limit}
+          `;
+        }
+        break;
+
+      default: // 默认关键词搜索
+        nGQL = `
+          LOOKUP ON * WHERE * CONTAINS "${query}"
+          YIELD vertex AS node
+          LIMIT ${limit}
+        `;
+        break;
     }
-    // If specific relationship types are requested
-    else if (relationshipTypes && relationshipTypes.length > 0) {
-      const relationshipTypeClause = relationshipTypes.join(', ');
-      nGQL = `
-        GO ${depth} STEPS FROM "${query}" OVER ${relationshipTypeClause}
-        YIELD dst(edge) AS destination
-        | FETCH PROP ON * $-.destination YIELD vertex AS node
-        LIMIT ${limit}
-      `;
-    }
 
-    return { nGQL, params: {} };
+    return { nGQL, params };
   }
 
   private buildNodeTypeQuery(nodeType: string, options: GraphSearchOptions): { nGQL: string; params: Record<string, any> } {
     const { limit = 10 } = options;
 
     const nGQL = `
-      LOOKUP ON \`${nodeType}\` 
+      LOOKUP ON \`${nodeType}\`
       YIELD vertex AS node
       LIMIT ${limit}
     `;
@@ -425,23 +937,75 @@ export class GraphSearchServiceNew implements IGraphSearchService {
   }
 
   private formatNodes(nodes: any[]): CodeGraphNode[] {
-    // Format the nodes to a consistent structure
-    return nodes.map(node => ({
-      id: node.id || node._id || node.vertex?.id || 'unknown',
-      type: node.type || node.label || node.tag || 'unknown',
-      name: node.name || node.label || 'unknown',
-      properties: node.properties || node.props || node.vertex?.props || {},
-    }));
+    // 将节点格式化为一致的结构
+    return nodes.map(node => {
+      // 处理不同格式的节点数据
+      let id, type, name, properties;
+
+      if (node.vertex) {
+        // NebulaGraph vertex 格式
+        id = node.vertex.id || node.vertex._vid || 'unknown';
+        type = node.vertex.tag || node.vertex._tag || 'unknown';
+        name = node.vertex.name || node.vertex._tag || id;
+        properties = node.vertex.props || node.vertex.properties || {};
+      } else if (node[0]) {
+        // 查询结果的行格式
+        id = node[0]?.id || node[0]?._vid || 'unknown';
+        type = node[0]?.tag || node[0]?._tag || 'unknown';
+        name = node[0]?.name || node[0]?._tag || id;
+        properties = node[0]?.props || node[0]?.properties || {};
+      } else {
+        // 标准格式
+        id = node.id || node._id || node.vertex?.id || node.vertex?._vid || 'unknown';
+        type = node.type || node.label || node.tag || node.vertex?.tag || 'unknown';
+        name = node.name || node.label || id;
+        properties = node.properties || node.props || node.vertex?.props || {};
+      }
+
+      return {
+        id,
+        type,
+        name,
+        properties
+      };
+    });
   }
 
   private formatRelationships(relationships: any[]): CodeGraphRelationship[] {
-    // Format the relationships to a consistent structure
-    return relationships.map(rel => ({
-      id: rel.id || rel._id || 'unknown',
-      type: rel.type || rel.edge?.type || 'unknown',
-      sourceId: rel.source || rel.src || rel.edge?.src || 'unknown',
-      targetId: rel.target || rel.dst || rel.edge?.dst || 'unknown',
-      properties: rel.properties || rel.props || rel.edge?.props || {},
-    }));
+    // 将关系格式化为一致的结构
+    return relationships.map(rel => {
+      let id, type, sourceId, targetId, properties;
+
+      if (rel.edge) {
+        // NebulaGraph edge 格式
+        id = rel.edge.id || rel.edge._edgeId || 'unknown';
+        type = rel.edge.type || rel.edge.edgeType || rel.edge.name || 'unknown';
+        sourceId = rel.edge.src || rel.edge._src || rel.edge.from || 'unknown';
+        targetId = rel.edge.dst || rel.edge._dst || rel.edge.to || 'unknown';
+        properties = rel.edge.props || rel.edge.properties || {};
+      } else if (rel[0]) {
+        // 查询结果的行格式
+        id = rel[0]?.id || rel[0]?._edgeId || 'unknown';
+        type = rel[0]?.type || rel[0]?.edgeType || rel[0]?.name || 'unknown';
+        sourceId = rel[0]?.src || rel[0]?._src || rel[0]?.from || 'unknown';
+        targetId = rel[0]?.dst || rel[0]?._dst || rel[0]?.to || 'unknown';
+        properties = rel[0]?.props || rel[0]?.properties || {};
+      } else {
+        // 标准格式
+        id = rel.id || rel._id || rel.edge?.id || rel.edge?._edgeId || 'unknown';
+        type = rel.type || rel.edgeType || rel.name || rel.edge?.type || 'unknown';
+        sourceId = rel.source || rel.src || rel.from || rel.edge?.src || rel.edge?.from || 'unknown';
+        targetId = rel.target || rel.dst || rel.to || rel.edge?.dst || rel.edge?.to || 'unknown';
+        properties = rel.properties || rel.props || rel.edge?.props || {};
+      }
+
+      return {
+        id,
+        type,
+        sourceId,
+        targetId,
+        properties
+      };
+    });
   }
 }

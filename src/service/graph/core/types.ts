@@ -97,6 +97,7 @@ export interface GraphSearchOptions {
   relationshipTypes?: string[];
   nodeTypes?: string[];
   fuzzyMatch?: boolean;
+  searchType?: 'keyword' | 'exact' | 'neighbor' | 'path' | 'schema';
 }
 
 // 图搜索结果类型定义
