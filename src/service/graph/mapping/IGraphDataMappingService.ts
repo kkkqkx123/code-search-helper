@@ -11,7 +11,14 @@ export enum GraphNodeType {
   INTERFACE = 'Interface',
   METHOD = 'Method',
   PROPERTY = 'Property',
-  CHUNK = 'Chunk'
+  CHUNK = 'Chunk',
+  // HTML特定节点类型
+  ELEMENT = 'Element',
+  DOCUMENT = 'Document',
+  SCRIPT = 'Script',
+  STYLE = 'Style',
+  ATTRIBUTE = 'Attribute',
+  TEXT = 'Text'
 }
 
 // 图关系类型枚举

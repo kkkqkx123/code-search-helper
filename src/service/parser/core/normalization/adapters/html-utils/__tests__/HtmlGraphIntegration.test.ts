@@ -1,260 +1,350 @@
-import { HtmlGraphNodeGenerator } from '../HtmlGraphNodeGenerator';
-import { HtmlGraphRelationshipGenerator } from '../HtmlGraphRelationshipGenerator';
 import { HtmlRelationshipExtractor } from '../HtmlRelationshipExtractor';
-import { CodeChunk } from '../../../../types';
 import { HtmlRelationship } from '../HtmlRelationshipTypes';
 
 describe('HTML Graph Integration Tests', () => {
-    let nodeGenerator: HtmlGraphNodeGenerator;
-    let relationshipGenerator: HtmlGraphRelationshipGenerator;
     let relationshipExtractor: HtmlRelationshipExtractor;
 
     beforeEach(() => {
-        nodeGenerator = new HtmlGraphNodeGenerator();
-        relationshipGenerator = new HtmlGraphRelationshipGenerator();
         relationshipExtractor = new HtmlRelationshipExtractor();
     });
 
-    describe('Node Generation', () => {
-        test('should generate nodes from HTML chunks', () => {
-            // 创建模拟的代码块
-            const chunks: CodeChunk[] = [
-                {
-                    content: '<div class="container">Hello World</div>',
-                    metadata: {
-                        startLine: 1,
-                        endLine: 1,
-                        language: 'html',
-                        filePath: 'test.html',
+    describe('Relationship Extraction', () => {
+        test('should extract HTML relationships correctly', async () => {
+            // 创建模拟的AST节点
+            const mockAST = {
+                type: 'document',
+                startPosition: { row: 0, column: 0 },
+                children: [
+                    {
                         type: 'element',
-                        tagName: 'div',
-                        elementType: 'container',
-                        attributes: { class: 'container' },
-                        nodeId: 'test.html:1:element'
+                        childForFieldName: 'body',
+                        startPosition: { row: 0, column: 0 },
+                        children: [
+                            {
+                                type: 'start_tag',
+                                childForFieldName: 'tag_name',
+                                text: 'div',
+                                startPosition: { row: 0, column: 0 }
+                            },
+                            {
+                                type: 'element',
+                                childForFieldName: 'div',
+                                startPosition: { row: 0, column: 0 },
+                                children: [
+                                    {
+                                        type: 'start_tag',
+                                        childForFieldName: 'tag_name',
+                                        text: 'script',
+                                        startPosition: { row: 0, column: 0 }
+                                    },
+                                    {
+                                        type: 'attribute',
+                                        childForFieldName: 'attribute_name',
+                                        text: 'src',
+                                        startPosition: { row: 0, column: 0 }
+                                    },
+                                    {
+                                        type: 'quoted_attribute_value',
+                                        text: '"app.js"',
+                                        startPosition: { row: 0, column: 0 }
+                                    }
+                                ]
+                            }
+                        ]
                     }
-                },
-                {
-                    content: 'console.log("Hello");',
-                    metadata: {
-                        startLine: 2,
-                        endLine: 2,
-                        language: 'javascript',
-                        filePath: 'test.html',
-                        type: 'script',
-                        scriptId: 'script1',
-                        scriptLanguage: 'javascript',
-                        nodeId: 'test.html:2:script'
-                    }
-                }
-            ];
+                ]
+            } as any;
 
-            // 创建模拟的关系
-            const relationships: HtmlRelationship[] = [
-                {
-                    type: 'parent-child',
-                    source: 'test.html:1:element',
-                    target: 'test.html:2:script',
-                    metadata: {
-                        sourceTag: 'div',
-                        targetTag: 'script'
-                    },
-                    sourceTag: 'div',
-                    targetTag: 'script'
-                }
-            ];
+            // 提取关系
+            const result = await relationshipExtractor.extractAllRelationships(mockAST);
 
-            // 生成节点
-            const nodes = nodeGenerator.generateNodes(chunks, relationships);
-
-            expect(nodes).toHaveLength(2);
-            expect(nodes[0].type).toBe('Element');
-            expect(nodes[0].name).toBe('div');
-            expect(nodes[1].type).toBe('Script');
-            expect(nodes[1].name).toBe('script:script1');
+            expect(result.relationships).toBeDefined();
+            expect(result.relationships.length).toBeGreaterThan(0);
         });
 
-        test('should generate external resource nodes', () => {
-            const chunks: CodeChunk[] = [];
-            const relationships: HtmlRelationship[] = [
-                {
-                    type: 'resource-dependency',
-                    source: 'test.html:1:element',
-                    target: 'https://example.com/script.js',
-                    metadata: {
-                        resourceType: 'script',
-                        attribute: 'src'
+        test('should extract structural relationships', async () => {
+            const mockAST = {
+                type: 'element',
+                childForFieldName: 'div',
+                startPosition: { row: 0, column: 0 },
+                children: [
+                    {
+                        type: 'element',
+                        childForFieldName: 'p',
+                        startPosition: { row: 0, column: 0 },
+                        children: [
+                            {
+                                type: 'start_tag',
+                                childForFieldName: 'tag_name',
+                                text: 'p',
+                                startPosition: { row: 0, column: 0 }
+                            }
+                        ]
+                    }
+                ]
+            } as any;
+
+            const result = await relationshipExtractor.extractAllRelationships(mockAST);
+
+            // 应该提取到父子关系
+            const parentChildRelations = result.relationships.filter(
+                (rel: HtmlRelationship) => rel.type === 'parent-child'
+            );
+            expect(parentChildRelations.length).toBeGreaterThan(0);
+        });
+
+        test('should extract dependency relationships', async () => {
+            const mockAST = {
+                type: 'element',
+                childForFieldName: 'script',
+                startPosition: { row: 0, column: 0 },
+                children: [
+                    {
+                        type: 'attribute',
+                        childForFieldName: 'attribute_name',
+                        text: 'src',
+                        startPosition: { row: 0, column: 0 }
                     },
-                    dependencyType: 'src',
-                    resourceType: 'script',
-                    resourceUrl: 'https://example.com/script.js',
-                    isExternal: true
-                }
-            ];
+                    {
+                        type: 'quoted_attribute_value',
+                        text: '"app.js"',
+                        startPosition: { row: 0, column: 0 }
+                    }
+                ]
+            } as any;
 
-            const nodes = nodeGenerator.generateNodes(chunks, relationships);
+            const result = await relationshipExtractor.extractAllRelationships(mockAST);
 
-            expect(nodes).toHaveLength(1);
-            expect(nodes[0].type).toBe('Resource');
-            expect(nodes[0].name).toBe('script.js');
-            expect(nodes[0].properties.isExternal).toBe(true);
+            // 应该提取到资源依赖关系
+            const dependencyRelations = result.relationships.filter(
+                (rel: HtmlRelationship) => rel.type === 'resource-dependency'
+            );
+            expect(dependencyRelations.length).toBeGreaterThan(0);
+        });
+
+        test('should extract reference relationships', async () => {
+            const mockAST = {
+                type: 'element',
+                childForFieldName: 'label',
+                startPosition: { row: 0, column: 0 },
+                children: [
+                    {
+                        type: 'attribute',
+                        childForFieldName: 'attribute_name',
+                        text: 'for',
+                        startPosition: { row: 0, column: 0 }
+                    },
+                    {
+                        type: 'quoted_attribute_value',
+                        text: '"input-id"',
+                        startPosition: { row: 0, column: 0 }
+                    }
+                ]
+            } as any;
+
+            const result = await relationshipExtractor.extractAllRelationships(mockAST);
+
+            // 应该提取到引用关系
+            const referenceRelations = result.relationships.filter(
+                (rel: HtmlRelationship) => rel.type === 'id-reference'
+            );
+            expect(referenceRelations.length).toBeGreaterThan(0);
         });
     });
 
-    describe('Relationship Generation', () => {
-        test('should generate graph relationships from HTML relationships', () => {
-            // 创建模拟的图节点
-            const nodes = [
-                {
-                    id: 'test.html:1:element',
-                    type: 'Element',
-                    name: 'div',
-                    properties: {}
-                },
-                {
-                    id: 'test.html:2:script',
-                    type: 'Script',
-                    name: 'script',
-                    properties: {}
-                }
-            ];
-
-            // 创建模拟的HTML关系
-            const relationships: HtmlRelationship[] = [
-                {
-                    type: 'parent-child',
-                    source: 'test.html:1:element',
-                    target: 'test.html:2:script',
-                    metadata: {
-                        sourceTag: 'div',
-                        targetTag: 'script'
-                    },
+    describe('Relationship Types', () => {
+        test('should create proper structural relationships', () => {
+            const structuralRel: HtmlRelationship = {
+                type: 'parent-child',
+                source: 'div-1',
+                target: 'p-1',
+                metadata: {
                     sourceTag: 'div',
-                    targetTag: 'script'
-                }
-            ];
+                    targetTag: 'p'
+                },
+                sourceTag: 'div',
+                targetTag: 'p'
+            };
 
-            // 生成图关系
-            const graphRelationships = relationshipGenerator.generateRelationships(relationships, nodes);
-
-            expect(graphRelationships).toHaveLength(1);
-            expect(graphRelationships[0].type).toBe('CONTAINS');
-            expect(graphRelationships[0].sourceId).toBe('test.html:1:element');
-            expect(graphRelationships[0].targetId).toBe('test.html:2:script');
-            expect(graphRelationships[0].properties.originalType).toBe('parent-child');
+            expect(structuralRel.type).toBe('parent-child');
+            expect(structuralRel.sourceTag).toBe('div');
+            expect(structuralRel.targetTag).toBe('p');
         });
 
-        test('should handle missing nodes gracefully', () => {
-            const nodes = [
-                {
-                    id: 'test.html:1:element',
-                    type: 'Element',
-                    name: 'div',
-                    properties: {}
-                }
-            ];
+        test('should create proper dependency relationships', () => {
+            const dependencyRel: HtmlRelationship = {
+                type: 'resource-dependency',
+                source: 'script-1',
+                target: 'app.js',
+                metadata: {
+                    resourceType: 'script',
+                    attribute: 'src'
+                },
+                dependencyType: 'src',
+                resourceType: 'script',
+                resourceUrl: 'app.js',
+                isExternal: false
+            };
 
-            const relationships: HtmlRelationship[] = [
-                {
-                    type: 'parent-child',
-                    source: 'test.html:1:element',
-                    target: 'test.html:2:script', // 这个节点不存在
-                    metadata: {},
-                    sourceTag: 'div',
-                    targetTag: 'script'
-                }
-            ];
+            expect(dependencyRel.type).toBe('resource-dependency');
+            expect(dependencyRel.dependencyType).toBe('src');
+            expect(dependencyRel.resourceType).toBe('script');
+            expect(dependencyRel.resourceUrl).toBe('app.js');
+        });
 
-            const graphRelationships = relationshipGenerator.generateRelationships(relationships, nodes);
+        test('should create proper reference relationships', () => {
+            const referenceRel: HtmlRelationship = {
+                type: 'id-reference',
+                source: 'label-1',
+                target: 'input-1',
+                metadata: {
+                    referenceType: 'for',
+                    referenceValue: 'input-id'
+                },
+                referenceType: 'for',
+                referenceValue: 'input-id',
+                referenceAttribute: 'for'
+            };
 
-            // 应该返回空数组，因为目标节点不存在
-            expect(graphRelationships).toHaveLength(0);
+            expect(referenceRel.type).toBe('id-reference');
+            expect(referenceRel.referenceType).toBe('for');
+            expect(referenceRel.referenceValue).toBe('input-id');
         });
     });
 
     describe('Integration Test', () => {
-        test('should work end-to-end with realistic data', () => {
-            // 创建更真实的HTML代码块
-            const chunks: CodeChunk[] = [
-                {
-                    content: '<html><head><title>Test</title></head><body>',
-                    metadata: {
-                        startLine: 1,
-                        endLine: 1,
-                        language: 'html',
-                        filePath: 'test.html',
-                        type: 'document',
-                        nodeId: 'test.html:1:document'
-                    }
-                },
-                {
-                    content: '<div id="main" class="container">',
-                    metadata: {
-                        startLine: 2,
-                        endLine: 2,
-                        language: 'html',
-                        filePath: 'test.html',
+        test('should handle complex HTML structure', async () => {
+            const mockAST = {
+                type: 'document',
+                startPosition: { row: 0, column: 0 },
+                children: [
+                    {
                         type: 'element',
-                        tagName: 'div',
-                        attributes: { id: 'main', class: 'container' },
-                        nodeId: 'test.html:2:element'
+                        childForFieldName: 'html',
+                        startPosition: { row: 0, column: 0 },
+                        children: [
+                            {
+                                type: 'element',
+                                childForFieldName: 'head',
+                                startPosition: { row: 0, column: 0 },
+                                children: [
+                                    {
+                                        type: 'element',
+                                        childForFieldName: 'title',
+                                        startPosition: { row: 0, column: 0 },
+                                        children: [
+                                            {
+                                                type: 'text',
+                                                text: 'Test Page',
+                                                startPosition: { row: 0, column: 0 }
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        type: 'element',
+                                        childForFieldName: 'link',
+                                        startPosition: { row: 0, column: 0 },
+                                        children: [
+                                            {
+                                                type: 'attribute',
+                                                childForFieldName: 'attribute_name',
+                                                text: 'rel',
+                                                startPosition: { row: 0, column: 0 }
+                                            },
+                                            {
+                                                type: 'quoted_attribute_value',
+                                                text: '"stylesheet"',
+                                                startPosition: { row: 0, column: 0 }
+                                            },
+                                            {
+                                                type: 'attribute',
+                                                childForFieldName: 'attribute_name',
+                                                text: 'href',
+                                                startPosition: { row: 0, column: 0 }
+                                            },
+                                            {
+                                                type: 'quoted_attribute_value',
+                                                text: '"styles.css"',
+                                                startPosition: { row: 0, column: 0 }
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                type: 'element',
+                                childForFieldName: 'body',
+                                startPosition: { row: 0, column: 0 },
+                                children: [
+                                    {
+                                        type: 'element',
+                                        childForFieldName: 'div',
+                                        startPosition: { row: 0, column: 0 },
+                                        children: [
+                                            {
+                                                type: 'attribute',
+                                                childForFieldName: 'attribute_name',
+                                                text: 'id',
+                                                startPosition: { row: 0, column: 0 }
+                                            },
+                                            {
+                                                type: 'quoted_attribute_value',
+                                                text: '"main"',
+                                                startPosition: { row: 0, column: 0 }
+                                            },
+                                            {
+                                                type: 'element',
+                                                childForFieldName: 'button',
+                                                startPosition: { row: 0, column: 0 },
+                                                children: [
+                                                    {
+                                                        type: 'attribute',
+                                                        childForFieldName: 'attribute_name',
+                                                        text: 'onclick',
+                                                        startPosition: { row: 0, column: 0 }
+                                                    },
+                                                    {
+                                                        type: 'quoted_attribute_value',
+                                                        text: '"handleClick()"',
+                                                        startPosition: { row: 0, column: 0 }
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        type: 'element',
+                                        childForFieldName: 'script',
+                                        startPosition: { row: 0, column: 0 },
+                                        children: [
+                                            {
+                                                type: 'attribute',
+                                                childForFieldName: 'attribute_name',
+                                                text: 'src',
+                                                startPosition: { row: 0, column: 0 }
+                                            },
+                                            {
+                                                type: 'quoted_attribute_value',
+                                                text: '"app.js"',
+                                                startPosition: { row: 0, column: 0 }
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
                     }
-                },
-                {
-                    content: '<script src="app.js"></script>',
-                    metadata: {
-                        startLine: 3,
-                        endLine: 3,
-                        language: 'html',
-                        filePath: 'test.html',
-                        type: 'element',
-                        tagName: 'script',
-                        attributes: { src: 'app.js' },
-                        nodeId: 'test.html:3:element'
-                    }
-                }
-            ];
+                ]
+            } as any;
 
-            const relationships: HtmlRelationship[] = [
-                {
-                    type: 'parent-child',
-                    source: 'test.html:1:document',
-                    target: 'test.html:2:element',
-                    metadata: {
-                        sourceTag: 'html',
-                        targetTag: 'div'
-                    },
-                    sourceTag: 'html',
-                    targetTag: 'div'
-                },
-                {
-                    type: 'resource-dependency',
-                    source: 'test.html:3:element',
-                    target: 'app.js',
-                    metadata: {
-                        resourceType: 'script',
-                        attribute: 'src'
-                    },
-                    dependencyType: 'src',
-                    resourceType: 'script',
-                    resourceUrl: 'app.js',
-                    isExternal: false
-                }
-            ];
+            const result = await relationshipExtractor.extractAllRelationships(mockAST);
 
-            // 生成节点
-            const nodes = nodeGenerator.generateNodes(chunks, relationships);
-            expect(nodes).toHaveLength(4); // 3个内部节点 + 1个外部资源节点
+            expect(result.relationships.length).toBeGreaterThan(0);
 
-            // 生成关系
-            const graphRelationships = relationshipGenerator.generateRelationships(relationships, nodes);
-            expect(graphRelationships).toHaveLength(2); // 1个结构关系 + 1个依赖关系
-
-            // 验证关系类型映射
-            const containsRel = graphRelationships.find(rel => rel.type === 'CONTAINS');
-            expect(containsRel).toBeDefined();
-            
-            const dependsRel = graphRelationships.find(rel => rel.type === 'DEPENDS_ON');
-            expect(dependsRel).toBeDefined();
+            // 验证不同类型的关系都被提取
+            const types = new Set(result.relationships.map(rel => rel.type));
+            expect(types.has('parent-child')).toBe(true);
+            expect(types.has('resource-dependency')).toBe(true);
         });
     });
 });

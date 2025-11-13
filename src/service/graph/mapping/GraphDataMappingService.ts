@@ -272,8 +272,19 @@ export class GraphDataMappingService implements IGraphDataMappingService {
       'interface': GraphNodeType.INTERFACE,
       'method': GraphNodeType.METHOD,
       'type': GraphNodeType.PROPERTY, // Map 'type' to property for now
+      // HTML特定类型映射
+      'element': GraphNodeType.ELEMENT,
+      'document': GraphNodeType.DOCUMENT,
+      'script': GraphNodeType.SCRIPT,
+      'style': GraphNodeType.STYLE,
+      'attribute': GraphNodeType.ATTRIBUTE,
+      'text': GraphNodeType.TEXT,
+      'html_structure': GraphNodeType.ELEMENT,
+      'script_content': GraphNodeType.SCRIPT,
+      'style_content': GraphNodeType.STYLE,
+      'html_fallback': GraphNodeType.DOCUMENT
     };
-    return typeMapping[standardizedType] || GraphNodeType.VARIABLE;
+    return typeMapping[standardizedType] || GraphNodeType.CHUNK;
   }
 
   private mapRelationshipTypeToGraphType(relationshipType: string): GraphRelationshipType {
@@ -288,6 +299,99 @@ export class GraphDataMappingService implements IGraphDataMappingService {
     }
     
     return GraphRelationshipType.USES;
+  }
+
+  /**
+   * 从CodeChunk创建图节点
+   */
+  private createNodeFromChunk(chunk: CodeChunk, parentFileId: string): GraphNode | null {
+    try {
+      const nodeType = this.mapStandardizedTypeToGraphType(chunk.metadata.type || 'chunk');
+      const nodeId = this.generateChunkNodeId(chunk, parentFileId);
+      
+      const metadataBuilder = new MetadataBuilder()
+        .setLanguage(chunk.metadata.language || '')
+        .setComplexity(chunk.metadata.complexity || 1)
+        .addCustomField('content', chunk.content)
+        .addCustomField('startLine', chunk.metadata.startLine)
+        .addCustomField('endLine', chunk.metadata.endLine)
+        .addCustomField('size', chunk.content.length)
+        .addCustomField('indexedAt', Date.now())
+        .addCustomField('graphVertex', true);
+
+      // 添加HTML特定的属性
+      if (chunk.metadata.tagName) {
+        metadataBuilder.addCustomField('tagName', chunk.metadata.tagName);
+      }
+      if (chunk.metadata.elementType) {
+        metadataBuilder.addCustomField('elementType', chunk.metadata.elementType);
+      }
+      if (chunk.metadata.attributes) {
+        metadataBuilder.addCustomField('attributes', chunk.metadata.attributes);
+      }
+      if (chunk.metadata.scriptId) {
+        metadataBuilder.addCustomField('scriptId', chunk.metadata.scriptId);
+      }
+      if (chunk.metadata.scriptLanguage) {
+        metadataBuilder.addCustomField('scriptLanguage', chunk.metadata.scriptLanguage);
+      }
+      if (chunk.metadata.styleId) {
+        metadataBuilder.addCustomField('styleId', chunk.metadata.styleId);
+      }
+      if (chunk.metadata.styleType) {
+        metadataBuilder.addCustomField('styleType', chunk.metadata.styleType);
+      }
+
+      return {
+        id: nodeId,
+        type: nodeType,
+        properties: {
+          name: this.generateChunkNodeName(chunk),
+          filePath: chunk.metadata.filePath,
+          parentFileId,
+          ...metadataBuilder.build()
+        }
+      };
+    } catch (error) {
+      this.logger.error(`Failed to create node from chunk: ${error}`);
+      return null;
+    }
+  }
+
+  /**
+   * 生成代码块节点ID
+   */
+  private generateChunkNodeId(chunk: CodeChunk, parentFileId: string): string {
+    const filePath = chunk.metadata.filePath || 'unknown';
+    const startLine = chunk.metadata.startLine;
+    const chunkType = chunk.metadata.type || 'chunk';
+    return `${parentFileId}:${filePath}:${startLine}:${chunkType}`;
+  }
+
+  /**
+   * 生成代码块节点名称
+   */
+  private generateChunkNodeName(chunk: CodeChunk): string {
+    const metadata = chunk.metadata;
+    
+    // 优先使用tagName
+    if (metadata.tagName) {
+      return metadata.tagName;
+    }
+    
+    // 使用scriptId或styleId
+    if (metadata.scriptId) {
+      return `script:${metadata.scriptId}`;
+    }
+    
+    if (metadata.styleId) {
+      return `style:${metadata.styleId}`;
+    }
+    
+    // 使用类型和位置信息
+    const type = metadata.type || 'chunk';
+    const line = metadata.startLine;
+    return `${type}:${line}`;
   }
 
   async mapFileToGraphNodes(
@@ -578,16 +682,37 @@ export class GraphDataMappingService implements IGraphDataMappingService {
   ): Promise<ChunkNodeMappingResult> {
     const result = await this.faultToleranceHandler.executeWithFaultTolerance(
       async () => {
-        // 简单实现，实际项目中可能需要更复杂的逻辑
         const nodes: GraphNode[] = [];
         const relationships: GraphRelationship[] = [];
+
+        for (const chunk of chunks) {
+          const node = await this.createNodeFromChunkAsync(chunk, parentFileId);
+          if (node) {
+            nodes.push(node);
+            
+            // 创建文件到块的关系
+            const fileToChunkRel: GraphRelationship = {
+              id: uuidv4(),
+              type: GraphRelationshipType.CONTAINS,
+              fromNodeId: parentFileId,
+              toNodeId: node.id,
+              properties: {
+                chunkType: chunk.metadata.type,
+                language: chunk.metadata.language,
+                startLine: chunk.metadata.startLine,
+                endLine: chunk.metadata.endLine
+              }
+            };
+            relationships.push(fileToChunkRel);
+          }
+        }
 
         return {
           nodes,
           relationships,
           stats: {
-            chunkNodes: chunks.length,
-            relationships: 0
+            chunkNodes: nodes.length,
+            relationships: relationships.length
           }
         };
       },
@@ -600,6 +725,13 @@ export class GraphDataMappingService implements IGraphDataMappingService {
     } else {
       throw result.error || new Error('Failed to map chunks to graph nodes');
     }
+  }
+
+  /**
+   * 异步方式从CodeChunk创建图节点
+   */
+  private async createNodeFromChunkAsync(chunk: CodeChunk, parentFileId: string): Promise<GraphNode | null> {
+    return this.createNodeFromChunk(chunk, parentFileId);
   }
 
   createFileNode(
