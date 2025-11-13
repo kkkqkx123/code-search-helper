@@ -22,6 +22,7 @@ import { IPerformanceMonitor } from '../../../../../infrastructure/monitoring/ty
 import { SegmentationConfigService } from '../../../../../config/service/SegmentationConfigService';
 import { HashUtils } from '../../../../../utils/cache/HashUtils';
 import { SegmentationConfig } from '../../../../../config/ConfigTypes';
+import { UnifiedContentAnalyzer } from '../../../core/normalization/ContentAnalyzer';
 
 @injectable()
 export class ASTCodeSplitter {
@@ -30,6 +31,7 @@ export class ASTCodeSplitter {
     @inject(TYPES.DetectionService) private detectionService: DetectionService,
     @inject(TYPES.LoggerService) private logger: LoggerService,
     @inject(TYPES.SegmentationConfigService) private segmentationConfigService: SegmentationConfigService,
+    @inject(TYPES.UnifiedContentAnalyzer) private unifiedContentAnalyzer: UnifiedContentAnalyzer,
     @inject(TYPES.CacheService) private cacheService?: ICacheService,
     @inject(TYPES.PerformanceMonitor) private performanceMonitor?: IPerformanceMonitor
   ) {
@@ -146,10 +148,18 @@ export class ASTCodeSplitter {
     const lines = content.split('\n');
 
     try {
-      // 第一层：顶级结构提取
-      const topLevelStructures = await ContentAnalyzer.extractTopLevelStructures(content, language);
+      // 使用统一内容分析器提取所有结构
+      const extractionResult = await this.unifiedContentAnalyzer.extractAllStructures(content, language, {
+        includeTopLevel: true,
+        includeNested: this.config.nesting.enableNestedExtraction,
+        includeInternal: false, // 内部结构通常不需要作为单独的块
+        maxNestingLevel: this.config.nesting.maxNestingLevel || 5,
+        enableCache: this.config.performance?.enableCaching,
+        enablePerformanceMonitoring: true
+      });
 
-      for (const structure of topLevelStructures) {
+      // 处理顶级结构
+      for (const structure of extractionResult.topLevelStructures) {
         if (ValidationUtils.isValidStructure(structure)) {
           // 验证结构
           const location = structure.location;
@@ -167,23 +177,32 @@ export class ASTCodeSplitter {
             );
 
             chunks.push(chunk);
-
-            // 第二层：嵌套结构提取（如果启用）
-            if (this.config.nesting.enableNestedExtraction && this.config.nesting.maxNestingLevel && this.config.nesting.maxNestingLevel >= 2) {
-              const nestedChunks = await this.extractNestedStructures(
-                structure,
-                content,
-                filePath,
-                language,
-                2,
-                ast
-              );
-              chunks.push(...nestedChunks);
-            }
           }
         }
       }
 
+      // 处理嵌套结构
+      for (const structure of extractionResult.nestedStructures) {
+        if (ValidationUtils.isValidStructure(structure)) {
+          // 验证结构
+          const location = structure.location;
+          const isValid = this.validateStructure(structure.type, structure.content, location);
+
+          if (isValid) {
+            // 转换为分层结构
+            const hierarchicalStructure = TypeMappingUtils.convertNestedToHierarchical(structure);
+
+            // 转换为代码块
+            const chunk = QueryResultConverter.convertSingleHierarchicalStructure(
+              hierarchicalStructure,
+              'ast-splitter',
+              filePath
+            );
+
+            chunks.push(chunk);
+          }
+        }
+      }
 
       // 如果没有提取到任何结构，返回包含整个文件的chunk
       if (chunks.length === 0) {
@@ -200,6 +219,8 @@ export class ASTCodeSplitter {
           }
         ));
       }
+
+      this.logger.debug(`使用统一内容分析器提取到 ${extractionResult.stats.totalStructures} 个结构，生成 ${chunks.length} 个代码块`);
 
       return chunks;
     } catch (error) {

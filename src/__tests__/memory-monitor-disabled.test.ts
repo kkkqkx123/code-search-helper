@@ -2,7 +2,7 @@ import { Container } from 'inversify';
 import { TYPES } from '../types';
 import { MemoryMonitorService } from '../service/memory/MemoryMonitorService';
 import { MemoryGuard } from '../service/parser/guard/MemoryGuard';
-import { PerformanceOptimizerService } from '../infrastructure/batching/PerformanceOptimizerService';
+import { PerformanceOptimizerService } from '../service/optimization/PerformanceOptimizerService';
 import { LoggerService } from '../utils/LoggerService';
 import { ErrorHandlerService } from '../utils/ErrorHandlerService';
 import { ConfigService } from '../config/ConfigService';
@@ -42,7 +42,7 @@ describe('Memory Monitor Disabled Tests', () => {
     container.bind<MonitoringConfigService>(TYPES.MonitoringConfigService).to(MonitoringConfigService).inSingletonScope();
     container.bind<MemoryMonitorConfigService>(TYPES.MemoryMonitorConfigService).to(MemoryMonitorConfigService).inSingletonScope();
     container.bind<FileProcessingConfigService>(TYPES.FileProcessingConfigService).to(FileProcessingConfigService).inSingletonScope();
-    
+
     container.bind<ProjectConfigService>(TYPES.ProjectConfigService).to(ProjectConfigService).inSingletonScope();
     container.bind<IndexingConfigService>(TYPES.IndexingConfigService).to(IndexingConfigService).inSingletonScope();
     container.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();

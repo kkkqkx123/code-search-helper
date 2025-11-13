@@ -27,20 +27,22 @@ import { GraphIndexService } from '../../service/index/GraphIndexService';
 import { HybridIndexService } from '../../service/index/HybridIndexService';
 
 // 性能优化服务
-import { PerformanceOptimizerService } from '../../infrastructure/batching/PerformanceOptimizerService';
-import { SemanticBatchStrategy } from '../../infrastructure/batching/strategies/SemanticBatchStrategy';
-import { QdrantBatchStrategy } from '../../infrastructure/batching/strategies/QdrantBatchStrategy';
-import { NebulaBatchStrategy } from '../../infrastructure/batching/strategies/NebulaBatchStrategy';
-import { EmbeddingBatchStrategy } from '../../infrastructure/batching/strategies/EmbeddingBatchStrategy';
+import { PerformanceOptimizerService } from '../../service/optimization/PerformanceOptimizerService';
 
 // 解析服务
 import { TreeSitterService } from '../../service/parser/core/parse/TreeSitterService';
 import { TreeSitterCoreService } from '../../service/parser/core/parse/TreeSitterCoreService';
-import { TreeSitterQueryEngine } from '../../service/parser/core/query/TreeSitterQueryExecutor';
+import { TreeSitterQueryEngine } from '../../service/parser/core/query/TreeSitterQueryEngine';
 
 import { ChunkToVectorCoordinationService } from '../../service/parser/ChunkToVectorCoordinationService';
 import { QueryResultNormalizer } from '../../service/parser/core/normalization/QueryResultNormalizer';
 import { SegmentationConfigService } from '../../config/service/SegmentationConfigService';
+
+// 新的AST结构提取器相关服务
+import { ASTStructureExtractor } from '../../service/parser/core/normalization/ASTStructureExtractor';
+import { ASTStructureExtractorFactory } from '../../service/parser/core/normalization/ASTStructureExtractorFactory';
+import { UnifiedContentAnalyzer } from '../../service/parser/core/normalization/ContentAnalyzer';
+import { StructureTypeConverter } from '../../service/parser/core/normalization/utils/StructureTypeConverter';
 
 // 通用文件处理服务
 import { UniversalTextStrategy } from '../../service/parser/processing/strategies/implementations/UniversalTextStrategy';
@@ -112,12 +114,12 @@ export class BusinessServiceRegistrar {
 
     try {
       logger?.info('Registering business services...');
-      
+
       // 首先注册相似度服务，确保所有依赖都可用
       logger?.info('Registering similarity services first...');
       SimilarityServiceRegistrar.register(container);
       logger?.info('Similarity services registered successfully');
-      
+
       // 文件系统服务
       container.bind<FileSystemTraversal>(TYPES.FileSystemTraversal).to(FileSystemTraversal).inSingletonScope();
       container.bind<FileHashManager>(TYPES.FileHashManager).to(FileHashManagerImpl).inSingletonScope();
@@ -166,6 +168,27 @@ export class BusinessServiceRegistrar {
 
       // 标准化服务
       container.bind<QueryResultNormalizer>(TYPES.QueryResultNormalizer).to(QueryResultNormalizer).inSingletonScope();
+
+      // 新的AST结构提取器相关服务
+      container.bind<StructureTypeConverter>(TYPES.StructureTypeConverter).to(StructureTypeConverter).inSingletonScope();
+
+      container.bind<ASTStructureExtractorFactory>(TYPES.ASTStructureExtractorFactory).toDynamicValue(context => {
+        const queryNormalizer = context.get<QueryResultNormalizer>(TYPES.QueryResultNormalizer);
+        const treeSitterCoreService = context.get<TreeSitterCoreService>(TYPES.TreeSitterCoreService);
+        return new ASTStructureExtractorFactory(queryNormalizer, treeSitterCoreService);
+      }).inSingletonScope();
+
+      container.bind<ASTStructureExtractor>(TYPES.ASTStructureExtractor).toDynamicValue(context => {
+        const factory = context.get<ASTStructureExtractorFactory>(TYPES.ASTStructureExtractorFactory);
+        return factory.getInstance();
+      }).inSingletonScope();
+
+      container.bind<UnifiedContentAnalyzer>(TYPES.UnifiedContentAnalyzer).toDynamicValue(context => {
+        const queryNormalizer = context.get<QueryResultNormalizer>(TYPES.QueryResultNormalizer);
+        const treeSitterCoreService = context.get<TreeSitterCoreService>(TYPES.TreeSitterCoreService);
+        const astStructureExtractor = context.get<ASTStructureExtractor>(TYPES.ASTStructureExtractor);
+        return new UnifiedContentAnalyzer(queryNormalizer, treeSitterCoreService, astStructureExtractor);
+      }).inSingletonScope();
 
       // 分段器模块服务 - 注意：UniversalTextStrategy 现在不使用 @injectable，需要手动实例化
       container.bind<UniversalTextStrategy>(TYPES.UniversalTextStrategy).toDynamicValue(() => {
@@ -382,11 +405,11 @@ export class BusinessServiceRegistrar {
       container.bind<IGraphIndexPerformanceMonitor>(TYPES.GraphIndexPerformanceMonitor).toDynamicValue(context => {
         const logger = context.get<LoggerService>(TYPES.LoggerService);
         const stats = new Map<string, GraphIndexPerformanceStats>();
-        
+
         return {
           recordMetric: (metric: GraphIndexMetric) => {
             logger?.debug(`Recording graph index metric: ${metric.operation} for project ${metric.projectId}`);
-            
+
             // 更新统计信息
             if (!stats.has(metric.projectId)) {
               stats.set(metric.projectId, {
@@ -410,23 +433,23 @@ export class BusinessServiceRegistrar {
                 }
               });
             }
-            
+
             const projectStats = stats.get(metric.projectId)!;
             projectStats.totalOperations++;
             projectStats.operations[metric.operation]++;
-            
+
             if (metric.success) {
               projectStats.successfulOperations++;
             } else {
               projectStats.failedOperations++;
             }
-            
+
             projectStats.successRate = projectStats.successfulOperations / projectStats.totalOperations;
-            
+
             // 更新平均操作时间
             const totalTime = projectStats.averageOperationTime * (projectStats.totalOperations - 1) + metric.duration;
             projectStats.averageOperationTime = totalTime / projectStats.totalOperations;
-            
+
             // 更新其他统计信息
             if (metric.metadata.fileCount) {
               projectStats.totalFilesProcessed += metric.metadata.fileCount;
@@ -441,38 +464,38 @@ export class BusinessServiceRegistrar {
               const totalBatchSize = projectStats.averageBatchSize * (projectStats.totalOperations - 1) + metric.metadata.batchSize;
               projectStats.averageBatchSize = totalBatchSize / projectStats.totalOperations;
             }
-            
+
             projectStats.lastUpdated = Date.now();
           },
-          
+
           getPerformanceStats: (projectId: string) => {
             return stats.get(projectId) || null;
           },
-          
+
           getAllPerformanceStats: () => {
             return new Map(stats);
           },
-          
+
           clearProjectStats: (projectId: string) => {
             stats.delete(projectId);
           },
-          
+
           clearAllStats: () => {
             stats.clear();
           },
-          
+
           getPerformanceReport: (projectId?: string) => {
-            const allStats = projectId ? 
-              (stats.get(projectId) ? [stats.get(projectId)!] : []) : 
+            const allStats = projectId ?
+              (stats.get(projectId) ? [stats.get(projectId)!] : []) :
               Array.from(stats.values());
-            
+
             const totalProjects = allStats.length;
             const totalOperations = allStats.reduce((sum, stat) => sum + stat.totalOperations, 0);
-            const overallSuccessRate = totalOperations > 0 ? 
+            const overallSuccessRate = totalOperations > 0 ?
               allStats.reduce((sum, stat) => sum + stat.successfulOperations, 0) / totalOperations : 0;
-            const averageOperationTime = totalOperations > 0 ? 
+            const averageOperationTime = totalOperations > 0 ?
               allStats.reduce((sum, stat) => sum + stat.averageOperationTime * stat.totalOperations, 0) / totalOperations : 0;
-            
+
             return {
               summary: {
                 totalProjects,

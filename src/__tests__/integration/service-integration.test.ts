@@ -6,7 +6,7 @@ import { DatabaseServiceRegistrar } from '../../core/registrars/DatabaseServiceR
 import { BusinessServiceRegistrar } from '../../core/registrars/BusinessServiceRegistrar';
 import { EmbedderServiceRegistrar } from '../../core/registrars/EmbedderServiceRegistrar';
 import { DataConsistencyChecker } from '../../database/common/DataConsistencyChecker';
-import { PerformanceOptimizerService } from '../../infrastructure/batching/PerformanceOptimizerService';
+import { PerformanceOptimizerService } from '../../service/optimization/PerformanceOptimizerService';
 import { DatabaseHealthChecker } from '../../service/monitoring/DatabaseHealthChecker';
 import { GraphModule } from '../../service/graph/core/GraphModule';
 

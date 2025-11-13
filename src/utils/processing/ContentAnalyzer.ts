@@ -1,6 +1,6 @@
 import { TopLevelStructure, NestedStructure, InternalStructure, NestingRelationship, CodeReference, CodeDependency } from '../types/ContentTypes';
 import { TextPatternAnalyzer } from './TextPatternAnalyzer';
-import { ASTStructureExtractor } from './ASTStructureExtractor';
+import { ASTStructureExtractor } from '../../service/parser/core/normalization/ASTStructureExtractor';
 import { RelationshipAnalyzer } from './RelationshipAnalyzer';
 import { TreeSitterService } from '../../service/parser/core/parse/TreeSitterService';
 import { injectable, inject } from 'inversify';
@@ -19,7 +19,9 @@ export class ContentAnalyzer {
 
   constructor(
     @inject(TYPES.TreeSitterService)
-    private readonly treeSitterService: TreeSitterService
+    private readonly treeSitterService: TreeSitterService,
+    @inject(TYPES.ASTStructureExtractor)
+    private readonly astStructureExtractor: ASTStructureExtractor
   ) {}
 
   /**
@@ -28,20 +30,18 @@ export class ContentAnalyzer {
    */
   async extractTopLevelStructures(content: string, language: string): Promise<TopLevelStructure[]> {
     try {
-      // 尝试使用AST分析
-      if (this.treeSitterService.isInitialized() && this.isLanguageSupported(language)) {
-        const parseResult = await this.treeSitterService.parseCode(content, language);
-        if (parseResult && parseResult.ast) {
-          const astStructures = ASTStructureExtractor.extractTopLevelStructuresFromAST(
-            content, 
-            language, 
-            parseResult.ast
-          );
-          
-          if (astStructures.length > 0) {
-            this.logger.debug(`使用AST提取到 ${astStructures.length} 个顶级结构 (${language})`);
-            return astStructures;
-          }
+      // 使用统一解析方法
+      const parseResult = await this.getParseResult(content, language);
+      if (parseResult && parseResult.ast) {
+        const astStructures = await this.astStructureExtractor.extractTopLevelStructuresFromAST(
+          content, 
+          language, 
+          parseResult.ast
+        );
+        
+        if (astStructures.length > 0) {
+          this.logger.debug(`使用AST提取到 ${astStructures.length} 个顶级结构 (${language})`);
+          return astStructures;
         }
       }
     } catch (error) {
@@ -65,21 +65,19 @@ export class ContentAnalyzer {
     language: string
   ): Promise<NestedStructure[]> {
     try {
-      // 尝试使用AST分析
-      if (this.treeSitterService.isInitialized() && this.isLanguageSupported(language)) {
-        const parseResult = await this.treeSitterService.parseCode(content, language);
-        if (parseResult && parseResult.ast) {
-          const astStructures = ASTStructureExtractor.extractNestedStructuresFromAST(
-            content,
-            parentNode,
-            level,
-            parseResult.ast
-          );
-          
-          if (astStructures.length > 0) {
-            this.logger.debug(`使用AST提取到 ${astStructures.length} 个嵌套结构 (${language})`);
-            return astStructures;
-          }
+      // 使用统一解析方法
+      const parseResult = await this.getParseResult(content, language);
+      if (parseResult && parseResult.ast) {
+        const astStructures = await this.astStructureExtractor.extractNestedStructuresFromAST(
+          content,
+          parentNode,
+          level,
+          parseResult.ast
+        );
+        
+        if (astStructures.length > 0) {
+          this.logger.debug(`使用AST提取到 ${astStructures.length} 个嵌套结构 (${language})`);
+          return astStructures;
         }
       }
     } catch (error) {
@@ -102,20 +100,18 @@ export class ContentAnalyzer {
     language: string
   ): Promise<InternalStructure[]> {
     try {
-      // 尝试使用AST分析
-      if (this.treeSitterService.isInitialized() && this.isLanguageSupported(language)) {
-        const parseResult = await this.treeSitterService.parseCode(content, language);
-        if (parseResult && parseResult.ast) {
-          const astStructures = ASTStructureExtractor.extractInternalStructuresFromAST(
-            content,
-            parentNode,
-            parseResult.ast
-          );
-          
-          if (astStructures.length > 0) {
-            this.logger.debug(`使用AST提取到 ${astStructures.length} 个内部结构 (${language})`);
-            return astStructures;
-          }
+      // 使用统一解析方法
+      const parseResult = await this.getParseResult(content, language);
+      if (parseResult && parseResult.ast) {
+        const astStructures = await this.astStructureExtractor.extractInternalStructuresFromAST(
+          content,
+          parentNode,
+          parseResult.ast
+        );
+        
+        if (astStructures.length > 0) {
+          this.logger.debug(`使用AST提取到 ${astStructures.length} 个内部结构 (${language})`);
+          return astStructures;
         }
       }
     } catch (error) {
@@ -174,6 +170,42 @@ export class ContentAnalyzer {
    */
   analyzeModuleDependencies(nodes: any[], content: string): Map<string, string[]> {
     return RelationshipAnalyzer.analyzeModuleDependencies(nodes, content);
+  }
+
+  /**
+   * 新增统一解析方法
+   */
+  private async getParseResult(content: string, language: string): Promise<any> {
+    // 使用缓存键避免重复解析
+    const cacheKey = `parse:${language}:${this.hashContent(content)}`;
+    
+    try {
+      // 尝试使用AST分析
+      if (this.treeSitterService.isInitialized() && this.isLanguageSupported(language)) {
+        const parseResult = await this.treeSitterService.parseCode(content, language);
+        if (parseResult && parseResult.ast) {
+          this.logger.debug(`成功解析 ${language} 代码`);
+          return parseResult;
+        }
+      }
+    } catch (error) {
+      this.logger.warn(`AST解析失败 (${language}):`, error);
+    }
+    
+    return null;
+  }
+
+  /**
+   * 内容哈希方法
+   */
+  private hashContent(content: string): string {
+    let hash = 0;
+    for (let i = 0; i < content.length; i++) {
+      const char = content.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // 转换为32位整数
+    }
+    return Math.abs(hash).toString(36);
   }
 
   /**
@@ -499,7 +531,7 @@ export class ContentAnalyzer {
   private static getInstance(): ContentAnalyzer {
     if (!this.instance) {
       // 创建一个简单的实例，不依赖依赖注入
-      this.instance = new ContentAnalyzer(null as any);
+      this.instance = new ContentAnalyzer(null as any, null as any);
     }
     return this.instance;
   }

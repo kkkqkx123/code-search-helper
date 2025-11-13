@@ -274,6 +274,10 @@ export const TYPES = {
   // 33. 查询结果标准化服务
   QueryResultNormalizer: Symbol.for('QueryResultNormalizer'),
   NormalizationIntegrationService: Symbol.for('NormalizationIntegrationService'),
+  ASTStructureExtractor: Symbol.for('ASTStructureExtractor'),
+  ASTStructureExtractorFactory: Symbol.for('ASTStructureExtractorFactory'),
+  UnifiedContentAnalyzer: Symbol.for('UnifiedContentAnalyzer'),
+  StructureTypeConverter: Symbol.for('StructureTypeConverter'),
 
   // 34. 统一缓存管理器
   UnifiedCacheManager: Symbol.for('UnifiedCacheManager'),

@@ -4,7 +4,7 @@ import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
 
-import { IMemoryMonitorService } from '../../service/memory/interfaces/IMemoryMonitorService';
+import { IMemoryMonitorService } from '../memory/interfaces/IMemoryMonitorService';
 
 export interface PerformanceMetrics {
   operation: string;

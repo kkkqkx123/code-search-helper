@@ -13,7 +13,7 @@ import { EmbedderFactory } from '../../../embedders/EmbedderFactory';
 import { QdrantConfigService } from '../../../config/service/QdrantConfigService';
 import { NebulaConfigService } from '../../../config/service/NebulaConfigService';
 import { EmbeddingCacheService } from '../../../embedders/EmbeddingCacheService';
-import { PerformanceOptimizerService } from '../../../infrastructure/batching/PerformanceOptimizerService';
+import { PerformanceOptimizerService } from '../../optimization/PerformanceOptimizerService';
 import { IQdrantConnectionManager } from '../../../database/qdrant/QdrantConnectionManager';
 import { IQdrantCollectionManager } from '../../../database/qdrant/QdrantCollectionManager';
 import { IQdrantVectorOperations } from '../../../database/qdrant/QdrantVectorOperations';
@@ -40,16 +40,16 @@ jest.mock('../services/StorageStateService');
 jest.mock('fs/promises');
 
 describe('ProjectStateManager', () => {
-   let projectStateManager: ProjectStateManager;
-   let loggerService: jest.Mocked<LoggerService>;
-   let errorHandlerService: jest.Mocked<ErrorHandlerService>;
-   let projectIdManager: jest.Mocked<ProjectIdManager>;
-   let indexSyncService: jest.Mocked<HybridIndexService>;
-   let qdrantService: jest.Mocked<QdrantService>;
-   let configService: jest.Mocked<ConfigService>;
-   let mockFs: jest.Mocked<typeof import('fs/promises')>;
-   let astSplitter: jest.Mocked<ASTCodeSplitter>;
-   let coordinationService: jest.Mocked<ChunkToVectorCoordinationService>;
+  let projectStateManager: ProjectStateManager;
+  let loggerService: jest.Mocked<LoggerService>;
+  let errorHandlerService: jest.Mocked<ErrorHandlerService>;
+  let projectIdManager: jest.Mocked<ProjectIdManager>;
+  let indexSyncService: jest.Mocked<HybridIndexService>;
+  let qdrantService: jest.Mocked<QdrantService>;
+  let configService: jest.Mocked<ConfigService>;
+  let mockFs: jest.Mocked<typeof import('fs/promises')>;
+  let astSplitter: jest.Mocked<ASTCodeSplitter>;
+  let coordinationService: jest.Mocked<ChunkToVectorCoordinationService>;
   let coreStateService: jest.Mocked<CoreStateService>;
   let storageStateService: jest.Mocked<StorageStateService>;
 

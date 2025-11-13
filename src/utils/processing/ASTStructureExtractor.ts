@@ -5,6 +5,10 @@ import Parser from 'tree-sitter';
  * AST结构提取器
  * 负责基于已解析的AST提取代码结构
  * 注意：此类不执行AST解析，只处理已解析的AST节点
+ * 
+ * @deprecated 此类已迁移到 src\service\parser\core\normalization\ASTStructureExtractor
+ * 请使用新的 ASTStructureExtractor 类，它基于 normalization 系统提供更好的性能和功能
+ * 迁移指南：请参考 docs\parser\core\ast-structure-extractor-migration-guide.md
  */
 export class ASTStructureExtractor {
   
