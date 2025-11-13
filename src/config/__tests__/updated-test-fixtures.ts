@@ -3,7 +3,7 @@
  * This file contains test configurations that match the new simplified interfaces
  */
 
-import { BatchProcessingConfig } from '../service/BatchProcessingConfigService';
+import { BatchProcessingConfig } from '../../infrastructure/batching/BatchProcessingService';
 import { EmbeddingConfig, OpenAIConfig, OllamaConfig } from '../service/EmbeddingConfigService';
 
 /**
@@ -20,6 +20,8 @@ export const testSimplifiedBatchProcessingConfig: BatchProcessingConfig = {
   retryAttempts: 3,
   retryDelay: 1000,
   continueOnError: true,
+  maxConcurrency: 5,
+  timeout: 30000,
 
   // Optional monitoring - only essential metrics
   monitoring: {
@@ -47,7 +49,18 @@ export const testMinimalBatchProcessingConfig: BatchProcessingConfig = {
   retryAttempts: 2,
   retryDelay: 1000,
   continueOnError: true,
+  maxConcurrency: 3,
+  timeout: 30000,
   // No monitoring - follows YAGNI principle
+  monitoring: {
+    enabled: false,
+    metricsInterval: 60000,
+    alertThresholds: {
+      highLatency: 5000,
+      highMemoryUsage: 70,
+      highErrorRate: 0.1,
+    },
+  },
 };
 
 /**

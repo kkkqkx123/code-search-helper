@@ -43,42 +43,6 @@ interface ConnectionRequest {
   timeout: NodeJS.Timeout;
 }
 
-// 默认连接池配置
-const DEFAULT_POOL_CONFIG: ConnectionPoolConfig = {
-  minConnections: 2,
-  maxConnections: 10,
-  acquireTimeout: 30000, // 30秒
-  idleTimeout: 300000,   // 5分钟
-  healthCheck: {
-    interval: 30000,    // 30秒
-    timeout: 5000,      // 5秒
-    maxFailures: 3,
-    retryDelay: 1000
-  },
-  warming: {
-    enabled: true,
-    warmupQueries: [
-      'YIELD 1 AS warmup_test;',
-      'SHOW SPACES;',
-      'SHOW HOSTS;'
-    ],
-    warmupConcurrency: 3,
-    warmupTimeout: 10000,
-    retryAttempts: 2,
-    retryDelay: 1000
-  },
-  loadBalancing: {
-    strategy: LoadBalanceStrategy.LEAST_RESPONSE_TIME,
-    healthCheckWeight: 0.3,
-    responseTimeWeight: 0.4,
-    errorRateWeight: 0.2,
-    connectionCountWeight: 0.1,
-    weightUpdateInterval: 30000,
-    maxWeight: 100,
-    minWeight: 1
-  }
-};
-
 // 连接池接口
 export interface IConnectionPool {
   initialize(config: NebulaConfig): Promise<void>;
@@ -101,11 +65,11 @@ export class ConnectionPool extends EventEmitter implements IConnectionPool {
   private configService: NebulaConfigService;
   private performanceMonitor: PerformanceMonitor;
   private config!: NebulaConfig;
-  private poolConfig: ConnectionPoolConfig;
+  private poolConfig!: ConnectionPoolConfig;
   
   private connections: Connection[] = [];
   private pendingRequests: ConnectionRequest[] = [];
-  private healthChecker: ConnectionHealthChecker;
+  private healthChecker!: ConnectionHealthChecker;
   private connectionWarmer: ConnectionWarmer;
   private loadBalancer: LoadBalancer;
   private isInitialized: boolean = false;
@@ -143,20 +107,55 @@ export class ConnectionPool extends EventEmitter implements IConnectionPool {
     this.performanceMonitor = performanceMonitor;
     this.connectionWarmer = connectionWarmer;
     this.loadBalancer = loadBalancer;
-    this.poolConfig = { ...DEFAULT_POOL_CONFIG };
+    
+    // 从配置服务获取配置，而不是使用硬编码
+    this.loadPoolConfig();
+    // 此时 poolConfig 已经被初始化
     this.healthChecker = new ConnectionHealthChecker(this.poolConfig.healthCheck);
     
-    // 监听健康检查器事件
     this.setupHealthCheckerEvents();
-    
-    // 监听负载均衡器事件
     this.setupLoadBalancerEvents();
-    
-    // 配置连接预热器
     this.connectionWarmer.updateConfig(this.poolConfig.warming);
-    
-    // 配置负载均衡器
     this.loadBalancer.updateConfig(this.poolConfig.loadBalancing);
+  }
+  
+  /**
+   * 从配置服务加载连接池配置
+   */
+  private loadPoolConfig(): void {
+    const nebulaConfig = this.configService.loadConfig();
+    
+    // 使用配置服务的值，提供合理的默认值
+    this.poolConfig = {
+      minConnections: nebulaConfig.connectionPool?.minConnections || 2,
+      maxConnections: nebulaConfig.connectionPool?.maxConnections || nebulaConfig.maxConnections || 10,
+      acquireTimeout: nebulaConfig.connectionPool?.acquireTimeout || 30000,
+      idleTimeout: nebulaConfig.connectionPool?.idleTimeout || 300000,
+      healthCheck: {
+        interval: nebulaConfig.connectionPool?.healthCheckInterval || 30000,
+        timeout: nebulaConfig.connectionPool?.healthCheckTimeout || 5000,
+        maxFailures: nebulaConfig.connectionPool?.maxFailures || 3,
+        retryDelay: nebulaConfig.retryDelay || 1000,
+      },
+      warming: {
+        enabled: true,
+        warmupQueries: ['YIELD 1 AS warmup_test;', 'SHOW SPACES;', 'SHOW HOSTS;'],
+        warmupConcurrency: 3,
+        warmupTimeout: 10000,
+        retryAttempts: nebulaConfig.retryAttempts || 2,
+        retryDelay: nebulaConfig.retryDelay || 1000,
+      },
+      loadBalancing: {
+        strategy: LoadBalanceStrategy.LEAST_RESPONSE_TIME,
+        healthCheckWeight: 0.3,
+        responseTimeWeight: 0.4,
+        errorRateWeight: 0.2,
+        connectionCountWeight: 0.1,
+        weightUpdateInterval: 30000,
+        maxWeight: 100,
+        minWeight: 1,
+      },
+    };
   }
 
   /**

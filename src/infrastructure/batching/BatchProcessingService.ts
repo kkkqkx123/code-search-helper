@@ -2,15 +2,13 @@ import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
-import { ConfigService } from '../../config/ConfigService';
+
 import { DatabaseType } from '../types';
 import { IMemoryMonitorService } from '../../service/memory/interfaces/IMemoryMonitorService';
-import { NebulaBatchStrategy } from './strategies/NebulaBatchStrategy';
 
 // 导入相关类型
 import {
     IBatchProcessingService,
-    IBatchStrategy,
     BatchContext,
     BatchProcessingOptions,
     RetryOptions,
@@ -24,7 +22,30 @@ import { ISimilarityStrategy, SimilarityOptions, BatchSimilarityResult } from '.
 import { EmbeddingInput, EmbeddingResult, Embedder } from '../../embedders/BaseEmbedder';
 import { BatchStrategyFactory } from './strategies/BatchStrategyFactory';
 import { SemanticBatchStrategy } from './strategies/SemanticBatchStrategy';
-import { BatchProcessingConfig } from '../../config/service/BatchProcessingConfigService';
+
+// Define BatchProcessingConfig interface locally since we removed the external service
+export interface BatchProcessingConfig {
+    maxBatchSize: number;
+    maxConcurrency: number;
+    timeout: number;
+    retryAttempts: number;
+    retryDelay: number;
+    enabled: boolean;
+    maxConcurrentOperations: number;
+    defaultBatchSize: number;
+    memoryThreshold: number;
+    processingTimeout: number;
+    continueOnError: boolean;
+    monitoring: {
+        enabled: boolean;
+        metricsInterval: number;
+        alertThresholds: {
+            highLatency: number;
+            highMemoryUsage: number;
+            highErrorRate: number;
+        };
+    };
+}
 
 /**
  * 统一批处理服务
@@ -40,13 +61,16 @@ export class BatchProcessingService implements IBatchProcessingService {
     constructor(
         @inject(TYPES.LoggerService) private logger: LoggerService,
         @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
-        @inject(TYPES.ConfigService) private configService: ConfigService,
         @inject(TYPES.MemoryMonitorService) private memoryMonitor: IMemoryMonitorService,
         @inject(BatchStrategyFactory) private strategyFactory: BatchStrategyFactory,
-        @inject(SemanticBatchStrategy) private semanticStrategy: SemanticBatchStrategy
+        @inject(SemanticBatchStrategy) private semanticStrategy: SemanticBatchStrategy,
+        config?: BatchProcessingConfig
     ) {
-        // 不在构造函数中初始化配置，而是延迟到需要时再初始化
-        this.logger.info('BatchProcessingService created (config will be initialized on first use)');
+        // 直接使用传入的配置或默认配置
+        this.config = config || this.getDefaultConfig();
+        this.logger.info('BatchProcessingService created with config', {
+            config: this.config
+        });
     }
 
     /**
@@ -54,12 +78,50 @@ export class BatchProcessingService implements IBatchProcessingService {
      */
     private ensureConfigInitialized(): BatchProcessingConfig {
         if (!this.config) {
-            this.config = this.initializeConfig();
-            this.logger.info('BatchProcessingService config initialized', {
+            this.config = this.getDefaultConfig();
+            this.logger.info('BatchProcessingService config initialized with defaults', {
                 config: this.config
             });
         }
         return this.config;
+    }
+
+    /**
+     * 获取默认配置
+     */
+    private getDefaultConfig(): BatchProcessingConfig {
+        return {
+            enabled: true,
+            maxConcurrentOperations: 5,
+            defaultBatchSize: 50,
+            maxBatchSize: 500,
+            maxConcurrency: 5,
+            timeout: 30000,
+            memoryThreshold: 0.80,
+            processingTimeout: 300000,
+            retryAttempts: 3,
+            retryDelay: 1000,
+            continueOnError: true,
+            monitoring: {
+                enabled: true,
+                metricsInterval: 60000,
+                alertThresholds: {
+                    highLatency: 5000,
+                    highMemoryUsage: 0.80,
+                    highErrorRate: 0.1,
+                },
+            },
+        };
+    }
+
+    /**
+     * 更新配置
+     */
+    updateConfig(config: Partial<BatchProcessingConfig>): void {
+        this.config = { ...this.getDefaultConfig(), ...config };
+        this.logger.info('BatchProcessingService config updated', {
+            config: this.config
+        });
     }
 
     /**
@@ -253,18 +315,7 @@ export class BatchProcessingService implements IBatchProcessingService {
         };
     }
 
-    /**
-      * 添加缺失的接口方法：updateConfig
-      */
-    updateConfig(config: Partial<BatchProcessingConfig>): void {
-        if (this.config) {
-            this.config = { ...this.config, ...config };
-            this.logger.info('BatchProcessingService config updated', { config: this.config });
-        } else {
-            const currentConfig = this.ensureConfigInitialized();
-            this.config = { ...currentConfig, ...config };
-        }
-    }
+
 
     /**
       * 添加缺失的接口方法：getCurrentBatchSize
@@ -377,42 +428,7 @@ export class BatchProcessingService implements IBatchProcessingService {
 
     // 私有方法
 
-    /**
-     * 初始化配置
-     */
-    private initializeConfig(): BatchProcessingConfig {
-        try {
-            const batchConfig = this.configService.get('batchProcessing');
 
-            return {
-                enabled: batchConfig?.enabled ?? true,
-                defaultBatchSize: batchConfig?.defaultBatchSize || 50,
-                maxBatchSize: batchConfig?.maxBatchSize || 500,
-                maxConcurrentOperations: batchConfig?.maxConcurrentOperations || 5,
-                memoryThreshold: batchConfig?.memoryThreshold || 0.80,
-                processingTimeout: batchConfig?.processingTimeout || 300000,
-                retryAttempts: batchConfig?.retryAttempts || 3,
-                retryDelay: batchConfig?.retryDelay || 1000,
-                continueOnError: batchConfig?.continueOnError ?? true,
-                monitoring: batchConfig?.monitoring
-            };
-        } catch (error) {
-            this.logger.warn('Failed to load batch processing configuration from ConfigService, using defaults', { error });
-            // 返回默认配置
-            return {
-                enabled: true,
-                defaultBatchSize: 50,
-                maxBatchSize: 500,
-                maxConcurrentOperations: 5,
-                memoryThreshold: 0.80,
-                processingTimeout: 300000,
-                retryAttempts: 3,
-                retryDelay: 1000,
-                continueOnError: true,
-                monitoring: undefined
-            };
-        }
-    }
 
     /**
      * 创建批次

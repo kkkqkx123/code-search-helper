@@ -5,11 +5,10 @@ import {
   EnvironmentConfigService,
   QdrantConfigService,
   EmbeddingConfigService,
-  LoggingConfigService,
-  MonitoringConfigService,
+  
   MemoryMonitorConfigService,
   FileProcessingConfigService,
-  BatchProcessingConfigService,
+  
   ProjectConfigService,
   IndexingConfigService,
   TreeSitterConfigService,
@@ -33,11 +32,9 @@ export class ConfigService {
     @inject(TYPES.EnvironmentConfigService) private environmentConfigService: EnvironmentConfigService,
     @inject(TYPES.QdrantConfigService) private qdrantConfigService: QdrantConfigService,
     @inject(TYPES.EmbeddingConfigService) private embeddingConfigService: EmbeddingConfigService,
-    @inject(TYPES.LoggingConfigService) private loggingConfigService: LoggingConfigService,
-    @inject(TYPES.MonitoringConfigService) private monitoringConfigService: MonitoringConfigService,
+    
     @inject(TYPES.MemoryMonitorConfigService) private memoryMonitorConfigService: MemoryMonitorConfigService,
     @inject(TYPES.FileProcessingConfigService) private fileProcessingConfigService: FileProcessingConfigService,
-    @inject(TYPES.BatchProcessingConfigService) private batchProcessingConfigService: BatchProcessingConfigService,
     @inject(TYPES.ProjectConfigService) private projectConfigService: ProjectConfigService,
     @inject(TYPES.IndexingConfigService) private indexingConfigService: IndexingConfigService,
     @inject(TYPES.TreeSitterConfigService) private treeSitterConfigService: TreeSitterConfigService,
@@ -55,11 +52,20 @@ export class ConfigService {
       const environment = this.environmentConfigService.getConfig();
       const qdrant = this.qdrantConfigService.getConfig();
       const embedding = this.embeddingConfigService.getConfig();
-      const logging = this.loggingConfigService.getConfig();
-      const monitoring = this.monitoringConfigService.getConfig();
+      // 从 EnvironmentConfigService 获取日志和监控配置
+      const environmentConfig = this.environmentConfigService.getConfig();
+      const logging = environmentConfig.logging || {
+        level: 'info',
+        format: 'json'
+      };
+      const monitoring = environmentConfig.monitoring || {
+        enabled: true,
+        port: 9090,
+        prometheusTargetDir: './etc/prometheus'
+      };
       const memoryMonitor = this.memoryMonitorConfigService.getConfig();
       const fileProcessing = this.fileProcessingConfigService.getConfig();
-      const batchProcessing = this.batchProcessingConfigService.getConfig();
+      
       const project = this.projectConfigService.getConfig();
       const indexing = this.indexingConfigService.getConfig();
       const treeSitter = this.treeSitterConfigService.getConfig();
@@ -84,7 +90,7 @@ export class ConfigService {
         monitoring,
         memoryMonitor,
         fileProcessing,
-        batchProcessing,
+        
         caching: {
           defaultTTL: 3600,
           maxSize: 10000,
@@ -116,7 +122,8 @@ export class ConfigService {
         },
         project,
         graphCache, // 添加图缓存配置
-        similarity, // 添加相似度配置
+        similarity,
+        batchProcessing: this.getDefaultBatchProcessingConfig(), // 提供默认配置以保持兼容性 // 添加相似度配置
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -180,5 +187,32 @@ export class ConfigService {
    */
   reset(): void {
     this.config = null;
+  }
+
+  /**
+   * 获取默认批处理配置
+   * 因为 BatchProcessingConfigService 已被移除，所以在这里提供默认配置
+   */
+  private getDefaultBatchProcessingConfig() {
+    return {
+      enabled: true,
+      maxConcurrentOperations: 5,
+      defaultBatchSize: 50,
+      maxBatchSize: 500,
+      memoryThreshold: 0.80,
+      processingTimeout: 300000,
+      retryAttempts: 3,
+      retryDelay: 1000,
+      continueOnError: true,
+      monitoring: {
+        enabled: true,
+        metricsInterval: 60000,
+        alertThresholds: {
+          highLatency: 5000,
+          highMemoryUsage: 0.80,
+          highErrorRate: 0.1,
+        },
+      },
+    };
   }
 }

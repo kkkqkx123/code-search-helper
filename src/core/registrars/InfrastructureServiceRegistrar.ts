@@ -20,7 +20,7 @@ import { MappingCacheManager } from '../../service/graph/caching/MappingCacheMan
 
 // 基础设施配置服务
 import { InfrastructureConfigService } from '../../infrastructure/config/InfrastructureConfigService';
-import { GraphConfigService } from '../../config/service/GraphConfigService';
+
 
 // 批处理服务
 import { BatchProcessingService } from '../../infrastructure/batching/BatchProcessingService';
@@ -36,6 +36,7 @@ import { ConfigService } from '../../config/ConfigService';
 // SQLite基础设施
 import { SqliteInfrastructure } from '../../database/splite/SqliteInfrastructure';
 import { SqliteStateManager } from '../../database/splite/SqliteStateManager';
+import { SqliteDatabaseService } from '../../database/splite/SqliteDatabaseService';
 
 // 数据库迁移管理
 import { MigrationManager } from '../../database/splite/migrations/MigrationManager';
@@ -160,8 +161,7 @@ export class InfrastructureServiceRegistrar {
       // 基础设施配置服务
       container.bind<InfrastructureConfigService>(TYPES.InfrastructureConfigService)
         .to(InfrastructureConfigService).inSingletonScope();
-      container.bind<GraphConfigService>(TYPES.GraphConfigService)
-        .to(GraphConfigService).inSingletonScope();
+      
 
       // CleanupManager - 注册为基础设施服务
       container.bind<CleanupManager>(TYPES.CleanupManager).toDynamicValue(context => {
@@ -190,6 +190,7 @@ export class InfrastructureServiceRegistrar {
       container.bind<DatabaseHealthChecker>(TYPES.HealthChecker).to(DatabaseHealthChecker).inSingletonScope();
 
       // SQLite基础设施
+      container.bind<SqliteDatabaseService>(TYPES.SqliteDatabaseService).to(SqliteDatabaseService).inSingletonScope();
       container.bind<SqliteInfrastructure>(TYPES.SqliteInfrastructure).to(SqliteInfrastructure).inSingletonScope();
       container.bind<SqliteStateManager>(TYPES.SqliteStateManager).to(SqliteStateManager).inSingletonScope();
 
@@ -212,7 +213,6 @@ export class InfrastructureServiceRegistrar {
           console.log('Creating BatchProcessingService dynamically...');
           const logger = context.get<LoggerService>(TYPES.LoggerService);
           const errorHandler = context.get<ErrorHandlerService>(TYPES.ErrorHandlerService);
-          const configService = context.get<ConfigService>(TYPES.ConfigService);
           const memoryMonitorService = context.get<IMemoryMonitorService>(TYPES.MemoryMonitorService);
           const batchStrategyFactory = context.get<BatchStrategyFactory>(TYPES.BatchStrategyFactory);
           const semanticBatchStrategy = context.get<SemanticBatchStrategy>(TYPES.SemanticBatchStrategy);
@@ -221,10 +221,10 @@ export class InfrastructureServiceRegistrar {
           const batchProcessingService = new BatchProcessingService(
             logger,
             errorHandler,
-            configService,
             memoryMonitorService,
             batchStrategyFactory,
-            semanticBatchStrategy
+            semanticBatchStrategy,
+            undefined // config parameter - will use default config
           );
           
           console.log('BatchProcessingService created successfully');

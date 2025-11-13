@@ -12,6 +12,8 @@ export interface NebulaConfig {
   port: number;
   username: string;
   password: string;
+  
+  // 基础连接配置
   timeout?: number;
   maxConnections?: number;
   retryAttempts?: number;
@@ -20,6 +22,44 @@ export interface NebulaConfig {
   bufferSize?: number;
   pingInterval?: number;
   vidTypeLength?: number;
+  
+  // 连接池配置
+  connectionPool?: {
+    minConnections?: number;
+    maxConnections?: number;
+    acquireTimeout?: number;
+    idleTimeout?: number;
+    healthCheckInterval?: number;
+    healthCheckTimeout?: number;
+    maxFailures?: number;
+  };
+  
+  // 缓存配置
+  cache?: {
+    defaultTTL?: number;
+    maxEntries?: number;
+    cleanupInterval?: number;
+    enableStats?: boolean;
+  };
+  
+  // 性能配置
+  performance?: {
+    monitoringInterval?: number;
+    queryExecutionTime?: number;
+    memoryUsage?: number;
+    responseTime?: number;
+  };
+  
+  // 容错配置
+  faultTolerance?: {
+    maxRetries?: number;
+    retryDelay?: number;
+    exponentialBackoff?: boolean;
+    circuitBreakerEnabled?: boolean;
+    circuitBreakerFailureThreshold?: number;
+    circuitBreakerTimeout?: number;
+    fallbackStrategy?: 'cache' | 'default' | 'error';
+  };
 }
 
 @injectable()
@@ -39,14 +79,55 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
         port: parseInt(process.env.NEBULA_PORT || '9669'),
         username: process.env.NEBULA_USERNAME || 'root',
         password: process.env.NEBULA_PASSWORD || 'nebula',
+        
+        // 基础连接配置
         timeout: parseInt(process.env.NEBULA_TIMEOUT || '30000'),
         maxConnections: parseInt(process.env.NEBULA_MAX_CONNECTIONS || '10'),
         retryAttempts: parseInt(process.env.NEBULA_RETRY_ATTEMPTS || '3'),
-        retryDelay: parseInt(process.env.NEBULA_RETRY_DELAY || '30000'),
+        retryDelay: parseInt(process.env.NEBULA_RETRY_DELAY || '1000'),
         bufferSize: parseInt(process.env.NEBULA_BUFFER_SIZE || '2000'),
         pingInterval: parseInt(process.env.NEBULA_PING_INTERVAL || '3000'),
-        space: this.getSpaceName(), // 使用增强的配置逻辑
         vidTypeLength: parseInt(process.env.NEBULA_VID_TYPE_LENGTH || '128'),
+        
+        // 连接池配置
+        connectionPool: {
+          minConnections: parseInt(process.env.NEBULA_POOL_MIN_CONNECTIONS || '2'),
+          maxConnections: parseInt(process.env.NEBULA_POOL_MAX_CONNECTIONS || '10'),
+          acquireTimeout: parseInt(process.env.NEBULA_POOL_ACQUIRE_TIMEOUT || '30000'),
+          idleTimeout: parseInt(process.env.NEBULA_POOL_IDLE_TIMEOUT || '300000'),
+          healthCheckInterval: parseInt(process.env.NEBULA_POOL_HEALTH_CHECK_INTERVAL || '30000'),
+          healthCheckTimeout: parseInt(process.env.NEBULA_POOL_HEALTH_CHECK_TIMEOUT || '5000'),
+          maxFailures: parseInt(process.env.NEBULA_POOL_MAX_FAILURES || '3'),
+        },
+        
+        // 缓存配置
+        cache: {
+          defaultTTL: parseInt(process.env.NEBULA_CACHE_TTL || '30000'),
+          maxEntries: parseInt(process.env.NEBULA_CACHE_MAX_ENTRIES || '10000'),
+          cleanupInterval: parseInt(process.env.NEBULA_CACHE_CLEANUP_INTERVAL || '60000'),
+          enableStats: process.env.NEBULA_CACHE_STATS_ENABLED !== 'false',
+        },
+        
+        // 性能配置
+        performance: {
+          monitoringInterval: parseInt(process.env.NEBULA_PERFORMANCE_INTERVAL || '1000'),
+          queryExecutionTime: parseInt(process.env.NEBULA_PERFORMANCE_QUERY_TIMEOUT || '1000'),
+          memoryUsage: parseInt(process.env.NEBULA_PERFORMANCE_MEMORY_THRESHOLD || '80'),
+          responseTime: parseInt(process.env.NEBULA_PERFORMANCE_RESPONSE_THRESHOLD || '500'),
+        },
+        
+        // 容错配置
+        faultTolerance: {
+          maxRetries: parseInt(process.env.NEBULA_FAULT_TOLERANCE_MAX_RETRIES || '3'),
+          retryDelay: parseInt(process.env.NEBULA_FAULT_TOLERANCE_RETRY_DELAY || '1000'),
+          exponentialBackoff: process.env.NEBULA_FAULT_TOLERANCE_EXPONENTIAL_BACKOFF !== 'false',
+          circuitBreakerEnabled: process.env.NEBULA_FAULT_TOLERANCE_CIRCUIT_BREAKER_ENABLED !== 'false',
+          circuitBreakerFailureThreshold: parseInt(process.env.NEBULA_FAULT_TOLERANCE_CIRCUIT_BREAKER_THRESHOLD || '5'),
+          circuitBreakerTimeout: parseInt(process.env.NEBULA_FAULT_TOLERANCE_CIRCUIT_BREAKER_TIMEOUT || '3000'),
+          fallbackStrategy: (process.env.NEBULA_FAULT_TOLERANCE_FALLBACK_STRATEGY as any) || 'cache',
+        },
+        
+        space: this.getSpaceName(), // 使用增强的配置逻辑
       };
 
       return this.validateConfig(rawConfig);
@@ -187,14 +268,52 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
         port: Joi.number().port().default(9669),
         username: Joi.string().default('root'),
         password: Joi.string().default('nebula'),
-        timeout: Joi.number().default(300),
+        timeout: Joi.number().default(30000),
         maxConnections: Joi.number().default(10),
         retryAttempts: Joi.number().default(3),
         retryDelay: Joi.number().default(1000),
         space: Joi.string().optional(),
-        bufferSize: Joi.number().default(10),
+        bufferSize: Joi.number().default(2000),
         pingInterval: Joi.number().default(3000),
         vidTypeLength: Joi.number().min(8).max(256).default(128),
+        
+        // 连接池配置验证
+        connectionPool: Joi.object({
+          minConnections: Joi.number().min(1).default(2),
+          maxConnections: Joi.number().min(1).default(10),
+          acquireTimeout: Joi.number().min(1000).default(30000),
+          idleTimeout: Joi.number().min(10000).default(300000),
+          healthCheckInterval: Joi.number().min(5000).default(30000),
+          healthCheckTimeout: Joi.number().min(1000).default(5000),
+          maxFailures: Joi.number().min(1).default(3),
+        }).optional(),
+        
+        // 缓存配置验证
+        cache: Joi.object({
+          defaultTTL: Joi.number().min(1000).default(30000),
+          maxEntries: Joi.number().min(100).default(10000),
+          cleanupInterval: Joi.number().min(10000).default(60000),
+          enableStats: Joi.boolean().default(true),
+        }).optional(),
+        
+        // 性能配置验证
+        performance: Joi.object({
+          monitoringInterval: Joi.number().min(100).default(1000),
+          queryExecutionTime: Joi.number().min(100).default(1000),
+          memoryUsage: Joi.number().min(1).max(100).default(80),
+          responseTime: Joi.number().min(100).default(500),
+        }).optional(),
+        
+        // 容错配置验证
+        faultTolerance: Joi.object({
+          maxRetries: Joi.number().min(0).default(3),
+          retryDelay: Joi.number().min(100).default(1000),
+          exponentialBackoff: Joi.boolean().default(true),
+          circuitBreakerEnabled: Joi.boolean().default(true),
+          circuitBreakerFailureThreshold: Joi.number().min(1).default(5),
+          circuitBreakerTimeout: Joi.number().min(1000).default(3000),
+          fallbackStrategy: Joi.string().valid('cache', 'default', 'error').default('cache'),
+        }).optional(),
       });
 
       const { error, value } = schema.validate(config);
@@ -207,6 +326,14 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
       if (value.space && !this.validateNamingConvention(value.space)) {
         this.logger.error(`Invalid space name format: ${value.space}`);
         throw new Error(`Invalid space name format: ${value.space}`);
+      }
+
+      // 验证连接池配置一致性
+      if (value.connectionPool && value.maxConnections) {
+        if (value.connectionPool.maxConnections && value.connectionPool.maxConnections !== value.maxConnections) {
+          this.logger.warn(`Connection pool maxConnections (${value.connectionPool.maxConnections}) differs from maxConnections (${value.maxConnections}), using connectionPool value`);
+          value.maxConnections = value.connectionPool.maxConnections;
+        }
       }
 
       return value;
@@ -230,9 +357,43 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
       retryAttempts: 3,
       retryDelay: 1000,
       space: 'test_space',
-      bufferSize: 10,
+      bufferSize: 2000,
       pingInterval: 3000,
       vidTypeLength: 128,
+      
+      connectionPool: {
+        minConnections: 2,
+        maxConnections: 10,
+        acquireTimeout: 30000,
+        idleTimeout: 300000,
+        healthCheckInterval: 30000,
+        healthCheckTimeout: 5000,
+        maxFailures: 3,
+      },
+      
+      cache: {
+        defaultTTL: 30000,
+        maxEntries: 10000,
+        cleanupInterval: 60000,
+        enableStats: true,
+      },
+      
+      performance: {
+        monitoringInterval: 1000,
+        queryExecutionTime: 1000,
+        memoryUsage: 80,
+        responseTime: 500,
+      },
+      
+      faultTolerance: {
+        maxRetries: 3,
+        retryDelay: 1000,
+        exponentialBackoff: true,
+        circuitBreakerEnabled: true,
+        circuitBreakerFailureThreshold: 5,
+        circuitBreakerTimeout: 3000,
+        fallbackStrategy: 'cache',
+      },
     };
   }
 }

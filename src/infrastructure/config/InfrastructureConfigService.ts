@@ -125,6 +125,7 @@ export class InfrastructureConfigService {
         }
       },
       nebula: {
+        // 简化 nebula 配置，只保留基础设施特有的
         cache: {
           defaultTTL: EnvUtils.getEnvNumberValue('INFRA_NEBULA_CACHE_TTL', 30000),
           maxEntries: EnvUtils.getEnvNumberValue('INFRA_NEBULA_CACHE_MAX_ENTRIES', 10000),
@@ -139,22 +140,22 @@ export class InfrastructureConfigService {
           performanceThresholds: {
             queryExecutionTime: EnvUtils.getEnvNumberValue('INFRA_NEBULA_PERFORMANCE_QUERY_TIMEOUT', 1000),
             memoryUsage: EnvUtils.getEnvNumberValue('INFRA_NEBULA_PERFORMANCE_MEMORY_THRESHOLD', 80),
-            responseTime: EnvUtils.getEnvNumberValue('INFRA_NEBULA_PERFORMANCE_RESPONSE_THRESHOLD', 500)
+            responseTime: EnvUtils.getEnvNumberValue('INFRA_NEBULA_PERFORMANCE_RESPONSE_THRESHOLD', 500),
           },
           databaseSpecific: {}
         },
         batch: {
-          maxConcurrentOperations: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_CONCURRENCY', 5),
-          defaultBatchSize: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_SIZE_DEFAULT', 50),
-          maxBatchSize: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_SIZE_MAX', 500),
-          minBatchSize: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_SIZE_MIN', 10),
-          memoryThreshold: EnvUtils.getEnvFloatValue('INFRA_NEBULA_BATCH_MEMORY_THRESHOLD', 0.80),
-          processingTimeout: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_PROCESSING_TIMEOUT', 300000),
-          retryAttempts: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_RETRY_ATTEMPTS', 3),
-          retryDelay: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_RETRY_DELAY', 100),
-          adaptiveBatchingEnabled: EnvUtils.getEnvBooleanValue('INFRA_NEBULA_BATCH_ADAPTIVE_ENABLED', true),
-          performanceThreshold: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_PERFORMANCE_THRESHOLD', 1000),
-          adjustmentFactor: EnvUtils.getEnvFloatValue('INFRA_NEBULA_BATCH_ADJUSTMENT_FACTOR', 0.1),
+          maxConcurrentOperations: 5,
+          defaultBatchSize: 50,
+          maxBatchSize: 100,
+          minBatchSize: 10,
+          memoryThreshold: 80,
+          processingTimeout: 300000,
+          retryAttempts: 3,
+          retryDelay: 1000,
+          adaptiveBatchingEnabled: true,
+          performanceThreshold: 90,
+          adjustmentFactor: 0.8,
           databaseSpecific: {}
         },
         graph: {
@@ -173,6 +174,7 @@ export class InfrastructureConfigService {
             autoCreateEdges: EnvUtils.getEnvBooleanValue('INFRA_NEBULA_GRAPH_SCHEMA_EDGES_AUTO', false)
           }
         }
+        // 移除 batch 配置，由 NebulaConfigService 统一管理
       }
     };
   }
@@ -332,17 +334,17 @@ export class InfrastructureConfigService {
           databaseSpecific: {}
         },
         batch: {
-          maxConcurrentOperations: 3,
-          defaultBatchSize: 25,
+          maxConcurrentOperations: 5,
+          defaultBatchSize: 50,
           maxBatchSize: 100,
-          minBatchSize: 5,
-          memoryThreshold: 0.70,
-          processingTimeout: 30000,
-          retryAttempts: 2,
-          retryDelay: 100,
-          adaptiveBatchingEnabled: false,
-          performanceThreshold: 1000,
-          adjustmentFactor: 0.1,
+          minBatchSize: 10,
+          memoryThreshold: 80,
+          processingTimeout: 300000,
+          retryAttempts: 3,
+          retryDelay: 1000,
+          adaptiveBatchingEnabled: true,
+          performanceThreshold: 90,
+          adjustmentFactor: 0.8,
           databaseSpecific: {}
         },
         graph: {
@@ -447,17 +449,17 @@ export class InfrastructureConfigService {
           databaseSpecific: {}
         },
         batch: {
-          maxConcurrentOperations: 1,
-          defaultBatchSize: 10,
-          maxBatchSize: 50,
-          minBatchSize: 1,
-          memoryThreshold: 0.50,
-          processingTimeout: 10000,
-          retryAttempts: 1,
-          retryDelay: 200,
-          adaptiveBatchingEnabled: false,
-          performanceThreshold: 5000,
-          adjustmentFactor: 0.05,
+          maxConcurrentOperations: 5,
+          defaultBatchSize: 50,
+          maxBatchSize: 100,
+          minBatchSize: 10,
+          memoryThreshold: 80,
+          processingTimeout: 300000,
+          retryAttempts: 3,
+          retryDelay: 1000,
+          adaptiveBatchingEnabled: true,
+          performanceThreshold: 90,
+          adjustmentFactor: 0.8,
           databaseSpecific: {}
         },
         graph: {
@@ -489,36 +491,29 @@ export class InfrastructureConfigService {
 
       // 合并相关的配置到基础设施配置中，但保持最小值验证
       if (batchProcessingConfig) {
-        // 更新批处理相关的基础设施配置
+        // 更新批处理相关的基础设施配置（仅限 Qdrant）
         if (batchProcessingConfig.maxConcurrentOperations !== undefined) {
           this.config.qdrant.batch.maxConcurrentOperations = batchProcessingConfig.maxConcurrentOperations;
-          this.config.nebula.batch.maxConcurrentOperations = batchProcessingConfig.maxConcurrentOperations;
         }
         if (batchProcessingConfig.defaultBatchSize !== undefined) {
           this.config.qdrant.batch.defaultBatchSize = batchProcessingConfig.defaultBatchSize;
-          this.config.nebula.batch.defaultBatchSize = batchProcessingConfig.defaultBatchSize;
         }
         if (batchProcessingConfig.maxBatchSize !== undefined) {
           this.config.qdrant.batch.maxBatchSize = batchProcessingConfig.maxBatchSize;
-          this.config.nebula.batch.maxBatchSize = batchProcessingConfig.maxBatchSize;
         }
         if (batchProcessingConfig.memoryThreshold !== undefined) {
           this.config.qdrant.batch.memoryThreshold = batchProcessingConfig.memoryThreshold;
-          this.config.nebula.batch.memoryThreshold = batchProcessingConfig.memoryThreshold;
         }
         if (batchProcessingConfig.processingTimeout !== undefined) {
           // 确保处理超时时间不低于最小值
           this.config.qdrant.batch.processingTimeout = Math.max(batchProcessingConfig.processingTimeout, 1000);
-          this.config.nebula.batch.processingTimeout = Math.max(batchProcessingConfig.processingTimeout, 1000);
         }
         if (batchProcessingConfig.retryAttempts !== undefined) {
           this.config.qdrant.batch.retryAttempts = batchProcessingConfig.retryAttempts;
-          this.config.nebula.batch.retryAttempts = batchProcessingConfig.retryAttempts;
         }
         if (batchProcessingConfig.retryDelay !== undefined) {
           // 确保重试延迟不低于最小值
           this.config.qdrant.batch.retryDelay = Math.max(batchProcessingConfig.retryDelay, 100);
-          this.config.nebula.batch.retryDelay = Math.max(batchProcessingConfig.retryDelay, 100);
         }
       }
 
@@ -550,9 +545,6 @@ export class InfrastructureConfigService {
   getConfig(): InfrastructureConfig {
     return { ...this.config };
   }
-
-
-
 
   getDatabaseConfig(databaseType: DatabaseType): any {
     switch (databaseType) {

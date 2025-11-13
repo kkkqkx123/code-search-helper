@@ -70,30 +70,7 @@ const mockContainer = {
         })
       };
     }
-    if (serviceIdentifier.name === 'BatchProcessingConfigService') {
-      return {
-        getConfig: () => ({
-          enabled: false,
-          maxConcurrentOperations: 10,
-          defaultBatchSize: 25,
-          maxBatchSize: 250,
-          memoryThreshold: 80,
-          processingTimeout: 300000,
-          retryAttempts: 3,
-          retryDelay: 1000,
-          continueOnError: true,
-          monitoring: {
-            enabled: true,
-            metricsInterval: 60000,
-            alertThresholds: {
-              highLatency: 5000,
-              highErrorRate: 0.1,
-              highMemoryUsage: 80,
-            },
-          },
-        })
-      };
-    }
+    
     if (serviceIdentifier.name === 'ProjectConfigService') {
       return {
         getConfig: () => ({
@@ -185,11 +162,8 @@ describe('ConfigService', () => {
       mockContainer.get({ name: 'EnvironmentConfigService' }) as any,
       mockContainer.get({ name: 'QdrantConfigService' }) as any,
       mockContainer.get({ name: 'EmbeddingConfigService' }) as any,
-      mockContainer.get({ name: 'LoggingConfigService' }) as any,
-      mockContainer.get({ name: 'MonitoringConfigService' }) as any,
       mockContainer.get({ name: 'MemoryMonitorConfigService' }) as any,
       mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
-      mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
       mockContainer.get({ name: 'ProjectConfigService' }) as any,
       mockContainer.get({ name: 'IndexingConfigService' }) as any,
       mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
@@ -291,11 +265,8 @@ describe('ConfigService', () => {
       mockContainer.get({ name: 'EnvironmentConfigService' }) as any,
       mockContainer.get({ name: 'QdrantConfigService' }) as any,
       mockContainer.get({ name: 'EmbeddingConfigService' }) as any,
-      mockContainer.get({ name: 'LoggingConfigService' }) as any,
-      mockContainer.get({ name: 'MonitoringConfigService' }) as any,
       mockContainer.get({ name: 'MemoryMonitorConfigService' }) as any,
       mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
-      mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
       mockContainer.get({ name: 'ProjectConfigService' }) as any,
       mockContainer.get({ name: 'IndexingConfigService' }) as any,
       mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
@@ -339,11 +310,8 @@ describe('ConfigService', () => {
       mockContainer.get({ name: 'EnvironmentConfigService' }) as any,
       mockContainer.get({ name: 'QdrantConfigService' }) as any,
       mockContainer.get({ name: 'EmbeddingConfigService' }) as any,
-      mockContainer.get({ name: 'LoggingConfigService' }) as any,
-      mockContainer.get({ name: 'MonitoringConfigService' }) as any,
       mockContainer.get({ name: 'MemoryMonitorConfigService' }) as any,
       mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
-      mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
       mockContainer.get({ name: 'ProjectConfigService' }) as any,
       mockContainer.get({ name: 'IndexingConfigService' }) as any,
       mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
@@ -473,11 +441,8 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'EnvironmentConfigService' }) as any,
         mockContainer.get({ name: 'QdrantConfigService' }) as any,
         mockContainer.get({ name: 'EmbeddingConfigService' }) as any,
-        mockContainer.get({ name: 'LoggingConfigService' }) as any,
-        mockContainer.get({ name: 'MonitoringConfigService' }) as any,
         mockContainer.get({ name: 'MemoryMonitorConfigService' }) as any,
         mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
-        mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
         mockContainer.get({ name: 'ProjectConfigService' }) as any,
         mockContainer.get({ name: 'IndexingConfigService' }) as any,
         mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
@@ -519,11 +484,8 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'EnvironmentConfigService' }) as any,
         mockContainer.get({ name: 'QdrantConfigService' }) as any,
         mockContainer.get({ name: 'EmbeddingConfigService' }) as any,
-        mockContainer.get({ name: 'LoggingConfigService' }) as any,
-        mockContainer.get({ name: 'MonitoringConfigService' }) as any,
         mockContainer.get({ name: 'MemoryMonitorConfigService' }) as any,
         mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
-        mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
         mockContainer.get({ name: 'ProjectConfigService' }) as any,
         mockContainer.get({ name: 'IndexingConfigService' }) as any,
         mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
@@ -566,11 +528,8 @@ describe('ConfigService', () => {
         mockContainer.get({ name: 'EnvironmentConfigService' }) as any,
         mockContainer.get({ name: 'QdrantConfigService' }) as any,
         mockContainer.get({ name: 'EmbeddingConfigService' }) as any,
-        mockContainer.get({ name: 'LoggingConfigService' }) as any,
-        mockContainer.get({ name: 'MonitoringConfigService' }) as any,
         mockContainer.get({ name: 'MemoryMonitorConfigService' }) as any,
         mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
-        mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
         mockContainer.get({ name: 'ProjectConfigService' }) as any,
         mockContainer.get({ name: 'IndexingConfigService' }) as any,
         mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
@@ -585,64 +544,6 @@ describe('ConfigService', () => {
     });
   });
 
-  describe('批处理配置', () => {
-    it('应该正确处理批处理配置', async () => {
-      // 更新模拟容器的BatchProcessingConfigService实现
-      mockContainer.get.mockImplementation((serviceIdentifier: any) => {
-        if (serviceIdentifier.name === 'BatchProcessingConfigService') {
-          return {
-            getConfig: () => ({
-              enabled: false,
-              maxConcurrentOperations: 10,
-              defaultBatchSize: 25,
-              maxBatchSize: 250,
-              memoryThreshold: 80,
-              processingTimeout: 300000,
-              retryAttempts: 3,
-              retryDelay: 1000,
-              continueOnError: true,
-              monitoring: {
-                enabled: true,
-                metricsInterval: 60000,
-                alertThresholds: {
-                  highLatency: 5000,
-                  highErrorRate: 0.1,
-                  highMemoryUsage: 80,
-                },
-              },
-            })
-          };
-        }
-        // 保持其他服务的原始模拟实现
-        return originalMockImplementation ? originalMockImplementation(serviceIdentifier) : { getConfig: () => ({}) };
-        });
-
-        // 创建新的ConfigService实例
-        const newConfigService = new ConfigService(
-        mockContainer.get({ name: 'EnvironmentConfigService' }) as any,
-        mockContainer.get({ name: 'QdrantConfigService' }) as any,
-        mockContainer.get({ name: 'EmbeddingConfigService' }) as any,
-        mockContainer.get({ name: 'LoggingConfigService' }) as any,
-        mockContainer.get({ name: 'MonitoringConfigService' }) as any,
-        mockContainer.get({ name: 'MemoryMonitorConfigService' }) as any,
-        mockContainer.get({ name: 'FileProcessingConfigService' }) as any,
-        mockContainer.get({ name: 'BatchProcessingConfigService' }) as any,
-        mockContainer.get({ name: 'ProjectConfigService' }) as any,
-        mockContainer.get({ name: 'IndexingConfigService' }) as any,
-        mockContainer.get({ name: 'TreeSitterConfigService' }) as any,
-        mockContainer.get({ name: 'ProjectNamingConfigService' }) as any,
-        mockContainer.get({ name: 'EmbeddingBatchConfigService' }) as any,
-        mockContainer.get({ name: 'GraphCacheConfigService' }) as any,
-        );
-
-      await newConfigService.initialize();
-      const batchConfig = newConfigService.get('batchProcessing');
-
-      expect(batchConfig.enabled).toBe(false);
-      expect(batchConfig.maxConcurrentOperations).toBe(10);
-      expect(batchConfig.defaultBatchSize).toBe(25);
-      expect(batchConfig.maxBatchSize).toBe(250);
-    });
-  });
+  
 
 });

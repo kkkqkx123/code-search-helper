@@ -11,11 +11,9 @@ export const TYPES = {
   QdrantConfigService: Symbol.for('QdrantConfigService'),
   EmbeddingConfigService: Symbol.for('EmbeddingConfigService'),
   EmbeddingBatchConfigService: Symbol.for('EmbeddingBatchConfigService'),
-  LoggingConfigService: Symbol.for('LoggingConfigService'),
-  MonitoringConfigService: Symbol.for('MonitoringConfigService'),
   MemoryMonitorConfigService: Symbol.for('MemoryMonitorConfigService'),
   FileProcessingConfigService: Symbol.for('FileProcessingConfigService'),
-  BatchProcessingConfigService: Symbol.for('BatchProcessingConfigService'),
+
   ProjectConfigService: Symbol.for('ProjectConfigService'),
   IndexingConfigService: Symbol.for('IndexingConfigService'),
   TreeSitterConfigService: Symbol.for('TreeSitterConfigService'),
@@ -174,7 +172,7 @@ export const TYPES = {
   InfrastructureManager: Symbol.for('InfrastructureManager'),
   DatabaseHealthChecker: Symbol.for('DatabaseHealthChecker'),
   GraphCacheService: Symbol.for('GraphCacheService'),
-  GraphConfigService: Symbol.for('GraphConfigService'),
+
   CacheConfig: Symbol.for('CacheConfig'),
   InfrastructureErrorHandler: Symbol.for('InfrastructureErrorHandler'),
 

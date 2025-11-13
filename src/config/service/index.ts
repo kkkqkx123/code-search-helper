@@ -3,11 +3,11 @@ export { EnvironmentConfigService, EnvironmentConfig } from './EnvironmentConfig
 export { QdrantConfigService, QdrantConfig } from './QdrantConfigService';
 export { EmbeddingConfigService, EmbeddingConfig } from './EmbeddingConfigService';
 export { EmbeddingBatchConfigService, EmbeddingBatchConfig } from './EmbeddingBatchConfigService';
-export { LoggingConfigService, LoggingConfig } from './LoggingConfigService';
-export { MonitoringConfigService, MonitoringConfig } from './MonitoringConfigService';
+
+
 export { MemoryMonitorConfigService, MemoryMonitorConfig } from './MemoryMonitorConfigService';
 export { FileProcessingConfigService, FileProcessingConfig } from './FileProcessingConfigService';
-export { BatchProcessingConfigService, BatchProcessingConfig } from './BatchProcessingConfigService';
+
 export { ProjectConfigService, ProjectConfig } from './ProjectConfigService';
 export { IndexingConfigService, IndexingConfig } from './IndexingConfigService';
 export { TreeSitterConfigService, TreeSitterConfig } from './TreeSitterConfigService';

@@ -15,7 +15,7 @@ import { LoggingConfigService } from '../config/service/LoggingConfigService';
 import { MonitoringConfigService } from '../config/service/MonitoringConfigService';
 import { MemoryMonitorConfigService } from '../config/service/MemoryMonitorConfigService';
 import { FileProcessingConfigService } from '../config/service/FileProcessingConfigService';
-import { BatchProcessingConfigService } from '../config/service/BatchProcessingConfigService';
+
 import { ProjectConfigService } from '../config/service/ProjectConfigService';
 import { IndexingConfigService } from '../config/service/IndexingConfigService';
 import { TreeSitterConfigService } from '../config/service/TreeSitterConfigService';
@@ -42,7 +42,7 @@ describe('Memory Monitor Integration Tests', () => {
     container.bind<MonitoringConfigService>(TYPES.MonitoringConfigService).to(MonitoringConfigService).inSingletonScope();
     container.bind<MemoryMonitorConfigService>(TYPES.MemoryMonitorConfigService).to(MemoryMonitorConfigService).inSingletonScope();
     container.bind<FileProcessingConfigService>(TYPES.FileProcessingConfigService).to(FileProcessingConfigService).inSingletonScope();
-    container.bind<BatchProcessingConfigService>(TYPES.BatchProcessingConfigService).to(BatchProcessingConfigService).inSingletonScope();
+    
     container.bind<ProjectConfigService>(TYPES.ProjectConfigService).to(ProjectConfigService).inSingletonScope();
     container.bind<IndexingConfigService>(TYPES.IndexingConfigService).to(IndexingConfigService).inSingletonScope();
     container.bind<TreeSitterConfigService>(TYPES.TreeSitterConfigService).to(TreeSitterConfigService).inSingletonScope();

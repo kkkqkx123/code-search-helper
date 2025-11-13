@@ -11,11 +11,9 @@ export const TYPES = {
   EnvironmentConfigService: Symbol.for('EnvironmentConfigService'),
   EmbeddingConfigService: Symbol.for('EmbeddingConfigService'),
   EmbeddingBatchConfigService: Symbol.for('EmbeddingBatchConfigService'),
-  LoggingConfigService: Symbol.for('LoggingConfigService'),
-  MonitoringConfigService: Symbol.for('MonitoringConfigService'),
   MemoryMonitorConfigService: Symbol.for('MemoryMonitorConfigService'),
   FileProcessingConfigService: Symbol.for('FileProcessingConfigService'),
-  BatchProcessingConfigService: Symbol.for('BatchProcessingConfigService'),
+
   ProjectConfigService: Symbol.for('ProjectConfigService'),
   IndexingConfigService: Symbol.for('IndexingConfigService'),
   TreeSitterConfigService: Symbol.for('TreeSitterConfigService'),
@@ -124,11 +122,11 @@ export const TYPES = {
   VectorIndexService: Symbol.for('VectorIndexService'),
   GraphIndexService: Symbol.for('GraphIndexService'),
   HybridIndexService: Symbol.for('HybridIndexService'),
-   StorageCoordinatorService: Symbol.for('StorageCoordinatorService'),
+  StorageCoordinatorService: Symbol.for('StorageCoordinatorService'),
 
   // 共享服务
   FileTraversalService: Symbol.for('FileTraversalService'),
-   ConcurrencyService: Symbol.for('ConcurrencyService'),
+  ConcurrencyService: Symbol.for('ConcurrencyService'),
 
   // 语言检测服务（已移至DetectionService）
   LanguageDetector: Symbol.for('LanguageDetector'),
@@ -205,7 +203,7 @@ export const TYPES = {
   // 数据库服务
   SqliteDatabaseService: Symbol.for('SqliteDatabaseService'),
   NebulaClient: Symbol.for('NebulaClient'),
-  } as const;
+} as const;
 
 // 确保TYPES的类型被正确识别
 export type TypesType = typeof TYPES;

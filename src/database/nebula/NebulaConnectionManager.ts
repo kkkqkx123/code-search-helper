@@ -6,7 +6,7 @@ import { NebulaConfig, NebulaConnectionStatus, NebulaQueryResult } from './Nebul
 import { TYPES } from '../../types';
 import { IConnectionManager } from '../common/IDatabaseService';
 import { NebulaConfigService } from '../../config/service/NebulaConfigService';
-import { GraphConfigService } from '../../config/service/GraphConfigService';
+
 import { EventListener } from '../../types';
 import { IQueryRunner } from './query/QueryRunner';
 import { SpaceValidator, SpaceValidationResult, SpaceValidationErrorType } from './validation/SpaceValidator';
@@ -29,7 +29,6 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   private databaseLogger: DatabaseLoggerService;
   private errorHandler: ErrorHandlerService;
   private nebulaConfigService: NebulaConfigService;
-  private graphConfigService: GraphConfigService;
   private connectionStatus: NebulaConnectionStatus;
   private config!: NebulaConfig;
   private eventEmitter: EventEmitter;
@@ -40,14 +39,12 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     @inject(TYPES.DatabaseLoggerService) databaseLogger: DatabaseLoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.NebulaConfigService) nebulaConfigService: NebulaConfigService,
-    @inject(TYPES.GraphConfigService) graphConfigService: GraphConfigService,
     @inject(TYPES.SpaceValidator) spaceValidator: SpaceValidator,
     @inject(TYPES.IQueryRunner) queryRunner: IQueryRunner
   ) {
     this.databaseLogger = databaseLogger;
     this.errorHandler = errorHandler;
     this.nebulaConfigService = nebulaConfigService;
-    this.graphConfigService = graphConfigService;
     this.eventEmitter = new EventEmitter();
     this.spaceValidator = spaceValidator;
     this.queryRunner = queryRunner;
@@ -83,7 +80,16 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
     try {
       // 重新加载配置
       const loadedConfig = this.nebulaConfigService.loadConfig();
-      const faultToleranceOptions = this.graphConfigService.getFaultToleranceOptions();
+      // 从NebulaConfigService获取容错配置
+      const faultToleranceOptions = loadedConfig.faultTolerance || {
+        maxRetries: loadedConfig.retryAttempts || 3,
+        retryDelay: loadedConfig.retryDelay || 1000,
+        exponentialBackoff: true,
+        circuitBreakerEnabled: true,
+        circuitBreakerFailureThreshold: 5,
+        circuitBreakerTimeout: 3000,
+        fallbackStrategy: 'cache' as const
+      };
 
       // 合并配置
       this.config = {
@@ -294,10 +300,19 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
   private loadConfiguration(): void {
     try {
       // 从NebulaConfigService加载基础配置
-      const baseConfig = this.nebulaConfigService.loadConfig();
+      const loadedConfig = this.nebulaConfigService.loadConfig();
 
       // 从GraphConfigService获取容错配置
-      const faultToleranceOptions = this.graphConfigService.getFaultToleranceOptions();
+      // 从NebulaConfigService获取容错配置
+      const faultToleranceOptions = loadedConfig.faultTolerance || {
+        maxRetries: loadedConfig.retryAttempts || 3,
+        retryDelay: loadedConfig.retryDelay || 1000,
+        exponentialBackoff: true,
+        circuitBreakerEnabled: true,
+        circuitBreakerFailureThreshold: 5,
+        circuitBreakerTimeout: 3000,
+        fallbackStrategy: 'cache' as const
+      };
 
       // 将容错选项转换为NebulaConfig格式
       const faultTolerantConfig: Partial<NebulaConfig> = {
@@ -306,7 +321,7 @@ export class NebulaConnectionManager implements INebulaConnectionManager {
       };
 
       // 合并配置，容错配置优先
-      this.config = { ...baseConfig, ...faultTolerantConfig };
+      this.config = { ...loadedConfig, ...faultTolerantConfig };
       this.updateConnectionStatusFromConfig();
 
       this.databaseLogger.logDatabaseEvent({
