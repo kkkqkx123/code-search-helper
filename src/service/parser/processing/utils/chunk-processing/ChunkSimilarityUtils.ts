@@ -1,4 +1,4 @@
-import { CodeChunk } from '../../types/CodeChunk';
+import { CodeChunk } from '../../core/types/ResultTypes';
 import { ContentHashIDGenerator } from '../ContentHashIDGenerator';
 import { DeduplicationUtils } from '../overlap/DeduplicationUtils';
 import { inject, injectable } from 'inversify';
@@ -66,7 +66,7 @@ export class ChunkSimilarityUtils {
         endLine,
         language: chunk1.metadata.language,
         filePath: chunk1.metadata.filePath,
-        type: chunk1.metadata.type || chunk2.metadata.type || 'merged',
+        type: chunk1.metadata.type || chunk2.metadata.type,
         complexity: Math.max(chunk1.metadata.complexity || 0, chunk2.metadata.complexity || 0),
         size: mergedContent.length,
         lineCount: mergedLines,

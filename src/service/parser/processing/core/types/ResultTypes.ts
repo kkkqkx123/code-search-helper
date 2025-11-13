@@ -94,7 +94,22 @@ export enum ChunkType {
   ENUM = 'enum',
   MODULE = 'module',
   BLOCK = 'block',
-  LINE = 'line'
+  LINE = 'line',
+  CONTROL_FLOW = 'control-flow',
+  EXPRESSION = 'expression',
+  CONFIG_ITEM = 'config-item',
+  SECTION = 'section',
+  KEY = 'key',
+  VALUE = 'value',
+  ARRAY = 'array',
+  TABLE = 'table',
+  DEPENDENCY = 'dependency',
+  TYPE_DEF = 'type-def',
+  CALL = 'call',
+  DATA_FLOW = 'data-flow',
+  PARAMETER_FLOW = 'parameter-flow',
+  UNION = 'union',
+  ANNOTATION = 'annotation'
 }
 
 /**

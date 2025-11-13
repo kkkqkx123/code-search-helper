@@ -92,7 +92,7 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
         // 连接池配置
         connectionPool: {
           minConnections: parseInt(process.env.NEBULA_POOL_MIN_CONNECTIONS || '2'),
-          maxConnections: parseInt(process.env.NEBULA_POOL_MAX_CONNECTIONS || '10'),
+          maxConnections: parseInt(process.env.NEBULA_MAX_CONNECTIONS || '10'),
           acquireTimeout: parseInt(process.env.NEBULA_POOL_ACQUIRE_TIMEOUT || '30000'),
           idleTimeout: parseInt(process.env.NEBULA_POOL_IDLE_TIMEOUT || '300000'),
           healthCheckInterval: parseInt(process.env.NEBULA_POOL_HEALTH_CHECK_INTERVAL || '30000'),
@@ -328,13 +328,7 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
         throw new Error(`Invalid space name format: ${value.space}`);
       }
 
-      // 验证连接池配置一致性
-      if (value.connectionPool && value.maxConnections) {
-        if (value.connectionPool.maxConnections && value.connectionPool.maxConnections !== value.maxConnections) {
-          this.logger.warn(`Connection pool maxConnections (${value.connectionPool.maxConnections}) differs from maxConnections (${value.maxConnections}), using connectionPool value`);
-          value.maxConnections = value.connectionPool.maxConnections;
-        }
-      }
+      // 连接池配置现在使用统一的 maxConnections 配置
 
       return value;
     } catch (error) {

@@ -136,7 +136,6 @@ describe('配置统一验证测试', () => {
     it('应该支持现有的环境变量', () => {
       // 设置测试环境变量
       process.env.NEBULA_MAX_CONNECTIONS = '20';
-      process.env.NEBULA_POOL_MAX_CONNECTIONS = '20';
       process.env.NEBULA_TIMEOUT = '60000';
       process.env.NEBULA_POOL_ACQUIRE_TIMEOUT = '60000';
 

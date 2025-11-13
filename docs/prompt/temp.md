@@ -4,7 +4,8 @@ EMBEDDING_BATCH_SIZE = 64
 ```中设置的批处理大小与 .env:114-114
 ```
 EMBEDDING_PROVIDER_SIMILARITY_BATCH_SIZE = 64
-```中单独设置的单独用于相似度计算的provider的配置是否完全独立。此外，需要分析
+```中单独设置的单独用于相似度计算的provider的配置是否完全独立。此外，需要分析两者现在是如何并行使用的
+[x]
 
 
 src\service\parser\processing\utils\html\HTMLContentExtractor.ts是否越权
@@ -12,13 +13,6 @@ src\service\parser\processing\utils\html\HTMLContentExtractor.ts是否越权
 stragety的supportedLanguages硬编码，需要统一为src\service\parser\constants\language-constants.ts
 
 ast解析是否不全？标准化查询模块与提取模块是否对应？
-
-
-src\service\parser\processing\utils\performance\IPerformanceMonitoringSystem.ts
-src\service\parser\processing\utils\performance\PerformanceMonitor.ts
-src\service\parser\processing\utils\performance\PerformanceOptimizer.ts
-src\service\parser\processing\utils\performance\UnifiedPerformanceMonitoringSystem.ts
-这些文件在哪些地方被实际使用？是否多余？
 
 
 @/src/service/parser/processing/strategies/implementations/ASTCodeSplitter.ts 

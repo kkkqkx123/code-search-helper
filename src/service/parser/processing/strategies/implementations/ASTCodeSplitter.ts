@@ -10,17 +10,17 @@ import { CodeChunk, ChunkType } from '../../types/CodeChunk';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { TreeSitterService } from '../../../../parser/core/parse/TreeSitterService';
 import { DetectionService } from '../../../detection/DetectionService';
-import { QueryResultNormalizer } from '../../../../parser/core/normalization/QueryResultNormalizer';
 import { TYPES } from '../../../../../types';
 import { ChunkFactory } from '../../../../../utils/processing/ChunkFactory';
 import { ValidationUtils } from '../../../../../utils/processing/validation/ValidationUtils';
 import { ContentAnalyzer } from '../../../../../utils/processing/ContentAnalyzer';
 import { TypeMappingUtils } from '../../../../../utils/processing/TypeMappingUtils';
-import { QueryResultToChunkConverter } from '../../../../../utils/processing/QueryResultConverter';
+import { QueryResultConverter } from '../../../../../utils/processing/QueryResultConverter';
 import { ComplexityCalculator } from '../../../../../utils/processing/ComplexityCalculator';
 import { ICacheService } from '../../../../../infrastructure/caching/types';
 import { IPerformanceMonitor } from '../../../../../infrastructure/monitoring/types';
 import { SegmentationConfigService } from '../../../../../config/service/SegmentationConfigService';
+import { HashUtils } from '../../../../../utils/cache/HashUtils';
 import { SegmentationConfig } from '../../../../../config/ConfigTypes';
 
 @injectable()
@@ -97,14 +97,14 @@ export class ASTCodeSplitter {
           chunk.metadata.type,
           this.config
         );
-        
+
         // 将复杂度信息添加到元数据中
         chunk.metadata = {
           ...chunk.metadata,
           complexity: chunkComplexity.score,
           complexityAnalysis: chunkComplexity.analysis
         };
-        
+
         return chunk;
       });
 
@@ -147,7 +147,7 @@ export class ASTCodeSplitter {
 
     try {
       // 第一层：顶级结构提取
-      const topLevelStructures = ContentAnalyzer.extractTopLevelStructures(content, language);
+      const topLevelStructures = await ContentAnalyzer.extractTopLevelStructures(content, language);
 
       for (const structure of topLevelStructures) {
         if (ValidationUtils.isValidStructure(structure)) {
@@ -160,13 +160,13 @@ export class ASTCodeSplitter {
             const hierarchicalStructure = TypeMappingUtils.convertTopLevelToHierarchical(structure);
 
             // 转换为代码块
-            const chunk = QueryResultToChunkConverter.convertHierarchicalStructure(
+            const chunk = QueryResultConverter.convertSingleHierarchicalStructure(
               hierarchicalStructure,
               'ast-splitter',
               filePath
             );
 
-            chunks.push(...chunk);
+            chunks.push(chunk);
 
             // 第二层：嵌套结构提取（如果启用）
             if (this.config.nesting.enableNestedExtraction && this.config.nesting.maxNestingLevel && this.config.nesting.maxNestingLevel >= 2) {
@@ -175,7 +175,8 @@ export class ASTCodeSplitter {
                 content,
                 filePath,
                 language,
-                2
+                2,
+                ast
               );
               chunks.push(...nestedChunks);
             }
@@ -183,24 +184,6 @@ export class ASTCodeSplitter {
         }
       }
 
-      // 注意：新的SegmentationConfig没有extraction.structureTypes
-      // 如果需要，可以从languageSpecific配置中获取
-      // 暂时禁用此功能
-      if (false) { // 暂时禁用，因为新配置结构中没有这个字段
-        const normalizer = new QueryResultNormalizer();
-        const standardizedResults = await normalizer.normalize(ast, language, ['function', 'class', 'method']);
-
-        for (const result of standardizedResults) {
-          if (result.content && result.content.trim().length > 0) {
-            const chunk = QueryResultToChunkConverter.convertToChunk(
-              result,
-              'ast-splitter',
-              filePath
-            );
-            chunks.push(chunk);
-          }
-        }
-      }
 
       // 如果没有提取到任何结构，返回包含整个文件的chunk
       if (chunks.length === 0) {
@@ -234,7 +217,8 @@ export class ASTCodeSplitter {
     content: string,
     filePath: string,
     language: string,
-    level: number
+    level: number,
+    ast?: Parser.SyntaxNode
   ): Promise<CodeChunk[]> {
     const chunks: CodeChunk[] = [];
 
@@ -243,10 +227,12 @@ export class ASTCodeSplitter {
     }
 
     try {
-      const nestedStructures = ContentAnalyzer.extractNestedStructures(
+      const nestedStructures = await ContentAnalyzer.extractNestedStructures(
         content,
         parentStructure.node,
-        level
+        level,
+        ast,
+        language
       );
 
       for (const nested of nestedStructures) {
@@ -261,7 +247,7 @@ export class ASTCodeSplitter {
         let chunk: CodeChunk | CodeChunk[] | null = null;
         if (shouldPreserve) {
           const hierarchicalStructure = TypeMappingUtils.convertNestedToHierarchical(nested);
-          chunk = QueryResultToChunkConverter.convertHierarchicalStructure(
+          chunk = QueryResultConverter.convertSingleHierarchicalStructure(
             hierarchicalStructure,
             'ast-splitter',
             filePath
@@ -274,7 +260,7 @@ export class ASTCodeSplitter {
         if (chunk) {
           // 如果是数组，处理每个元素
           const chunkArray = Array.isArray(chunk) ? chunk : [chunk];
-          
+
           for (const c of chunkArray) {
             if (c) {
               // 计算复杂度并添加到元数据
@@ -283,14 +269,14 @@ export class ASTCodeSplitter {
                 c.metadata.type,
                 this.config
               );
-              
+
               c.metadata = {
                 ...c.metadata,
                 complexity: nestedComplexity.score,
                 complexityAnalysis: nestedComplexity.analysis,
                 nestingLevel: level
               };
-              
+
               chunks.push(c);
             }
           }
@@ -303,7 +289,8 @@ export class ASTCodeSplitter {
             content,
             filePath,
             language,
-            level + 1
+            level + 1,
+            ast
           );
           chunks.push(...deeperChunks);
         }
@@ -319,66 +306,71 @@ export class ASTCodeSplitter {
    * 验证结构是否有效
    */
   private validateStructure(type: string, content: string, location: { startLine: number; endLine: number }): boolean {
-    // 首先使用原有的验证逻辑
-    let isValid = false;
-    switch (type) {
-      case 'function':
-        isValid = ValidationUtils.isValidFunction(content, location, {
-          minLines: 3, // 默认值，新配置中没有这个字段
-          maxChars: 1000, // 默认值，新配置中没有这个字段
-          minChars: this.config.global.minChunkSize
-        });
-        break;
-      case 'class':
-        isValid = ValidationUtils.isValidClass(content, location, {
-          minLines: 2, // 默认值，新配置中没有这个字段
-          maxChars: 2000, // 默认值，新配置中没有这个字段
-          minChars: this.config.global.minChunkSize
-        });
-        break;
-      case 'namespace':
-        isValid = ValidationUtils.isValidNamespace(content, location, {
-          maxChars: 3000, // 默认值，新配置中没有这个字段
-          minChars: this.config.global.minChunkSize
-        });
-        break;
-      case 'template':
-        isValid = ValidationUtils.isValidTemplate(content, location, {
-          minChars: this.config.global.minChunkSize,
-          maxChars: this.config.global.maxChunkSize
-        });
-        break;
-      case 'import':
-        isValid = ValidationUtils.isValidImport(content, location);
-        break;
-      default:
-        isValid = content.length >= this.config.global.minChunkSize &&
-          content.length <= this.config.global.maxChunkSize;
-        break;
-    }
-    
+    // 使用配置系统中的统一验证参数
+    const validationConfig = {
+      minChars: this.config.global.minChunkSize,
+      maxChars: this.config.global.maxChunkSize,
+      minLines: this.config.global.minLinesPerChunk
+    };
+
+    // 根据类型进行验证
+    let isValid = this.validateByType(type, content, location, validationConfig);
+
     // 如果基础验证通过，进一步使用复杂度验证
     if (isValid) {
-      // 计算内容复杂度
-      const chunkType = this.mapStringToChunkType(type);
-      const structureComplexity = ComplexityCalculator.calculateComplexityByType(content, chunkType, this.config);
-      
-      // 设置复杂度阈值，过滤过于简单或过于复杂的块
-      const minComplexity = 2; // 最小复杂度阈值
-      const maxComplexity = 500; // 最大复杂度阈值
-      
-      const complexityValid = structureComplexity.score >= minComplexity && structureComplexity.score <= maxComplexity;
-      
-      if (!complexityValid) {
-        this.logger.debug(`Structure of type ${type} failed complexity validation: score ${structureComplexity.score} (min: ${minComplexity}, max: ${maxComplexity})`);
-      }
-      
-      return complexityValid;
+      isValid = this.validateComplexity(type, content);
     }
-    
+
     return isValid;
   }
-  
+
+  /**
+   * 根据类型进行验证
+   */
+  private validateByType(
+    type: string,
+    content: string,
+    location: { startLine: number; endLine: number },
+    config: { minChars: number; maxChars: number; minLines: number }
+  ): boolean {
+    switch (type) {
+      case 'function':
+        return ValidationUtils.isValidFunction(content, location, config);
+      case 'class':
+        return ValidationUtils.isValidClass(content, location, config);
+      case 'namespace':
+        return ValidationUtils.isValidNamespace(content, location, config);
+      case 'template':
+        return ValidationUtils.isValidTemplate(content, location, config);
+      case 'import':
+        return ValidationUtils.isValidImport(content, location);
+      default:
+        return content.length >= this.config.global.minChunkSize &&
+          content.length <= this.config.global.maxChunkSize;
+    }
+  }
+
+  /**
+   * 验证复杂度
+   */
+  private validateComplexity(type: string, content: string): boolean {
+    // 计算内容复杂度
+    const chunkType = this.mapStringToChunkType(type);
+    const structureComplexity = ComplexityCalculator.calculateComplexityByType(content, chunkType, this.config);
+
+    // 设置复杂度阈值，过滤过于简单或过于复杂的块
+    const minComplexity = 2; // 最小复杂度阈值
+    const maxComplexity = 500; // 最大复杂度阈值
+
+    const complexityValid = structureComplexity.score >= minComplexity && structureComplexity.score <= maxComplexity;
+
+    if (!complexityValid) {
+      this.logger.debug(`Structure of type ${type} failed complexity validation: score ${structureComplexity.score} (min: ${minComplexity}, max: ${maxComplexity})`);
+    }
+
+    return complexityValid;
+  }
+
   /**
    * 将字符串类型映射到ChunkType枚举
    */
@@ -412,9 +404,46 @@ export class ASTCodeSplitter {
         return ChunkType.BLOCK;
       case 'line':
         return ChunkType.LINE;
+      case 'control-flow':
+        return ChunkType.CONTROL_FLOW;
+      case 'expression':
+        return ChunkType.EXPRESSION;
+      case 'config-item':
+        return ChunkType.CONFIG_ITEM;
+      case 'section':
+        return ChunkType.SECTION;
+      case 'key':
+        return ChunkType.KEY;
+      case 'value':
+        return ChunkType.VALUE;
+      case 'array':
+        return ChunkType.ARRAY;
+      case 'table':
+        return ChunkType.TABLE;
+      case 'dependency':
+        return ChunkType.DEPENDENCY;
+      case 'type-def':
+        return ChunkType.TYPE_DEF;
+      case 'call':
+        return ChunkType.CALL;
+      case 'data-flow':
+        return ChunkType.DATA_FLOW;
+      case 'parameter-flow':
+        return ChunkType.PARAMETER_FLOW;
+      case 'union':
+        return ChunkType.UNION;
+      case 'annotation':
+        return ChunkType.ANNOTATION;
       default:
         return ChunkType.GENERIC;
     }
+  }
+
+  /**
+   * 将TypeMappingUtils返回的字符串转换为ChunkType枚举
+   */
+  private mapTypeMappingStringToChunkType(typeString: string): ChunkType {
+    return this.mapStringToChunkType(typeString);
   }
 
   /**
@@ -423,11 +452,41 @@ export class ASTCodeSplitter {
   private shouldPreserveNestedStructure(type: string): boolean {
     switch (type) {
       case 'method':
-        return true; // 默认值，新配置中没有这个字段
+        return true; // 方法通常保留完整实现
       case 'function':
-        return false; // 默认值，新配置中没有这个字段
+        return false; // 嵌套函数通常只保留签名
       case 'class':
-        return false; // 默认值，新配置中没有这个字段
+        return false; // 嵌套类通常只保留签名
+      case 'control-flow':
+        return true; // 控制流结构保留完整实现
+      case 'expression':
+        return false; // 表达式通常只保留签名
+      case 'config-item':
+        return true; // 配置项保留完整实现
+      case 'section':
+        return true; // 配置节保留完整实现
+      case 'key':
+        return false; // 键通常只保留签名
+      case 'value':
+        return false; // 值通常只保留签名
+      case 'array':
+        return true; // 数组保留完整实现
+      case 'table':
+        return true; // 表/对象保留完整实现
+      case 'dependency':
+        return true; // 依赖项保留完整实现
+      case 'type-def':
+        return true; // 类型定义保留完整实现
+      case 'call':
+        return false; // 函数调用通常只保留签名
+      case 'data-flow':
+        return true; // 数据流保留完整实现
+      case 'parameter-flow':
+        return false; // 参数流通常只保留签名
+      case 'union':
+        return true; // 联合类型保留完整实现
+      case 'annotation':
+        return true; // 注解保留完整实现
       default:
         return false;
     }
@@ -456,7 +515,7 @@ export class ASTCodeSplitter {
         structure.location.startLine,
         structure.location.startLine,
         language,
-        TypeMappingUtils.mapStructureTypeToChunkType(structure.type as any),
+        this.mapTypeMappingStringToChunkType(TypeMappingUtils.mapStructureTypeToChunkType(structure.type as any)),
         {
           filePath,
           strategy: 'ast-splitter',
@@ -465,20 +524,20 @@ export class ASTCodeSplitter {
           nestingLevel: structure.level
         }
       );
-      
+
       // 计算复杂度并添加到元数据
       const signatureComplexity = ComplexityCalculator.calculateComplexityByType(
         chunk.content,
         chunk.metadata.type,
         this.config
       );
-      
+
       chunk.metadata = {
         ...chunk.metadata,
         complexity: signatureComplexity.score,
         complexityAnalysis: signatureComplexity.analysis
       };
-      
+
       return chunk;
     } catch (error) {
       this.logger.warn(`Failed to create signature chunk: ${error}`);
@@ -511,21 +570,8 @@ export class ASTCodeSplitter {
    * 生成缓存键
    */
   private generateCacheKey(content: string, language: string | undefined, filePath: string): string {
-    const contentHash = this.hashContent(content);
+    const contentHash = HashUtils.fnv1aHash(content);
     return `${filePath}:${language || 'unknown'}:${contentHash}`;
-  }
-
-  /**
-   * 哈希内容
-   */
-  private hashContent(content: string): string {
-    let hash = 0;
-    for (let i = 0; i < content.length; i++) {
-      const char = content.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // 转换为32位整数
-    }
-    return hash.toString(36);
   }
 
   /**

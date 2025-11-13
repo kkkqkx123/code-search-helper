@@ -1,212 +1,27 @@
-/**
- * 查询结果转换器
- * 将标准化查询结果转换为代码块
- */
-
-import { CodeChunk, ChunkType } from '../../service/parser/processing/types/CodeChunk';
-import { StandardizedQueryResult } from '../../service/parser/core/normalization/types';
-import { ChunkFactory } from './ChunkFactory';
 import { TypeMappingUtils, StructureType, HierarchicalStructure, NestingInfo } from './TypeMappingUtils';
-import { TopLevelStructure, NestedStructure, InternalStructure } from './ContentAnalyzer';
+import { TopLevelStructure, NestedStructure, InternalStructure } from '../types/ContentTypes';
+import { CodeChunk } from '../../service/parser/types';
 
 /**
- * 转换配置接口
+ * 转换配置
  */
 export interface ConversionConfig {
-  /** 是否自动计算复杂度 */
-  autoCalculateComplexity?: boolean;
-  /** 是否自动生成哈希 */
-  autoGenerateHash?: boolean;
-  /** 默认策略名称 */
-  defaultStrategy?: string;
-  /** 是否验证输入 */
-  validateInput?: boolean;
-  /** 自定义元数据 */
-  customMetadata?: Record<string, any>;
+  includeMetadata?: boolean;
+  filterByType?: StructureType[];
+  minConfidence?: number;
+  maxDepth?: number;
+  preserveLocation?: boolean;
+  addContextLines?: number;
 }
 
 /**
- * 转换结果接口
+ * 查询结果转换器
+ * 负责将不同类型的结构转换为代码块
  */
-export interface ConversionResult {
-  /** 转换的代码块 */
-  chunks: CodeChunk[];
-  /** 转换统计 */
-  statistics: {
-    total: number;
-    successful: number;
-    failed: number;
-    skipped: number;
-  };
-  /** 错误信息 */
-  errors: string[];
-  /** 警告信息 */
-  warnings?: string[];
-}
-
-/**
- * 查询结果到代码块的转换器
- */
-export class QueryResultToChunkConverter {
-  /**
-   * 将标准化查询结果转换为代码块
-   */
-  static convertToChunk(
-    result: StandardizedQueryResult,
-    strategy: string,
-    filePath?: string,
-    config: ConversionConfig = {}
-  ): CodeChunk {
-    const {
-      autoCalculateComplexity = true,
-      autoGenerateHash = true,
-      defaultStrategy = strategy,
-      validateInput = true,
-      customMetadata = {}
-    } = config;
-
-    // 验证输入
-    if (validateInput) {
-      this.validateStandardizedResult(result);
-    }
-
-    // 映射类型
-    const chunkType = TypeMappingUtils.mapStandardizedTypeToChunkType(result.type);
-    const entityKey = TypeMappingUtils.getEntityKey(result.type);
-    const chunkName = result.metadata?.extra?.name || result.name;
-
-    // 创建元数据
-    const metadata = {
-      filePath: filePath || result.metadata?.filePath || '',
-      [entityKey]: chunkName,
-      strategy: defaultStrategy,
-      nodeId: result.nodeId,
-      originalType: result.type,
-      language: result.metadata?.language,
-      complexity: result.metadata?.complexity,
-      ...customMetadata
-    };
-
-    // 使用ChunkFactory创建代码块
-    return ChunkFactory.createCodeChunk(
-      result.content,
-      result.startLine,
-      result.endLine,
-      result.metadata?.language || 'unknown',
-      chunkType,
-      metadata,
-      {
-        autoCalculateComplexity,
-        autoGenerateHash,
-        defaultStrategy
-      }
-    );
-  }
+export class QueryResultConverter {
 
   /**
-   * 将分层结构转换为代码块
-   */
-  static convertHierarchicalStructure(
-    structure: HierarchicalStructure,
-    strategy: string,
-    filePath?: string,
-    config: ConversionConfig = {}
-  ): CodeChunk[] {
-    const chunks: CodeChunk[] = [];
-
-    // 转换主结构
-    const mainChunk = this.convertSingleHierarchicalStructure(structure, strategy, filePath, config);
-    chunks.push(mainChunk);
-
-    // 递归转换子结构
-    if (structure.children && structure.children.length > 0) {
-      for (const child of structure.children) {
-        const childChunks = this.convertHierarchicalStructure(child, strategy, filePath, config);
-        chunks.push(...childChunks);
-      }
-    }
-
-    return chunks;
-  }
-
-  /**
-   * 带嵌套信息的转换
-   */
-  static convertWithNestingInfo(
-    result: StandardizedQueryResult,
-    nestingInfo: NestingInfo,
-    strategy: string,
-    filePath?: string,
-    config: ConversionConfig = {}
-  ): CodeChunk {
-    const chunk = this.convertToChunk(result, strategy, filePath, config);
-
-    // 添加嵌套信息到元数据
-    chunk.metadata.nesting = {
-      level: nestingInfo.level,
-      parentType: nestingInfo.parentType,
-      parentName: nestingInfo.parentName,
-      path: nestingInfo.path.join('.'),
-      isNested: nestingInfo.level > 1
-    };
-
-    return chunk;
-  }
-
-  /**
-   * 批量转换
-   */
-  static convertBatch(
-    results: StandardizedQueryResult[],
-    strategy: string,
-    filePath?: string,
-    config: ConversionConfig = {}
-  ): ConversionResult {
-    const chunks: CodeChunk[] = [];
-    const errors: string[] = [];
-    const warnings: string[] = [];
-
-    let successful = 0;
-    let failed = 0;
-    let skipped = 0;
-
-    for (let i = 0; i < results.length; i++) {
-      const result = results[i];
-
-      try {
-        // 验证结果
-        if (!this.isValidStandardizedResult(result)) {
-          warnings.push(`Skipping invalid result at index ${i}`);
-          skipped++;
-          continue;
-        }
-
-        // 转换
-        const chunk = this.convertToChunk(result, strategy, filePath, config);
-        chunks.push(chunk);
-        successful++;
-
-      } catch (error) {
-        errors.push(`Failed to convert result at index ${i}: ${error}`);
-        failed++;
-      }
-    }
-
-    return {
-      chunks,
-      statistics: {
-        total: results.length,
-        successful,
-        failed,
-        skipped
-      },
-      errors,
-      warnings: warnings.length > 0 ? warnings : undefined
-    };
-  }
-
-  /**
-   * 转换顶级结构
+   * 转换顶级结构为代码块
    */
   static convertTopLevelStructures(
     structures: TopLevelStructure[],
@@ -221,7 +36,7 @@ export class QueryResultToChunkConverter {
   }
 
   /**
-   * 转换嵌套结构
+   * 转换嵌套结构为代码块
    */
   static convertNestedStructures(
     structures: NestedStructure[],
@@ -236,7 +51,7 @@ export class QueryResultToChunkConverter {
   }
 
   /**
-   * 转换内部结构
+   * 转换内部结构为代码块
    */
   static convertInternalStructures(
     structures: InternalStructure[],
@@ -251,252 +66,244 @@ export class QueryResultToChunkConverter {
   }
 
   /**
-   * 创建转换管道
+   * 转换单个分层结构为代码块
    */
-  static createConversionPipeline(
-    ...processors: Array<(chunk: CodeChunk) => CodeChunk>
-  ): (results: StandardizedQueryResult[], strategy: string, filePath?: string) => CodeChunk[] {
-    return (results: StandardizedQueryResult[], strategy: string, filePath?: string) => {
-      const chunks = results.map(result => 
-        this.convertToChunk(result, strategy, filePath)
-      );
-
-      return processors.reduce((processedChunks, processor) => {
-        return processedChunks.map(processor);
-      }, chunks);
-    };
-  }
-
-  /**
-   * 创建过滤器
-   */
-  static createFilter(predicate: (chunk: CodeChunk) => boolean): (chunks: CodeChunk[]) => CodeChunk[] {
-    return (chunks: CodeChunk[]) => chunks.filter(predicate);
-  }
-
-  /**
-   * 创建转换器
-   */
-  static createTransformer(
-    transformer: (chunk: CodeChunk) => CodeChunk
-  ): (chunks: CodeChunk[]) => CodeChunk[] {
-    return (chunks: CodeChunk[]) => chunks.map(transformer);
-  }
-
-  /**
-   * 创建聚合器
-   */
-  static createAggregator(
-    aggregator: (chunks: CodeChunk[]) => CodeChunk[]
-  ): (chunks: CodeChunk[]) => CodeChunk[] {
-    return aggregator;
-  }
-
-  /**
-   * 验证转换结果
-   */
-  static validateConversionResult(
-    originalResults: StandardizedQueryResult[],
-    convertedChunks: CodeChunk[]
-  ): {
-    isValid: boolean;
-    mismatches: Array<{
-      originalIndex: number;
-      issue: string;
-    }>;
-  } {
-    const mismatches: Array<{ originalIndex: number; issue: string }> = [];
-
-    if (originalResults.length !== convertedChunks.length) {
-      mismatches.push({
-        originalIndex: -1,
-        issue: `Count mismatch: ${originalResults.length} originals vs ${convertedChunks.length} chunks`
-      });
-    }
-
-    for (let i = 0; i < Math.min(originalResults.length, convertedChunks.length); i++) {
-      const original = originalResults[i];
-      const converted = convertedChunks[i];
-
-      // 检查内容
-      if (original.content !== converted.content) {
-        mismatches.push({
-          originalIndex: i,
-          issue: 'Content mismatch'
-        });
-      }
-
-      // 检查位置
-      if (original.startLine !== converted.metadata.startLine ||
-          original.endLine !== converted.metadata.endLine) {
-        mismatches.push({
-          originalIndex: i,
-          issue: 'Location mismatch'
-        });
-      }
-
-      // 检查类型映射
-      const expectedType = TypeMappingUtils.mapStandardizedTypeToChunkType(original.type);
-      if (expectedType !== converted.metadata.type) {
-        mismatches.push({
-          originalIndex: i,
-          issue: `Type mapping mismatch: ${original.type} -> ${expectedType}, got ${converted.metadata.type}`
-        });
-      }
-    }
-
-    return {
-      isValid: mismatches.length === 0,
-      mismatches
-    };
-  }
-
-  // 私有辅助方法
-
-  /**
-   * 转换单个分层结构
-   */
-  private static convertSingleHierarchicalStructure(
+  static convertSingleHierarchicalStructure(
     structure: HierarchicalStructure,
     strategy: string,
     filePath?: string,
     config: ConversionConfig = {}
   ): CodeChunk {
     const chunkType = TypeMappingUtils.mapStructureTypeToChunkType(structure.type);
-    const metadata = TypeMappingUtils.createHierarchicalMetadata(structure);
 
-    // 添加转换配置
-    const finalMetadata = {
-      filePath: filePath || '',
-      strategy,
-      ...metadata,
-      ...config.customMetadata
+    // 应用过滤条件
+    if (config.filterByType && !config.filterByType.includes(structure.type)) {
+      return null as any; // 将在后续过滤中被移除
+    }
+
+    if (config.minConfidence && structure.metadata.confidence < config.minConfidence) {
+      return null as any; // 将在后续过滤中被移除
+    }
+
+    if (config.maxDepth && structure.nestingInfo && structure.nestingInfo.level > config.maxDepth) {
+      return null as any; // 将在后续过滤中被移除
+    }
+
+    const metadata: any = config.includeMetadata ? structure.metadata : {};
+    metadata.id = this.generateChunkId(structure, filePath);
+    metadata.type = chunkType;
+    metadata.startLine = structure.location.startLine;
+    metadata.endLine = structure.location.endLine;
+    metadata.filePath = filePath || '';
+
+    // 添加上下文行
+    if (config.addContextLines && config.addContextLines > 0) {
+      metadata.contextLines = this.extractContextLines(structure, config.addContextLines);
+    }
+
+    const chunk: CodeChunk = {
+      content: this.processContent(structure.content, config),
+      metadata
     };
 
-    return ChunkFactory.createCodeChunk(
-      structure.content,
-      structure.location.startLine,
-      structure.location.endLine,
-      metadata.language || 'unknown',
-      chunkType,
-      finalMetadata,
-      {
-        autoCalculateComplexity: config.autoCalculateComplexity,
-        autoGenerateHash: config.autoGenerateHash,
-        defaultStrategy: config.defaultStrategy || strategy
+    return chunk;
+  }
+
+  /**
+   * 批量转换混合结构
+   */
+  static convertMixedStructures(
+    topLevelStructures: TopLevelStructure[] = [],
+    nestedStructures: NestedStructure[] = [],
+    internalStructures: InternalStructure[] = [],
+    strategy: string,
+    filePath?: string,
+    config: ConversionConfig = {}
+  ): CodeChunk[] {
+    const allChunks: CodeChunk[] = [];
+
+    // 转换顶级结构
+    if (topLevelStructures.length > 0) {
+      allChunks.push(...this.convertTopLevelStructures(topLevelStructures, strategy, filePath, config));
+    }
+
+    // 转换嵌套结构
+    if (nestedStructures.length > 0) {
+      allChunks.push(...this.convertNestedStructures(nestedStructures, strategy, filePath, config));
+    }
+
+    // 转换内部结构
+    if (internalStructures.length > 0) {
+      allChunks.push(...this.convertInternalStructures(internalStructures, strategy, filePath, config));
+    }
+
+    // 过滤掉null值
+    return allChunks.filter(chunk => chunk !== null);
+  }
+
+  /**
+   * 生成代码块ID
+   */
+  private static generateChunkId(structure: HierarchicalStructure, filePath?: string): string {
+    const baseId = `${structure.type}_${structure.name}_${structure.location.startLine}`;
+    const filePrefix = filePath ? `${filePath.replace(/[^a-zA-Z0-9]/g, '_')}_` : '';
+    return `${filePrefix}${baseId}`;
+  }
+
+  /**
+   * 处理内容
+   */
+  private static processContent(content: string, config: ConversionConfig): string {
+    if (!content) return '';
+
+    let processedContent = content.trim();
+
+    // 可以根据需要添加更多内容处理逻辑
+    // 例如：去除多余空行、标准化缩进等
+
+    return processedContent;
+  }
+
+  /**
+   * 提取上下文行
+   */
+  private static extractContextLines(structure: HierarchicalStructure, contextLines: number): string[] {
+    // 这里需要访问原始文件内容来提取上下文行
+    // 由于当前设计限制，这里返回空数组
+    // 在实际实现中，可能需要传入原始文件内容
+    return [];
+  }
+
+  /**
+   * 按策略过滤代码块
+   */
+  static filterChunksByStrategy(chunks: CodeChunk[], strategy: string): CodeChunk[] {
+    switch (strategy) {
+      case 'function-only':
+        return chunks.filter(chunk => chunk.metadata.type === 'function');
+      case 'class-only':
+        return chunks.filter(chunk => chunk.metadata.type === 'class');
+      case 'high-importance':
+        return chunks.filter(chunk =>
+          chunk.metadata.importance === 'high' ||
+          ['function', 'class', 'interface'].includes(chunk.metadata.type as string)
+        );
+      case 'all':
+      default:
+        return chunks;
+    }
+  }
+
+  /**
+   * 按位置排序代码块
+   */
+  static sortChunksByLocation(chunks: CodeChunk[]): CodeChunk[] {
+    return chunks.sort((a, b) => {
+      if (a.metadata.startLine !== b.metadata.startLine) {
+        return a.metadata.startLine - b.metadata.startLine;
       }
+      return a.metadata.endLine - b.metadata.endLine;
+    });
+  }
+
+  /**
+   * 合并相邻的代码块
+   */
+  static mergeAdjacentChunks(chunks: CodeChunk[], maxGap: number = 1): CodeChunk[] {
+    if (chunks.length === 0) return [];
+
+    const sortedChunks = this.sortChunksByLocation(chunks);
+    const mergedChunks: CodeChunk[] = [];
+    let currentChunk = { ...sortedChunks[0], metadata: { ...sortedChunks[0].metadata } };
+
+    for (let i = 1; i < sortedChunks.length; i++) {
+      const nextChunk = sortedChunks[i];
+
+      // 检查是否相邻（间隔不超过maxGap行）
+      if (nextChunk.metadata.startLine - currentChunk.metadata.endLine <= maxGap) {
+        // 合并代码块
+        currentChunk.metadata.endLine = Math.max(currentChunk.metadata.endLine, nextChunk.metadata.endLine);
+        currentChunk.content += '\n' + nextChunk.content;
+
+        // 合并元数据
+        currentChunk.metadata = {
+          ...currentChunk.metadata,
+          ...nextChunk.metadata,
+          merged: true
+        };
+      } else {
+        // 添加当前块并开始新块
+        mergedChunks.push(currentChunk);
+        currentChunk = { ...nextChunk, metadata: { ...nextChunk.metadata } };
+      }
+    }
+
+    // 添加最后一个块
+    mergedChunks.push(currentChunk);
+
+    return mergedChunks;
+  }
+
+  /**
+   * 验证代码块
+   */
+  static validateChunk(chunk: CodeChunk): boolean {
+    return !!(
+      chunk.metadata.id &&
+      chunk.metadata.type &&
+      chunk.content &&
+      chunk.metadata.startLine > 0 &&
+      chunk.metadata.endLine >= chunk.metadata.startLine
     );
   }
 
   /**
-   * 验证标准化结果
+   * 清理和标准化代码块
    */
-  private static validateStandardizedResult(result: StandardizedQueryResult): void {
-    if (!result) {
-      throw new Error('Result is null or undefined');
-    }
-
-    if (!result.content || typeof result.content !== 'string') {
-      throw new Error('Result content is required and must be a string');
-    }
-
-    if (!result.type || typeof result.type !== 'string') {
-      throw new Error('Result type is required and must be a string');
-    }
-
-    if (!Number.isInteger(result.startLine) || result.startLine < 1) {
-      throw new Error('Result startLine must be a positive integer');
-    }
-
-    if (!Number.isInteger(result.endLine) || result.endLine < result.startLine) {
-      throw new Error('Result endLine must be a positive integer >= startLine');
-    }
+  static normalizeChunk(chunk: CodeChunk): CodeChunk {
+    return {
+      ...chunk,
+      content: chunk.content.trim(),
+      metadata: {
+        ...chunk.metadata,
+        confidence: Math.max(0, Math.min(1, chunk.metadata.confidence || 0))
+      }
+    };
   }
 
   /**
-   * 检查标准化结果是否有效
+   * 获取代码块统计信息
    */
-  private static isValidStandardizedResult(result: StandardizedQueryResult): boolean {
-    try {
-      this.validateStandardizedResult(result);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-}
-
-/**
- * 预定义的转换处理器
- */
-export class ConversionProcessors {
-  /**
-   * 复杂度增强处理器
-   */
-  static complexityEnhancer = (chunk: CodeChunk): CodeChunk => {
-    if (!chunk.metadata.complexity) {
-      // 基于内容计算复杂度
-      const complexity = this.calculateContentComplexity(chunk.content);
-      chunk.metadata.complexity = complexity;
-    }
-    return chunk;
-  };
-
-  /**
-   * 元数据增强处理器
-   */
-  static metadataEnhancer = (additionalMetadata: Record<string, any>) => 
-    (chunk: CodeChunk): CodeChunk => {
-      Object.assign(chunk.metadata, additionalMetadata);
-      return chunk;
+  static getChunkStatistics(chunks: CodeChunk[]): {
+    total: number;
+    byType: Record<string, number>;
+    averageSize: number;
+    totalLines: number;
+  } {
+    const stats = {
+      total: chunks.length,
+      byType: {} as Record<string, number>,
+      averageSize: 0,
+      totalLines: 0
     };
 
-  /**
-   * 类型规范化处理器
-   */
-  static typeNormalizer = (chunk: CodeChunk): CodeChunk => {
-    // 确保类型是有效的ChunkType
-    if (!Object.values(ChunkType).includes(chunk.metadata.type as ChunkType)) {
-      chunk.metadata.type = ChunkType.GENERIC;
-    }
-    return chunk;
-  };
+    let totalSize = 0;
 
-  /**
-   * 大小过滤器
-   */
-  static sizeFilter = (minSize: number, maxSize: number) => 
-    (chunk: CodeChunk): boolean => {
+    for (const chunk of chunks) {
+      // 按类型统计
+      const type = chunk.metadata.type as string;
+      stats.byType[type] = (stats.byType[type] || 0) + 1;
+
+      // 计算大小和行数
       const size = chunk.content.length;
-      return size >= minSize && size <= maxSize;
-    };
+      const lines = chunk.metadata.endLine - chunk.metadata.startLine + 1;
 
-  /**
-   * 类型过滤器
-   */
-  static typeFilter = (...allowedTypes: ChunkType[]) => 
-    (chunk: CodeChunk): boolean => {
-      return allowedTypes.includes(chunk.metadata.type as ChunkType);
-    };
+      totalSize += size;
+      stats.totalLines += lines;
+    }
 
-  /**
-   * 计算内容复杂度
-   */
-  private static calculateContentComplexity(content: string): number {
-    let complexity = 1; // 基础复杂度
+    stats.averageSize = chunks.length > 0 ? totalSize / chunks.length : 0;
 
-    // 基于行数
-    const lines = content.split('\n');
-    complexity += Math.log10(lines.length + 1);
-
-    // 基于关键字
-    const keywords = content.match(/\b(if|else|for|while|function|class|return)\b/g) || [];
-    complexity += keywords.length * 0.5;
-
-    // 基于嵌套
-    const openBraces = (content.match(/\{/g) || []).length;
-    complexity += openBraces * 0.3;
-
-    return Math.round(Math.max(1, complexity));
+    return stats;
   }
 }

@@ -2,6 +2,7 @@ import Parser from 'tree-sitter';
 import { TreeSitterCoreService } from '../parse/TreeSitterCoreService';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ParseOptions } from '../../types';
+import { TREE_SITTER_LANGUAGE_MAP } from '../../constants/language-constants';
 
 /**
  * 代码结构服务
@@ -216,24 +217,7 @@ export class CodeStructureService {
     const tree = (ast as any).tree;
     if (tree && tree.language && tree.language.name) {
       const languageName = tree.language.name;
-      const languageMap: Record<string, string> = {
-        'typescript': 'typescript',
-        'javascript': 'javascript',
-        'python': 'python',
-        'java': 'java',
-        'go': 'go',
-        'rust': 'rust',
-        'cpp': 'cpp',
-        'c': 'c',
-        'c_sharp': 'csharp',
-        'swift': 'swift',
-        'kotlin': 'kotlin',
-        'ruby': 'ruby',
-        'php': 'php',
-        'scala': 'scala'
-      };
-
-      return languageMap[languageName] || languageName;
+      return TREE_SITTER_LANGUAGE_MAP[languageName] || languageName;
     }
 
     return null;

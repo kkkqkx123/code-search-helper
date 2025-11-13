@@ -1,870 +1,598 @@
-/**
- * 内容分析工具类
- * 统一内容分析逻辑，支持分层提取架构
- */
-
-import { LineLocation } from './validation/ValidationUtils';
-import { BracketCounter, BracketCountResult } from '../structure/BracketCounter';
-
-/**
- * 结构检测结果接口
- */
-export interface StructureDetectionResult {
-  /** 检测到的结构类型 */
-  structureTypes: string[];
-  /** 结构数量 */
-  structureCount: number;
-  /** 详细信息 */
-  details: {
-    functions?: number;
-    classes?: number;
-    imports?: number;
-    exports?: number;
-    comments?: number;
-    blocks?: number;
-  };
-  /** 置信度 */
-  confidence: number;
-}
+import { TopLevelStructure, NestedStructure, InternalStructure, NestingRelationship, CodeReference, CodeDependency } from '../types/ContentTypes';
+import { TextPatternAnalyzer } from './TextPatternAnalyzer';
+import { ASTStructureExtractor } from './ASTStructureExtractor';
+import { RelationshipAnalyzer } from './RelationshipAnalyzer';
+import { TreeSitterService } from '../../service/parser/core/parse/TreeSitterService';
+import { injectable, inject } from 'inversify';
+import { TYPES } from '../../types';
+import { LoggerService } from '../LoggerService';
+import Parser from 'tree-sitter';
 
 /**
- * 结构详情类型
+ * 内容分析器
+ * 负责分析代码内容并提取各种结构信息
+ * 重构后使用组合模式，将不同的分析职责委托给专门的工具类
  */
-type StructureDetails = {
-  functions?: number;
-  classes?: number;
-  imports?: number;
-  exports?: number;
-  comments?: number;
-  blocks?: number;
-};
-
-/**
- * 括号计数接口
- */
-export interface BracketCount {
-  /** 开括号数量 */
-  open: number;
-  /** 闭括号数量 */
-  close: number;
-  /** 是否平衡 */
-  balanced: boolean;
-  /** 嵌套深度 */
-  depth: number;
-}
-
-/**
- * XML标签接口
- */
-export interface XmlTag {
-  /** 标签名 */
-  name: string;
-  /** 是否为闭合标签 */
-  isClosing: boolean;
-  /** 是否为自闭合标签 */
-  isSelfClosing: boolean;
-  /** 属性 */
-  attributes: Record<string, string>;
-  /** 位置 */
-  position: {
-    start: number;
-    end: number;
-  };
-}
-
-/**
- * Markdown结构结果接口
- */
-export interface MarkdownStructureResult {
-  /** 标题数量 */
-  headings: Array<{
-    level: number;
-    text: string;
-    line: number;
-  }>;
-  /** 代码块数量 */
-  codeBlocks: number;
-  /** 表格数量 */
-  tables: number;
-  /** 列表数量 */
-  lists: number;
-  /** 链接数量 */
-  links: number;
-}
-
-/**
- * 分割标准接口
- */
-export interface SplitCriteria {
-  /** 最大块大小 */
-  maxChunkSize: number;
-  /** 最小块大小 */
-  minChunkSize: number;
-  /** 优先语义边界 */
-  preferSemanticBoundaries: boolean;
-  /** 最大重叠 */
-  maxOverlap: number;
-}
-
-/**
- * HTML标签分析接口
- */
-export interface HtmlTagAnalysis {
-  /** 标签统计 */
-  tagStats: Record<string, number>;
-  /** 嵌套深度 */
-  maxDepth: number;
-  /** 自闭合标签数量 */
-  selfClosingCount: number;
-  /** 脚本标签数量 */
-  scriptCount: number;
-  /** 样式标签数量 */
-  styleCount: number;
-}
-
-/**
- * 顶级结构接口
- */
-export interface TopLevelStructure {
-  /** 结构类型 */
-  type: string;
-  /** 名称 */
-  name: string;
-  /** 内容 */
-  content: string;
-  /** 位置 */
-  location: LineLocation;
-  /** AST节点 */
-  node: any;
-  /** 元数据 */
-  metadata: Record<string, any>;
-}
-
-/**
- * 嵌套结构接口
- */
-export interface NestedStructure {
-  /** 结构类型 */
-  type: string;
-  /** 名称 */
-  name: string;
-  /** 内容 */
-  content: string;
-  /** 位置 */
-  location: LineLocation;
-  /** 父节点 */
-  parentNode: any;
-  /** 嵌套级别 */
-  level: number;
-  /** 元数据 */
-  metadata: Record<string, any>;
-}
-
-/**
- * 内部结构接口
- */
-export interface InternalStructure {
-  /** 结构类型 */
-  type: string;
-  /** 名称 */
-  name?: string;
-  /** 内容 */
-  content: string;
-  /** 位置 */
-  location: LineLocation;
-  /** 父节点 */
-  parentNode: any;
-  /** 重要性 */
-  importance: 'high' | 'medium' | 'low';
-  /** 元数据 */
-  metadata: Record<string, any>;
-}
-
-/**
- * 嵌套关系接口
- */
-export interface NestingRelationship {
-  /** 父节点 */
-  parent: any;
-  /** 子节点 */
-  child: any;
-  /** 关系类型 */
-  relationshipType: 'contains' | 'extends' | 'implements' | 'uses';
-  /** 强度 */
-  strength: number;
-}
-
-/**
- * 语义边界接口
- */
-export interface SemanticBoundary {
-  /** 边界类型 */
-  type: string;
-  /** 起始位置 */
-  start: LineLocation;
-  /** 结束位置 */
-  end: LineLocation;
-  /** 置信度 */
-  confidence: number;
-  /** 描述 */
-  description?: string;
-}
-
-/**
- * 内容分析器类
- */
+@injectable()
 export class ContentAnalyzer {
-  /**
-   * 检测代码结构
-   */
-  static detectCodeStructure(content: string): StructureDetectionResult {
-    const structureTypes: string[] = [];
-    const details: StructureDetails = {};
+  private logger = new LoggerService();
 
-    // 检测函数
-    const functionMatches = content.match(/\b(function|func|def)\s+\w+/g);
-    if (functionMatches) {
-      structureTypes.push('functions');
-      details.functions = functionMatches.length;
-    }
-
-    // 检测类
-    const classMatches = content.match(/\b(class|interface|struct)\s+\w+/g);
-    if (classMatches) {
-      structureTypes.push('classes');
-      details.classes = classMatches.length;
-    }
-
-    // 检测导入
-    const importMatches = content.match(/\b(import|include|using)\s+/g);
-    if (importMatches) {
-      structureTypes.push('imports');
-      details.imports = importMatches.length;
-    }
-
-    // 检测导出
-    const exportMatches = content.match(/\b(export|module\.exports)\b/g);
-    if (exportMatches) {
-      structureTypes.push('exports');
-      details.exports = exportMatches.length;
-    }
-
-    // 检测注释
-    const commentMatches = content.match(/\/\*[\s\S]*?\*\/|\/\/.*$/gm);
-    if (commentMatches) {
-      structureTypes.push('comments');
-      details.comments = commentMatches.length;
-    }
-
-    // 检测代码块
-    const blockMatches = content.match(/\{[^}]*\}/g);
-    if (blockMatches) {
-      structureTypes.push('blocks');
-      details.blocks = blockMatches.length;
-    }
-
-    // 计算置信度
-    const totalStructures = Object.values(details).reduce((sum: number, count: number | undefined) => sum + (count ?? 0), 0);
-    const confidence = Math.min(1, totalStructures / 10);
-
-    return {
-      structureTypes,
-      structureCount: totalStructures,
-      details,
-      confidence
-    };
-  }
-
-  /**
-   * 计算括号数量（直接使用 BracketCounter）
-   */
-  static countBrackets(line: string): BracketCount {
-    const result = BracketCounter.countCurlyBrackets(line);
-    return {
-      open: result.open,
-      close: result.close,
-      balanced: result.balanced,
-      depth: result.depth
-    };
-  }
-
-  /**
-   * 提取XML标签
-   */
-  static extractXmlTags(line: string): XmlTag[] {
-    const tagPattern = /<\/?([a-zA-Z][a-zA-Z0-9]*)\b([^>]*)>/g;
-    const tags: XmlTag[] = [];
-    let match;
-
-    while ((match = tagPattern.exec(line)) !== null) {
-      const fullTag = match[0];
-      const tagName = match[1];
-      const attributesStr = match[2];
-
-      const isClosing = fullTag.startsWith('</');
-      const isSelfClosing = fullTag.endsWith('/>');
-
-      // 解析属性
-      const attributes: Record<string, string> = {};
-      const attrPattern = /(\w+)=["']([^"']*)["']/g;
-      let attrMatch;
-
-      while ((attrMatch = attrPattern.exec(attributesStr)) !== null) {
-        attributes[attrMatch[1]] = attrMatch[2];
-      }
-
-      tags.push({
-        name: tagName,
-        isClosing,
-        isSelfClosing,
-        attributes,
-        position: {
-          start: match.index,
-          end: match.index + fullTag.length
-        }
-      });
-    }
-
-    return tags;
-  }
-
-  /**
-   * 检测Markdown结构
-   */
-  static detectMarkdownStructure(content: string): MarkdownStructureResult {
-    const lines = content.split('\n');
-    const result: MarkdownStructureResult = {
-      headings: [],
-      codeBlocks: 0,
-      tables: 0,
-      lists: 0,
-      links: 0
-    };
-
-    let inCodeBlock = false;
-
-    lines.forEach((line, index) => {
-      // 检测标题
-      const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
-      if (headingMatch) {
-        result.headings.push({
-          level: headingMatch[1].length,
-          text: headingMatch[2].trim(),
-          line: index + 1
-        });
-      }
-
-      // 检测代码块
-      if (line.startsWith('```')) {
-        if (!inCodeBlock) {
-          inCodeBlock = true;
-        } else {
-          inCodeBlock = false;
-          result.codeBlocks++;
-        }
-      }
-
-      // 检测表格
-      if (line.includes('|')) {
-        const columns = line.split('|').filter(col => col.trim() !== '');
-        if (columns.length >= 2) {
-          result.tables++;
-        }
-      }
-
-      // 检测列表
-      if (/^\s*[-*+]\s+/.test(line) || /^\s*\d+\.\s+/.test(line)) {
-        result.lists++;
-      }
-
-      // 检测链接
-      if (/\[.*\]\(.*\)/.test(line)) {
-        result.links++;
-      }
-    });
-
-    return result;
-  }
-
-  /**
-   * 查找最佳分割点
-   */
-  static findOptimalSplitPoints(lines: string[], criteria: SplitCriteria): number[] {
-    const splitPoints: number[] = [];
-    let currentSize = 0;
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      currentSize += line.length + 1; // +1 for newline
-
-      // 检查是否需要分割
-      if (currentSize >= criteria.maxChunkSize) {
-        // 寻找语义边界
-        if (criteria.preferSemanticBoundaries) {
-          const boundaryPoint = this.findSemanticBoundary(lines, i, criteria);
-          if (boundaryPoint !== -1) {
-            splitPoints.push(boundaryPoint);
-            currentSize = this.calculateSizeFromPoint(lines, boundaryPoint + 1, i);
-            continue;
-          }
-        }
-
-        // 如果没有找到语义边界，直接分割
-        splitPoints.push(i);
-        currentSize = 0;
-      }
-    }
-
-    return splitPoints;
-  }
-
-  /**
-   * 分析HTML标签
-   */
-  static analyzeHtmlTags(content: string): HtmlTagAnalysis {
-    const tagPattern = /<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^>]*>/g;
-    const tagStats: Record<string, number> = {};
-    let maxDepth = 0;
-    let currentDepth = 0;
-    let selfClosingCount = 0;
-    let scriptCount = 0;
-    let styleCount = 0;
-
-    let match;
-    while ((match = tagPattern.exec(content)) !== null) {
-      const fullTag = match[0];
-      const tagName = match[1].toLowerCase();
-
-      // 统计标签
-      tagStats[tagName] = (tagStats[tagName] || 0) + 1;
-
-      // 计算嵌套深度
-      if (fullTag.startsWith('</')) {
-        currentDepth--;
-      } else {
-        currentDepth++;
-        maxDepth = Math.max(maxDepth, currentDepth);
-        
-        if (fullTag.endsWith('/>')) {
-          selfClosingCount++;
-          currentDepth--; // 自闭合标签不增加深度
-        }
-      }
-
-      // 统计特殊标签
-      if (tagName === 'script') scriptCount++;
-      if (tagName === 'style') styleCount++;
-    }
-
-    return {
-      tagStats,
-      maxDepth,
-      selfClosingCount,
-      scriptCount,
-      styleCount
-    };
-  }
+  constructor(
+    @inject(TYPES.TreeSitterService)
+    private readonly treeSitterService: TreeSitterService
+  ) {}
 
   /**
    * 提取顶级结构
+   * 优先使用AST分析，如果失败则回退到文本模式匹配
    */
-  static extractTopLevelStructures(content: string, language: string): TopLevelStructure[] {
-    const structures: TopLevelStructure[] = [];
-    const lines = content.split('\n');
-
-    // 根据语言定义不同的模式
-    const patterns = this.getLanguagePatterns(language);
-
-    for (const pattern of patterns) {
-      const matches = content.matchAll(pattern.regex);
-      
-      for (const match of matches) {
-        const startLine = this.getLineNumber(content, match.index!);
-        const endLine = this.findStructureEnd(content, startLine, pattern.type);
-        
-        structures.push({
-          type: pattern.type,
-          name: this.extractName(match, pattern.type),
-          content: lines.slice(startLine - 1, endLine).join('\n'),
-          location: {
-            startLine,
-            endLine
-          },
-          node: null, // 在实际实现中应该包含AST节点
-          metadata: {
-            language,
-            confidence: pattern.confidence || 0.8
+  async extractTopLevelStructures(content: string, language: string): Promise<TopLevelStructure[]> {
+    try {
+      // 尝试使用AST分析
+      if (this.treeSitterService.isInitialized() && this.isLanguageSupported(language)) {
+        const parseResult = await this.treeSitterService.parseCode(content, language);
+        if (parseResult && parseResult.ast) {
+          const astStructures = ASTStructureExtractor.extractTopLevelStructuresFromAST(
+            content, 
+            language, 
+            parseResult.ast
+          );
+          
+          if (astStructures.length > 0) {
+            this.logger.debug(`使用AST提取到 ${astStructures.length} 个顶级结构 (${language})`);
+            return astStructures;
           }
-        });
+        }
       }
+    } catch (error) {
+      this.logger.warn(`AST分析失败，回退到文本模式匹配 (${language}):`, error);
     }
 
-    return structures;
+    // 回退到文本模式匹配
+    const textStructures = TextPatternAnalyzer.extractTopLevelStructures(content, language);
+    this.logger.debug(`使用文本模式匹配提取到 ${textStructures.length} 个顶级结构 (${language})`);
+    return textStructures;
   }
 
   /**
    * 提取嵌套结构
+   * 优先使用AST分析，如果失败则回退到文本模式匹配
    */
-  static extractNestedStructures(content: string, parentNode: any, level: number): NestedStructure[] {
-    const structures: NestedStructure[] = [];
-    
-    // 在实际实现中，这里应该分析AST节点
-    // 简化实现，基于文本模式匹配
-    const patterns = [
-      { type: 'method', regex: /\b(function|def|func)\s+(\w+)\s*\([^)]*\)/g },
-      { type: 'nested_class', regex: /\b(class|struct)\s+(\w+)/g },
-      { type: 'nested_function', regex: /\b(function|def|func)\s+(\w+)\s*\([^)]*\)/g }
-    ];
-
-    for (const pattern of patterns) {
-      const matches = content.matchAll(pattern.regex);
-      
-      for (const match of matches) {
-        const startLine = this.getLineNumber(content, match.index!);
-        const endLine = this.findStructureEnd(content, startLine, pattern.type);
-        
-        structures.push({
-          type: pattern.type,
-          name: match[2] || 'unknown',
-          content: content.split('\n').slice(startLine - 1, endLine).join('\n'),
-          location: {
-            startLine,
-            endLine
-          },
-          parentNode,
-          level,
-          metadata: {
-            nestingLevel: level,
-            confidence: 0.7
+  async extractNestedStructures(
+    content: string, 
+    parentNode: any, 
+    level: number,
+    language: string
+  ): Promise<NestedStructure[]> {
+    try {
+      // 尝试使用AST分析
+      if (this.treeSitterService.isInitialized() && this.isLanguageSupported(language)) {
+        const parseResult = await this.treeSitterService.parseCode(content, language);
+        if (parseResult && parseResult.ast) {
+          const astStructures = ASTStructureExtractor.extractNestedStructuresFromAST(
+            content,
+            parentNode,
+            level,
+            parseResult.ast
+          );
+          
+          if (astStructures.length > 0) {
+            this.logger.debug(`使用AST提取到 ${astStructures.length} 个嵌套结构 (${language})`);
+            return astStructures;
           }
-        });
+        }
       }
+    } catch (error) {
+      this.logger.warn(`AST分析失败，回退到文本模式匹配 (${language}):`, error);
     }
 
-    return structures;
+    // 回退到文本模式匹配
+    const textStructures = TextPatternAnalyzer.extractNestedStructures(content, parentNode, level);
+    this.logger.debug(`使用文本模式匹配提取到 ${textStructures.length} 个嵌套结构 (${language})`);
+    return textStructures;
   }
 
   /**
    * 提取内部结构
+   * 优先使用AST分析，如果失败则回退到文本模式匹配
    */
-  static extractInternalStructures(content: string, parentNode: any): InternalStructure[] {
-    const structures: InternalStructure[] = [];
-    const lines = content.split('\n');
-
-    // 提取重要变量声明
-    const variablePattern = /\b(const|let|var)\s+(\w+)\s*=\s*([^;]+)/g;
-    let match;
-    
-    while ((match = variablePattern.exec(content)) !== null) {
-      const lineNum = this.getLineNumber(content, match.index);
-      
-      structures.push({
-        type: 'variable',
-        name: match[2],
-        content: match[0],
-        location: {
-          startLine: lineNum,
-          endLine: lineNum
-        },
-        parentNode,
-        importance: 'medium',
-        metadata: {
-          variableType: match[1],
-          confidence: 0.8
-        }
-      });
-    }
-
-    // 提取控制流结构
-    const controlFlowPatterns = [
-      { type: 'if', regex: /\bif\s*\([^)]+\)/g, importance: 'high' as const },
-      { type: 'for', regex: /\bfor\s*\([^)]+\)/g, importance: 'high' as const },
-      { type: 'while', regex: /\bwhile\s*\([^)]+\)/g, importance: 'high' as const },
-      { type: 'switch', regex: /\bswitch\s*\([^)]+\)/g, importance: 'high' as const }
-    ];
-
-    for (const pattern of controlFlowPatterns) {
-      const matches = content.matchAll(pattern.regex);
-      
-      for (const match of matches) {
-        const lineNum = this.getLineNumber(content, match.index!);
-        
-        structures.push({
-          type: pattern.type,
-          content: match[0],
-          location: {
-            startLine: lineNum,
-            endLine: lineNum
-          },
-          parentNode,
-          importance: pattern.importance,
-          metadata: {
-            confidence: 0.9
+  async extractInternalStructures(
+    content: string,
+    parentNode: any,
+    language: string
+  ): Promise<InternalStructure[]> {
+    try {
+      // 尝试使用AST分析
+      if (this.treeSitterService.isInitialized() && this.isLanguageSupported(language)) {
+        const parseResult = await this.treeSitterService.parseCode(content, language);
+        if (parseResult && parseResult.ast) {
+          const astStructures = ASTStructureExtractor.extractInternalStructuresFromAST(
+            content,
+            parentNode,
+            parseResult.ast
+          );
+          
+          if (astStructures.length > 0) {
+            this.logger.debug(`使用AST提取到 ${astStructures.length} 个内部结构 (${language})`);
+            return astStructures;
           }
-        });
+        }
       }
+    } catch (error) {
+      this.logger.warn(`AST分析失败，回退到文本模式匹配 (${language}):`, error);
     }
 
-    return structures;
+    // 回退到文本模式匹配
+    const textStructures = TextPatternAnalyzer.extractInternalStructures(content, parentNode);
+    this.logger.debug(`使用文本模式匹配提取到 ${textStructures.length} 个内部结构 (${language})`);
+    return textStructures;
   }
 
   /**
    * 分析嵌套关系
+   * 委托给RelationshipAnalyzer处理
    */
-  static analyzeNestingRelationships(nodes: any[]): NestingRelationship[] {
-    const relationships: NestingRelationship[] = [];
-
-    for (let i = 0; i < nodes.length; i++) {
-      for (let j = i + 1; j < nodes.length; j++) {
-        const node1 = nodes[i];
-        const node2 = nodes[j];
-
-        // 检查包含关系
-        if (this.isNodeContaining(node1, node2)) {
-          relationships.push({
-            parent: node1,
-            child: node2,
-            relationshipType: 'contains',
-            strength: this.calculateRelationshipStrength(node1, node2)
-          });
-        }
-
-        // 检查继承关系
-        if (this.isInheritanceRelationship(node1, node2)) {
-          relationships.push({
-            parent: node2,
-            child: node1,
-            relationshipType: 'extends',
-            strength: 0.9
-          });
-        }
-      }
-    }
-
-    return relationships;
+  analyzeNestingRelationships(nodes: any[]): NestingRelationship[] {
+    return RelationshipAnalyzer.analyzeNestingRelationships(nodes);
   }
 
   /**
-   * 检测语义边界
+   * 分析代码引用关系
+   * 委托给RelationshipAnalyzer处理
    */
-  static detectSemanticBoundaries(content: string, language: string): SemanticBoundary[] {
-    const boundaries: SemanticBoundary[] = [];
-    const lines = content.split('\n');
-
-    // 根据语言检测不同的语义边界
-    const patterns = this.getSemanticBoundaryPatterns(language);
-
-    for (const pattern of patterns) {
-      const matches = content.matchAll(pattern.regex);
-      
-      for (const match of matches) {
-        const startLine = this.getLineNumber(content, match.index!);
-        const endLine = this.findBoundaryEnd(content, startLine, pattern.type);
-        
-        boundaries.push({
-          type: pattern.type,
-          start: { startLine, endLine: startLine },
-          end: { startLine: endLine, endLine },
-          confidence: pattern.confidence || 0.8,
-          description: pattern.description
-        });
-      }
-    }
-
-    return boundaries;
+  analyzeCodeReferences(nodes: any[], content: string): CodeReference[] {
+    return RelationshipAnalyzer.analyzeCodeReferences(nodes, content);
   }
 
-  // 私有辅助方法
+  /**
+   * 分析代码依赖关系
+   * 委托给RelationshipAnalyzer处理
+   */
+  analyzeCodeDependencies(nodes: any[], content: string): CodeDependency[] {
+    return RelationshipAnalyzer.analyzeCodeDependencies(nodes, content);
+  }
 
   /**
-   * 获取语言模式
+   * 分析调用图
+   * 委托给RelationshipAnalyzer处理
    */
-  private static getLanguagePatterns(language: string): Array<{
-    type: string;
-    regex: RegExp;
-    confidence?: number;
+  analyzeCallGraph(nodes: any[]): Map<string, string[]> {
+    return RelationshipAnalyzer.analyzeCallGraph(nodes);
+  }
+
+  /**
+   * 分析继承层次
+   * 委托给RelationshipAnalyzer处理
+   */
+  analyzeInheritanceHierarchy(nodes: any[]): Map<string, string[]> {
+    return RelationshipAnalyzer.analyzeInheritanceHierarchy(nodes);
+  }
+
+  /**
+   * 分析模块依赖图
+   * 委托给RelationshipAnalyzer处理
+   */
+  analyzeModuleDependencies(nodes: any[], content: string): Map<string, string[]> {
+    return RelationshipAnalyzer.analyzeModuleDependencies(nodes, content);
+  }
+
+  /**
+   * 检查语言是否支持AST分析
+   */
+  private isLanguageSupported(language: string): boolean {
+    const supportedLanguages = this.treeSitterService.getSupportedLanguages();
+    return supportedLanguages.some(lang => 
+      (typeof lang === 'string' ? lang : lang.name || '').toLowerCase() === language.toLowerCase()
+    );
+  }
+
+  /**
+   * 检测文件语言
+   */
+  async detectLanguage(filePath: string): Promise<string | null> {
+    try {
+      const detectedLanguage = await this.treeSitterService.detectLanguage(filePath);
+      return detectedLanguage?.name || null;
+    } catch (error) {
+      this.logger.warn(`语言检测失败 (${filePath}):`, error);
+      return null;
+    }
+  }
+
+  /**
+   * 获取支持的编程语言列表
+   */
+  getSupportedLanguages(): string[] {
+    try {
+      const languages = this.treeSitterService.getSupportedLanguages();
+      return languages.map(lang => typeof lang === 'string' ? lang : lang.name || lang.toString());
+    } catch (error) {
+      this.logger.error('获取支持的语言列表失败:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 分析代码复杂度
+   * 基于AST节点分析代码复杂度指标
+   */
+  async analyzeComplexity(content: string, language: string): Promise<{
+    cyclomaticComplexity: number;
+    cognitiveComplexity: number;
+    nestingDepth: number;
+    linesOfCode: number;
   }> {
-    const commonPatterns = [
-      { type: 'function', regex: /\b(function|def|func)\s+(\w+)\s*\([^)]*\)/g },
-      { type: 'class', regex: /\b(class|interface|struct)\s+(\w+)/g },
-      { type: 'namespace', regex: /\b(namespace|module|package)\s+(\w+)/g },
-      { type: 'import', regex: /\b(import|include|using)\s+[^;]+/g }
-    ];
+    try {
+      if (!this.treeSitterService.isInitialized() || !this.isLanguageSupported(language)) {
+        // 回退到简单的文本分析
+        return this.analyzeComplexityFromText(content);
+      }
 
-    // 语言特定模式
-    const languageSpecific: Record<string, any> = {
-      javascript: [
-        { type: 'arrow_function', regex: /\bconst\s+(\w+)\s*=\s*\([^)]*\)\s*=>/g },
-        { type: 'class', regex: /\bclass\s+(\w+)/g }
-      ],
-      python: [
-        { type: 'function', regex: /\bdef\s+(\w+)\s*\([^)]*\):/g },
-        { type: 'class', regex: /\bclass\s+(\w+):/g },
-        { type: 'decorator', regex: /@\w+/g }
-      ],
-      cpp: [
-        { type: 'template', regex: /\btemplate\s*<[^>]*>/g },
-        { type: 'namespace', regex: /\bnamespace\s+(\w+)/g }
-      ]
+      const parseResult = await this.treeSitterService.parseCode(content, language);
+      if (!parseResult || !parseResult.ast) {
+        return this.analyzeComplexityFromText(content);
+      }
+
+      // 基于AST计算复杂度
+      const complexity = this.calculateComplexityFromAST(parseResult.ast);
+      this.logger.debug(`基于AST计算复杂度 (${language}):`, complexity);
+      return complexity;
+    } catch (error) {
+      this.logger.warn(`复杂度分析失败，使用文本分析 (${language}):`, error);
+      return this.analyzeComplexityFromText(content);
+    }
+  }
+
+  /**
+   * 基于AST计算复杂度
+   */
+  private calculateComplexityFromAST(ast: Parser.SyntaxNode): {
+    cyclomaticComplexity: number;
+    cognitiveComplexity: number;
+    nestingDepth: number;
+    linesOfCode: number;
+  } {
+    let cyclomaticComplexity = 1; // 基础复杂度
+    let cognitiveComplexity = 0;
+    let maxNestingDepth = 0;
+    let currentNestingDepth = 0;
+
+    const traverse = (node: Parser.SyntaxNode) => {
+      if (!node) return;
+
+      // 计算圈复杂度
+      const complexityNodes = [
+        'if_statement', 'while_statement', 'for_statement', 
+        'switch_statement', 'case', 'catch_clause', 'conditional_expression'
+      ];
+      
+      if (complexityNodes.includes(node.type)) {
+        cyclomaticComplexity++;
+        cognitiveComplexity++;
+      }
+
+      // 计算嵌套深度
+      const nestingNodes = [
+        'if_statement', 'while_statement', 'for_statement', 
+        'switch_statement', 'try_statement', 'catch_clause'
+      ];
+      
+      if (nestingNodes.includes(node.type)) {
+        currentNestingDepth++;
+        maxNestingDepth = Math.max(maxNestingDepth, currentNestingDepth);
+        
+        // 递归处理子节点
+        for (let i = 0; i < node.childCount; i++) {
+          const child = node.child(i);
+          if (child) {
+            traverse(child);
+          }
+        }
+        
+        currentNestingDepth--;
+      } else {
+        // 递归处理子节点
+        for (let i = 0; i < node.childCount; i++) {
+          const child = node.child(i);
+          if (child) {
+            traverse(child);
+          }
+        }
+      }
     };
 
-    return [...commonPatterns, ...(languageSpecific[language] || [])];
+    traverse(ast);
+
+    const linesOfCode = ast.text ? ast.text.split('\n').length : 0;
+
+    return {
+      cyclomaticComplexity,
+      cognitiveComplexity,
+      nestingDepth: maxNestingDepth,
+      linesOfCode
+    };
   }
 
   /**
-   * 获取语义边界模式
+   * 基于文本分析复杂度（降级方案）
    */
-  private static getSemanticBoundaryPatterns(language: string): Array<{
-    type: string;
-    regex: RegExp;
-    confidence?: number;
-    description?: string;
-  }> {
-    return [
-      {
-        type: 'function',
-        regex: /\b(function|def|func)\s+\w+\s*\([^)]*\)\s*[:{]/g,
-        confidence: 0.9,
-        description: 'Function definition'
-      },
-      {
-        type: 'class',
-        regex: /\b(class|interface|struct)\s+\w+/g,
-        confidence: 0.9,
-        description: 'Class definition'
-      },
-      {
-        type: 'block',
-        regex: /\{[^}]*\}/g,
-        confidence: 0.7,
-        description: 'Code block'
-      }
-    ];
-  }
-
-  /**
-   * 获取行号
-   */
-  private static getLineNumber(content: string, index: number): number {
-    const before = content.substring(0, index);
-    return before.split('\n').length;
-  }
-
-  /**
-   * 查找结构结束位置
-   */
-  private static findStructureEnd(content: string, startLine: number, type: string): number {
+  private analyzeComplexityFromText(content: string): {
+    cyclomaticComplexity: number;
+    cognitiveComplexity: number;
+    nestingDepth: number;
+    linesOfCode: number;
+  } {
     const lines = content.split('\n');
-    let braceCount = 0;
-    let inBlock = false;
-
-    for (let i = startLine - 1; i < lines.length; i++) {
-      const line = lines[i];
-      
-      if (type === 'function' || type === 'class' || type === 'namespace') {
-        const openBraces = (line.match(/\{/g) || []).length;
-        const closeBraces = (line.match(/\}/g) || []).length;
-        
-        braceCount += openBraces - closeBraces;
-        
-        if (braceCount > 0) inBlock = true;
-        if (inBlock && braceCount === 0) return i + 1;
-      }
-    }
-
-    return lines.length;
-  }
-
-  /**
-   * 提取名称
-   */
-  private static extractName(match: RegExpMatchArray, type: string): string {
-    if (match.length >= 3) {
-      return match[2];
-    }
-    return 'unknown';
-  }
-
-  /**
-   * 查找语义边界
-   */
-  private static findSemanticBoundary(lines: string[], currentIndex: number, criteria: SplitCriteria): number {
-    // 向前查找语义边界
-    for (let i = currentIndex; i >= Math.max(0, currentIndex - 10); i--) {
-      const line = lines[i];
-      
-      // 检查是否为语义边界
-      if (this.isSemanticBoundary(line)) {
-        return i;
-      }
-    }
+    const linesOfCode = lines.length;
     
-    return -1;
-  }
-
-  /**
-   * 检查是否为语义边界
-   */
-  private static isSemanticBoundary(line: string): boolean {
-    const boundaryPatterns = [
-      /^\s*\}/,                    // 块结束
-      /^\s*(function|def|class)/,  // 函数或类开始
-      /^\s*(if|for|while|switch)/, // 控制流开始
-      /^\s*\/\/.*$/,               // 注释行
-      /^\s*$/                      // 空行
+    // 简单的文本模式匹配计算复杂度
+    const complexityPatterns = [
+      /\bif\b/g,
+      /\bwhile\b/g,
+      /\bfor\b/g,
+      /\bswitch\b/g,
+      /\bcase\b/g,
+      /\bcatch\b/g,
+      /\?/g  // 三元运算符
     ];
+
+    let cyclomaticComplexity = 1; // 基础复杂度
+    complexityPatterns.forEach(pattern => {
+      const matches = content.match(pattern);
+      if (matches) {
+        cyclomaticComplexity += matches.length;
+      }
+    });
+
+    // 简单的嵌套深度计算
+    let maxNestingDepth = 0;
+    let currentNestingDepth = 0;
     
-    return boundaryPatterns.some(pattern => pattern.test(line));
+    lines.forEach(line => {
+      const trimmedLine = line.trim();
+      
+      // 检查开始嵌套的语句
+      if (/\b(if|while|for|switch|try|catch)\b/.test(trimmedLine)) {
+        currentNestingDepth++;
+        maxNestingDepth = Math.max(maxNestingDepth, currentNestingDepth);
+      }
+      
+      // 简单的结束嵌套检测（不精确，但作为降级方案）
+      if (/^\s*}\s*$/.test(trimmedLine)) {
+        currentNestingDepth = Math.max(0, currentNestingDepth - 1);
+      }
+    });
+
+    return {
+      cyclomaticComplexity,
+      cognitiveComplexity: cyclomaticComplexity, // 简化处理
+      nestingDepth: maxNestingDepth,
+      linesOfCode
+    };
   }
 
   /**
-   * 从指定点计算大小
+   * 提取代码摘要
+   * 生成代码的简短摘要信息
    */
-  private static calculateSizeFromPoint(lines: string[], startPoint: number, endPoint: number): number {
-    let size = 0;
-    for (let i = startPoint; i <= endPoint && i < lines.length; i++) {
-      size += lines[i].length + 1; // +1 for newline
+  async extractCodeSummary(content: string, language: string): Promise<{
+    functions: number;
+    classes: number;
+    imports: number;
+    exports: number;
+    linesOfCode: number;
+    complexity: number;
+  }> {
+    try {
+      const structures = await this.extractTopLevelStructures(content, language);
+      const complexity = await this.analyzeComplexity(content, language);
+      
+      const summary = {
+        functions: structures.filter(s => s.type === 'function').length,
+        classes: structures.filter(s => s.type === 'class').length,
+        imports: structures.filter(s => s.type === 'import').length,
+        exports: structures.filter(s => s.type === 'export').length,
+        linesOfCode: complexity.linesOfCode,
+        complexity: complexity.cyclomaticComplexity
+      };
+
+      this.logger.debug(`代码摘要 (${language}):`, summary);
+      return summary;
+    } catch (error) {
+      this.logger.error(`提取代码摘要失败 (${language}):`, error);
+      return {
+        functions: 0,
+        classes: 0,
+        imports: 0,
+        exports: 0,
+        linesOfCode: content.split('\n').length,
+        complexity: 1
+      };
     }
-    return size;
   }
 
   /**
-   * 检查节点包含关系
+   * 验证代码语法
+   * 检查代码语法是否正确
    */
-  private static isNodeContaining(node1: any, node2: any): boolean {
-    if (!node1.location || !node2.location) return false;
+  async validateSyntax(content: string, language: string): Promise<{
+    isValid: boolean;
+    errors: Array<{
+      line: number;
+      column: number;
+      message: string;
+    }>;
+  }> {
+    try {
+      if (!this.treeSitterService.isInitialized() || !this.isLanguageSupported(language)) {
+        // 无法进行语法验证，假设有效
+        return { isValid: true, errors: [] };
+      }
+
+      const parseResult = await this.treeSitterService.parseCode(content, language);
+      
+      if (!parseResult || !parseResult.ast) {
+        return { isValid: false, errors: [{ line: 1, column: 1, message: '解析失败' }] };
+      }
+
+      // 检查是否有语法错误节点
+      const errors = this.extractSyntaxErrors(parseResult.ast);
+      
+      return {
+        isValid: errors.length === 0,
+        errors
+      };
+    } catch (error) {
+      this.logger.warn(`语法验证失败 (${language}):`, error);
+      return { 
+        isValid: false, 
+        errors: [{ line: 1, column: 1, message: '验证过程中发生错误' }] 
+      };
+    }
+  }
+
+  /**
+   * 提取语法错误
+   */
+  private extractSyntaxErrors(ast: Parser.SyntaxNode): Array<{
+    line: number;
+    column: number;
+    message: string;
+  }> {
+    const errors: Array<{
+      line: number;
+      column: number;
+      message: string;
+    }> = [];
+
+    const traverse = (node: Parser.SyntaxNode) => {
+      if (!node) return;
+
+      // 检查错误节点
+      if (node.type === 'ERROR' || (node as any).isMissing) {
+        errors.push({
+          line: node.startPosition.row + 1,
+          column: node.startPosition.column + 1,
+          message: node.type === 'ERROR' ? '语法错误' : '缺少语法元素'
+        });
+      }
+
+      // 递归处理子节点
+      for (let i = 0; i < node.childCount; i++) {
+        const child = node.child(i);
+        if (child) {
+          traverse(child);
+        }
+      }
+    };
+
+    traverse(ast);
+    return errors;
+  }
+
+  // 静态方法，用于向后兼容
+  private static instance: ContentAnalyzer | null = null;
+
+  /**
+   * 获取ContentAnalyzer实例（用于静态方法调用）
+   */
+  private static getInstance(): ContentAnalyzer {
+    if (!this.instance) {
+      // 创建一个简单的实例，不依赖依赖注入
+      this.instance = new ContentAnalyzer(null as any);
+    }
+    return this.instance;
+  }
+
+  /**
+   * 静态方法：提取顶级结构
+   */
+  static async extractTopLevelStructures(content: string, language: string): Promise<TopLevelStructure[]> {
+    return this.getInstance().extractTopLevelStructures(content, language);
+  }
+
+  /**
+   * 静态方法：提取嵌套结构
+   */
+  static async extractNestedStructures(
+    content: string, 
+    parentNode: any, 
+    level: number,
+    ast?: Parser.SyntaxNode,
+    language?: string
+  ): Promise<NestedStructure[]> {
+    // 如果没有提供语言，尝试从内容推断
+    if (!language) {
+      language = 'typescript'; // 默认语言
+    }
+    return this.getInstance().extractNestedStructures(content, parentNode, level, language);
+  }
+
+  /**
+   * 静态方法：检测代码结构
+   */
+  static detectCodeStructure(content: string): {
+    structureCount: number;
+    confidence: number;
+    structures: Array<{
+      type: string;
+      name: string;
+      location: { startLine: number; endLine: number };
+    }>;
+  } {
+    // 简单的结构检测实现
+    const structures: Array<{
+      type: string;
+      name: string;
+      location: { startLine: number; endLine: number };
+    }> = [];
     
-    return node1.location.startLine <= node2.location.startLine &&
-           node1.location.endLine >= node2.location.endLine;
-  }
+    const lines = content.split('\n');
+    let structureCount = 0;
+    let confidence = 0.5; // 默认置信度
 
-  /**
-   * 检查继承关系
-   */
-  private static isInheritanceRelationship(node1: any, node2: any): boolean {
-    // 简化实现，实际应该分析AST
-    return node1.type === 'class' && node2.type === 'class' &&
-           node1.content.includes(`extends ${node2.name}`);
-  }
+    // 检测函数
+    const functionRegex = /\b(function\s+\w+|const\s+\w+\s*=\s*(?:async\s+)?\([^)]*\)\s*=>|class\s+\w+|interface\s+\w+)/g;
+    let match;
+    while ((match = functionRegex.exec(content)) !== null) {
+      const matchText = match[0];
+      const lineIndex = content.substring(0, match.index).split('\n').length - 1;
+      
+      let type = 'unknown';
+      let name = 'unknown';
+      
+      if (matchText.startsWith('function')) {
+        type = 'function';
+        name = matchText.replace('function ', '').split('(')[0].trim();
+      } else if (matchText.startsWith('class')) {
+        type = 'class';
+        name = matchText.replace('class ', '').trim();
+      } else if (matchText.startsWith('interface')) {
+        type = 'interface';
+        name = matchText.replace('interface ', '').trim();
+      } else if (matchText.startsWith('const')) {
+        type = 'function';
+        name = matchText.split('=')[0].replace('const ', '').trim();
+      }
+      
+      structures.push({
+        type,
+        name,
+        location: { startLine: lineIndex + 1, endLine: lineIndex + 1 }
+      });
+      
+      structureCount++;
+    }
 
-  /**
-   * 计算关系强度
-   */
-  private static calculateRelationshipStrength(node1: any, node2: any): number {
-    // 基于包含程度计算关系强度
-    if (!node1.location || !node2.location) return 0;
-    
-    const parentSize = node1.location.endLine - node1.location.startLine + 1;
-    const childSize = node2.location.endLine - node2.location.startLine + 1;
-    
-    return Math.min(1, childSize / parentSize);
-  }
+    // 根据检测到的结构数量调整置信度
+    if (structureCount > 0) {
+      confidence = Math.min(0.9, 0.5 + (structureCount * 0.1));
+    }
 
-  /**
-   * 查找边界结束位置
-   */
-  private static findBoundaryEnd(content: string, startLine: number, type: string): number {
-    // 简化实现，返回下一行
-    return startLine + 1;
+    return {
+      structureCount,
+      confidence,
+      structures
+    };
   }
 }

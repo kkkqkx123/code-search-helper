@@ -23,13 +23,30 @@ export enum ChunkType {
   ENUM = 'enum',
   MODULE = 'module',
   BLOCK = 'block',
-  LINE = 'line'
+  LINE = 'line',
+  CONTROL_FLOW = 'control-flow',
+  EXPRESSION = 'expression',
+  CONFIG_ITEM = 'config-item',
+  SECTION = 'section',
+  KEY = 'key',
+  VALUE = 'value',
+  ARRAY = 'array',
+  TABLE = 'table',
+  DEPENDENCY = 'dependency',
+  TYPE_DEF = 'type-def',
+  CALL = 'call',
+  DATA_FLOW = 'data-flow',
+  PARAMETER_FLOW = 'parameter-flow',
+  UNION = 'union',
+  ANNOTATION = 'annotation'
 }
 
 /**
  * 代码块元数据接口
  */
 export interface ChunkMetadata {
+  /** 代码块唯一ID */
+  id?: string;
   /** 起始行号 */
   startLine: number;
   /** 结束行号 */
@@ -66,6 +83,8 @@ export interface ChunkMetadata {
   astNodes?: any[];
   /** 重叠信息（可选） */
   overlapInfo?: any;
+  /** 上下文行（可选） */
+  contextLines?: string[];
   /** 扩展属性 */
   [key: string]: any;
 }
