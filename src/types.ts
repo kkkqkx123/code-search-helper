@@ -313,7 +313,7 @@ export const TYPES = {
   IntelligentFallbackEngine: Symbol.for('IntelligentFallbackEngine'),
 
   // 38. 特殊格式文本分割器
-  MarkdownTextStrategy: Symbol.for('MarkdownTextStrategy'),
+  MarkdownProcessor: Symbol.for('MarkdownProcessor'),
   XMLTextStrategy: Symbol.for('XMLTextStrategy'),
   LayeredHTMLStrategy: Symbol.for('LayeredHTMLStrategy'),
   HTMLContentExtractor: Symbol.for('HTMLContentExtractor'),

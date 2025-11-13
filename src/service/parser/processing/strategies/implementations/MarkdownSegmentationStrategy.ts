@@ -4,6 +4,8 @@ import { ProcessingResult, ChunkType } from '../../core/types/ResultTypes';
 import { CodeChunk } from '../../types/CodeChunk';
 import { StrategyConfig } from '../../types/Strategy';
 import { Logger } from '../../../../../utils/logger';
+import { MarkdownProcessor } from '../../utils/md/MarkdownProcessor';
+import { DEFAULT_MARKDOWN_CONFIG, MarkdownChunkingConfig } from '../../utils/md/markdown-rules';
 
 /**
  * Markdown分段策略配置
@@ -26,6 +28,7 @@ export interface MarkdownStrategyConfig extends StrategyConfig {
 export class MarkdownSegmentationStrategy extends BaseStrategy {
   protected config: MarkdownStrategyConfig;
   private logger: Logger;
+  private markdownProcessor: MarkdownProcessor;
 
   constructor(config: MarkdownStrategyConfig) {
     const defaultConfig: StrategyConfig = {
@@ -43,6 +46,27 @@ export class MarkdownSegmentationStrategy extends BaseStrategy {
       ...config
     };
     this.logger = Logger.getInstance();
+    
+    // 初始化MarkdownProcessor，使用策略配置转换为MarkdownChunkingConfig
+    const processorConfig: Partial<MarkdownChunkingConfig> = {
+      maxChunkSize: this.config.maxChunkSize,
+      maxLinesPerChunk: this.config.maxLinesPerChunk,
+      enableSemanticMerge: this.config.enableSmartMerging,
+      semanticSimilarityThreshold: 0.7, // 默认阈值
+      preserveCodeBlocks: true,
+      preserveTables: true,
+      preserveLists: true,
+      preserveStructureIntegrity: true,
+      mergeWithHeading: true,
+      mergeConsecutiveHeadings: true,
+      mergeShortParagraphs: true,
+      allowBackwardHeadingMerge: false,
+      minChunkSize: 100,
+      overlapSize: 200,
+      enableOverlap: false // 默认不启用重叠，由策略控制
+    };
+    
+    this.markdownProcessor = new MarkdownProcessor(this.logger, undefined, processorConfig);
   }
 
   /**
@@ -97,259 +121,10 @@ export class MarkdownSegmentationStrategy extends BaseStrategy {
         this.logger.debug('Context validation passed for markdown strategy');
       }
 
-      const chunks: CodeChunk[] = [];
-      const lines = context.content.split('\n');
+      // 使用MarkdownProcessor处理内容
+      const chunks = await this.markdownProcessor.chunkMarkdown(context.content, context.filePath);
 
-      let currentChunk: string[] = [];
-      let currentLine = 1;
-      let currentSection = '';
-      let inCodeBlock = false;
-      let codeBlockLang = '';
-
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        const trimmedLine = line.trim();
-
-        // 检查代码块开始/结束
-        if (trimmedLine.startsWith('```')) {
-          if (!inCodeBlock) {
-            // 代码块开始
-            inCodeBlock = true;
-            codeBlockLang = trimmedLine.substring(3).trim();
-          } else {
-            // 代码块结束
-            inCodeBlock = false;
-            codeBlockLang = '';
-          }
-        }
-
-        // 检查这一行本身是否超过限制
-        if (line.length > this.config.maxChunkSize!) {
-          // 这一行本身太长，先保存当前accumulated chunk（如果有的话）
-          if (currentChunk.length > 0) {
-            const contentToSave = currentChunk.join('\n');
-            if (contentToSave.trim().length > 0) {
-              chunks.push(this.createChunk(
-                contentToSave,
-                currentLine,
-                currentLine + currentChunk.length - 1,
-                context.language || 'markdown',
-                this.getChunkType(currentSection, inCodeBlock),
-                {
-                  filePath: context.filePath,
-                  complexity: this.calculateComplexity(contentToSave),
-                  section: currentSection || undefined,
-                  codeLanguage: codeBlockLang || undefined
-                }
-              ));
-            }
-            currentLine += currentChunk.length;
-          }
-          // 强制分割这个很长的行
-          const parts = this.splitLongLine(line, this.config.maxChunkSize!);
-          for (const part of parts) {
-            if (part.trim().length > 0) {
-              chunks.push(this.createChunk(
-                part,
-                i + 1,
-                i + 1,
-                context.language || 'markdown',
-                this.getChunkType(currentSection, inCodeBlock),
-                {
-                  filePath: context.filePath,
-                  complexity: this.calculateComplexity(part),
-                  section: currentSection || undefined,
-                  codeLanguage: codeBlockLang || undefined
-                }
-              ));
-            }
-          }
-          currentChunk = [];
-          currentLine = i + 2;
-        } else {
-          // 首先检查添加当前行是否会超过限制
-          const testChunk = [...currentChunk, line];
-          const testContent = testChunk.join('\n');
-          const wouldExceedSize = testContent.length > this.config.maxChunkSize!;
-          const wouldExceedLines = testChunk.length > this.config.maxLinesPerChunk!;
-
-          // 如果会超过限制，先保存当前chunk
-          if ((wouldExceedSize || wouldExceedLines) && currentChunk.length > 0) {
-            const contentToSave = currentChunk.join('\n');
-            if (contentToSave.trim().length > 0) {
-              chunks.push(this.createChunk(
-                contentToSave,
-                currentLine,
-                currentLine + currentChunk.length - 1,
-                context.language || 'markdown',
-                this.getChunkType(currentSection, inCodeBlock),
-                {
-                  filePath: context.filePath,
-                  complexity: this.calculateComplexity(contentToSave),
-                  section: currentSection || undefined,
-                  codeLanguage: codeBlockLang || undefined
-                }
-              ));
-            }
-            currentChunk = [line];
-            currentLine = i + 1;
-          } else {
-            // 添加当前行
-            currentChunk.push(line);
-
-            // 检查是否应该分段（基于markdown结构）
-            const shouldSplit = this.shouldSplitMarkdown(
-              trimmedLine,
-              currentChunk,
-              inCodeBlock,
-              i,
-              lines.length
-            );
-
-            if (shouldSplit && currentChunk.length > 0) {
-              const chunkContent = currentChunk.join('\n');
-              // 如果在Markdown边界处分段且不超过限制，保存chunk
-              if (chunkContent.trim().length > 0) {
-                chunks.push(this.createChunk(
-                  chunkContent,
-                  currentLine,
-                  currentLine + currentChunk.length - 1,
-                  context.language || 'markdown',
-                  this.getChunkType(currentSection, inCodeBlock),
-                  {
-                    filePath: context.filePath,
-                    complexity: this.calculateComplexity(chunkContent),
-                    section: currentSection || undefined,
-                    codeLanguage: codeBlockLang || undefined
-                  }
-                ));
-              }
-              currentChunk = [];
-              currentLine = i + 1;
-            } else if (currentChunk.length > this.config.maxLinesPerChunk!) {
-              // chunk已经达到最大行数，强制分段
-              // 移除最后添加的行，保存chunk，然后从该行重新开始
-              currentChunk.pop();
-              const contentToSave = currentChunk.join('\n');
-              if (contentToSave.trim().length > 0) {
-                chunks.push(this.createChunk(
-                  contentToSave,
-                  currentLine,
-                  currentLine + currentChunk.length - 1,
-                  context.language || 'markdown',
-                  this.getChunkType(currentSection, inCodeBlock),
-                  {
-                    filePath: context.filePath,
-                    complexity: this.calculateComplexity(contentToSave),
-                    section: currentSection || undefined,
-                    codeLanguage: codeBlockLang || undefined
-                  }
-                ));
-              }
-              currentChunk = [line];
-              currentLine = i;
-            }
-          }
-        }
-
-        // 更新当前章节
-        if (this.isSectionHeader(trimmedLine) && currentChunk.length === 1) {
-          currentSection = this.extractSectionTitle(trimmedLine);
-        }
-      }
-
-      // 处理最后的chunk
-      let lastChunkStartLine = currentLine;
-      while (currentChunk.length > 0) {
-        const chunkContent = currentChunk.join('\n');
-        const exceedsSize = chunkContent.length > this.config.maxChunkSize!;
-        const exceedsLines = currentChunk.length > this.config.maxLinesPerChunk!;
-
-        if (!exceedsSize && !exceedsLines) {
-          // chunk符合限制，保存它
-          if (chunkContent.trim().length > 0) {
-            chunks.push(this.createChunk(
-              chunkContent,
-              lastChunkStartLine,
-              lastChunkStartLine + currentChunk.length - 1,
-              context.language || 'markdown',
-              this.getChunkType(currentSection, inCodeBlock),
-              {
-                filePath: context.filePath,
-                complexity: this.calculateComplexity(chunkContent),
-                section: currentSection || undefined,
-                codeLanguage: codeBlockLang || undefined
-              }
-            ));
-          }
-          break;
-        } else if (currentChunk.length > 1) {
-          // 超过限制且有多行，移除最后一行
-          const lastLine = currentChunk.pop()!;
-          const contentToSave = currentChunk.join('\n');
-          if (contentToSave.trim().length > 0) {
-            chunks.push(this.createChunk(
-              contentToSave,
-              lastChunkStartLine,
-              lastChunkStartLine + currentChunk.length - 1,
-              context.language || 'markdown',
-              this.getChunkType(currentSection, inCodeBlock),
-              {
-                filePath: context.filePath,
-                complexity: this.calculateComplexity(contentToSave),
-                section: currentSection || undefined,
-                codeLanguage: codeBlockLang || undefined
-              }
-            ));
-          }
-          lastChunkStartLine += currentChunk.length;
-          currentChunk = [lastLine];
-        } else {
-          // 只有一行
-          const singleLine = currentChunk[0];
-          if (singleLine.length > this.config.maxChunkSize!) {
-            // 这一行本身超过限制，需要强制分割
-            const parts = this.splitLongLine(singleLine, this.config.maxChunkSize!);
-            for (const part of parts) {
-              if (part.trim().length > 0) {
-                chunks.push(this.createChunk(
-                  part,
-                  lastChunkStartLine,
-                  lastChunkStartLine,
-                  context.language || 'markdown',
-                  this.getChunkType(currentSection, inCodeBlock),
-                  {
-                    filePath: context.filePath,
-                    complexity: this.calculateComplexity(part),
-                    section: currentSection || undefined,
-                    codeLanguage: codeBlockLang || undefined
-                  }
-                ));
-              }
-            }
-          } else {
-            // 单行且符合限制，保存它
-            if (chunkContent.trim().length > 0) {
-              chunks.push(this.createChunk(
-                chunkContent,
-                lastChunkStartLine,
-                lastChunkStartLine,
-                context.language || 'markdown',
-                this.getChunkType(currentSection, inCodeBlock),
-                {
-                  filePath: context.filePath,
-                  complexity: this.calculateComplexity(chunkContent),
-                  section: currentSection || undefined,
-                  codeLanguage: codeBlockLang || undefined
-                }
-              ));
-            }
-          }
-          break;
-        }
-      }
-
-      // 智能合并相关内容
+      // 应用策略特定的智能合并（如果启用）
       let finalChunks = chunks;
       if (this.config.enableSmartMerging && chunks.length > 0) {
         finalChunks = this.mergeRelatedChunks(chunks);
@@ -398,182 +173,6 @@ export class MarkdownSegmentationStrategy extends BaseStrategy {
         /\|/.test(trimmed) || // 表格
         /^(-{3,}|_{3,}|\*{3,})\s*$/.test(trimmed); // 分割线
     });
-  }
-
-  /**
-   * 判断是否应该在Markdown边界处分段
-   */
-  private shouldSplitMarkdown(
-    line: string,
-    currentChunk: string[],
-    inCodeBlock: boolean,
-    currentIndex: number,
-    maxLines: number
-  ): boolean {
-    // 当前chunk为空，不需要分段
-    if (currentChunk.length === 0) {
-      return false;
-    }
-
-    // 在代码块内部不进行结构性分段
-    if (inCodeBlock) {
-      return false;
-    }
-
-    // 检查章节标题（# ## ### 等）
-    if (this.isSectionHeader(line) && currentChunk.length > 0) {
-      return true;
-    }
-
-    // 检查水平分割线
-    if (this.isHorizontalRule(line) && currentChunk.length > 3) {
-      return true;
-    }
-
-    // 检查列表项之间的空行
-    if (line === '' && currentChunk.length > 5 && this.hasListItems(currentChunk)) {
-      return true;
-    }
-
-    // 检查表格结束
-    if (this.isTableRow(line) && this.isTableEnd(currentChunk) && currentChunk.length > 3) {
-      return true;
-    }
-
-    // 到达文件末尾
-    if (currentIndex === maxLines - 1) {
-      return true;
-    }
-
-    return false;
-  }
-
-  /**
-   * 判断是否为章节标题
-   */
-  private isSectionHeader(line: string): boolean {
-    return /^#{1,6}\s+/.test(line);
-  }
-
-  /**
-   * 提取章节标题
-   */
-  private extractSectionTitle(line: string): string {
-    const match = line.match(/^#{1,6}\s+(.+)$/);
-    return match ? match[1].trim() : '';
-  }
-
-  /**
-   * 判断是否为水平分割线
-   */
-  private isHorizontalRule(line: string): boolean {
-    return /^(-{3,}|_{3,}|\*{3,})\s*$/.test(line);
-  }
-
-  /**
-   * 检查是否包含列表项
-   */
-  private hasListItems(lines: string[]): boolean {
-    return lines.some(line => {
-      const trimmed = line.trim();
-      return /^[-*+]\s/.test(trimmed) || /^\d+\.\s/.test(trimmed);
-    });
-  }
-
-  /**
-   * 判断是否为表格行
-   */
-  private isTableRow(line: string): boolean {
-    return /\|/.test(line);
-  }
-
-  /**
-   * 判断是否为表格结束
-   */
-  private isTableEnd(lines: string[]): boolean {
-    if (lines.length < 2) return false;
-    const lastLine = lines[lines.length - 1].trim();
-    const secondLastLine = lines[lines.length - 2].trim();
-
-    // 检查是否有表格分隔符行
-    return /^\|[\s\|:-]+\|$/.test(secondLastLine) && this.isTableRow(lastLine);
-  }
-
-  /**
-   * 获取分块类型
-   */
-  private getChunkType(section: string, inCodeBlock: boolean): ChunkType {
-    if (inCodeBlock) {
-      return ChunkType.BLOCK;
-    }
-
-    if (section) {
-      return ChunkType.DOCUMENTATION;
-    }
-
-    return ChunkType.DOCUMENTATION;
-  }
-
-  /**
-   * 分割过长的单行
-   */
-  private splitLongLine(line: string, maxSize: number): string[] {
-    if (line.length <= maxSize) {
-      return [line];
-    }
-
-    const parts: string[] = [];
-    let currentPos = 0;
-
-    while (currentPos < line.length) {
-      let endPos = Math.min(currentPos + maxSize, line.length);
-
-      // 尝试在空格处分割
-      if (endPos < line.length) {
-        // 向后查找空格
-        let spacePos = endPos;
-        while (spacePos > currentPos && line[spacePos] !== ' ') {
-          spacePos--;
-        }
-
-        // 如果找到空格，就在空格处分割
-        if (spacePos > currentPos) {
-          endPos = spacePos;
-        }
-      }
-
-      parts.push(line.substring(currentPos, endPos).trim());
-      currentPos = endPos;
-
-      // 跳过空格
-      while (currentPos < line.length && line[currentPos] === ' ') {
-        currentPos++;
-      }
-    }
-
-    return parts.filter(p => p.length > 0);
-  }
-
-  /**
-   * 计算复杂度
-   */
-  protected calculateComplexity(content: string): number {
-    let complexity = 0;
-
-    // 基于内容长度计算基础复杂度
-    complexity += content.length * 0.01;
-
-    // 基于Markdown结构计算复杂度
-    complexity += (content.match(/^#{1,6}\s+/gm) || []).length * 2; // 标题
-    complexity += (content.match(/```/g) || []).length * 3; // 代码块
-    complexity += (content.match(/\|/g) || []).length * 0.5; // 表格
-    complexity += (content.match(/^[-*+]\s+/gm) || []).length * 1; // 列表
-
-    // 基于行数调整
-    const lines = content.split('\n').length;
-    complexity += Math.log10(lines + 1) * 2;
-
-    return Math.round(complexity);
   }
 
   /**
@@ -668,5 +267,14 @@ export class MarkdownSegmentationStrategy extends BaseStrategy {
    */
   updateConfig(config: Partial<MarkdownStrategyConfig>): void {
     this.config = { ...this.config, ...config };
+    
+    // 更新MarkdownProcessor的配置
+    const processorConfig: Partial<MarkdownChunkingConfig> = {
+      maxChunkSize: this.config.maxChunkSize,
+      maxLinesPerChunk: this.config.maxLinesPerChunk,
+      enableSemanticMerge: this.config.enableSmartMerging
+    };
+    
+    this.markdownProcessor.setConfig(processorConfig);
   }
 }

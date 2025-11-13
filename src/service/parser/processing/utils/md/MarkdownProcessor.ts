@@ -1,7 +1,10 @@
-import { injectable, inject } from 'inversify';
+/**
+ * Markdown 处理器
+ * 针对 Markdown 文件的特殊结构和语义进行优化的处理工具
+ */
+
 import { CodeChunk } from '../../../types';
-import { LoggerService } from '../../../../../utils/LoggerService';
-import { TYPES } from '../../../../../types';
+import { Logger } from '../../../../../utils/logger';
 import { SimilarityUtils } from '../../../../similarity/utils/SimilarityUtils';
 import {
   MarkdownChunkingConfig,
@@ -21,20 +24,31 @@ import { BracketSegmentationStrategy } from '../../strategies/implementations/Br
 import { OverlapCalculator } from '../overlap/OverlapCalculator';
 
 /**
- * Markdown 专用文本分段器
- * 针对 Markdown 文件的特殊结构和语义进行优化的分段策略
+ * Markdown 块结构
  */
-@injectable()
-export class MarkdownTextStrategy {
+export interface MarkdownBlock {
+  type: MarkdownBlockType;
+  lines: string[];
+  content: string;
+  startLine: number;
+  endLine: number;
+}
+
+/**
+ * Markdown 专用文本处理器
+ */
+export class MarkdownProcessor {
   private config: MarkdownChunkingConfig;
-  private logger?: LoggerService;
+  private logger?: Logger;
+  private similarityUtils?: SimilarityUtils;
 
   constructor(
-    @inject(TYPES.LoggerService) logger: LoggerService | undefined,
-    @inject(TYPES.SimilarityUtils) private similarityUtils: SimilarityUtils,
-    @inject('unmanaged') config?: Partial<MarkdownChunkingConfig>
+    logger?: Logger,
+    similarityUtils?: SimilarityUtils,
+    config?: Partial<MarkdownChunkingConfig>
   ) {
     this.logger = logger;
+    this.similarityUtils = similarityUtils;
     this.config = { ...DEFAULT_MARKDOWN_CONFIG, ...config };
   }
 
@@ -85,7 +99,7 @@ export class MarkdownTextStrategy {
   /**
    * 解析 Markdown 块结构
    */
-  private parseMarkdownBlocks(content: string): MarkdownBlock[] {
+  parseMarkdownBlocks(content: string): MarkdownBlock[] {
     const lines = content.split('\n');
     const blocks: MarkdownBlock[] = [];
     let currentBlock: MarkdownBlock | null = null;
@@ -241,7 +255,7 @@ export class MarkdownTextStrategy {
   /**
    * 合并相关块
    */
-  private async mergeRelatedBlocks(blocks: MarkdownBlock[]): Promise<MarkdownBlock[]> {
+  async mergeRelatedBlocks(blocks: MarkdownBlock[]): Promise<MarkdownBlock[]> {
     if (blocks.length === 0) return blocks;
 
     let currentBlocks = [...blocks]; // 创建副本以避免修改原始数组
@@ -311,12 +325,6 @@ export class MarkdownTextStrategy {
 
   /**
    * 判断是否应该合并块
-   *
-   * 规则优先级（从高到低）：
-   * 1. 硬性限制（大小、行数）- 不可违反(最小约束没有单独实现)
-   * 2. 结构完整性保护 - 不可违反
-   * 3. 标题单向合并规则 - 高优先级，但可被minChunkSize覆盖
-   * 4. 语义和内容相关规则 - 可被更高优先级规则覆盖
    */
   private async shouldMergeBlocks(
     currentBlock: MarkdownBlock,
@@ -365,7 +373,6 @@ export class MarkdownTextStrategy {
     }
 
     // 优先级3：标题单向合并规则（高优先级，但可被minChunkSize覆盖）
-    // 注意：这个规则在minChunkSize检查之前，确保标题的单向合并优先级
     if (!this.shouldAllowForwardMerge(currentBlock, nextBlock)) {
       // 但是如果当前块太小，我们需要违反这个规则来满足最小大小要求
       if (currentSize >= this.config.minChunkSize) {
@@ -401,16 +408,13 @@ export class MarkdownTextStrategy {
     if (this.config.enableSemanticMerge &&
       currentType === MarkdownBlockType.PARAGRAPH &&
       nextType === MarkdownBlockType.PARAGRAPH) {
-      // 使用新的相似度服务
+      // 使用相似度服务
       const similarity = await this.calculateSemanticSimilarity(currentBlock.content, nextBlock.content);
       return similarity >= this.config.semanticSimilarityThreshold;
     }
 
     // 优先级5：最小大小保证（最低优先级，确保内容不会过小）
-    // 这个规则可以覆盖优先级3的标题单向合并规则
     if (currentSize < this.config.minChunkSize) {
-      // 如果当前块太小，尝试与下一个块合并
-      // 即使违反标题单向合并规则也要合并，以避免产生过小的块
       return true;
     }
 
@@ -420,12 +424,6 @@ export class MarkdownTextStrategy {
 
   /**
    * 判断是否允许向前合并（标题块单向合并）
-   *
-   * 合并规则说明：
-   * - "向前合并"指的是当前块与下一个块合并
-   * - 标题块可以与后面的内容合并（标题 -> 内容）
-   * - 其他块不能与标题块合并（内容 -> 标题），除非配置允许
-   * - 高级标题可以与低级标题合并（H1 -> H2），但低级标题不能与高级标题合并（H2 -> H1）
    */
   private shouldAllowForwardMerge(currentBlock: MarkdownBlock, nextBlock: MarkdownBlock): boolean {
     const currentType = currentBlock.type;
@@ -464,7 +462,6 @@ export class MarkdownTextStrategy {
       const ratio = Math.max(currentWeight, nextWeight) / Math.min(currentWeight, nextWeight);
       const isTooLarge = ratio > 2;
 
-      // 添加调试日志
       this.logger?.debug(`Heading weight check: H${currentLevel}(${currentWeight}) vs H${nextLevel}(${nextWeight}), ratio: ${ratio}, too large: ${isTooLarge}`);
 
       return isTooLarge;
@@ -475,12 +472,6 @@ export class MarkdownTextStrategy {
 
   /**
    * 判断是否允许标题层级合并（高级标题向低级标题合并）
-   *
-   * 规则：
-   * - 高级标题（如H1）可以向低级标题（如H2）合并
-   * - 低级标题（如H2）不能向高级标题（如H1）合并
-   * - 同级标题可以合并
-   * - 权重差异过大的标题不能合并
    */
   private shouldAllowHeadingLevelMerge(currentBlock: MarkdownBlock, nextBlock: MarkdownBlock): boolean {
     if (currentBlock.type !== MarkdownBlockType.HEADING || nextBlock.type !== MarkdownBlockType.HEADING) {
@@ -509,7 +500,7 @@ export class MarkdownTextStrategy {
   /**
    * 将块转换为分段
    */
-  private blocksToChunks(blocks: MarkdownBlock[], filePath?: string): CodeChunk[] {
+  blocksToChunks(blocks: MarkdownBlock[], filePath?: string): CodeChunk[] {
     const chunks: CodeChunk[] = [];
 
     for (const block of blocks) {
@@ -562,7 +553,7 @@ export class MarkdownTextStrategy {
   /**
    * 计算块复杂度
    */
-  private calculateBlockComplexity(block: MarkdownBlock): number {
+  calculateBlockComplexity(block: MarkdownBlock): number {
     let complexity = MARKDOWN_SEMANTIC_WEIGHTS[block.type] || 1;
 
     // 基于内容长度调整
@@ -594,7 +585,7 @@ export class MarkdownTextStrategy {
   /**
    * 降级分段方法
    */
-  private fallbackChunking(content: string, filePath?: string): CodeChunk[] {
+  fallbackChunking(content: string, filePath?: string): CodeChunk[] {
     this.logger?.warn('Using fallback chunking for markdown');
 
     // 简单的段落分段
@@ -657,7 +648,7 @@ export class MarkdownTextStrategy {
   /**
    * 拆分大块
    */
-  private async splitLargeBlocks(blocks: MarkdownBlock[]): Promise<MarkdownBlock[]> {
+  async splitLargeBlocks(blocks: MarkdownBlock[]): Promise<MarkdownBlock[]> {
     const result: MarkdownBlock[] = [];
 
     for (const block of blocks) {
@@ -937,7 +928,7 @@ export class MarkdownTextStrategy {
         minLines: 1,
         maxOverlapRatio: 0.3,
         enableASTBoundaryDetection: false, // Markdown不需要AST边界检测
-        logger: this.logger
+        logger: this.logger as any
       });
 
       // 应用重叠，但保护标题块
@@ -1003,30 +994,24 @@ export class MarkdownTextStrategy {
   }
 
   /**
-   * 计算语义相似度（使用新的相似度服务）
+   * 计算语义相似度
    */
   private async calculateSemanticSimilarity(text1: string, text2: string): Promise<number> {
     try {
-      // 使用新的相似度服务，指定文档类型
-      return await this.similarityUtils.calculateSimilarity(text1, text2, {
-        contentType: 'document',
-        strategy: 'keyword' // 对于Markdown，使用关键词策略更合适
-      });
+      // 使用相似度服务，指定文档类型
+      if (this.similarityUtils) {
+        return await this.similarityUtils.calculateSimilarity(text1, text2, {
+          contentType: 'document',
+          strategy: 'keyword' // 对于Markdown，使用关键词策略更合适
+        });
+      } else {
+        // 如果没有相似度服务，回退到原始实现
+        return calculateSemanticSimilarity(text1, text2);
+      }
     } catch (error) {
       // 如果新服务失败，回退到原始实现
-      this.logger?.warn('Failed to use new similarity service, falling back to original implementation:', error);
+      this.logger?.warn('Failed to use similarity service, falling back to original implementation:', error);
       return calculateSemanticSimilarity(text1, text2);
     }
   }
-}
-
-/**
- * Markdown 块结构
- */
-interface MarkdownBlock {
-  type: MarkdownBlockType;
-  lines: string[];
-  content: string;
-  startLine: number;
-  endLine: number;
 }

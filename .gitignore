@@ -7,7 +7,8 @@ logs
 .env.test
 frontend/node_modules
 frontend/dist
-ref
+docs/ref/architecture
+docs/ref/strategies
 .venv
 *.rar
 **/repomix-output.xml

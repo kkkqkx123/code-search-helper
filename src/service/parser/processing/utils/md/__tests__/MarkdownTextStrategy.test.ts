@@ -1,8 +1,8 @@
-import { MarkdownTextStrategy } from '../MarkdownTextStrategy';
+import { MarkdownProcessor } from '../MarkdownProcessor';
 import { MarkdownChunkingConfig } from '../markdown-rules';
 
-describe('MarkdownTextStrategy - 标题块单向合并', () => {
-  let strategy: MarkdownTextStrategy;
+describe('MarkdownProcessor - 标题块单向合并', () => {
+  let strategy: MarkdownProcessor;
   let testConfig: MarkdownChunkingConfig;
   let mockLogger: any;
 
@@ -58,7 +58,7 @@ describe('MarkdownTextStrategy - 标题块单向合并', () => {
       getCoordinatorStats: jest.fn().mockReturnValue(null),
       generateExecutionPlan: jest.fn().mockResolvedValue({})
     };
-    strategy = new MarkdownTextStrategy(mockLogger, mockSimilarityUtils, testConfig);
+    strategy = new MarkdownProcessor(mockLogger, mockSimilarityUtils, testConfig);
   });
 
   test('标题块应该只与后面的内容合并，不与前面的内容合并', async () => {
@@ -274,13 +274,16 @@ ${listItems}`;
   });
 
   test('标题层级权重差异过大时不应该合并', async () => {
+    // 创建更长的内容，确保不会因为太小而被强制合并
     const content = `# H1 标题
 
-H1内容
+H1内容，这是一些较长的内容，用来确保块不会因为太小而被强制合并。
+${Array(20).fill('这是一行额外的内容，用来增加块的大小。').join('\n')}
 
 ###### H6 标题
 
-H6内容`;
+H6内容，这同样是一些较长的内容，用来确保块不会因为太小而被强制合并。
+${Array(20).fill('这是一行额外的内容，用来增加块的大小。').join('\n')}`;
 
     // 启用调试日志
     const debugCalls = (mockLogger.debug as jest.Mock).mock.calls;

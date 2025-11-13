@@ -16,7 +16,7 @@ export const SPECIAL_PROCESSING_LANGUAGES: LanguageConfig[] = [
     strategy: {
       primary: 'specialized_processor',
       skipASTParsing: true,
-      specializedProcessor: 'MarkdownTextStrategy',
+      specializedProcessor: 'MarkdownProcessor',
       maxQueryDepth: 1,
       fallback: ['universal_line']
     }

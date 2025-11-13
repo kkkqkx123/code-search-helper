@@ -142,7 +142,7 @@ export const TYPES = {
   StrategyRegistry: Symbol.for('StrategyRegistry'),
 
   StrategyConfigManager: Symbol.for('StrategyConfigManager'),
-  MarkdownTextStrategy: Symbol.for('MarkdownTextStrategy'),
+  MarkdownProcessor: Symbol.for('MarkdownProcessor'),
   XMLTextStrategy: Symbol.for('XMLTextStrategy'),
 
   // 块处理相关类型
