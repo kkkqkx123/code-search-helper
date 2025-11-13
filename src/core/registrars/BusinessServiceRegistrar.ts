@@ -32,7 +32,7 @@ import { PerformanceOptimizerService } from '../../service/optimization/Performa
 // 解析服务
 import { TreeSitterService } from '../../service/parser/core/parse/TreeSitterService';
 import { TreeSitterCoreService } from '../../service/parser/core/parse/TreeSitterCoreService';
-import { TreeSitterQueryEngine } from '../../service/parser/core/query/TreeSitterQueryEngine';
+import { TreeSitterQueryEngine } from '../../service/parser/core/query/TreeSitterQueryExecutor';
 
 import { ChunkToVectorCoordinationService } from '../../service/parser/ChunkToVectorCoordinationService';
 import { QueryResultNormalizer } from '../../service/parser/core/normalization/QueryResultNormalizer';
@@ -41,7 +41,9 @@ import { SegmentationConfigService } from '../../config/service/SegmentationConf
 // 新的AST结构提取器相关服务
 import { ASTStructureExtractor } from '../../service/parser/core/normalization/ASTStructureExtractor';
 import { ASTStructureExtractorFactory } from '../../service/parser/core/normalization/ASTStructureExtractorFactory';
-import { UnifiedContentAnalyzer } from '../../service/parser/core/normalization/ContentAnalyzer';
+import { ContentAnalyzer } from '../../service/parser/core/normalization/ContentAnalyzer';
+import { RelationshipAnalyzer } from '../../service/parser/core/normalization/RelationshipAnalyzer';
+import { TextPatternAnalyzer } from '../../service/parser/core/normalization/TextPatternAnalyzer';
 import { StructureTypeConverter } from '../../service/parser/core/normalization/utils/StructureTypeConverter';
 
 // 通用文件处理服务
@@ -182,12 +184,27 @@ export class BusinessServiceRegistrar {
         const factory = context.get<ASTStructureExtractorFactory>(TYPES.ASTStructureExtractorFactory);
         return factory.getInstance();
       }).inSingletonScope();
+      // 注册新的分析器
+      container.bind<RelationshipAnalyzer>(TYPES.RelationshipAnalyzer).toDynamicValue(context => {
+        const queryNormalizer = context.get<QueryResultNormalizer>(TYPES.QueryResultNormalizer);
+        const treeSitterCoreService = context.get<TreeSitterCoreService>(TYPES.TreeSitterCoreService);
+        const configService = context.get<any>(TYPES.InfrastructureConfigService);
+        return new RelationshipAnalyzer(queryNormalizer, treeSitterCoreService, configService);
+      }).inSingletonScope();
 
-      container.bind<UnifiedContentAnalyzer>(TYPES.UnifiedContentAnalyzer).toDynamicValue(context => {
+      container.bind<TextPatternAnalyzer>(TYPES.TextPatternAnalyzer).toDynamicValue(context => {
+        const queryNormalizer = context.get<QueryResultNormalizer>(TYPES.QueryResultNormalizer);
+        const treeSitterCoreService = context.get<TreeSitterCoreService>(TYPES.TreeSitterCoreService);
+        return new TextPatternAnalyzer(queryNormalizer, treeSitterCoreService);
+      }).inSingletonScope();
+
+      container.bind<ContentAnalyzer>(TYPES.UnifiedContentAnalyzer).toDynamicValue(context => {
         const queryNormalizer = context.get<QueryResultNormalizer>(TYPES.QueryResultNormalizer);
         const treeSitterCoreService = context.get<TreeSitterCoreService>(TYPES.TreeSitterCoreService);
         const astStructureExtractor = context.get<ASTStructureExtractor>(TYPES.ASTStructureExtractor);
-        return new UnifiedContentAnalyzer(queryNormalizer, treeSitterCoreService, astStructureExtractor);
+        const relationshipAnalyzer = context.get<RelationshipAnalyzer>(TYPES.RelationshipAnalyzer);
+        const textPatternAnalyzer = context.get<TextPatternAnalyzer>(TYPES.TextPatternAnalyzer);
+        return new ContentAnalyzer(queryNormalizer, treeSitterCoreService, astStructureExtractor, relationshipAnalyzer, textPatternAnalyzer);
       }).inSingletonScope();
 
       // 分段器模块服务 - 注意：UniversalTextStrategy 现在不使用 @injectable，需要手动实例化

@@ -1,14 +1,15 @@
 import { ASTStructureExtractor } from '../ASTStructureExtractor';
 import { ASTStructureExtractorFactory } from '../ASTStructureExtractorFactory';
-import { UnifiedContentAnalyzer } from '../ContentAnalyzer';
+import { ContentAnalyzer } from '../ContentAnalyzer';
+import { RelationshipAnalyzer } from '../RelationshipAnalyzer';
+import { TextPatternAnalyzer } from '../TextPatternAnalyzer';
 import { StructureTypeConverter } from '../utils/StructureTypeConverter';
 import { QueryResultNormalizer } from '../QueryResultNormalizer';
 import { TreeSitterCoreService } from '../../parse/TreeSitterCoreService';
-import { TopLevelStructure, NestedStructure, InternalStructure } from '../../../../utils/types/ContentTypes';
 import { StandardizedQueryResult } from '../types';
-import { LoggerService } from '../../../../utils/LoggerService';
+import { LoggerService } from '../../../../../utils/LoggerService';
 import { Container } from 'inversify';
-import { TYPES } from '../../../../types';
+import { TYPES } from '../../../../../types';
 import Parser from 'tree-sitter';
 
 // Mock implementations
@@ -68,6 +69,18 @@ const mockLoggerService = {
   error: jest.fn()
 } as any;
 
+const mockRelationshipAnalyzer = {
+  analyzeRelationships: jest.fn().mockResolvedValue({
+    nesting: [],
+    references: [],
+    dependencies: []
+  })
+} as any;
+
+const mockTextPatternAnalyzer = {
+  analyze: jest.fn().mockResolvedValue([])
+} as any;
+
 describe('ASTStructureExtractor', () => {
   let container: Container;
   let astStructureExtractor: ASTStructureExtractor;
@@ -79,12 +92,12 @@ describe('ASTStructureExtractor', () => {
     // Bind mock services
     container.bind<LoggerService>(TYPES.LoggerService).toConstantValue(mockLoggerService);
     container.bind<QueryResultNormalizer>(TYPES.QueryResultNormalizer).toConstantValue(mockQueryResultNormalizer);
-    container.bind<TreeSitterCoreService>(TYPES.TreeSitterCoreService).toConstantValue(mockTreeSitterService);
+    container.bind<TreeSitterCoreService>(TYPES.TreeSitterCoreService).toConstantValue(mockTreeSitterCoreService);
 
     // Create ASTStructureExtractor through factory
     const factory = new ASTStructureExtractorFactory(
       mockQueryResultNormalizer,
-      mockTreeSitterService
+      mockTreeSitterCoreService
     );
     astStructureExtractor = factory.getInstance();
 
@@ -95,7 +108,7 @@ describe('ASTStructureExtractor', () => {
       endPosition: { row: 10, column: 0 },
       text: 'function testFunction() { return true; }',
       children: []
-    } as Parser.SyntaxNode;
+    } as unknown as Parser.SyntaxNode;
   });
 
   describe('extractTopLevelStructuresFromAST', () => {
@@ -119,7 +132,7 @@ describe('ASTStructureExtractor', () => {
         endPosition: { row: 0, column: 0 },
         text: '',
         children: []
-      } as Parser.SyntaxNode;
+      } as unknown as Parser.SyntaxNode;
 
       const result = await astStructureExtractor.extractTopLevelStructuresFromAST(content, language, emptyAST);
 
@@ -143,7 +156,7 @@ describe('ASTStructureExtractor', () => {
       const content = 'function testFunction() { return true; }';
 
       const typescriptResult = await astStructureExtractor.extractTopLevelStructuresFromAST(content, 'typescript', mockAST);
-      const javascriptResult = await astStructure.extractTopLevelStructures.py(content, 'javascript', mockAST);
+      const javascriptResult = await astStructureExtractor.extractTopLevelStructuresFromAST(content, 'javascript', mockAST);
 
       expect(typescriptResult).toBeDefined();
       expect(javascriptResult).toBeDefined();
@@ -217,7 +230,7 @@ describe('ASTStructureExtractor', () => {
       const language = 'typescript';
 
       // Mock parseCode to throw an error
-      mockTreeSitterService.parseCode.mockRejectedValue(new Error('Parse error'));
+      mockTreeSitterCoreService.parseCode.mockRejectedValue(new Error('Parse error'));
 
       const result = await astStructureExtractor.extractTopLevelStructuresFromAST(content, language, mockAST);
 
@@ -253,7 +266,7 @@ describe('ASTStructureExtractorFactory', () => {
 
     factory = new ASTStructureExtractorFactory(
       mockQueryResultNormalizer,
-      mockTreeSitterService
+      mockTreeSitterCoreService
     );
   });
 
@@ -297,8 +310,8 @@ describe('ASTStructureExtractorFactory', () => {
       expect(updatedOptions.enablePerformanceMonitoring).toBe(originalOptions.enablePerformanceMonitoring);
     });
 
-    it('should validate configuration', () => {
-      const health = factory.healthCheck();
+    it('should validate configuration', async () => {
+      const health = await factory.healthCheck();
 
       expect(health.healthy).toBe(true);
       expect(health.details.queryNormalizer).toBe(true);
@@ -333,15 +346,14 @@ describe('ASTStructureExtractorFactory', () => {
     it('should warm up successfully', async () => {
       await factory.warmup();
 
-      const health = factory.healthCheck();
-      expect(healthy.healthy).toBe(true);
+      const health = await factory.healthCheck();
+      expect(health.healthy).toBe(true);
     });
   });
 });
-});
 
 describe('UnifiedContentAnalyzer', () => {
-  let unifiedAnalyzer: UnifiedContentAnalyzer;
+  let unifiedAnalyzer: ContentAnalyzer;
   let container: Container;
 
   beforeEach(() => {
@@ -361,10 +373,12 @@ describe('UnifiedContentAnalyzer', () => {
 
     container.bind<ASTStructureExtractor>(TYPES.ASTStructureExtractor).toConstantValue(astStructureExtractor);
 
-    unifiedAnalyzer = new UnifiedContentAnalyzer(
+    unifiedAnalyzer = new ContentAnalyzer(
       mockQueryResultNormalizer,
       mockTreeSitterCoreService,
-      astStructureExtractor
+      astStructureExtractor,
+      mockRelationshipAnalyzer,
+      mockTextPatternAnalyzer
     );
   });
 
@@ -487,89 +501,89 @@ describe('UnifiedContentAnalyzer', () => {
       const result = await unifiedAnalyzer.extractWithRelationships(content, language);
 
       expect(result.topLevelStructures.length).toBeGreaterThan(0);
-      expect(result.relationships.nesting.length).toBeGreaterThanOrEqual(0));
-    expect(result.relationships.references.length).toBeGreaterThanOrEqual(0));
-  expect(result.relationships.dependencies.length).toBeGreaterThanOrEqual(0));
-expect(result.stats.totalRelationships).toBeGreaterThanOrEqual(0));
+      expect(result.relationships.nesting.length).toBeGreaterThanOrEqual(0);
+      expect(result.relationships.references.length).toBeGreaterThanOrEqual(0);
+      expect(result.relationships.dependencies.length).toBeGreaterThanOrEqual(0);
+      expect(result.stats.totalRelationships).toBeGreaterThanOrEqual(0);
     });
 
-it('should analyze nesting relationships correctly', async () => {
-  const content = `
+    it('should analyze nesting relationships correctly', async () => {
+      const content = `
         class ParentClass {
           childMethod() {
             return 'child result';
           }
         }
       `;
-  const language = 'typescript';
+      const language = 'typescript';
 
-  const result = await unifiedAnalyzer.extractWithRelationships(content, language);
+      const result = await unifiedAnalyzer.extractWithRelationships(content, language);
 
-  const nestingRelationships = result.relationships.nesting;
-  expect(nestingRelationships.length).toBeGreaterThan(0);
+      const nestingRelationships = result.relationships.nesting;
+      expect(nestingRelationships.length).toBeGreaterThan(0);
 
-  const parentChildRelation = nestingRelationships.find(r =>
-    r.parent === 'ParentClass' && r.child === 'childMethod'
-  );
-  expect(parentChildRelation).toBeDefined();
-  expect(parentChildRelation.type).toBe('contains');
-});
+      const parentChildRelation = nestingRelationships.find(r =>
+        r.parent === 'ParentClass' && r.child === 'childMethod'
+      );
+      expect(parentChildRelation).toBeDefined();
+      expect(parentChildRelation?.type).toBe('contains');
+    });
   });
 
-describe('Error Handling', () => {
-  it('should handle parsing errors gracefully', async () => {
-    const content = 'invalid syntax';
-    const language = 'typescript';
+  describe('Error Handling', () => {
+    it('should handle parsing errors gracefully', async () => {
+      const content = 'invalid syntax';
+      const language = 'typescript';
 
-    // Mock parseCode to throw an error
-    mockTreeSitterService.parseCode.mockRejectedValue(new Error('Parse error'));
+      // Mock parseCode to throw an error
+      mockTreeSitterCoreService.parseCode.mockRejectedValue(new Error('Parse error'));
 
-    const result = await unifiedAnalyzer.extractAllStructures(content, language);
+      const result = await unifiedAnalyzer.extractAllStructures(content, language);
 
-    expect(result.topLevelStructures).toEqual([]);
-    expect(result.nestedStructures).toEqual([]);
-    expect(result.internalStructures).toEqual([]);
-    expect(result.stats.totalStructures).toBe(0);
+      expect(result.topLevelStructures).toEqual([]);
+      expect(result.nestedStructures).toEqual([]);
+      expect(result.internalStructures).toEqual([]);
+      expect(result.stats.totalStructures).toBe(0);
+    });
+
+    it('should handle empty content', async () => {
+      const content = '';
+      const language = 'typescript';
+
+      const result = await unifiedAnalyzer.extractAllStructures(content, language);
+
+      expect(result.topLevelStructures).toEqual([]);
+      expect(result.nestedStructures).toEqual([]);
+      expect(result.internalStructures).toEqual([]);
+    });
   });
 
-  it('should handle empty content', async () => {
-    const content = '';
-    const language = 'typescript';
+  describe('Performance Monitoring', () => {
+    it('should track cache statistics', () => {
+      const stats = unifiedAnalyzer.getCacheStats();
+      expect(stats).toBeDefined();
+    });
 
-    const result = await unifiedAnalyzer.extractAllStructures(content, language);
+    it('should track performance statistics', () => {
+      const stats = unifiedAnalyzer.getPerformanceStats();
+      expect(stats).toBeDefined();
+    });
 
-    expect(result.topLevelStructures).toEqual([]);
-    expect(result.nestedStructures).toEqual([]);
-    expect(result.internalStructures).toEqual([]);
-  });
-});
-
-describe('Performance Monitoring', () => {
-  it('should track cache statistics', () => {
-    const stats = unifiedAnalyzer.getCacheStats();
-    expect(stats).toBeDefined();
+    it('should clear cache', () => {
+      expect(() => unifiedAnalyzer.clearCache()).not.toThrow();
+    });
   });
 
-  it('should track performance statistics', () => {
-    const stats = unifiedAnalyzer.getPerformanceStats();
-    expect(stats).toBeDefined();
-  });
+  describe('Health Check', () => {
+    it('should perform comprehensive health check', async () => {
+      const health = await unifiedAnalyzer.healthCheck();
 
-  it('should clear cache', () => {
-    expect(() => unifiedAnalyzer.clearCache()).not.toThrow();
+      expect(health.healthy).toBe(true);
+      expect(health.details.queryNormalizer).toBe(true);
+      expect(health.details.treeSitterService).toBe(true);
+      expect(health.details.astStructureExtractor).toBe(true);
+    });
   });
-});
-
-describe('Health Check', () => {
-  it('should perform comprehensive health check', async () => {
-    const health = await unifiedAnalyzer.healthCheck();
-
-    expect(health.healthy).toBe(true);
-    expect(health.details.queryNormalizer).toBe(true);
-    expect(health.details.treeSitterService).toBe(true);
-    expect(health.details.astStructureExtractor).toBe(true);
-  });
-});
 });
 
 describe('StructureTypeConverter', () => {
@@ -615,7 +629,7 @@ describe('StructureTypeConverter', () => {
     });
 
     it('should handle empty results', () => {
-      const standardizedResults: StandardizedResult[] = [];
+      const standardizedResults: StandardizedQueryResult[] = [];
       const content = 'test content';
       const language = 'typescript';
 
@@ -625,7 +639,7 @@ describe('StructureTypeConverter', () => {
     });
 
     it('should calculate confidence correctly', () => {
-      const standardizedResults: StandardizedResult[] = [
+      const standardizedResults: StandardizedQueryResult[] = [
         {
           nodeId: 'test-node-1',
           type: 'function',
@@ -685,7 +699,7 @@ describe('StructureTypeConverter', () => {
 
   describe('convertToInternalStructures', () => {
     it('should convert standardized results to internal structures', () => {
-      const standardizedResults: StandardizedResult[] = [
+      const standardizedResults: StandardizedQueryResult[] = [
         {
           nodeId: 'test-node-1',
           type: 'variable',
@@ -713,7 +727,7 @@ describe('StructureTypeConverter', () => {
     });
 
     it('should determine importance based on type and complexity', () => {
-      const standardizedResults: StandardizedResult[] = [
+      const standardizedResults: StandardizedQueryResult[] = [
         {
           nodeId: 'test-node-1',
           type: 'function',
@@ -740,7 +754,7 @@ describe('StructureTypeConverter', () => {
 
   describe('Batch Conversion', () => {
     it('should convert multiple structures efficiently', () => {
-      const standardizedResults: StandardizedResult[] = [
+      const standardizedResults: StandardizedQueryResult[] = [
         {
           nodeId: 'test-node-1',
           type: 'function',
@@ -788,7 +802,7 @@ describe('StructureTypeConverter', () => {
 
   describe('Validation', () => {
     it('should validate conversion results', () => {
-      const standardizedResults: StandardizedResult[] = [
+      const standardizedResults: StandardizedQueryResult[] = [
         {
           nodeId: 'test-node-1',
           type: 'function',
@@ -816,7 +830,7 @@ describe('StructureTypeConverter', () => {
     });
 
     it('should detect validation errors', () => {
-      const standardizedResults: StandardizedResult[] = [
+      const standardizedResults: StandardizedQueryResult[] = [
         {
           nodeId: 'test-node-1',
           type: 'function',

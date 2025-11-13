@@ -626,10 +626,10 @@ export class ASTStructureExtractor {
   }
 
   /**
-   * 获取性能统计
-   */
+    * 获取性能统计
+    */
   getPerformanceStats() {
-    return this.performanceMonitor?.getStats();
+    return this.performanceMonitor?.getMetrics();
   }
 }
 

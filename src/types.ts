@@ -277,6 +277,8 @@ export const TYPES = {
   ASTStructureExtractor: Symbol.for('ASTStructureExtractor'),
   ASTStructureExtractorFactory: Symbol.for('ASTStructureExtractorFactory'),
   UnifiedContentAnalyzer: Symbol.for('UnifiedContentAnalyzer'),
+  RelationshipAnalyzer: Symbol.for('RelationshipAnalyzer'),
+  TextPatternAnalyzer: Symbol.for('TextPatternAnalyzer'),
   StructureTypeConverter: Symbol.for('StructureTypeConverter'),
 
   // 34. 统一缓存管理器

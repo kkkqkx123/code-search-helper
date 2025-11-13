@@ -167,18 +167,18 @@ export class StructureTypeConverter {
   }
 
   /**
-   * 转换元数据
-   * @param sourceMetadata 源元数据
-   * @param language 编程语言
-   * @param additionalMetadata 额外元数据
-   * @returns 转换后的元数据
-   */
+    * 转换元数据
+    * @param sourceMetadata 源元数据
+    * @param language 编程语言
+    * @param additionalMetadata 额外元数据
+    * @returns 转换后的元数据
+    */
   private convertMetadata(
     sourceMetadata: any,
     language: string,
     additionalMetadata: Record<string, any> = {}
-  ): Record<string, any> {
-    const converted: Record<string, any> = {
+  ): any {
+    const converted: any = {
       language,
       ...additionalMetadata
     };

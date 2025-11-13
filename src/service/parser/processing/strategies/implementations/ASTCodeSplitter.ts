@@ -13,7 +13,6 @@ import { DetectionService } from '../../../detection/DetectionService';
 import { TYPES } from '../../../../../types';
 import { ChunkFactory } from '../../../../../utils/processing/ChunkFactory';
 import { ValidationUtils } from '../../../../../utils/processing/validation/ValidationUtils';
-import { ContentAnalyzer } from '../../../../../utils/processing/ContentAnalyzer';
 import { TypeMappingUtils } from '../../../../../utils/processing/TypeMappingUtils';
 import { QueryResultConverter } from '../../../../../utils/processing/QueryResultConverter';
 import { ComplexityCalculator } from '../../../../../utils/processing/ComplexityCalculator';
@@ -22,7 +21,7 @@ import { IPerformanceMonitor } from '../../../../../infrastructure/monitoring/ty
 import { SegmentationConfigService } from '../../../../../config/service/SegmentationConfigService';
 import { HashUtils } from '../../../../../utils/cache/HashUtils';
 import { SegmentationConfig } from '../../../../../config/ConfigTypes';
-import { UnifiedContentAnalyzer } from '../../../core/normalization/ContentAnalyzer';
+
 
 @injectable()
 export class ASTCodeSplitter {
@@ -31,7 +30,7 @@ export class ASTCodeSplitter {
     @inject(TYPES.DetectionService) private detectionService: DetectionService,
     @inject(TYPES.LoggerService) private logger: LoggerService,
     @inject(TYPES.SegmentationConfigService) private segmentationConfigService: SegmentationConfigService,
-    @inject(TYPES.UnifiedContentAnalyzer) private unifiedContentAnalyzer: UnifiedContentAnalyzer,
+    @inject(TYPES.UnifiedContentAnalyzer) private unifiedContentAnalyzer: any,
     @inject(TYPES.CacheService) private cacheService?: ICacheService,
     @inject(TYPES.PerformanceMonitor) private performanceMonitor?: IPerformanceMonitor
   ) {
@@ -77,7 +76,7 @@ export class ASTCodeSplitter {
       // 无需在这里手动合并
 
       // 检查内容是否适合AST处理
-      if (!this.hasValidStructure(content, language)) {
+      if (!(await this.hasValidStructure(content, language))) {
         this.logger.debug(`Content doesn't have AST-recognizable structure for ${filePath}`);
         return [];
       }
@@ -248,13 +247,11 @@ export class ASTCodeSplitter {
     }
 
     try {
-      const nestedStructures = await ContentAnalyzer.extractNestedStructures(
-        content,
-        parentStructure.node,
-        level,
-        ast,
-        language
-      );
+      const extractionResult = await this.unifiedContentAnalyzer.extractAllStructures(content, language, {
+        includeNested: true,
+        maxNestingLevel: this.config.nesting.maxNestingLevel
+      });
+      const nestedStructures = extractionResult.nestedStructures;
 
       for (const nested of nestedStructures) {
         // 验证嵌套级别
@@ -570,17 +567,22 @@ export class ASTCodeSplitter {
   /**
    * 检查内容是否有有效结构
    */
-  private hasValidStructure(content: string, language: string): boolean {
+  private async hasValidStructure(content: string, language: string): Promise<boolean> {
     // 使用ContentAnalyzer检测结构
-    const structureResult = ContentAnalyzer.detectCodeStructure(content);
+    const extractionResult = await this.unifiedContentAnalyzer.extractAllStructures(content, language, {
+      includeTopLevel: true,
+      includeNested: true,
+      includeInternal: true
+    });
 
     // 检查是否有足够的结构
-    if (structureResult.structureCount === 0) {
+    if (extractionResult.stats.totalStructures === 0) {
       return false;
     }
 
     // 检查置信度
-    if (structureResult.confidence < 0.3) {
+    // 新的ContentAnalyzer没有confidence字段，我们可以根据结构数量来判断
+    if (extractionResult.stats.totalStructures < 1) {
       return false;
     }
 

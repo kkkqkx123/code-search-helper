@@ -1,8 +1,9 @@
-import { TopLevelStructure, NestedStructure, InternalStructure } from '../../../../utils/types/ContentTypes';
-import { StandardizedQueryResult } from './types';
+import { TopLevelStructure, NestedStructure, InternalStructure, NestingRelationship, CodeReference, CodeDependency } from '../../../../utils/types/ContentTypes';
 import { QueryResultNormalizer } from './QueryResultNormalizer';
 import { TreeSitterCoreService } from '../parse/TreeSitterCoreService';
 import { ASTStructureExtractor } from './ASTStructureExtractor';
+import { RelationshipAnalyzer } from './RelationshipAnalyzer';
+import { TextPatternAnalyzer } from './TextPatternAnalyzer';
 import { StructureTypeConverter } from './utils/StructureTypeConverter';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { LRUCache } from '../../../../utils/cache/LRUCache';
@@ -92,7 +93,7 @@ export interface StructureWithRelationships {
  * 整合所有结构提取功能，提供一次性提取所有结构的接口
  * 利用normalization系统的全部功能
  */
-export class UnifiedContentAnalyzer {
+export class ContentAnalyzer {
   private logger: LoggerService;
   private cache: LRUCache<string, ExtractionResult>;
   private performanceMonitor?: PerformanceMonitor;
@@ -101,13 +102,15 @@ export class UnifiedContentAnalyzer {
   constructor(
     private queryNormalizer: QueryResultNormalizer,
     private treeSitterService: TreeSitterCoreService,
-    private astStructureExtractor: ASTStructureExtractor
+    private astStructureExtractor: ASTStructureExtractor,
+    private relationshipAnalyzer: RelationshipAnalyzer,
+    private textPatternAnalyzer: TextPatternAnalyzer
   ) {
     this.logger = new LoggerService();
-    
+
     // 初始化缓存
     this.cache = new LRUCache(50, { enableStats: true });
-    
+
     // 初始化性能监控
     this.performanceMonitor = new PerformanceMonitor(this.logger, new InfrastructureConfigService(this.logger, {
       get: () => ({}),
@@ -115,7 +118,7 @@ export class UnifiedContentAnalyzer {
       has: () => false,
       clear: () => { }
     } as any));
-    
+
     // 初始化类型转换器
     this.typeConverter = new StructureTypeConverter();
   }
@@ -128,7 +131,7 @@ export class UnifiedContentAnalyzer {
    * @returns 提取结果
    */
   async extractAllStructures(
-    content: string, 
+    content: string,
     language: string,
     options: ExtractionOptions = {}
   ): Promise<ExtractionResult> {
@@ -145,7 +148,7 @@ export class UnifiedContentAnalyzer {
 
     // 生成缓存键
     const cacheKey = this.generateCacheKey(content, language, options);
-    
+
     // 检查缓存
     if (enableCache && this.cache.has(cacheKey)) {
       this.performanceMonitor?.updateCacheHitRate(true);
@@ -169,19 +172,19 @@ export class UnifiedContentAnalyzer {
 
       // 并行提取所有结构
       const extractionPromises: Promise<any>[] = [];
-      
+
       if (includeTopLevel) {
         extractionPromises.push(
           this.astStructureExtractor.extractTopLevelStructuresFromAST(content, language, parseResult.ast)
         );
       }
-      
+
       if (includeNested) {
         extractionPromises.push(
           this.extractNestedStructuresWithLevel(content, parseResult.ast, maxNestingLevel, language)
         );
       }
-      
+
       if (includeInternal) {
         extractionPromises.push(
           this.astStructureExtractor.extractInternalStructuresFromAST(content, parseResult.ast, parseResult.ast)
@@ -190,7 +193,7 @@ export class UnifiedContentAnalyzer {
 
       // 等待所有提取完成
       const results = await Promise.all(extractionPromises);
-      
+
       // 组装结果
       const extractionResult: ExtractionResult = {
         topLevelStructures: includeTopLevel ? results[0] : [],
@@ -205,7 +208,7 @@ export class UnifiedContentAnalyzer {
       };
 
       // 计算总结构数
-      extractionResult.stats.totalStructures = 
+      extractionResult.stats.totalStructures =
         extractionResult.topLevelStructures.length +
         extractionResult.nestedStructures.length +
         extractionResult.internalStructures.length;
@@ -222,11 +225,11 @@ export class UnifiedContentAnalyzer {
       }
 
       this.logger.debug(`提取完成 (${language}): ${extractionResult.stats.totalStructures} 个结构, ${extractionResult.stats.processingTime}ms`);
-      
+
       return extractionResult;
     } catch (error) {
       this.logger.error(`提取结构失败 (${language}):`, error);
-      
+
       // 返回空结果
       return {
         topLevelStructures: [],
@@ -249,11 +252,11 @@ export class UnifiedContentAnalyzer {
    * @returns 带关系的结构
    */
   async extractWithRelationships(
-    content: string, 
+    content: string,
     language: string
   ): Promise<StructureWithRelationships> {
     const startTime = Date.now();
-    
+
     try {
       // 首先提取所有结构
       const extractionResult = await this.extractAllStructures(content, language, {
@@ -284,7 +287,7 @@ export class UnifiedContentAnalyzer {
       };
     } catch (error) {
       this.logger.error(`提取带关系结构失败 (${language}):`, error);
-      
+
       // 返回空结果
       return {
         topLevelStructures: [],
@@ -339,10 +342,10 @@ export class UnifiedContentAnalyzer {
     language: string
   ): Promise<NestedStructure[]> {
     const allNestedStructures: NestedStructure[] = [];
-    
+
     // 从顶级结构开始递归提取
     const topLevelStructures = await this.astStructureExtractor.extractTopLevelStructuresFromAST(content, language, ast);
-    
+
     for (const topLevelStructure of topLevelStructures) {
       if (topLevelStructure.node) {
         const nestedStructures = await this.extractNestedStructuresRecursive(
@@ -355,7 +358,7 @@ export class UnifiedContentAnalyzer {
         allNestedStructures.push(...nestedStructures);
       }
     }
-    
+
     return allNestedStructures;
   }
 
@@ -378,7 +381,7 @@ export class UnifiedContentAnalyzer {
     if (currentLevel > maxLevel) {
       return [];
     }
-    
+
     try {
       const nestedStructures = await this.astStructureExtractor.extractNestedStructuresFromAST(
         content,
@@ -386,7 +389,7 @@ export class UnifiedContentAnalyzer {
         currentLevel,
         ast
       );
-      
+
       // 递归提取更深层的嵌套结构
       const deeperStructures: NestedStructure[] = [];
       for (const nestedStructure of nestedStructures) {
@@ -401,7 +404,7 @@ export class UnifiedContentAnalyzer {
           deeperStructures.push(...deeper);
         }
       }
-      
+
       return [...nestedStructures, ...deeperStructures];
     } catch (error) {
       this.logger.warn(`递归提取嵌套结构失败 (层级 ${currentLevel}):`, error);
@@ -427,26 +430,74 @@ export class UnifiedContentAnalyzer {
     references: Array<{ from: string; to: string; type: 'function_call' | 'variable_reference' | 'type_reference' }>;
     dependencies: Array<{ from: string; to: string; type: 'import' | 'inheritance' | 'implementation' }>;
   }> {
-    const relationships = {
-      nesting: [] as Array<{ parent: string; child: string; type: 'contains' | 'extends' | 'implements' }>,
-      references: [] as Array<{ from: string; to: string; type: 'function_call' | 'variable_reference' | 'type_reference' }>,
-      dependencies: [] as Array<{ from: string; to: string; type: 'import' | 'inheritance' | 'implementation' }>
-    };
-
     try {
-      // 分析嵌套关系
-      this.analyzeNestingRelationships(topLevelStructures, nestedStructures, relationships.nesting);
-      
-      // 分析引用关系
-      this.analyzeReferenceRelationships(topLevelStructures, nestedStructures, internalStructures, content, relationships.references);
-      
-      // 分析依赖关系
-      this.analyzeDependencyRelationships(topLevelStructures, nestedStructures, relationships.dependencies);
-    } catch (error) {
-      this.logger.warn('分析关系失败:', error);
-    }
+      // 使用新的RelationshipAnalyzer进行关系分析
+      // 首先需要构建AST节点结构用于关系分析
+      const allStructures = [...topLevelStructures, ...nestedStructures, ...internalStructures];
+      const astNodes = allStructures.map(struct => ({
+        name: struct.name,
+        type: struct.type,
+        location: struct.location,
+        node: (struct as any).node || null
+      }));
 
-    return relationships;
+      // 获取AST用于关系分析
+      const ast = await this.getSampleAST(content, 'typescript');
+
+      // 分析嵌套关系
+      const nestingRelationships = await this.relationshipAnalyzer.analyzeNestingRelationships(content, 'typescript', ast);
+
+      // 分析引用关系
+      const referenceRelationships = await this.relationshipAnalyzer.analyzeCodeReferences(content, 'typescript', ast);
+
+      // 分析依赖关系
+      const dependencyRelationships = await this.relationshipAnalyzer.analyzeCodeDependencies(content, 'typescript', ast);
+
+      // 转换为所需的格式
+      const relationships = {
+        nesting: nestingRelationships.map(rel => ({
+          parent: rel.parent?.name || 'unknown',
+          child: rel.child?.name || 'unknown',
+          type: rel.relationshipType as 'contains' | 'extends' | 'implements'
+        })),
+        references: referenceRelationships.map(ref => ({
+          from: ref.fromNode?.name || 'unknown',
+          to: ref.toNode?.name || 'unknown',
+          type: ref.referenceType as 'function_call' | 'variable_reference' | 'type_reference'
+        })),
+        dependencies: dependencyRelationships.map(dep => ({
+          from: dep.fromNode?.name || 'unknown',
+          to: dep.target,
+          type: dep.dependencyType as 'import' | 'inheritance' | 'implementation'
+        }))
+      };
+
+      return relationships;
+    } catch (error) {
+      this.logger.warn('使用新的关系分析器失败，回退到简化分析:', error);
+
+      // 回退到原来的简化分析
+      const relationships = {
+        nesting: [] as Array<{ parent: string; child: string; type: 'contains' | 'extends' | 'implements' }>,
+        references: [] as Array<{ from: string; to: string; type: 'function_call' | 'variable_reference' | 'type_reference' }>,
+        dependencies: [] as Array<{ from: string; to: string; type: 'import' | 'inheritance' | 'implementation' }>
+      };
+
+      try {
+        // 分析嵌套关系
+        this.analyzeNestingRelationships(topLevelStructures, nestedStructures, relationships.nesting);
+
+        // 分析引用关系
+        this.analyzeReferenceRelationships(topLevelStructures, nestedStructures, internalStructures, content, relationships.references);
+
+        // 分析依赖关系
+        this.analyzeDependencyRelationships(topLevelStructures, nestedStructures, relationships.dependencies);
+      } catch (error) {
+        this.logger.warn('简化分析也失败:', error);
+      }
+
+      return relationships;
+    }
   }
 
   /**
@@ -460,11 +511,11 @@ export class UnifiedContentAnalyzer {
     // 简化的嵌套关系分析
     for (const nested of nestedStructures) {
       // 查找包含此嵌套结构的顶级结构
-      const containingTopLevel = topLevelStructures.find(topLevel => 
+      const containingTopLevel = topLevelStructures.find(topLevel =>
         topLevel.location.startLine <= nested.location.startLine &&
         topLevel.location.endLine >= nested.location.endLine
       );
-      
+
       if (containingTopLevel) {
         nestingRelationships.push({
           parent: containingTopLevel.name,
@@ -487,12 +538,12 @@ export class UnifiedContentAnalyzer {
   ): void {
     // 简化的引用关系分析
     const allStructures = [...topLevelStructures, ...nestedStructures, ...internalStructures];
-    
+
     for (const structure of allStructures) {
       // 在内容中查找对其他结构的引用
       for (const otherStructure of allStructures) {
-        if (structure.name !== otherStructure.name && 
-            structure.content.includes(otherStructure.name)) {
+        if (structure.name !== otherStructure.name &&
+          structure.content.includes(otherStructure.name)) {
           referenceRelationships.push({
             from: structure.name,
             to: otherStructure.name,
@@ -513,7 +564,7 @@ export class UnifiedContentAnalyzer {
   ): void {
     // 简化的依赖关系分析
     const allStructures = [...topLevelStructures, ...nestedStructures];
-    
+
     for (const structure of allStructures) {
       if (structure.type === 'import') {
         // 导入语句创建依赖关系
@@ -523,7 +574,7 @@ export class UnifiedContentAnalyzer {
           type: 'import'
         });
       }
-      
+
       if (structure.type === 'class' || structure.type === 'interface') {
         // 类和接口可能有继承关系
         for (const otherStructure of allStructures) {
@@ -534,7 +585,7 @@ export class UnifiedContentAnalyzer {
               type: 'inheritance'
             });
           }
-          
+
           if (structure.content.includes(`implements ${otherStructure.name}`)) {
             dependencyRelationships.push({
               from: structure.name,
@@ -557,11 +608,11 @@ export class UnifiedContentAnalyzer {
     if (toStructure.type === 'function' || toStructure.type === 'method') {
       return 'function_call';
     }
-    
+
     if (toStructure.type === 'variable') {
       return 'variable_reference';
     }
-    
+
     return 'type_reference';
   }
 
@@ -614,10 +665,10 @@ export class UnifiedContentAnalyzer {
   }
 
   /**
-   * 获取性能统计
-   */
+    * 获取性能统计
+    */
   getPerformanceStats() {
-    return this.performanceMonitor?.getStats();
+    return this.performanceMonitor?.getMetrics();
   }
 
   /**
@@ -629,16 +680,24 @@ export class UnifiedContentAnalyzer {
       queryNormalizer: boolean;
       treeSitterService: boolean;
       astStructureExtractor: boolean;
+      relationshipAnalyzer?: boolean;
+      textPatternAnalyzer?: boolean;
     };
     errors: string[];
   }> {
     const errors: string[] = [];
-    const details = {
+    const details: {
+      queryNormalizer: boolean;
+      treeSitterService: boolean;
+      astStructureExtractor: boolean;
+      relationshipAnalyzer?: boolean;
+      textPatternAnalyzer?: boolean;
+    } = {
       queryNormalizer: false,
       treeSitterService: false,
       astStructureExtractor: false
     };
-    
+
     // 检查各个组件
     try {
       if (this.queryNormalizer && typeof this.queryNormalizer.normalize === 'function') {
@@ -649,7 +708,7 @@ export class UnifiedContentAnalyzer {
     } catch (error) {
       errors.push(`QueryResultNormalizer检查失败: ${error}`);
     }
-    
+
     try {
       if (this.treeSitterService && typeof this.treeSitterService.parseCode === 'function') {
         details.treeSitterService = true;
@@ -659,7 +718,7 @@ export class UnifiedContentAnalyzer {
     } catch (error) {
       errors.push(`TreeSitterCoreService检查失败: ${error}`);
     }
-    
+
     try {
       if (this.astStructureExtractor && typeof this.astStructureExtractor.extractTopLevelStructuresFromAST === 'function') {
         details.astStructureExtractor = true;
@@ -669,11 +728,94 @@ export class UnifiedContentAnalyzer {
     } catch (error) {
       errors.push(`ASTStructureExtractor检查失败: ${error}`);
     }
-    
+
+    // 检查新的分析器
+    try {
+      if (this.relationshipAnalyzer && typeof this.relationshipAnalyzer.analyzeNestingRelationships === 'function') {
+        (details as any).relationshipAnalyzer = true;
+      } else {
+        errors.push('RelationshipAnalyzer不可用');
+      }
+    } catch (error) {
+      errors.push(`RelationshipAnalyzer检查失败: ${error}`);
+    }
+
+    try {
+      if (this.textPatternAnalyzer && typeof this.textPatternAnalyzer.extractTopLevelStructures === 'function') {
+        (details as any).textPatternAnalyzer = true;
+      } else {
+        errors.push('TextPatternAnalyzer不可用');
+      }
+    } catch (error) {
+      errors.push(`TextPatternAnalyzer检查失败: ${error}`);
+    }
+
     return {
       healthy: errors.length === 0,
-      details,
+      details: {
+        queryNormalizer: details.queryNormalizer,
+        treeSitterService: details.treeSitterService,
+        astStructureExtractor: details.astStructureExtractor,
+        relationshipAnalyzer: (details as any).relationshipAnalyzer || false,
+        textPatternAnalyzer: (details as any).textPatternAnalyzer || false
+      },
       errors
     };
   }
+  /**
+   * 获取样本AST用于关系分析
+   * @param content 源代码内容
+   * @param language 编程语言
+   * @returns AST节点
+   */
+  private async getSampleAST(content: string, language: string): Promise<Parser.SyntaxNode> {
+    try {
+      const parseResult = await this.parseContent(content, language);
+      return parseResult?.ast || this.createDummyAST(content);
+    } catch (error) {
+      this.logger.warn(`获取AST失败，创建虚拟AST (${language}):`, error);
+      return this.createDummyAST(content);
+    }
+  }
+
+  /**
+   * 创建虚拟AST节点
+   * @param content 源代码内容
+   * @returns 虚拟AST节点
+   */
+  private createDummyAST(content: string): Parser.SyntaxNode {
+    // 创建一个简单的虚拟AST节点，用于降级情况
+    return {
+      type: 'dummy',
+      startPosition: { row: 0, column: 0 },
+      endPosition: { row: content.split('\n').length - 1, column: content.length },
+      start: 0,
+      end: content.length,
+      text: content,
+      childCount: 0,
+      hasError: false,
+      isMissing: false,
+      isNamed: true,
+      parent: null,
+      firstChild: null,
+      lastChild: null,
+      nextSibling: null,
+      previousSibling: null,
+      descendantCount: 0,
+      walk: () => ({ current: this as any, gotoParent: () => false, gotoFirstChild: () => false, gotoNextSibling: () => false }),
+      child: () => null,
+      namedChild: () => null,
+      firstNamedChild: null,
+      lastNamedChild: null,
+      children: [],
+      namedChildren: [],
+      descendantForIndex: () => null,
+      namedDescendantForIndex: () => null,
+      descendantForPosition: () => null,
+      namedDescendantForPosition: () => null,
+      toString: () => 'dummy AST node',
+    } as any;
+  }
 }
+
+
