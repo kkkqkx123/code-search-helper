@@ -4,7 +4,7 @@ import { ProcessingResult, ChunkType } from '../../core/types/ResultTypes';
 import { CodeChunk } from '../../types/CodeChunk';
 import { StrategyConfig } from '../../types/Strategy';
 import { Logger } from '../../../../../utils/logger';
-import { MarkdownProcessor } from '../../utils/md/MarkdownProcessor';
+import { MarkdownChunker } from '../../utils/md/MarkdownChunker';
 import { DEFAULT_MARKDOWN_CONFIG, MarkdownChunkingConfig } from '../../utils/md/markdown-rules';
 
 /**
@@ -13,12 +13,16 @@ import { DEFAULT_MARKDOWN_CONFIG, MarkdownChunkingConfig } from '../../utils/md/
 export interface MarkdownStrategyConfig extends StrategyConfig {
   /** 最大块大小 */
   maxChunkSize?: number;
+  /** 最小块大小 */
+  minChunkSize?: number;
   /** 最大行数 */
   maxLinesPerChunk?: number;
   /** 是否启用智能合并 */
   enableSmartMerging?: boolean;
   /** 合并阈值 */
   mergeThreshold?: number;
+  /** 是否排除代码块大小计算 */
+  excludeCodeFromChunkSize?: boolean;
 }
 
 /**
@@ -28,7 +32,7 @@ export interface MarkdownStrategyConfig extends StrategyConfig {
 export class MarkdownSegmentationStrategy extends BaseStrategy {
   protected config: MarkdownStrategyConfig;
   private logger: Logger;
-  private markdownProcessor: MarkdownProcessor;
+  private markdownChunker: MarkdownChunker;
 
   constructor(config: MarkdownStrategyConfig) {
     const defaultConfig: StrategyConfig = {
@@ -40,6 +44,7 @@ export class MarkdownSegmentationStrategy extends BaseStrategy {
     super({ ...defaultConfig, ...config });
     this.config = {
       maxChunkSize: 3000,
+      minChunkSize: 100,
       maxLinesPerChunk: 100,
       enableSmartMerging: true,
       mergeThreshold: 1500,
@@ -47,8 +52,8 @@ export class MarkdownSegmentationStrategy extends BaseStrategy {
     };
     this.logger = Logger.getInstance();
     
-    // 初始化MarkdownProcessor，使用策略配置转换为MarkdownChunkingConfig
-    const processorConfig: Partial<MarkdownChunkingConfig> = {
+    // 初始化MarkdownChunker，使用策略配置转换为MarkdownChunkingConfig
+    const chunkerConfig: Partial<MarkdownChunkingConfig> = {
       maxChunkSize: this.config.maxChunkSize,
       maxLinesPerChunk: this.config.maxLinesPerChunk,
       enableSemanticMerge: this.config.enableSmartMerging,
@@ -66,7 +71,7 @@ export class MarkdownSegmentationStrategy extends BaseStrategy {
       enableOverlap: false // 默认不启用重叠，由策略控制
     };
     
-    this.markdownProcessor = new MarkdownProcessor(this.logger, undefined, processorConfig);
+    this.markdownChunker = new MarkdownChunker(chunkerConfig);
   }
 
   /**
@@ -121,14 +126,11 @@ export class MarkdownSegmentationStrategy extends BaseStrategy {
         this.logger.debug('Context validation passed for markdown strategy');
       }
 
-      // 使用MarkdownProcessor处理内容
-      const chunks = await this.markdownProcessor.chunkMarkdown(context.content, context.filePath);
+      // 使用MarkdownChunker处理内容
+      const chunks = await this.markdownChunker.chunkMarkdown(context.content, context.filePath);
 
-      // 应用策略特定的智能合并（如果启用）
-      let finalChunks = chunks;
-      if (this.config.enableSmartMerging && chunks.length > 0) {
-        finalChunks = this.mergeRelatedChunks(chunks);
-      }
+      // MarkdownChunker已经包含了智能合并逻辑，不需要额外的合并步骤
+      const finalChunks = chunks;
 
       this.updatePerformanceStats(Date.now() - startTime, true, finalChunks.length);
       this.logger.debug(`Markdown segmentation created ${finalChunks.length} chunks`);
@@ -175,85 +177,7 @@ export class MarkdownSegmentationStrategy extends BaseStrategy {
     });
   }
 
-  /**
-   * 智能合并相关内容
-   */
-  private mergeRelatedChunks(chunks: CodeChunk[]): CodeChunk[] {
-    if (chunks.length <= 1) return chunks;
-
-    const mergedChunks: CodeChunk[] = [];
-    let currentMerge: CodeChunk[] = [chunks[0]];
-
-    for (let i = 1; i < chunks.length; i++) {
-      const currentChunk = chunks[i];
-      const lastChunk = currentMerge[currentMerge.length - 1];
-
-      // 检查是否应该合并
-      const shouldMerge = this.shouldMergeChunks(lastChunk, currentChunk);
-
-      if (shouldMerge) {
-        currentMerge.push(currentChunk);
-      } else {
-        // 完成当前合并，开始新的合并组
-        if (currentMerge.length > 0) {
-          mergedChunks.push(this.mergeChunkGroup(currentMerge));
-        }
-        currentMerge = [currentChunk];
-      }
-    }
-
-    // 处理最后的合并组
-    if (currentMerge.length > 0) {
-      mergedChunks.push(this.mergeChunkGroup(currentMerge));
-    }
-
-    return mergedChunks;
-  }
-
-  /**
-   * 判断是否应该合并两个分块
-   */
-  private shouldMergeChunks(chunk1: CodeChunk, chunk2: CodeChunk): boolean {
-    // 如果都是代码块，且总大小不太大，则合并
-    if (chunk1.metadata?.type === ChunkType.BLOCK && chunk2.metadata?.type === ChunkType.BLOCK) {
-      const combinedSize = chunk1.content.length + chunk2.content.length;
-      return combinedSize < this.config.mergeThreshold!;
-    }
-
-    // 如果是同一章节的小块，则合并
-    if (chunk1.metadata?.section === chunk2.metadata?.section) {
-      const combinedSize = chunk1.content.length + chunk2.content.length;
-      return combinedSize < this.config.mergeThreshold! * 0.8;
-    }
-
-    return false;
-  }
-
-  /**
-   * 合并分块组
-   */
-  private mergeChunkGroup(chunks: CodeChunk[]): CodeChunk {
-    if (chunks.length === 1) return chunks[0];
-
-    const firstChunk = chunks[0];
-    const lastChunk = chunks[chunks.length - 1];
-    const mergedContent = chunks.map(c => c.content).join('\n\n');
-    const complexity = this.calculateComplexity(mergedContent);
-
-    return this.createChunk(
-      mergedContent,
-      firstChunk.metadata?.startLine || 1,
-      lastChunk.metadata?.endLine || 1,
-      firstChunk.metadata?.language || 'markdown',
-      firstChunk.metadata?.type || ChunkType.GENERIC,
-      {
-        filePath: firstChunk.metadata?.filePath,
-        complexity,
-        section: firstChunk.metadata?.section,
-        codeLanguage: firstChunk.metadata?.codeLanguage
-      }
-    );
-  }
+  // 合并相关功能已移至MarkdownChunker中，不再需要这些方法
 
   /**
    * 获取策略配置
@@ -268,13 +192,15 @@ export class MarkdownSegmentationStrategy extends BaseStrategy {
   updateConfig(config: Partial<MarkdownStrategyConfig>): void {
     this.config = { ...this.config, ...config };
     
-    // 更新MarkdownProcessor的配置
-    const processorConfig: Partial<MarkdownChunkingConfig> = {
+    // 更新MarkdownChunker的配置
+    const chunkerConfig: Partial<MarkdownChunkingConfig> = {
       maxChunkSize: this.config.maxChunkSize,
       maxLinesPerChunk: this.config.maxLinesPerChunk,
-      enableSemanticMerge: this.config.enableSmartMerging
+      enableSemanticMerge: this.config.enableSmartMerging,
+      minChunkSize: this.config.minChunkSize || 100,
+      excludeCodeFromChunkSize: this.config.excludeCodeFromChunkSize
     };
     
-    this.markdownProcessor.setConfig(processorConfig);
+    this.markdownChunker.updateConfig(chunkerConfig);
   }
 }

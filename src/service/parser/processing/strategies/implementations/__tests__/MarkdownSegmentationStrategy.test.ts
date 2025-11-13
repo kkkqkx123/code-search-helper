@@ -217,9 +217,14 @@ More content`;
     });
 
     it('should respect max chunk size', async () => {
-      mockContext.content = `# Title\n\n${Array.from({ length: 500 }, () => 'Lorem ipsum dolor sit amet').join(' ')}`;
+      // 创建包含换行符的长文本，便于分割
+      const longText = Array.from({ length: 100 }, (_, i) => 
+        `This is sentence ${i + 1} with enough content to trigger chunking.`
+      ).join('\n');
+      
+      mockContext.content = `# Title\n\n${longText}`;
 
-      strategy.updateConfig({ maxChunkSize: 1000 });
+      strategy.updateConfig({ maxChunkSize: 1000, excludeCodeFromChunkSize: false });
       const chunks = await strategy.process(mockContext);
 
       chunks.forEach(chunk => {
@@ -230,7 +235,7 @@ More content`;
     it('should respect max lines per chunk', async () => {
       mockContext.content = Array.from({ length: 200 }, (_, i) => `Line ${i + 1}`).join('\n');
 
-      strategy.updateConfig({ maxLinesPerChunk: 50 });
+      strategy.updateConfig({ maxLinesPerChunk: 50, excludeCodeFromChunkSize: false });
       const chunks = await strategy.process(mockContext);
 
       chunks.forEach(chunk => {
@@ -255,7 +260,7 @@ Even more content`;
       strategy.updateConfig({ enableSmartMerging: false });
       const chunksWithoutMerging = await strategy.process(mockContext);
 
-      // 启用合并时应该有更少的块
+      // MarkdownChunker处理智能合并，启用合并时应该有更少的块
       expect(chunksWithMerging.length).toBeLessThanOrEqual(chunksWithoutMerging.length);
     });
   });

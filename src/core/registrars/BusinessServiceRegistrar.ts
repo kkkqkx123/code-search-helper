@@ -59,7 +59,7 @@ import { CleanupManager } from '../../infrastructure/cleanup/CleanupManager';
 import { GuardCoordinator } from '../../service/parser/guard/GuardCoordinator';
 import { IntelligentFallbackEngine } from '../../service/parser/guard/IntelligentFallbackEngine';
 
-import { MarkdownProcessor } from '../../service/parser/processing/utils/md/MarkdownProcessor';
+import { MarkdownChunker } from '../../service/parser/processing/utils/md/MarkdownChunker';
 
 import { HTMLContentExtractor } from '../../service/parser/processing/utils/html/HTMLContentExtractor';
 
@@ -394,7 +394,7 @@ export class BusinessServiceRegistrar {
 
 
       // 特殊格式文本分割器
-      container.bind<MarkdownProcessor>(TYPES.MarkdownProcessor).to(MarkdownProcessor).inSingletonScope();
+      container.bind<MarkdownChunker>(TYPES.MarkdownProcessor).to(MarkdownChunker).inSingletonScope();
 
       // HTML内容提取器
       container.bind<HTMLContentExtractor>(TYPES.HTMLContentExtractor).to(HTMLContentExtractor).inSingletonScope();

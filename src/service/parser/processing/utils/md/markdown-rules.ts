@@ -3,6 +3,12 @@
  * 专门处理 Markdown 文件的分段策略和规则
  */
 
+export interface HeaderConfig {
+  pattern: string;
+  name: string;
+  level: number;
+}
+
 export interface MarkdownChunkingConfig {
   // 分段大小限制
   minChunkSize: number;        // 最小分段大小（字符数）
@@ -13,12 +19,20 @@ export interface MarkdownChunkingConfig {
   mergeWithHeading: boolean;   // 是否将标题与后续内容合并
   headingLevelWeights: number[]; // 标题级别权重 [H1, H2, H3, H4, H5, H6]
   allowBackwardHeadingMerge: boolean; // 是否允许标题块与前面的内容合并（默认false）
+  
+  // 新增标题配置
+  headersToSplitOn?: HeaderConfig[];
+  stripHeaders?: boolean;
 
   // 特殊元素处理
   preserveCodeBlocks: boolean; // 保持代码块完整
   preserveTables: boolean;     // 保持表格完整
   preserveLists: boolean;      // 保持列表完整
   preserveStructureIntegrity: boolean; // 保持结构完整性（默认true）
+  
+  // 新增代码块处理配置
+  excludeCodeFromChunkSize?: boolean;
+  lengthFunction?: (text: string) => number;
 
   // 合并策略
   mergeConsecutiveHeadings: boolean; // 合并连续的标题
@@ -31,6 +45,10 @@ export interface MarkdownChunkingConfig {
   // 重叠处理
   overlapSize: number;        // 重叠大小（字符数）
   enableOverlap: boolean;     // 是否启用重叠处理
+  
+  // 新增分隔符配置
+  separators?: string[];
+  isSeparatorRegex?: boolean;
 }
 
 /**
@@ -113,12 +131,24 @@ export const DEFAULT_MARKDOWN_CONFIG: MarkdownChunkingConfig = {
   mergeWithHeading: true,
   headingLevelWeights: [10, 8, 6, 4, 2, 1], // H1-H6权重
   allowBackwardHeadingMerge: false, // 标题块只能与后面的内容合并
+  
+  // 新增标题配置默认值
+  headersToSplitOn: [
+    { pattern: '^#{1,6}\\s+', name: 'Header', level: 1 },
+    { pattern: '^#{1,6}\\s+', name: 'Header', level: 2 },
+    { pattern: '^#{1,6}\\s+', name: 'Header', level: 3 }
+  ],
+  stripHeaders: false,
 
   // 特殊元素处理
   preserveCodeBlocks: true,
   preserveTables: true,
   preserveLists: true,
   preserveStructureIntegrity: true, // 保持结构完整性
+  
+  // 新增代码块处理配置默认值
+  excludeCodeFromChunkSize: true,
+  lengthFunction: undefined,
 
   // 合并策略
   mergeConsecutiveHeadings: true,
@@ -130,7 +160,24 @@ export const DEFAULT_MARKDOWN_CONFIG: MarkdownChunkingConfig = {
 
   // 重叠处理
   overlapSize: 200,       // 重叠200字符
-  enableOverlap: true     // 启用重叠处理
+  enableOverlap: true,    // 启用重叠处理
+  
+  // 新增分隔符配置默认值
+  separators: [
+    '\n\n',      // 段落分隔
+    '\n',        // 行分隔
+    '。',        // 中文句号
+    '！',        // 中文感叹号
+    '？',        // 中文问号
+    '.',         // 英文句号
+    '!',         // 英文感叹号
+    '?',         // 英文问号
+    ';',         // 分号
+    '；',        // 中文分号
+    ':\n',       // 冒号加换行
+    '：\n'       // 中文冒号加换行
+  ],
+  isSeparatorRegex: false
 };
 
 /**
