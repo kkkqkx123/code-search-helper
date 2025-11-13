@@ -8,7 +8,7 @@ import type { IProcessingContext } from '../../core/interfaces/IProcessingContex
 import type { ProcessingResult, ResultMetadata, CodeChunk } from '../../core/types/ResultTypes';
 import { ChunkType } from '../../core/types/ResultTypes';
 import type { StrategyConfig } from '../../types/Strategy';
-import { ChunkFactory, ChunkCreationConfig } from '../../../../../utils/processing/ChunkFactory';
+import { ChunkFactory, ChunkCreationConfig } from '../../../../../utils/parser/ChunkFactory';
 import { UNIFIED_STRATEGY_PRIORITIES } from '../../../constants/StrategyPriorities';
 
 /**
@@ -17,16 +17,16 @@ import { UNIFIED_STRATEGY_PRIORITIES } from '../../../constants/StrategyPrioriti
 export abstract class BaseStrategy implements IProcessingStrategy {
   /** 策略名称 */
   public readonly name: string;
-  
+
   /** 策略优先级 */
   public readonly priority: number;
-  
+
   /** 支持的编程语言列表 */
   public readonly supportedLanguages: string[];
-  
+
   /** 策略配置 */
   protected readonly config: StrategyConfig;
-  
+
   /** 性能统计 */
   protected performanceStats: StrategyPerformanceStats;
 
@@ -59,19 +59,19 @@ export abstract class BaseStrategy implements IProcessingStrategy {
     if (!context) {
       return false;
     }
-    
+
     if (!context.content || context.content.trim().length === 0) {
       return false;
     }
-    
+
     if (!context.language || context.language.trim().length === 0) {
       return false;
     }
-    
+
     if (!context.config) {
       return false;
     }
-    
+
     return true;
   }
 
@@ -122,93 +122,93 @@ export abstract class BaseStrategy implements IProcessingStrategy {
   * 创建成功的处理结果
   */
   protected createSuccessResult(
-  chunks: any[],
-  executionTime: number,
-  additionalMetadata?: Record<string, any>
+    chunks: any[],
+    executionTime: number,
+    additionalMetadata?: Record<string, any>
   ): ProcessingResult {
-  const totalSize = chunks.reduce((sum, chunk) => sum + chunk.content.length, 0);
-  const averageChunkSize = chunks.length > 0 ? totalSize / chunks.length : 0;
-  const originalSize = additionalMetadata?.originalSize || totalSize;
-  const compressionRatio = originalSize > 0 ? totalSize / originalSize : 1;
+    const totalSize = chunks.reduce((sum, chunk) => sum + chunk.content.length, 0);
+    const averageChunkSize = chunks.length > 0 ? totalSize / chunks.length : 0;
+    const originalSize = additionalMetadata?.originalSize || totalSize;
+    const compressionRatio = originalSize > 0 ? totalSize / originalSize : 1;
 
-  const metadata: ResultMetadata = {
+    const metadata: ResultMetadata = {
       language: additionalMetadata?.language || 'unknown',
-       filePath: additionalMetadata?.filePath,
-       chunkCount: chunks.length,
-       averageChunkSize,
-       totalSize,
-       originalSize,
-       compressionRatio,
-       startTime: additionalMetadata?.startTime || Date.now() - executionTime,
-       endTime: additionalMetadata?.endTime || Date.now(),
-       ...additionalMetadata
-     };
+      filePath: additionalMetadata?.filePath,
+      chunkCount: chunks.length,
+      averageChunkSize,
+      totalSize,
+      originalSize,
+      compressionRatio,
+      startTime: additionalMetadata?.startTime || Date.now() - executionTime,
+      endTime: additionalMetadata?.endTime || Date.now(),
+      ...additionalMetadata
+    };
 
-     return {
-       chunks,
-       success: true,
-       executionTime,
-       strategy: this.name,
-       metadata
-     };
-   }
+    return {
+      chunks,
+      success: true,
+      executionTime,
+      strategy: this.name,
+      metadata
+    };
+  }
 
   /**
   * 创建失败的处理结果
   */
   protected createFailureResult(
-  executionTime: number,
-  error: string
+    executionTime: number,
+    error: string
   ): ProcessingResult {
-  return {
-  chunks: [],
-  success: false,
-  executionTime,
-    strategy: this.name,
+    return {
+      chunks: [],
+      success: false,
+      executionTime,
+      strategy: this.name,
       error
-     };
-   }
+    };
+  }
 
   /**
   * 更新性能统计
   */
   protected updatePerformanceStats(executionTime: number, success: boolean, chunkCount: number): void {
-  const totalExecutions = this.performanceStats.totalExecutions + 1;
-  const successfulExecutions = success ? this.performanceStats.successfulExecutions + 1 : this.performanceStats.successfulExecutions;
-  const errorCount = success ? this.performanceStats.errorCount : this.performanceStats.errorCount + 1;
+    const totalExecutions = this.performanceStats.totalExecutions + 1;
+    const successfulExecutions = success ? this.performanceStats.successfulExecutions + 1 : this.performanceStats.successfulExecutions;
+    const errorCount = success ? this.performanceStats.errorCount : this.performanceStats.errorCount + 1;
 
-  // 计算新的平均执行时间
-  const currentTotalTime = this.performanceStats.averageExecutionTime * this.performanceStats.totalExecutions;
-  const averageExecutionTime = (currentTotalTime + executionTime) / totalExecutions;
+    // 计算新的平均执行时间
+    const currentTotalTime = this.performanceStats.averageExecutionTime * this.performanceStats.totalExecutions;
+    const averageExecutionTime = (currentTotalTime + executionTime) / totalExecutions;
 
-  this.performanceStats = {
-    totalExecutions,
-    successfulExecutions,
-    averageExecutionTime,
-    lastExecutionTime: Date.now(),
-    errorCount
-  };
+    this.performanceStats = {
+      totalExecutions,
+      successfulExecutions,
+      averageExecutionTime,
+      lastExecutionTime: Date.now(),
+      errorCount
+    };
   }
 
   /**
   * 初始化性能统计
   */
   private initializeStats(): StrategyPerformanceStats {
-  return {
-  totalExecutions: 0,
-  successfulExecutions: 0,
-  averageExecutionTime: 0,
-  lastExecutionTime: 0,
-  errorCount: 0
-  };
+    return {
+      totalExecutions: 0,
+      successfulExecutions: 0,
+      averageExecutionTime: 0,
+      lastExecutionTime: 0,
+      errorCount: 0
+    };
   }
 
   /**
    * 检查是否支持指定语言
    */
   protected supportsLanguage(language: string): boolean {
-    return this.supportedLanguages.includes('*') || 
-           this.supportedLanguages.includes(language.toLowerCase());
+    return this.supportedLanguages.includes('*') ||
+      this.supportedLanguages.includes(language.toLowerCase());
   }
 
   /**
@@ -248,20 +248,20 @@ export abstract class BaseStrategy implements IProcessingStrategy {
    */
   async executeWithStats(context: IProcessingContext): Promise<ProcessingResult> {
     const startTime = Date.now();
-    
+
     try {
       const result = await this.execute(context);
       const executionTime = Date.now() - startTime;
-      
+
       this.updatePerformanceStats(executionTime, result.success, result.chunks.length);
-      
+
       return result;
     } catch (error) {
       const executionTime = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : String(error);
-      
+
       this.updatePerformanceStats(executionTime, false, 0);
-      
+
       return this.createFailureResult(executionTime, errorMessage);
     }
   }

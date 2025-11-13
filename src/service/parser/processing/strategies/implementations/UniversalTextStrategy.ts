@@ -5,7 +5,7 @@ import { CodeChunk } from '../../types/CodeChunk';
 import { StrategyConfig } from '../../types/Strategy';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { FileFeatureDetector } from '../../../detection/FileFeatureDetector';
-import { ChunkFactory } from '../../../../../utils/processing/ChunkFactory';
+import { ChunkFactory } from '../../../../../utils/parser/ChunkFactory';
 
 /**
  * 通用文本分段策略配置
@@ -69,17 +69,17 @@ export class UniversalTextStrategy extends BaseStrategy {
     // 特别优化处理纯文本格式文件
     const textFormatLanguages = ['text', 'ini', 'csv', 'log', 'env', 'properties', 'dockerfile', 'gitignore', 'makefile', 'readme'];
     const language = context.language?.toLowerCase();
-    
+
     // 对于纯文本格式文件，优先使用此策略
     if (language && textFormatLanguages.includes(language)) {
       return true;
     }
-    
+
     // 对于未知语言或小文件，也使用此策略
     if (!language || context.features?.isSmallFile) {
       return true;
     }
-    
+
     // 作为通用降级策略，总是返回 true
     return true;
   }

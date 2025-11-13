@@ -14,7 +14,7 @@ import { createHash } from 'crypto';
 import { PerformanceMonitor } from '../../../infrastructure/monitoring/PerformanceMonitor';
 import { InfrastructureConfigService } from '../../../infrastructure/config/InfrastructureConfigService';
 import { DetectionService } from '../../../service/parser/detection/DetectionService';
-import { ComplexityCalculator, CodeComplexityConfig } from '../../../utils/processing/ComplexityCalculator';
+import { ComplexityCalculator, CodeComplexityConfig } from '../../../utils/parser/ComplexityCalculator';
 
 /**
  * 内容特征分析器
@@ -45,11 +45,11 @@ export class ContentAnalyzer implements IContentAnalyzer {
       contentLength: content1.length + content2.length,
       hasOptions: !!options
     });
-    
+
     try {
       // 生成缓存键
       const cacheKey = this.generateAnalysisCacheKey(content1, content2, options);
-      
+
       // 尝试从缓存获取
       const cached = await this.cacheService.getFromCache<ContentAnalysisResult>(cacheKey);
       if (cached) {
@@ -63,10 +63,10 @@ export class ContentAnalyzer implements IContentAnalyzer {
       }
 
       const result = await this.performAnalysis(content1, content2, options);
-      
+
       // 存入缓存（1小时TTL）
       this.cacheService.setCache(cacheKey, result, 3600000);
-      
+
       this.performanceMonitor.endOperation(operationId, {
         success: true,
         resultCount: 1,
@@ -95,7 +95,7 @@ export class ContentAnalyzer implements IContentAnalyzer {
   ): Promise<ContentAnalysisResult> {
     // 合并内容进行分析
     const combinedContent = content1 + '\n' + content2;
-    
+
     const typeOpId = this.performanceMonitor.startOperation('detect_content_type');
     const contentType = await this.detectContentType(combinedContent, options?.language);
     this.performanceMonitor.endOperation(typeOpId, {
@@ -146,12 +146,12 @@ export class ContentAnalyzer implements IContentAnalyzer {
     if (language) {
       return 'code';
     }
-    
+
     // 使用DetectionService检测内容类型
     try {
       // 使用detectFile方法，传入临时文件名
       const detectionResult = await this.detectionService.detectFile('temp_file', content);
-      
+
       if (detectionResult.language && detectionResult.language !== 'unknown' && detectionResult.confidence > 0.5) {
         // 如果检测到了编程语言，则认为是代码
         return 'code';
@@ -159,7 +159,7 @@ export class ContentAnalyzer implements IContentAnalyzer {
     } catch (error) {
       this.logger.warn('Language detection service failed:', error);
     }
-    
+
     // 默认为通用文本
     return 'generic';
   }
@@ -167,10 +167,10 @@ export class ContentAnalyzer implements IContentAnalyzer {
   calculateComplexity(content: string): ContentComplexity {
     // 使用ComplexityCalculator计算复杂度
     const complexityResult = ComplexityCalculator.calculateGenericComplexity(content);
-    
+
     // 将ComplexityCalculator的结果转换为ContentComplexity格式
     const score = Math.min(1, Math.max(0, complexityResult.score / 100)); // 标准化到0-1范围
-    
+
     // 确定复杂度级别
     let level: 'low' | 'medium' | 'high';
     if (score < 0.3) {
@@ -188,7 +188,7 @@ export class ContentAnalyzer implements IContentAnalyzer {
     } else if (complexityResult.analysis.contentLength && complexityResult.analysis.contentLength > 500) {
       factors.push('medium_content');
     }
-    
+
     if (complexityResult.analysis.uniqueCharCount && complexityResult.analysis.contentLength) {
       const diversityRatio = complexityResult.analysis.uniqueCharCount / complexityResult.analysis.contentLength;
       if (diversityRatio > 0.5) {
@@ -237,7 +237,7 @@ export class ContentAnalyzer implements IContentAnalyzer {
     features: ContentFeature[]
   ): SimilarityStrategyType[] {
     const strategies: SimilarityStrategyType[] = [];
-    
+
     // 基于内容类型推荐
     if (contentType === 'code') {
       strategies.push('keyword', 'levenshtein');
@@ -258,7 +258,7 @@ export class ContentAnalyzer implements IContentAnalyzer {
 
     // 总是包含混合策略作为备选
     strategies.push('hybrid');
-    
+
     return strategies;
   }
 

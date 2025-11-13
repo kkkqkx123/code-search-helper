@@ -5,8 +5,8 @@ import { CodeChunk, ChunkType } from '../../types/CodeChunk';
 import { StrategyConfig } from '../../types/Strategy';
 import { Logger } from '../../../../../utils/logger';
 import { BRACKET_SEGMENTATION_SUPPORTED_LANGUAGES } from '../../../constants/StrategyPriorities';
-import { ComplexityCalculator } from '../../../../../utils/processing/ComplexityCalculator';
-import { ChunkFactory } from '../../../../../utils/processing/ChunkFactory';
+import { ComplexityCalculator } from '../../../../../utils/parser/ComplexityCalculator';
+import { ChunkFactory } from '../../../../../utils/parser/ChunkFactory';
 
 /**
  * 括号分段策略配置

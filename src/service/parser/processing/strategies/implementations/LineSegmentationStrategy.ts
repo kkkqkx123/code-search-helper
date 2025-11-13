@@ -4,7 +4,7 @@ import { ProcessingResult } from '../../core/types/ResultTypes';
 import { CodeChunk, ChunkType } from '../../types/CodeChunk';
 import { StrategyConfig } from '../../types/Strategy';
 import { Logger } from '../../../../../utils/logger';
-import { ChunkFactory } from '../../../../../utils/processing/ChunkFactory';
+import { ChunkFactory } from '../../../../../utils/parser/ChunkFactory';
 
 /**
  * 行数分段策略配置
