@@ -1,12 +1,12 @@
-import { LayeredHTMLStrategy } from '../LayeredHTMLStrategy';
+import { HybridHTMLProcessor } from '../HybridHTMLProcessor';
 import { IProcessingContext } from '../../../core/interfaces/IProcessingContext';
 
-describe('LayeredHTMLStrategy', () => {
-  let strategy: LayeredHTMLStrategy;
+describe('HybridHTMLProcessor', () => {
+  let strategy: HybridHTMLProcessor;
   let mockContext: IProcessingContext;
 
   beforeEach(() => {
-    strategy = new LayeredHTMLStrategy({
+    strategy = new HybridHTMLProcessor({
       name: 'layered-html',
       enabled: true,
       supportedLanguages: ['html', 'htm']
@@ -88,12 +88,12 @@ describe('LayeredHTMLStrategy', () => {
       mockContext.content = htmlContent;
 
       await strategy.process(mockContext);
-      
+
       let cacheStats = strategy.getCacheStats();
       expect(cacheStats.scriptCache).toBeGreaterThan(0);
 
       strategy.clearCache();
-      
+
       cacheStats = strategy.getCacheStats();
       expect(cacheStats.scriptCache).toBe(0);
       expect(cacheStats.styleCache).toBe(0);
@@ -114,23 +114,23 @@ describe('LayeredHTMLStrategy', () => {
       mockContext.content = htmlContent;
 
       const result = await strategy.process(mockContext);
-      
+
       // 验证第一个脚本的属性分析
-      const scriptChunk1 = result.find(chunk => chunk.metadata.scriptId === 'script_0');
-      expect(scriptChunk1?.metadata.isModule).toBe(true);
-      expect(scriptChunk1?.metadata.isAsync).toBe(true);
-      expect(scriptChunk1?.metadata.hasSrc).toBe(true);
-      expect(scriptChunk1?.metadata.scriptAttributes.type).toBe('module');
+      const scriptChunk1 = result.find((chunk: any) => chunk.metadata?.scriptId === 'script_0');
+      expect(scriptChunk1?.metadata?.isModule).toBe(true);
+      expect(scriptChunk1?.metadata?.isAsync).toBe(true);
+      expect(scriptChunk1?.metadata?.hasSrc).toBe(true);
+      expect(scriptChunk1?.metadata?.scriptAttributes?.type).toBe('module');
 
       // 验证第二个脚本的属性分析
-      const scriptChunk2 = result.find(chunk => chunk.metadata.scriptId === 'script_1');
-      expect(scriptChunk2?.metadata.isTypeScript).toBe(true);
-      expect(scriptChunk2?.metadata.scriptLanguage).toBe('typescript');
+      const scriptChunk2 = result.find((chunk: any) => chunk.metadata?.scriptId === 'script_1');
+      expect(scriptChunk2?.metadata?.isTypeScript).toBe(true);
+      expect(scriptChunk2?.metadata?.scriptLanguage).toBe('typescript');
 
       // 验证第三个脚本的属性分析
-      const scriptChunk3 = result.find(chunk => chunk.metadata.scriptId === 'script_2');
-      expect(scriptChunk3?.metadata.isJSON).toBe(true);
-      expect(scriptChunk3?.metadata.scriptLanguage).toBe('json');
+      const scriptChunk3 = result.find((chunk: any) => chunk.metadata?.scriptId === 'script_2');
+      expect(scriptChunk3?.metadata?.isJSON).toBe(true);
+      expect(scriptChunk3?.metadata?.scriptLanguage).toBe('json');
     });
 
     it('应该正确分析样式属性', async () => {
@@ -146,18 +146,18 @@ describe('LayeredHTMLStrategy', () => {
       mockContext.content = htmlContent;
 
       const result = await strategy.process(mockContext);
-      
+
       // 验证第一个样式的属性分析
-      const styleChunk1 = result.find(chunk => chunk.metadata.styleId === 'style_0');
-      expect(styleChunk1?.metadata.isSCSS).toBe(true);
-      expect(styleChunk1?.metadata.isPreprocessor).toBe(true);
-      expect(styleChunk1?.metadata.styleType).toBe('scss');
+      const styleChunk1 = result.find((chunk: any) => chunk.metadata?.styleId === 'style_0');
+      expect(styleChunk1?.metadata?.isSCSS).toBe(true);
+      expect(styleChunk1?.metadata?.isPreprocessor).toBe(true);
+      expect(styleChunk1?.metadata?.styleType).toBe('scss');
 
       // 验证第二个样式的属性分析
-      const styleChunk2 = result.find(chunk => chunk.metadata.styleId === 'style_1');
-      expect(styleChunk2?.metadata.hasMedia).toBe(true);
-      expect(styleChunk2?.metadata.hasScope).toBe(true);
-      expect(styleChunk2?.metadata.styleType).toBe('css');
+      const styleChunk2 = result.find((chunk: any) => chunk.metadata?.styleId === 'style_1');
+      expect(styleChunk2?.metadata?.hasMedia).toBe(true);
+      expect(styleChunk2?.metadata?.hasScope).toBe(true);
+      expect(styleChunk2?.metadata?.styleType).toBe('css');
     });
   });
 
@@ -166,16 +166,16 @@ describe('LayeredHTMLStrategy', () => {
       const scriptContent = 'console.log("test");';
       const htmlContent1 = `<script>${scriptContent}</script>`;
       const htmlContent2 = `<script>${scriptContent}</script>`;
-      
+
       mockContext.content = htmlContent1;
       const result1 = await strategy.process(mockContext);
-      
+
       mockContext.content = htmlContent2;
       const result2 = await strategy.process(mockContext);
 
       const hash1 = result1[0]?.metadata.contentHash;
       const hash2 = result2[0]?.metadata.contentHash;
-      
+
       expect(hash1).toBe(hash2);
       expect(hash1).toBeDefined();
     });
@@ -183,16 +183,16 @@ describe('LayeredHTMLStrategy', () => {
     it('应该为不同内容生成不同的哈希', async () => {
       const htmlContent1 = '<script>console.log("test1");</script>';
       const htmlContent2 = '<script>console.log("test2");</script>';
-      
+
       mockContext.content = htmlContent1;
       const result1 = await strategy.process(mockContext);
-      
+
       mockContext.content = htmlContent2;
       const result2 = await strategy.process(mockContext);
 
       const hash1 = result1[0]?.metadata.contentHash;
       const hash2 = result2[0]?.metadata.contentHash;
-      
+
       expect(hash1).not.toBe(hash2);
     });
   });

@@ -3,6 +3,8 @@
  * 专门处理 XML 文件的分段策略和规则
  */
 
+import { isXMLDeclaration, isDOCTYPE } from './xml-utils';
+
 export interface XMLChunkingConfig {
   // 分段大小限制
   minChunkSize: number;        // 最小分段大小（字符数）
@@ -220,16 +222,10 @@ export function isProcessingInstruction(line: string): boolean {
 /**
  * 判断是否为 XML 声明
  */
-export function isXMLDeclaration(line: string): boolean {
-  return XML_PATTERNS.XML_DECLARATION.test(line.trim());
-}
 
 /**
  * 判断是否为文档类型定义
  */
-export function isDOCTYPE(line: string): boolean {
-  return XML_PATTERNS.DOCTYPE.test(line.trim());
-}
 
 /**
  * 获取块类型

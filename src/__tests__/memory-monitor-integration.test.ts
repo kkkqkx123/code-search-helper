@@ -11,8 +11,6 @@ import { BusinessServiceRegistrar } from '../core/registrars/BusinessServiceRegi
 import { EnvironmentConfigService } from '../config/service/EnvironmentConfigService';
 import { QdrantConfigService } from '../config/service/QdrantConfigService';
 import { EmbeddingConfigService } from '../config/service/EmbeddingConfigService';
-import { LoggingConfigService } from '../config/service/LoggingConfigService';
-import { MonitoringConfigService } from '../config/service/MonitoringConfigService';
 import { MemoryMonitorConfigService } from '../config/service/MemoryMonitorConfigService';
 import { FileProcessingConfigService } from '../config/service/FileProcessingConfigService';
 
@@ -38,8 +36,6 @@ describe('Memory Monitor Integration Tests', () => {
     container.bind<EnvironmentConfigService>(TYPES.EnvironmentConfigService).to(EnvironmentConfigService).inSingletonScope();
     container.bind<QdrantConfigService>(TYPES.QdrantConfigService).to(QdrantConfigService).inSingletonScope();
     container.bind<EmbeddingConfigService>(TYPES.EmbeddingConfigService).to(EmbeddingConfigService).inSingletonScope();
-    container.bind<LoggingConfigService>(TYPES.LoggingConfigService).to(LoggingConfigService).inSingletonScope();
-    container.bind<MonitoringConfigService>(TYPES.MonitoringConfigService).to(MonitoringConfigService).inSingletonScope();
     container.bind<MemoryMonitorConfigService>(TYPES.MemoryMonitorConfigService).to(MemoryMonitorConfigService).inSingletonScope();
     container.bind<FileProcessingConfigService>(TYPES.FileProcessingConfigService).to(FileProcessingConfigService).inSingletonScope();
 

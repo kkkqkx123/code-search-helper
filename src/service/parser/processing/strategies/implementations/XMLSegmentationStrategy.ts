@@ -56,6 +56,11 @@ export class XMLSegmentationStrategy extends BaseStrategy {
       return false;
     }
 
+    // 空内容也可以处理（将返回空块）
+    if (!content || content.trim().length === 0) {
+      return true;
+    }
+
     // 检查内容是否包含XML结构
     return /<[^>]+>/.test(content);
   }
@@ -66,8 +71,23 @@ export class XMLSegmentationStrategy extends BaseStrategy {
   async execute(context: IProcessingContext): Promise<ProcessingResult> {
     const startTime = Date.now();
     try {
+      // 处理空内容的情况
+      if (!context.content || context.content.trim().length === 0) {
+        return this.createSuccessResult([], Date.now() - startTime, {
+          language: context.language || 'xml',
+          filePath: context.filePath,
+          originalSize: 0,
+          startTime
+        });
+      }
+
       const chunks = await this.process(context);
-      return this.createSuccessResult(chunks, Date.now() - startTime);
+      return this.createSuccessResult(chunks, Date.now() - startTime, {
+        language: context.language || 'xml',
+        filePath: context.filePath,
+        originalSize: context.content.length,
+        startTime
+      });
     } catch (error) {
       return this.createFailureResult(Date.now() - startTime, error instanceof Error ? error.message : String(error));
     }

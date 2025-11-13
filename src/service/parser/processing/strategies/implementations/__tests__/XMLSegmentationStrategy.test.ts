@@ -29,6 +29,20 @@ describe('XMLSegmentationStrategy', () => {
         hasExports: false,
         hasFunctions: false,
         hasClasses: false
+      },
+      metadata: {
+        contentLength: 0,
+        lineCount: 0,
+        size: 0,
+        isSmallFile: false,
+        isCodeFile: true,
+        isStructuredFile: true,
+        complexity: 0,
+        hasImports: false,
+        hasExports: false,
+        hasFunctions: false,
+        hasClasses: false,
+        timestamp: Date.now()
       }
     };
   });
@@ -46,6 +60,7 @@ describe('XMLSegmentationStrategy', () => {
       const customStrategy = new XMLSegmentationStrategy({
         name: 'xml-segmentation',
         supportedLanguages: ['xml'],
+        enabled: true,
         maxChunkSize: 5000,
         maxTagDepth: 20
       });
@@ -92,6 +107,11 @@ describe('XMLSegmentationStrategy', () => {
       mockContext.language = 'javascript';
       mockContext.content = '<root></root>';
       expect(strategy.canHandle(mockContext)).toBe(false);
+    });
+    it('should handle empty content', () => {
+      mockContext.language = 'xml';
+      mockContext.content = '';
+      expect(strategy.canHandle(mockContext)).toBe(true);
     });
   });
 

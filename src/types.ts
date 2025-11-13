@@ -314,7 +314,7 @@ export const TYPES = {
 
   // 38. 特殊格式文本分割器
   MarkdownProcessor: Symbol.for('MarkdownProcessor'),
-  XMLTextStrategy: Symbol.for('XMLTextStrategy'),
+  
   LayeredHTMLStrategy: Symbol.for('LayeredHTMLStrategy'),
   HTMLContentExtractor: Symbol.for('HTMLContentExtractor'),
 
