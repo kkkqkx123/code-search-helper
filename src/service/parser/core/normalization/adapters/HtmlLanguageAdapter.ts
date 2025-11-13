@@ -3,6 +3,11 @@ import { ScriptBlock, StyleBlock } from '../../../processing/utils/html/LayeredH
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { ContentHashUtils } from '../../../../../utils/cache/ContentHashUtils';
 import { NodeIdGenerator } from '../../../../../utils/deterministic-node-id';
+import { HtmlRelationshipExtractor } from './html-utils/HtmlRelationshipExtractor';
+import { HtmlRelationship } from './html-utils/HtmlRelationshipTypes';
+import { RelationshipMetadata } from '../types/ExtensibleMetadata';
+import { RelationshipCategory, RelationshipTypeMapping } from '../types/RelationshipTypes';
+import Parser from 'tree-sitter';
 type StandardType = StandardizedQueryResult['type'];
 
 /**
@@ -11,9 +16,11 @@ type StandardType = StandardizedQueryResult['type'];
  */
 export class HtmlLanguageAdapter implements IEnhancedHtmlLanguageAdapter {
   private logger: LoggerService;
+  private relationshipExtractor: HtmlRelationshipExtractor;
 
   constructor() {
     this.logger = new LoggerService();
+    this.relationshipExtractor = new HtmlRelationshipExtractor();
   }
 
   async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
@@ -46,6 +53,175 @@ export class HtmlLanguageAdapter implements IEnhancedHtmlLanguageAdapter {
     }
 
     return results.filter((result): result is StandardizedQueryResult => result !== null);
+  }
+
+  /**
+   * 带关系提取的标准化方法
+   * @param queryResults 查询结果
+   * @param queryType 查询类型
+   * @param language 语言
+   * @param ast AST节点
+   * @returns 标准化查询结果数组
+   */
+  async normalizeWithRelationships(
+    queryResults: any[], 
+    queryType: string, 
+    language: string,
+    ast: Parser.SyntaxNode
+  ): Promise<StandardizedQueryResult[]> {
+    const results = await this.normalize(queryResults, queryType, language);
+    
+    // 提取关系
+    const relationshipResult = await this.relationshipExtractor.extractAllRelationships(ast);
+    const relationships = relationshipResult.relationships;
+    
+    // 将HTML关系转换为RelationshipMetadata格式
+    const relationshipMetadata = this.convertToRelationshipMetadata(relationships);
+    
+    // 将关系附加到相关结果
+    return results.map(result => ({
+      ...result,
+      metadata: {
+        ...result.metadata,
+        relationships: relationshipMetadata.filter((rel: RelationshipMetadata) => 
+          this.isRelationshipRelevant(rel, result)
+        )
+      }
+    }));
+  }
+
+  /**
+   * 将HTML关系转换为RelationshipMetadata格式
+   * @param htmlRelationships HTML关系数组
+   * @returns RelationshipMetadata数组
+   */
+  private convertToRelationshipMetadata(htmlRelationships: HtmlRelationship[]): RelationshipMetadata[] {
+    return htmlRelationships.map(rel => {
+      const relationshipType = this.mapHtmlRelationshipType(rel.type);
+      const category = RelationshipTypeMapping.getCategory(relationshipType);
+      
+      return {
+        type: relationshipType,
+        category,
+        fromNodeId: rel.source,
+        toNodeId: rel.target,
+        strength: this.calculateRelationshipStrength(rel),
+        weight: this.calculateRelationshipWeight(rel),
+        ...rel.metadata
+      };
+    });
+  }
+
+  /**
+   * 映射HTML关系类型到标准关系类型
+   * @param htmlType HTML关系类型
+   * @returns 标准关系类型
+   */
+  private mapHtmlRelationshipType(htmlType: string): any {
+    const mapping: Record<string, any> = {
+      // 结构关系映射到语义关系
+      'parent-child': 'composes',
+      'sibling': 'composes',
+      'ancestor': 'composes',
+      
+      // 依赖关系映射到依赖关系
+      'resource-dependency': 'import',
+      'script-dependency': 'import',
+      'style-dependency': 'import',
+      
+      // 引用关系映射到引用关系
+      'id-reference': 'usage',
+      'class-reference': 'usage',
+      'name-reference': 'usage',
+      'for-reference': 'usage',
+      
+      // 语义关系保持原样
+      'form-relationship': 'configures',
+      'table-relationship': 'configures',
+      'navigation-relationship': 'configures',
+      'list-relationship': 'configures'
+    };
+    
+    return mapping[htmlType] || 'usage';
+  }
+
+  /**
+   * 计算关系强度
+   * @param relationship HTML关系
+   * @returns 关系强度（0-1）
+   */
+  private calculateRelationshipStrength(relationship: HtmlRelationship): number {
+    // 基于关系类型设置基础强度
+    const baseStrength: Record<string, number> = {
+      'parent-child': 0.9,
+      'sibling': 0.5,
+      'ancestor': 0.7,
+      'resource-dependency': 0.8,
+      'script-dependency': 0.8,
+      'style-dependency': 0.8,
+      'id-reference': 0.9,
+      'class-reference': 0.6,
+      'name-reference': 0.7,
+      'for-reference': 0.9,
+      'form-relationship': 0.8,
+      'table-relationship': 0.8,
+      'navigation-relationship': 0.7,
+      'list-relationship': 0.7
+    };
+    
+    return baseStrength[relationship.type] || 0.5;
+  }
+
+  /**
+   * 计算关系权重
+   * @param relationship HTML关系
+   * @returns 关系权重
+   */
+  private calculateRelationshipWeight(relationship: HtmlRelationship): number {
+    // 基于关系类型和元数据计算权重
+    let weight = 1.0;
+    
+    // 根据关系类型调整权重
+    switch (relationship.type) {
+      case 'parent-child':
+        weight = 2.0;
+        break;
+      case 'resource-dependency':
+        weight = 1.8;
+        break;
+      case 'id-reference':
+        weight = 1.5;
+        break;
+      default:
+        weight = 1.0;
+    }
+    
+    // 根据元数据调整权重
+    if (relationship.metadata) {
+      if (relationship.metadata.isExternal) {
+        weight += 0.5; // 外部资源权重更高
+      }
+      if (relationship.metadata.isCritical) {
+        weight += 0.3; // 关键资源权重更高
+      }
+    }
+    
+    return weight;
+  }
+
+  /**
+   * 检查关系是否与结果相关
+   * @param relationship 关系元数据
+   * @param result 标准化查询结果
+   * @returns 是否相关
+   */
+  private isRelationshipRelevant(
+    relationship: RelationshipMetadata, 
+    result: StandardizedQueryResult
+  ): boolean {
+    // 判断关系是否与当前结果相关
+    return relationship.fromNodeId === result.nodeId || 
+           relationship.toNodeId === result.nodeId;
   }
 
   getSupportedQueryTypes(): string[] {
@@ -367,6 +543,16 @@ export class HtmlLanguageAdapter implements IEnhancedHtmlLanguageAdapter {
   }
 
   /**
+   * 提取HTML关系
+   * @param ast AST节点
+   * @returns HTML关系数组
+   */
+  async extractRelationships(ast: Parser.SyntaxNode): Promise<HtmlRelationship[]> {
+    const result = await this.relationshipExtractor.extractAllRelationships(ast);
+    return result.relationships;
+  }
+
+  /**
    * 检测脚本语言类型
    * @param scriptTag Script标签内容
    * @returns 语言类型
@@ -409,6 +595,15 @@ export class HtmlLanguageAdapter implements IEnhancedHtmlLanguageAdapter {
       }
     }
 
+    // 检查内容中的TypeScript特征
+    const contentMatch = scriptTag.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
+    if (contentMatch && contentMatch[1]) {
+      const content = contentMatch[1];
+      if (this.hasTypeScriptFeatures(content)) {
+        return 'typescript';
+      }
+    }
+
     // 默认为JavaScript
     return 'javascript';
   }
@@ -443,6 +638,18 @@ export class HtmlLanguageAdapter implements IEnhancedHtmlLanguageAdapter {
         return 'scss';
       }
       if (lang.includes('less')) {
+        return 'less';
+      }
+    }
+
+    // 检查内容中的预处理器特征
+    const contentMatch = styleTag.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+    if (contentMatch && contentMatch[1]) {
+      const content = contentMatch[1];
+      if (this.hasSCSSFeatures(content)) {
+        return 'scss';
+      }
+      if (this.hasLESSFeatures(content)) {
         return 'less';
       }
     }
@@ -596,5 +803,62 @@ export class HtmlLanguageAdapter implements IEnhancedHtmlLanguageAdapter {
     }
 
     return attributes;
+  }
+
+  /**
+   * 检查是否包含TypeScript特征
+   */
+  private hasTypeScriptFeatures(content: string): boolean {
+    const tsFeatures = [
+      /:\s*(string|number|boolean|void|any|unknown|never)/g,  // 类型注解
+      /interface\s+\w+/g,                                      // 接口
+      /type\s+\w+\s*=/g,                                       // 类型别名
+      /enum\s+\w+/g,                                           // 枚举
+      /import\s+.*\s+from\s+['"][^'"]*['"]\s*;/g,              // ES6导入
+      /export\s+(default\s+)?(class|interface|type|enum)/g,    // 导出
+      /<\w+>/g,                                                // 泛型
+      /\?\s*:/g,                                               // 可选属性
+      /\.\.\.\w+/g                                             // 展开操作符
+    ];
+
+    return tsFeatures.some(feature => feature.test(content));
+  }
+
+  /**
+   * 检查是否包含SCSS特征
+   */
+  private hasSCSSFeatures(content: string): boolean {
+    const scssFeatures = [
+      /@mixin\s+\w+/g,                                         // 混入
+      /@include\s+\w+/g,                                       // 包含混入
+      /\$\w+:/g,                                               // 变量
+      /@extend\s+\w+/g,                                        // 继承
+      /@if\s+/g,                                               // 条件语句
+      /@for\s+/g,                                              // 循环
+      /@each\s+/g,                                             // 遍历
+      /@while\s+/g,                                            // while循环
+      /%\w+/g,                                                 // 占位符选择器
+      /&:\w+/g                                                 // 嵌套伪类
+    ];
+
+    return scssFeatures.some(feature => feature.test(content));
+  }
+
+  /**
+   * 检查是否包含LESS特征
+   */
+  private hasLESSFeatures(content: string): boolean {
+    const lessFeatures = [
+      /@\w+:\s*[^;]+;/g,                                       // 变量
+      /\.mixin\(\)/g,                                          // 混入
+      /#\{.*\}/g,                                              // 变量插值
+      /&\s*>\s*\w+/g,                                          // 直接子选择器
+      /&\s*\+\s*\w+/g,                                         // 相邻兄弟选择器
+      /&\s*~\s*\w+/g,                                          // 通用兄弟选择器
+      /@import\s+['"][^'"]*['"]\s*;/g,                         // 导入
+      /when\s*\(/g                                             // when条件
+    ];
+
+    return lessFeatures.some(feature => feature.test(content));
   }
 }
