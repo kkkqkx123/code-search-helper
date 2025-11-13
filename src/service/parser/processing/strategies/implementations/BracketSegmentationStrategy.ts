@@ -5,6 +5,7 @@ import { CodeChunk, ChunkType } from '../../types/CodeChunk';
 import { StrategyConfig } from '../../types/Strategy';
 import { Logger } from '../../../../../utils/logger';
 import { BRACKET_SEGMENTATION_SUPPORTED_LANGUAGES } from '../../../constants/StrategyPriorities';
+import { CODE_LANGUAGES } from '../../../constants/language-constants';
 import { ComplexityCalculator } from '../../../../../utils/parser/ComplexityCalculator';
 import { ChunkFactory } from '../../../../../utils/parser/ChunkFactory';
 
@@ -265,12 +266,7 @@ export class BracketSegmentationStrategy extends BaseStrategy {
    * 检查是否为代码文件
    */
   private isCodeFile(language: string): boolean {
-    const codeLanguages = [
-      'javascript', 'typescript', 'python', 'java', 'c', 'cpp',
-      'csharp', 'go', 'rust', 'php', 'ruby', 'swift', 'kotlin',
-      'scala', 'html', 'xml', 'json', 'yaml', 'yml'
-    ];
-    return codeLanguages.includes(language.toLowerCase());
+    return CODE_LANGUAGES.includes(language.toLowerCase());
   }
 
 

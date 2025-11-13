@@ -6,6 +6,7 @@ import { IProcessingContext } from '../../core/interfaces/IProcessingContext';
 import { HtmlLanguageAdapter } from '../../../core/normalization/adapters/HtmlLanguageAdapter';
 import { ScriptBlock, StyleBlock } from '../../../processing/utils/html/LayeredHTMLConfig';
 import { HTMLContentExtractor } from '../../../processing/utils/html/HTMLContentExtractor';
+import { HTMLProcessingUtils } from '../../../processing/utils/html/HTMLProcessingUtils';
 
 /**
  * 层类型
@@ -120,7 +121,21 @@ export class LayeredHTMLStrategy extends BaseStrategy {
     this.logger.debug('Processing HTML structure layer');
 
     try {
-      const chunks = this.processHTMLStructure(context.content, context);
+      const rawChunks = HTMLProcessingUtils.processHTMLStructure(context.content, 1);
+      const chunks = rawChunks.map(chunk => 
+        this.createChunk(
+          chunk.content,
+          chunk.startLine,
+          chunk.endLine,
+          chunk.language,
+          undefined,
+          {
+            filePath: context.filePath,
+            complexity: chunk.complexity,
+            type: chunk.type
+          }
+        )
+      );
 
       return {
         chunks,
@@ -134,70 +149,6 @@ export class LayeredHTMLStrategy extends BaseStrategy {
       this.logger.error(`Structure layer processing failed: ${error}`);
       throw error;
     }
-  }
-
-  /**
-   * 处理HTML结构
-   */
-  private processHTMLStructure(content: string, context: IProcessingContext): CodeChunk[] {
-    const chunks: CodeChunk[] = [];
-    const lines = content.split('\n');
-
-    // 简单的HTML结构分段，基于标签平衡
-    let currentChunk: string[] = [];
-    let currentLine = 1;
-    let tagDepth = 0;
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      currentChunk.push(line);
-
-      // 计算标签深度
-      tagDepth += this.countOpeningTags(line);
-      tagDepth -= this.countClosingTags(line);
-
-      // 分段条件：标签平衡且达到最小大小
-      const chunkContent = currentChunk.join('\n');
-      const shouldSplit = (tagDepth === 0 && currentChunk.length >= 5) ||
-        chunkContent.length > 2000 ||
-        i === lines.length - 1;
-
-      if (shouldSplit) {
-        chunks.push(this.createChunk(
-          chunkContent,
-          currentLine,
-          currentLine + currentChunk.length - 1,
-          context.language || 'html',
-          undefined,
-          {
-            filePath: context.filePath,
-            complexity: this.calculateComplexity(chunkContent)
-          }
-        ));
-
-        currentChunk = [];
-        currentLine = i + 1;
-        tagDepth = 0;
-      }
-    }
-
-    // 处理剩余内容
-    if (currentChunk.length > 0) {
-      const chunkContent = currentChunk.join('\n');
-      chunks.push(this.createChunk(
-        chunkContent,
-        currentLine,
-        currentLine + currentChunk.length - 1,
-        context.language || 'html',
-        undefined,
-        {
-          filePath: context.filePath,
-          complexity: this.calculateComplexity(chunkContent)
-        }
-      ));
-    }
-
-    return chunks;
   }
 
   /**
@@ -312,7 +263,7 @@ export class LayeredHTMLStrategy extends BaseStrategy {
     metadata: any;
   }> {
     // 生成缓存键
-    const cacheKey = this.generateScriptCacheKey(script);
+    const cacheKey = HTMLProcessingUtils.generateScriptCacheKey(script);
 
     // 检查缓存
     const cached = this.scriptCache.get(cacheKey);
@@ -328,7 +279,7 @@ export class LayeredHTMLStrategy extends BaseStrategy {
     }
 
     // 分析脚本属性
-    const scriptAnalysis = this.analyzeScriptAttributes(script.attributes);
+    const scriptAnalysis = HTMLProcessingUtils.analyzeScriptAttributes(script.attributes);
 
     // 创建脚本代码块
     const chunks = [this.createChunk(
@@ -341,7 +292,7 @@ export class LayeredHTMLStrategy extends BaseStrategy {
         startLine: script.position.line,
         endLine: script.position.line + script.content.split('\n').length - 1,
         type: 'script',
-        complexity: this.calculateComplexity(script.content),
+        complexity: HTMLProcessingUtils.calculateComplexity(script.content),
         scriptId: script.id,
         scriptLanguage: script.language,
         scriptAttributes: script.attributes,
@@ -386,7 +337,7 @@ export class LayeredHTMLStrategy extends BaseStrategy {
     metadata: any;
   }> {
     // 生成缓存键
-    const cacheKey = this.generateStyleCacheKey(style);
+    const cacheKey = HTMLProcessingUtils.generateStyleCacheKey(style);
 
     // 检查缓存
     const cached = this.styleCache.get(cacheKey);
@@ -402,7 +353,7 @@ export class LayeredHTMLStrategy extends BaseStrategy {
     }
 
     // 分析样式属性
-    const styleAnalysis = this.analyzeStyleAttributes(style.attributes);
+    const styleAnalysis = HTMLProcessingUtils.analyzeStyleAttributes(style.attributes);
 
     // 创建样式代码块
     const chunks = [this.createChunk(
@@ -415,7 +366,7 @@ export class LayeredHTMLStrategy extends BaseStrategy {
         startLine: style.position.line,
         endLine: style.position.line + style.content.split('\n').length - 1,
         type: 'style',
-        complexity: this.calculateComplexity(style.content),
+        complexity: HTMLProcessingUtils.calculateComplexity(style.content),
         styleId: style.id,
         styleType: style.styleType,
         styleAttributes: style.attributes,
@@ -494,44 +445,6 @@ export class LayeredHTMLStrategy extends BaseStrategy {
   }
 
   /**
-   * 计算开标签数量
-   */
-  private countOpeningTags(line: string): number {
-    const matches = line.match(/<[^\/][^>]*>/g);
-    return matches ? matches.length : 0;
-  }
-
-  /**
-   * 计算闭标签数量
-   */
-  private countClosingTags(line: string): number {
-    const matches = line.match(/<\/[^>]*>/g);
-    return matches ? matches.length : 0;
-  }
-
-  /**
-   * 计算复杂度
-   */
-  protected calculateComplexity(content: string): number {
-    let complexity = 1;
-
-    // 基于长度
-    complexity += Math.log10(content.length + 1);
-
-    // 基于行数
-    const lines = content.split('\n').length;
-    complexity += Math.log10(lines + 1);
-
-    // 基于关键字数量（简单实现）
-    const keywords = content.match(/\b(function|class|const|let|var|if|for|while|return|import|export)\b/g);
-    if (keywords) {
-      complexity += keywords.length * 0.5;
-    }
-
-    return Math.round(Math.max(1, complexity));
-  }
-
-  /**
    * 创建降级块
    */
   private createFallbackChunks(context: IProcessingContext): CodeChunk[] {
@@ -546,63 +459,10 @@ export class LayeredHTMLStrategy extends BaseStrategy {
         startLine: 1,
         endLine: context.content.split('\n').length,
         type: 'html_fallback',
-        complexity: this.calculateComplexity(context.content),
+        complexity: HTMLProcessingUtils.calculateComplexity(context.content),
         fallback: true
       }
     )];
-  }
-
-  /**
-   * 生成脚本缓存键
-   */
-  private generateScriptCacheKey(script: ScriptBlock): string {
-    const attrSignature = Object.keys(script.attributes)
-      .sort()
-      .map(key => `${key}:${script.attributes[key]}`)
-      .join('|');
-    return `${script.contentHash}_${script.language}_${attrSignature}`;
-  }
-
-  /**
-   * 生成样式缓存键
-   */
-  private generateStyleCacheKey(style: StyleBlock): string {
-    const attrSignature = Object.keys(style.attributes)
-      .sort()
-      .map(key => `${key}:${style.attributes[key]}`)
-      .join('|');
-    return `${style.contentHash}_${style.styleType}_${attrSignature}`;
-  }
-
-  /**
-   * 分析脚本属性
-   */
-  private analyzeScriptAttributes(attributes: Record<string, string>) {
-    return {
-      isModule: attributes.type === 'module',
-      isAsync: attributes.async === 'true',
-      isDefer: attributes.defer === 'true',
-      hasSrc: !!attributes.src,
-      isTypeScript: attributes.lang === 'ts' || attributes.type?.includes('typescript'),
-      isJSON: attributes.type === 'json',
-      hasCrossorigin: !!attributes.crossorigin,
-      isNomodule: attributes.nomodule === 'true'
-    };
-  }
-
-  /**
-   * 分析样式属性
-   */
-  private analyzeStyleAttributes(attributes: Record<string, string>) {
-    return {
-      isSCSS: attributes.lang === 'scss' || attributes.type?.includes('scss'),
-      isLESS: attributes.lang === 'less' || attributes.type?.includes('less'),
-      isInline: attributes.type === 'inline',
-      hasMedia: !!attributes.media,
-      hasScope: !!attributes.scoped,
-      isPreprocessor: attributes.lang === 'scss' || attributes.lang === 'less' ||
-        attributes.type?.includes('scss') || attributes.type?.includes('less')
-    };
   }
 
   /**
