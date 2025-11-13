@@ -2,12 +2,15 @@ import { NestingRelationship, CodeReference, CodeDependency } from '../../../../
 import { QueryResultNormalizer } from './QueryResultNormalizer';
 import { TreeSitterCoreService } from '../parse/TreeSitterCoreService';
 import { LRUCache } from '../../../../utils/cache/LRUCache';
+import { ContentHashUtils } from '../../../../utils/cache/ContentHashUtils';
 import { PerformanceMonitor } from '../../../../infrastructure/monitoring/PerformanceMonitor';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../../../types';
 import Parser from 'tree-sitter';
 import { InfrastructureConfigService } from '../../../../infrastructure/config/InfrastructureConfigService';
+import { StandardizedQueryResult } from './types';
+import { LineLocation } from '../../../../utils/types/ContentTypes';
 
 /**
  * 关系分析器
@@ -76,8 +79,8 @@ export class RelationshipAnalyzer {
 
             if (this.isStructureContaining(struct1, struct2)) {
               relationships.push({
-                parent: this.convertToLegacyNode(struct1),
-                child: this.convertToLegacyNode(struct2),
+                parent: this.createLegacyNodeFromStandardized(struct1),
+                child: this.createLegacyNodeFromStandardized(struct2),
                 relationshipType: 'contains',
                 strength: this.calculateRelationshipStrength(struct1, struct2)
               });
@@ -148,8 +151,8 @@ export class RelationshipAnalyzer {
         // 转换标准化引用结果
         for (const ref of normalizedResult.references) {
           references.push({
-            fromNode: this.convertToLegacyNode(ref.from),
-            toNode: this.convertToLegacyNode(ref.to),
+            fromNode: this.createLegacyNodeFromStandardized(ref.from),
+            toNode: this.createLegacyNodeFromStandardized(ref.to),
             referenceType: ref.type as any,
             line: ref.location?.startLine || 0,
             confidence: ref.confidence || 0.8
@@ -207,7 +210,7 @@ export class RelationshipAnalyzer {
         // 转换标准化依赖结果
         for (const dep of normalizedResult.dependencies) {
           dependencies.push({
-            fromNode: this.convertToLegacyNode(dep.from),
+            fromNode: this.createLegacyNodeFromStandardized(dep.from),
             dependencyType: dep.type as any,
             target: dep.target,
             line: dep.location?.startLine || 0,
@@ -385,8 +388,8 @@ export class RelationshipAnalyzer {
 
         if (this.isNodeContaining(node1, node2)) {
           relationships.push({
-            parent: this.convertToLegacyNode(node1),
-            child: this.convertToLegacyNode(node2),
+            parent: this.createLegacyNodeFromStandardized(node1),
+            child: this.createLegacyNodeFromStandardized(node2),
             relationshipType: 'contains',
             strength: this.calculateRelationshipStrength(node1, node2)
           });
@@ -409,7 +412,7 @@ export class RelationshipAnalyzer {
       const functionCalls = this.extractFunctionCalls(node);
       for (const call of functionCalls) {
         references.push({
-          fromNode: this.convertToLegacyNode(node),
+          fromNode: this.createLegacyNodeFromStandardized(node),
           toNode: this.findReferencedNode(call.name, nodes),
           referenceType: 'function_call',
           line: call.line,
@@ -421,7 +424,7 @@ export class RelationshipAnalyzer {
       const variableRefs = this.extractVariableReferences(node);
       for (const ref of variableRefs) {
         references.push({
-          fromNode: this.convertToLegacyNode(node),
+          fromNode: this.createLegacyNodeFromStandardized(node),
           toNode: this.findReferencedNode(ref.name, nodes),
           referenceType: 'variable_reference',
           line: ref.line,
@@ -464,8 +467,8 @@ export class RelationshipAnalyzer {
       // 实际项目中应该使用树形语法信息进行更精确的分析
       if (struct.metadata && struct.metadata.parent) {
         relationships.push({
-          parent: this.convertToLegacyNode(struct.metadata.parent),
-          child: this.convertToLegacyNode(struct),
+          parent: this.createLegacyNodeFromStandardized(struct.metadata.parent),
+          child: this.createLegacyNodeFromStandardized(struct),
           relationshipType: 'extends',
           strength: 0.9
         });
@@ -489,8 +492,8 @@ export class RelationshipAnalyzer {
       if (struct.metadata && struct.metadata.interfaces && Array.isArray(struct.metadata.interfaces)) {
         for (const iface of struct.metadata.interfaces) {
           relationships.push({
-            parent: this.convertToLegacyNode(iface),
-            child: this.convertToLegacyNode(struct),
+            parent: this.createLegacyNodeFromStandardized(iface),
+            child: this.createLegacyNodeFromStandardized(struct),
             relationshipType: 'implements',
             strength: 0.85
           });
@@ -732,31 +735,53 @@ export class RelationshipAnalyzer {
   }
 
   /**
-   * 转换为旧版节点格式
+   * 从标准化结果创建旧版节点格式
    */
-  private convertToLegacyNode(struct: any): any {
+  private createLegacyNodeFromStandardized(struct: StandardizedQueryResult | any): any {
     if (!struct) return null;
 
+    // 如果已经是标准化查询结果格式，直接使用其字段
+    if (this.isStandardizedQueryResult(struct)) {
+      return {
+        name: struct.name || 'unknown',
+        type: struct.type || 'unknown',
+        location: {
+          startLine: struct.startLine || 0,
+          endLine: struct.endLine || 0
+        } as LineLocation,
+        node: null, // StandardizedQueryResult没有node字段，所以这里为null
+        metadata: struct.metadata || {}
+      };
+    }
+
+    // 否则使用原来的转换逻辑
     return {
       name: struct.name || 'unknown',
       type: struct.type || 'unknown',
-      location: struct.location || { startLine: 0, endLine: 0 },
+      location: struct.location || { startLine: 0, endLine: 0 } as LineLocation,
       node: struct.node || null,
       metadata: struct.metadata || {}
     };
   }
 
   /**
+   * 检查对象是否为StandardizedQueryResult类型
+   */
+  private isStandardizedQueryResult(obj: any): obj is StandardizedQueryResult {
+    return obj && 
+           typeof obj === 'object' && 
+           obj.nodeId !== undefined && 
+           obj.name !== undefined && 
+           obj.type !== undefined && 
+           obj.startLine !== undefined && 
+           obj.endLine !== undefined;
+  }
+
+  /**
    * 内容哈希方法
    */
   private hashContent(content: string): string {
-    let hash = 0;
-    for (let i = 0; i < content.length; i++) {
-      const char = content.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // 转换为32位整数
-    }
-    return Math.abs(hash).toString(36);
+   return ContentHashUtils.generateContentHash(content);
   }
 
   /**

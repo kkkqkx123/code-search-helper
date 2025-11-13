@@ -76,6 +76,13 @@ export class LineSegmentationStrategy extends BaseStrategy {
 
     try {
       const chunks: CodeChunk[] = [];
+      
+      // 处理空内容
+      if (!context.content || context.content.trim() === '') {
+        this.updatePerformanceStats(Date.now() - startTime, true, 0);
+        return chunks;
+      }
+
       const lines = context.content.split('\n');
 
       // 使用智能行数分段
@@ -89,6 +96,11 @@ export class LineSegmentationStrategy extends BaseStrategy {
         if (startLine <= endLine) {
           const chunkLines = lines.slice(startLine, endLine + 1);
           const chunkContent = chunkLines.join('\n');
+
+          // 跳过完全空的块
+          if (chunkContent.trim() === '') {
+            continue;
+          }
 
           chunks.push(ChunkFactory.createLineChunk(
             chunkContent,

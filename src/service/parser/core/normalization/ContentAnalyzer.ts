@@ -271,7 +271,8 @@ export class ContentAnalyzer {
         extractionResult.topLevelStructures,
         extractionResult.nestedStructures,
         extractionResult.internalStructures,
-        content
+        content,
+        language
       );
 
       return {
@@ -418,13 +419,15 @@ export class ContentAnalyzer {
    * @param nestedStructures 嵌套结构
    * @param internalStructures 内部结构
    * @param content 源代码内容
+   * @param language 编程语言
    * @returns 关系信息
    */
   private async analyzeRelationships(
     topLevelStructures: TopLevelStructure[],
     nestedStructures: NestedStructure[],
     internalStructures: InternalStructure[],
-    content: string
+    content: string,
+    language: string
   ): Promise<{
     nesting: Array<{ parent: string; child: string; type: 'contains' | 'extends' | 'implements' }>;
     references: Array<{ from: string; to: string; type: 'function_call' | 'variable_reference' | 'type_reference' }>;
@@ -442,7 +445,7 @@ export class ContentAnalyzer {
       }));
 
       // 获取AST用于关系分析
-      const ast = await this.getSampleAST(content, 'typescript');
+      const ast = await this.getSampleAST(content, language);
 
       // 分析嵌套关系
       const nestingRelationships = await this.relationshipAnalyzer.analyzeNestingRelationships(content, 'typescript', ast);

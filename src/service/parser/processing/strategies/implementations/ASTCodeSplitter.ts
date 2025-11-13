@@ -575,14 +575,9 @@ export class ASTCodeSplitter {
       includeInternal: true
     });
 
-    // 检查是否有足够的结构
+    // 即使没有结构，也应该继续处理，以便可以返回完整的fallback chunk
+    // 根据结构数量来判断是否有有效结构
     if (extractionResult.stats.totalStructures === 0) {
-      return false;
-    }
-
-    // 检查置信度
-    // 新的ContentAnalyzer没有confidence字段，我们可以根据结构数量来判断
-    if (extractionResult.stats.totalStructures < 1) {
       return false;
     }
 
