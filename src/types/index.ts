@@ -46,7 +46,7 @@ export const TYPES = {
   TreeSitterService: Symbol.for('TreeSitterService'),
   TreeSitterQueryEngine: Symbol.for('TreeSitterQueryEngine'),
   ASTCodeSplitter: Symbol.for('ASTCodeSplitter'),
-  ChunkToVectorCoordinationService: Symbol.for('ChunkToVectorCoordinationService'),
+  
   QueryResultNormalizer: Symbol.for('QueryResultNormalizer'),
 
   // 嵌入服务

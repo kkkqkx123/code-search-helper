@@ -1,11 +1,14 @@
 import { injectable, inject } from 'inversify';
 import { IVectorService } from './IVectorService';
 import { IVectorRepository } from '../repository/IVectorRepository';
-import { IVectorCoordinationService } from '../coordination/IVectorCoordinationService';
 import { IVectorCacheManager } from '../caching/IVectorCacheManager';
+import { VectorConversionService } from '../conversion/VectorConversionService';
+import { VectorEmbeddingService } from '../embedding/VectorEmbeddingService';
+import { ProcessingCoordinator } from '../../parser/processing/coordinator/ProcessingCoordinator';
 import { TYPES } from '../../../types';
 import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
+import { VectorPoint } from '../../../database/qdrant/IVectorStore';
 import {
   Vector,
   VectorOptions,
@@ -20,9 +23,11 @@ import {
   VectorError,
   VectorErrorCode
 } from '../types/VectorTypes';
+import * as fs from 'fs/promises';
 
 /**
  * 向量服务核心实现
+ * 直接对接 parser 模块，移除中间协调层
  */
 @injectable()
 export class VectorService implements IVectorService {
@@ -30,15 +35,17 @@ export class VectorService implements IVectorService {
 
   constructor(
     @inject(TYPES.IVectorRepository) private repository: IVectorRepository,
-    @inject(TYPES.IVectorCoordinationService) private coordinator: IVectorCoordinationService,
     @inject(TYPES.IVectorCacheManager) private cacheManager: IVectorCacheManager,
+    @inject(TYPES.VectorConversionService) private conversionService: VectorConversionService,
+    @inject(TYPES.VectorEmbeddingService) private embeddingService: VectorEmbeddingService,
+    @inject(TYPES.UnifiedProcessingCoordinator) private processingCoordinator: ProcessingCoordinator,
     @inject(TYPES.LoggerService) private logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService
   ) {}
 
   async initialize(): Promise<boolean> {
     try {
-      this.logger.info('Initializing VectorService');
+      this.logger.info('Initializing VectorService with direct parser integration');
       this.initialized = true;
       return true;
     } catch (error) {
@@ -75,10 +82,82 @@ export class VectorService implements IVectorService {
     };
   }
 
+  /**
+   * 处理文件并创建向量
+   * 直接使用 ProcessingCoordinator，移除中间协调层
+   */
+  async processFileForEmbedding(filePath: string, projectPath: string): Promise<VectorPoint[]> {
+    try {
+      this.logger.info(`Processing file for embedding: ${filePath}`);
+      
+      // 1. 读取文件内容
+      const content = await fs.readFile(filePath, 'utf-8');
+      
+      // 2. 直接使用 ProcessingCoordinator 处理代码
+      const processingResult = await this.processingCoordinator.process(content, 'unknown', filePath);
+      
+      if (!processingResult.success) {
+        throw new Error(`Processing failed: ${processingResult.error}`);
+      }
+      
+      // 3. 生成嵌入向量
+      const contents = processingResult.chunks.map(chunk => chunk.content);
+      const embeddings = await this.embeddingService.generateBatchEmbeddings(contents, {
+        provider: 'default',
+        batchSize: 100
+      });
+      
+      // 4. 使用增强的 VectorConversionService 转换为向量
+      const vectors = await this.conversionService.convertChunksToVectors(
+        processingResult.chunks,
+        embeddings,
+        projectPath
+      );
+      
+      // 5. 转换为向量点
+      const vectorPoints = vectors.map(vector => this.conversionService.convertVectorToPoint(vector));
+      
+      // 6. 批量存储向量
+      await this.repository.createBatch(vectors);
+      
+      this.logger.info(`Successfully processed file ${filePath}, created ${vectorPoints.length} vectors`);
+      return vectorPoints;
+    } catch (error) {
+      this.errorHandler.handleError(error as Error, {
+        component: 'VectorService',
+        operation: 'processFileForEmbedding',
+        filePath,
+        projectPath
+      });
+      throw error;
+    }
+  }
+
   async createVectors(content: string[], options?: VectorOptions): Promise<Vector[]> {
     try {
       this.logger.info(`Creating vectors for ${content.length} contents`);
-      const vectors = await this.coordinator.coordinateVectorCreation(content, options);
+      
+      // 1. 生成嵌入向量
+      const embeddings = await this.embeddingService.generateBatchEmbeddings(content, {
+        provider: options?.embedderProvider,
+        batchSize: options?.batchSize || 100
+      });
+      
+      // 2. 创建向量对象
+      const vectors: Vector[] = content.map((text, index) => ({
+        id: this.generateVectorId(text, options),
+        vector: embeddings[index],
+        content: text,
+        metadata: {
+          projectId: options?.projectId,
+          ...options?.metadata
+        },
+        timestamp: new Date()
+      }));
+      
+      // 3. 存储向量
+      await this.repository.createBatch(vectors);
+      
       this.logger.info(`Successfully created ${vectors.length} vectors`);
       return vectors;
     } catch (error) {
@@ -90,8 +169,6 @@ export class VectorService implements IVectorService {
       throw error;
     }
   }
-
-  
 
   async deleteVectors(vectorIds: string[]): Promise<boolean> {
     try {
@@ -109,7 +186,20 @@ export class VectorService implements IVectorService {
 
   async searchSimilarVectors(query: number[], options?: SearchOptions): Promise<SearchResult[]> {
     try {
-      return await this.coordinator.coordinateVectorSearch(query, options);
+      // 检查缓存
+      const cacheKey = this.generateSearchCacheKey(query, options);
+      const cached = await this.cacheManager.getSearchResult(cacheKey);
+      if (cached) {
+        return cached;
+      }
+      
+      // 执行搜索
+      const results = await this.repository.searchByVector(query, options);
+      
+      // 缓存结果
+      await this.cacheManager.setSearchResult(cacheKey, results);
+      
+      return results;
     } catch (error) {
       this.errorHandler.handleError(error as Error, {
         component: 'VectorService',
@@ -121,7 +211,9 @@ export class VectorService implements IVectorService {
 
   async searchByContent(content: string, options?: SearchOptions): Promise<SearchResult[]> {
     try {
-      return await this.coordinator.coordinateVectorSearch(content, options);
+      // 生成查询向量
+      const embeddings = await this.embeddingService.generateEmbedding(content);
+      return await this.searchSimilarVectors(embeddings, options);
     } catch (error) {
       this.errorHandler.handleError(error as Error, {
         component: 'VectorService',
@@ -132,8 +224,37 @@ export class VectorService implements IVectorService {
   }
 
   async batchProcess(operations: VectorOperation[]): Promise<BatchResult> {
+    const startTime = Date.now();
+    let processedCount = 0;
+    let failedCount = 0;
+    const errors: Error[] = [];
+
     try {
-      return await this.coordinator.coordinateBatchOperations(operations);
+      for (const op of operations) {
+        try {
+          switch (op.type) {
+            case 'create':
+              const vector = op.data as Vector;
+              await this.repository.create(vector);
+              break;
+            case 'delete':
+              await this.repository.delete(op.data as string);
+              break;
+          }
+          processedCount++;
+        } catch (error) {
+          failedCount++;
+          errors.push(error as Error);
+        }
+      }
+
+      return {
+        success: failedCount === 0,
+        processedCount,
+        failedCount,
+        errors: errors.length > 0 ? errors : undefined,
+        executionTime: Date.now() - startTime
+      };
     } catch (error) {
       this.errorHandler.handleError(error as Error, {
         component: 'VectorService',
@@ -196,5 +317,28 @@ export class VectorService implements IVectorService {
         vectorsPerSecond: 0
       }
     };
+  }
+
+  private generateVectorId(content: string, options?: VectorOptions): string {
+    const projectId = options?.projectId || 'default';
+    const timestamp = Date.now();
+    const hash = this.simpleHash(content);
+    return `${projectId}_${timestamp}_${hash}`;
+  }
+
+  private simpleHash(str: string): string {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return Math.abs(hash).toString(36);
+  }
+
+  private generateSearchCacheKey(query: number[], options?: SearchOptions): string {
+    const queryHash = this.simpleHash(query.join(','));
+    const optionsHash = this.simpleHash(JSON.stringify(options || {}));
+    return `search:${queryHash}:${optionsHash}`;
   }
 }

@@ -1,7 +1,9 @@
 import { VectorService } from '../../core/VectorService';
 import { IVectorRepository } from '../../repository/IVectorRepository';
-import { IVectorCoordinationService } from '../../coordination/IVectorCoordinationService';
 import { IVectorCacheManager } from '../../caching/IVectorCacheManager';
+import { VectorConversionService } from '../../conversion/VectorConversionService';
+import { VectorEmbeddingService } from '../../embedding/VectorEmbeddingService';
+import { ProcessingCoordinator } from '../../../parser/processing/coordinator/ProcessingCoordinator';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
 import { Vector, VectorOptions, SearchResult } from '../../types/VectorTypes';
@@ -9,8 +11,10 @@ import { Vector, VectorOptions, SearchResult } from '../../types/VectorTypes';
 describe('VectorService', () => {
   let vectorService: VectorService;
   let mockRepository: jest.Mocked<IVectorRepository>;
-  let mockCoordinator: jest.Mocked<IVectorCoordinationService>;
+  let mockCoordinator: jest.Mocked<ProcessingCoordinator>;
   let mockCacheManager: jest.Mocked<IVectorCacheManager>;
+  let mockConversionService: jest.Mocked<VectorConversionService>;
+  let mockEmbeddingService: jest.Mocked<VectorEmbeddingService>;
   let mockLogger: jest.Mocked<LoggerService>;
   let mockErrorHandler: jest.Mocked<ErrorHandlerService>;
 
@@ -48,6 +52,23 @@ describe('VectorService', () => {
       getStats: jest.fn()
     } as any;
 
+    mockConversionService = {
+      convertChunksToVectors: jest.fn(),
+      validateMetadata: jest.fn(),
+      compressASTNodes: jest.fn()
+    } as any;
+
+    mockEmbeddingService = {
+      generateEmbedding: jest.fn(),
+      generateBatchEmbeddings: jest.fn(),
+      isHealthy: jest.fn()
+    } as any;
+
+    mockCoordinator = {
+      process: jest.fn(),
+      processBatch: jest.fn()
+    } as any;
+
     mockLogger = {
       info: jest.fn(),
       warn: jest.fn(),
@@ -62,8 +83,10 @@ describe('VectorService', () => {
     // 创建服务实例
     vectorService = new VectorService(
       mockRepository,
-      mockCoordinator,
       mockCacheManager,
+      mockConversionService,
+      mockEmbeddingService,
+      mockCoordinator,
       mockLogger,
       mockErrorHandler
     );
@@ -118,12 +141,17 @@ describe('VectorService', () => {
         }
       ];
 
-      mockCoordinator.coordinateVectorCreation.mockResolvedValue(expectedVectors);
+      mockCoordinator.process.mockResolvedValue({
+        success: true,
+        executionTime: 100,
+        strategy: 'test',
+        chunks: []
+      });
 
       const result = await vectorService.createVectors(contents, options);
 
       expect(result).toEqual(expectedVectors);
-      expect(mockCoordinator.coordinateVectorCreation).toHaveBeenCalledWith(contents, options);
+      expect(mockCoordinator.process).toHaveBeenCalled();
       expect(mockLogger.info).toHaveBeenCalledWith('Creating vectors for 2 contents');
       expect(mockLogger.info).toHaveBeenCalledWith('Successfully created 2 vectors');
     });
@@ -132,7 +160,7 @@ describe('VectorService', () => {
       const contents = ['content1'];
       const error = new Error('Creation failed');
       
-      mockCoordinator.coordinateVectorCreation.mockRejectedValue(error);
+      mockCoordinator.process.mockRejectedValue(error);
 
       await expect(vectorService.createVectors(contents)).rejects.toThrow(error);
       expect(mockErrorHandler.handleError).toHaveBeenCalledWith(error, {
@@ -152,19 +180,24 @@ describe('VectorService', () => {
         { id: '2', score: 0.8 }
       ];
 
-      mockCoordinator.coordinateVectorSearch.mockResolvedValue(expectedResults);
+      mockCoordinator.process.mockResolvedValue({
+        success: true,
+        executionTime: 100,
+        strategy: 'test',
+        chunks: []
+      });
 
       const result = await vectorService.searchSimilarVectors(query, options);
 
       expect(result).toEqual(expectedResults);
-      expect(mockCoordinator.coordinateVectorSearch).toHaveBeenCalledWith(query, options);
+      expect(mockCoordinator.process).toHaveBeenCalled();
     });
 
     it('should handle search errors', async () => {
       const query = [0.1, 0.2, 0.3];
       const error = new Error('Search failed');
       
-      mockCoordinator.coordinateVectorSearch.mockRejectedValue(error);
+      mockCoordinator.process.mockRejectedValue(error);
 
       await expect(vectorService.searchSimilarVectors(query)).rejects.toThrow(error);
       expect(mockErrorHandler.handleError).toHaveBeenCalledWith(error, {

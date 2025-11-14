@@ -1,7 +1,9 @@
 import { VectorService } from '../core/VectorService';
 import { IVectorRepository } from '../repository/IVectorRepository';
-import { IVectorCoordinationService } from '../coordination/IVectorCoordinationService';
 import { IVectorCacheManager } from '../caching/IVectorCacheManager';
+import { VectorConversionService } from '../conversion/VectorConversionService';
+import { VectorEmbeddingService } from '../embedding/VectorEmbeddingService';
+import { ProcessingCoordinator } from '../../parser/processing/coordinator/ProcessingCoordinator';
 import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import {
@@ -20,8 +22,10 @@ import {
 describe('VectorService', () => {
   let vectorService: VectorService;
   let mockRepository: jest.Mocked<IVectorRepository>;
-  let mockCoordinator: jest.Mocked<IVectorCoordinationService>;
   let mockCacheManager: jest.Mocked<IVectorCacheManager>;
+  let mockConversionService: jest.Mocked<VectorConversionService>;
+  let mockEmbeddingService: jest.Mocked<VectorEmbeddingService>;
+  let mockProcessingCoordinator: jest.Mocked<ProcessingCoordinator>;
   let mockLoggerService: jest.Mocked<LoggerService>;
   let mockErrorHandlerService: jest.Mocked<ErrorHandlerService>;
 
@@ -39,14 +43,6 @@ describe('VectorService', () => {
       indexExists: jest.fn(),
     } as any;
 
-    mockCoordinator = {
-      coordinateVectorCreation: jest.fn(),
-      coordinateVectorSearch: jest.fn(),
-      coordinateBatchOperations: jest.fn(),
-      handleEmbeddingGeneration: jest.fn(),
-      optimizeBatchProcessing: jest.fn(),
-    } as any;
-
     mockCacheManager = {
       getVector: jest.fn(),
       setVector: jest.fn(),
@@ -56,6 +52,20 @@ describe('VectorService', () => {
       deleteByPattern: jest.fn(),
       clear: jest.fn(),
       getStats: jest.fn(),
+    } as any;
+
+    mockConversionService = {
+      convertChunksToVectors: jest.fn(),
+      convertVectorToPoint: jest.fn(),
+    } as any;
+
+    mockEmbeddingService = {
+      generateBatchEmbeddings: jest.fn(),
+      generateEmbedding: jest.fn(),
+    } as any;
+
+    mockProcessingCoordinator = {
+      process: jest.fn(),
     } as any;
 
     mockLoggerService = {
@@ -71,8 +81,10 @@ describe('VectorService', () => {
 
     vectorService = new VectorService(
       mockRepository,
-      mockCoordinator,
       mockCacheManager,
+      mockConversionService,
+      mockEmbeddingService,
+      mockProcessingCoordinator,
       mockLoggerService,
       mockErrorHandlerService
     );
@@ -193,13 +205,15 @@ describe('VectorService', () => {
         }
       ];
 
-      mockCoordinator.coordinateVectorCreation.mockResolvedValue(expectedVectors);
+      mockEmbeddingService.generateBatchEmbeddings.mockResolvedValue([[0.1, 0.2, 0.3, 0.4]]);
+      mockRepository.createBatch.mockResolvedValue(true as any);
 
       // Act
       const result = await vectorService.createVectors(content, options);
 
       // Assert
-      expect(result).toEqual(expectedVectors);
+      expect(result).toBeDefined();
+      expect(result.length).toBe(1);
       expect(mockLoggerService.info).toHaveBeenCalledWith('Creating vectors for 1 contents');
       expect(mockLoggerService.info).toHaveBeenCalledWith('Successfully created 1 vectors');
     });
@@ -209,7 +223,7 @@ describe('VectorService', () => {
       const content = ['function test() { return true; }'];
       const error = new Error('Vector creation failed');
 
-      mockCoordinator.coordinateVectorCreation.mockRejectedValue(error);
+      mockEmbeddingService.generateBatchEmbeddings.mockRejectedValue(error);
 
       // Act & Assert
       await expect(vectorService.createVectors(content)).rejects.toThrow('Vector creation failed');
@@ -265,14 +279,16 @@ describe('VectorService', () => {
         }
       ];
 
-      mockCoordinator.coordinateVectorSearch.mockResolvedValue(expectedResults);
+      mockCacheManager.getSearchResult.mockResolvedValue(null);
+      mockRepository.searchByVector.mockResolvedValue(expectedResults);
+      mockCacheManager.setSearchResult.mockResolvedValue(true as any);
 
       // Act
       const result = await vectorService.searchSimilarVectors(query, options);
 
       // Assert
       expect(result).toEqual(expectedResults);
-      expect(mockCoordinator.coordinateVectorSearch).toHaveBeenCalledWith(query, options);
+      expect(mockRepository.searchByVector).toHaveBeenCalledWith(query, options);
     });
 
     it('should handle errors during vector search', async () => {
@@ -280,7 +296,8 @@ describe('VectorService', () => {
       const query = [0.1, 0.2, 0.3, 0.4];
       const error = new Error('Vector search failed');
 
-      mockCoordinator.coordinateVectorSearch.mockRejectedValue(error);
+      mockCacheManager.getSearchResult.mockResolvedValue(null);
+      mockRepository.searchByVector.mockRejectedValue(error);
 
       // Act & Assert
       await expect(vectorService.searchSimilarVectors(query)).rejects.toThrow('Vector search failed');
@@ -304,14 +321,16 @@ describe('VectorService', () => {
         }
       ];
 
-      mockCoordinator.coordinateVectorSearch.mockResolvedValue(expectedResults);
+      mockEmbeddingService.generateEmbedding.mockResolvedValue([0.1, 0.2, 0.3]);
+      mockCacheManager.getSearchResult.mockResolvedValue(null);
+      mockRepository.searchByVector.mockResolvedValue(expectedResults);
 
       // Act
       const result = await vectorService.searchByContent(content, options);
 
       // Assert
       expect(result).toEqual(expectedResults);
-      expect(mockCoordinator.coordinateVectorSearch).toHaveBeenCalledWith(content, options);
+      expect(mockEmbeddingService.generateEmbedding).toHaveBeenCalledWith(content);
     });
 
     it('should handle errors during content search', async () => {
@@ -319,7 +338,7 @@ describe('VectorService', () => {
       const content = 'function test()';
       const error = new Error('Content search failed');
 
-      mockCoordinator.coordinateVectorSearch.mockRejectedValue(error);
+      mockEmbeddingService.generateEmbedding.mockRejectedValue(error);
 
       // Act & Assert
       await expect(vectorService.searchByContent(content)).rejects.toThrow('Content search failed');
@@ -334,24 +353,22 @@ describe('VectorService', () => {
     it('should process batch operations successfully', async () => {
       // Arrange
       const operations: VectorOperation[] = [
-        { type: 'create', data: {} as Vector },
+        { type: 'create', data: { id: 'v1', vector: [0.1], content: 'test', metadata: {}, timestamp: new Date() } as Vector },
         { type: 'delete', data: 'vector-id' }
       ];
-      const expectedResults: BatchResult = {
-        success: true,
-        processedCount: 2,
-        failedCount: 0,
-        executionTime: 100
-      };
 
-      mockCoordinator.coordinateBatchOperations.mockResolvedValue(expectedResults);
+      mockRepository.create.mockResolvedValue(true as any);
+      mockRepository.delete.mockResolvedValue(true);
 
       // Act
       const result = await vectorService.batchProcess(operations);
 
       // Assert
-      expect(result).toEqual(expectedResults);
-      expect(mockCoordinator.coordinateBatchOperations).toHaveBeenCalledWith(operations);
+      expect(result.success).toBe(true);
+      expect(result.processedCount).toBe(2);
+      expect(result.failedCount).toBe(0);
+      expect(mockRepository.create).toHaveBeenCalled();
+      expect(mockRepository.delete).toHaveBeenCalled();
     });
 
     it('should handle errors during batch processing', async () => {
@@ -359,7 +376,8 @@ describe('VectorService', () => {
       const operations: VectorOperation[] = [];
       const error = new Error('Batch processing failed');
 
-      mockCoordinator.coordinateBatchOperations.mockRejectedValue(error);
+      // Empty operations should complete successfully
+      // Act
 
       // Act & Assert
       await expect(vectorService.batchProcess(operations)).rejects.toThrow('Batch processing failed');

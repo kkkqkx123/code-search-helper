@@ -90,4 +90,11 @@ export interface IVectorService {
    * 获取性能指标
    */
   getPerformanceMetrics(): Promise<PerformanceMetrics>;
+
+  // === 文件处理 ===
+
+  /**
+   * 处理文件并生成向量点
+   */
+  processFileForEmbedding(filePath: string, projectPath: string): Promise<any[]>;
 }

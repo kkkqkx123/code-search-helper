@@ -24,7 +24,7 @@ import { DatabaseLoggerService } from '../../../database/common/DatabaseLoggerSe
 import { PerformanceMonitor } from '../../../infrastructure/monitoring/PerformanceMonitor';
 import { VectorIndexService } from '../../index/VectorIndexService';
 import { HybridIndexService } from '../../index/HybridIndexService';
-import { ChunkToVectorCoordinationService } from '../../parser/ChunkToVectorCoordinationService';
+
 import { CoreStateService } from '../services/CoreStateService';
 import { StorageStateService } from '../services/StorageStateService';
 
@@ -49,7 +49,7 @@ describe('ProjectStateManager', () => {
   let configService: jest.Mocked<ConfigService>;
   let mockFs: jest.Mocked<typeof import('fs/promises')>;
   let astSplitter: jest.Mocked<ASTCodeSplitter>;
-  let coordinationService: jest.Mocked<ChunkToVectorCoordinationService>;
+  let vectorService: jest.Mocked<any>;
   let coreStateService: jest.Mocked<CoreStateService>;
   let storageStateService: jest.Mocked<StorageStateService>;
 
@@ -157,7 +157,7 @@ describe('ProjectStateManager', () => {
     const mockCoordinationService = {
       processFileForEmbedding: jest.fn(),
       setProjectEmbedder: jest.fn(),
-    } as unknown as jest.Mocked<ChunkToVectorCoordinationService>;
+    } as unknown as jest.Mocked<any>;
 
     // Create mock performance optimizer service
     const mockPerformanceOptimizerService = {

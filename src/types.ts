@@ -97,7 +97,7 @@ export const TYPES = {
   TreeSitterService: Symbol.for('TreeSitterService'),
   TreeSitterCoreService: Symbol.for('TreeSitterCoreService'),
   TreeSitterQueryEngine: Symbol.for('TreeSitterQueryEngine'),
-  ChunkToVectorCoordinationService: Symbol.for('ChunkToVectorCoordinationService'),
+  
   UnifiedGuardCoordinator: Symbol.for('UnifiedGuardCoordinator'),
   IUnifiedGuardCoordinator: Symbol.for('IUnifiedGuardCoordinator'),
 

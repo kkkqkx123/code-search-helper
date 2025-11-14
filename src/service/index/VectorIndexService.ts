@@ -10,6 +10,7 @@ import { FileSystemTraversal } from '../filesystem/FileSystemTraversal';
 import { BatchProcessingService } from '../../infrastructure/batching/BatchProcessingService';
 import { IIndexService, IndexServiceType, IndexStatus, IndexOptions } from './IIndexService';
 import { IndexServiceError } from './errors/IndexServiceErrors';
+import { IVectorService } from '../vector/core/IVectorService';
 
 export interface VectorIndexOptions {
   embedder?: string;
@@ -57,6 +58,7 @@ export class VectorIndexService implements IIndexService {
     @inject(TYPES.EmbedderFactory) private embedderFactory: EmbedderFactory,
     @inject(TYPES.FileSystemTraversal) private fileTraversalService: FileSystemTraversal,
     @inject(TYPES.BatchProcessingService) private batchProcessor: BatchProcessingService,
+    @inject(TYPES.IVectorService) private vectorService: IVectorService,
   ) { }
 
   /**
@@ -612,10 +614,9 @@ export class VectorIndexService implements IIndexService {
    */
   private async indexFileDirectly(projectPath: string, filePath: string): Promise<void> {
     try {
-      // 使用 ChunkToVectorCoordinationService 处理文件
-      const coordinationService = this.batchProcessor as any;
-      if (coordinationService && coordinationService.processFileForEmbedding) {
-        const vectorPoints = await coordinationService.processFileForEmbedding(filePath, projectPath);
+      // 使用 VectorService 处理文件
+      if (this.vectorService && this.vectorService.processFileForEmbedding) {
+        const vectorPoints = await this.vectorService.processFileForEmbedding(filePath, projectPath);
 
         // 存储到 Qdrant 向量数据库
         const success = await this.qdrantService.upsertVectorsForProject(projectPath, vectorPoints);
@@ -624,8 +625,8 @@ export class VectorIndexService implements IIndexService {
           throw new Error(`Failed to store vectors for file: ${filePath}`);
         }
       } else {
-        // 如果没有协调服务，使用简化的处理方式
-        this.logger.warn(`ChunkToVectorCoordinationService not available, skipping file: ${filePath}`);
+        // 如果没有向量服务，使用简化的处理方式
+        this.logger.warn(`VectorService not available, skipping file: ${filePath}`);
       }
     } catch (error) {
       this.logger.error(`Failed to index file: ${filePath}`, { error });

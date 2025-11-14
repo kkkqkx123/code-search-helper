@@ -18,6 +18,25 @@ export interface VectorPoint {
     metadata: Record<string, any>;
     timestamp: Date;
     projectId?: string;
+    
+    // 保留上游模块提供的丰富信息
+    complexity?: number;
+    complexityAnalysis?: any;
+    nestingLevel?: number;
+    strategy?: string;
+    isSignatureOnly?: boolean;
+    originalStructure?: string;
+    
+    // AST和语义信息
+    astNodes?: any;
+    semanticBoundary?: any;
+    
+    // 其他有价值的元数据
+    size?: number;
+    lineCount?: number;
+    hash?: string;
+    overlapInfo?: any;
+    contextLines?: string[];
   };
 }
 

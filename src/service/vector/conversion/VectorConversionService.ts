@@ -29,12 +29,44 @@ export class VectorConversionService {
       vector: embeddings[index],
       content: chunk.content,
       metadata: {
+        // 基础信息
         projectId,
         filePath: chunk.metadata.filePath,
         language: chunk.metadata.language,
         startLine: chunk.metadata.startLine,
         endLine: chunk.metadata.endLine,
-        chunkType: ['code']
+        
+        // 类型信息 - 使用原始类型而不是硬编码
+        chunkType: chunk.metadata.type ? [chunk.metadata.type as string] : ['unknown'],
+        
+        // 保留上游模块提供的丰富信息
+        complexity: chunk.metadata.complexity,
+        complexityAnalysis: chunk.metadata.complexityAnalysis,
+        nestingLevel: chunk.metadata.nestingLevel,
+        strategy: chunk.metadata.strategy,
+        isSignatureOnly: chunk.metadata.isSignatureOnly,
+        originalStructure: chunk.metadata.originalStructure,
+        
+        // 函数和类信息
+        functionName: chunk.metadata.functionName,
+        className: chunk.metadata.className,
+        
+        // AST和语义信息
+        astNodes: chunk.metadata.astNodes,
+        semanticBoundary: chunk.metadata.semanticBoundary,
+        
+        // 其他有价值的元数据
+        size: chunk.metadata.size,
+        lineCount: chunk.metadata.lineCount,
+        timestamp: chunk.metadata.timestamp,
+        hash: chunk.metadata.hash,
+        
+        // 重叠和上下文信息
+        overlapInfo: chunk.metadata.overlapInfo,
+        contextLines: chunk.metadata.contextLines,
+        
+        // 自定义字段
+        customFields: this.extractCustomFields(chunk.metadata)
       },
       timestamp: new Date()
     }));
@@ -51,10 +83,31 @@ export class VectorConversionService {
         chunkType: vector.metadata.chunkType || [],
         startLine: vector.metadata.startLine || 0,
         endLine: vector.metadata.endLine || 0,
+        
+        // 丰富的元数据
         functionName: vector.metadata.functionName,
         className: vector.metadata.className,
+        complexity: vector.metadata.complexity,
+        complexityAnalysis: vector.metadata.complexityAnalysis,
+        nestingLevel: vector.metadata.nestingLevel,
+        strategy: vector.metadata.strategy,
+        isSignatureOnly: vector.metadata.isSignatureOnly,
+        originalStructure: vector.metadata.originalStructure,
+        
+        // AST和语义信息
+        astNodes: vector.metadata.astNodes,
+        semanticBoundary: vector.metadata.semanticBoundary,
+        
+        // 其他元数据
+        size: vector.metadata.size,
+        lineCount: vector.metadata.lineCount,
         snippetMetadata: vector.metadata.snippetMetadata,
-        metadata: vector.metadata.customFields || {},
+        metadata: {
+          ...vector.metadata.customFields,
+          hash: vector.metadata.hash,
+          overlapInfo: vector.metadata.overlapInfo,
+          contextLines: vector.metadata.contextLines
+        },
         timestamp: vector.timestamp,
         projectId: vector.metadata.projectId
       }
@@ -75,11 +128,96 @@ export class VectorConversionService {
         endLine: point.payload.endLine,
         functionName: point.payload.functionName,
         className: point.payload.className,
+        complexity: point.payload.complexity,
+        complexityAnalysis: point.payload.complexityAnalysis,
+        nestingLevel: point.payload.nestingLevel,
+        strategy: point.payload.strategy,
+        isSignatureOnly: point.payload.isSignatureOnly,
+        originalStructure: point.payload.originalStructure,
+        astNodes: point.payload.astNodes,
+        semanticBoundary: point.payload.semanticBoundary,
+        size: point.payload.size,
+        lineCount: point.payload.lineCount,
         snippetMetadata: point.payload.snippetMetadata,
         customFields: point.payload.metadata
       },
       timestamp: point.payload.timestamp
     };
+  }
+
+  /**
+   * 提取自定义字段，排除已知的标准字段
+   */
+  private extractCustomFields(metadata: any): Record<string, any> {
+    const customFields: Record<string, any> = {};
+    const excludedFields = new Set([
+      'filePath', 'language', 'startLine', 'endLine', 'type',
+      'complexity', 'complexityAnalysis', 'nestingLevel', 'strategy',
+      'isSignatureOnly', 'originalStructure', 'functionName', 'className',
+      'astNodes', 'semanticBoundary', 'size', 'lineCount', 'timestamp', 'hash',
+      'overlapInfo', 'contextLines'
+    ]);
+    
+    for (const [key, value] of Object.entries(metadata)) {
+      if (!excludedFields.has(key) && value !== undefined && value !== null) {
+        customFields[key] = value;
+      }
+    }
+    
+    return customFields;
+  }
+
+  /**
+   * 验证和过滤元数据
+   */
+  private validateAndFilterMetadata(metadata: any): any {
+    const filtered: any = {};
+    
+    // 验证必需字段
+    const requiredFields = ['filePath', 'language', 'startLine', 'endLine'];
+    for (const field of requiredFields) {
+      if (metadata[field] !== undefined && metadata[field] !== null) {
+        filtered[field] = metadata[field];
+      }
+    }
+    
+    // 处理可选字段
+    const optionalFields = [
+      'complexity', 'complexityAnalysis', 'nestingLevel', 'strategy',
+      'isSignatureOnly', 'originalStructure', 'functionName', 'className',
+      'astNodes', 'semanticBoundary', 'size', 'lineCount', 'timestamp', 'hash',
+      'overlapInfo', 'contextLines'
+    ];
+    
+    for (const field of optionalFields) {
+      if (metadata[field] !== undefined && metadata[field] !== null) {
+        // 对于大型对象（如AST节点），考虑压缩或简化
+        if (field === 'astNodes' && metadata[field] && typeof metadata[field] === 'object') {
+          filtered[field] = this.compressAstNodes(metadata[field]);
+        } else {
+          filtered[field] = metadata[field];
+        }
+      }
+    }
+    
+    return filtered;
+  }
+
+  /**
+   * 压缩AST节点信息，保留关键数据
+   */
+  private compressAstNodes(astNodes: any): any {
+    if (!astNodes || !Array.isArray(astNodes)) {
+      return astNodes;
+    }
+    
+    // 只保留关键信息，减少存储空间
+    return astNodes.map(node => ({
+      type: node.type,
+      startPosition: node.startPosition,
+      endPosition: node.endPosition,
+      text: node.text ? node.text.substring(0, 100) + (node.text.length > 100 ? '...' : '') : undefined
+    }));
   }
 
   private generateVectorId(chunk: CodeChunk, projectPath: string, index: number): string {

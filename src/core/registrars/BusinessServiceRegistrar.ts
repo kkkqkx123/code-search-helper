@@ -34,7 +34,7 @@ import { TreeSitterService } from '../../service/parser/core/parse/TreeSitterSer
 import { TreeSitterCoreService } from '../../service/parser/core/parse/TreeSitterCoreService';
 import { TreeSitterQueryEngine } from '../../service/parser/core/query/TreeSitterQueryExecutor';
 
-import { ChunkToVectorCoordinationService } from '../../service/parser/ChunkToVectorCoordinationService';
+
 import { QueryResultNormalizer } from '../../service/parser/core/normalization/QueryResultNormalizer';
 import { SegmentationConfigService } from '../../config/service/SegmentationConfigService';
 
@@ -188,7 +188,7 @@ export class BusinessServiceRegistrar {
       container.bind<TreeSitterCoreService>(TYPES.TreeSitterCoreService).to(TreeSitterCoreService).inSingletonScope();
       container.bind<TreeSitterService>(TYPES.TreeSitterService).to(TreeSitterService).inSingletonScope();
       container.bind<TreeSitterQueryEngine>(TYPES.TreeSitterQueryEngine).to(TreeSitterQueryEngine).inSingletonScope();
-      container.bind<ChunkToVectorCoordinationService>(TYPES.ChunkToVectorCoordinationService).to(ChunkToVectorCoordinationService).inSingletonScope();
+      
 
       // 标准化服务
       container.bind<QueryResultNormalizer>(TYPES.QueryResultNormalizer).to(QueryResultNormalizer).inSingletonScope();
