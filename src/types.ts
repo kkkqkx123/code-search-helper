@@ -85,6 +85,10 @@ export const TYPES = {
   VectorRepository: Symbol.for('VectorRepository'),
   VectorCoordinationService: Symbol.for('VectorCoordinationService'),
   VectorCacheManager: Symbol.for('VectorCacheManager'),
+  VectorEmbeddingService: Symbol.for('VectorEmbeddingService'),
+  VectorConversionService: Symbol.for('VectorConversionService'),
+  VectorBatchProcessor: Symbol.for('VectorBatchProcessor'),
+  VectorMetricsCollector: Symbol.for('VectorMetricsCollector'),
 
   // 10. 忽略规则管理
   IgnoreRuleManager: Symbol.for('IgnoreRuleManager'),

@@ -115,6 +115,10 @@ import { VectorCacheManager } from '../../service/vector/caching/VectorCacheMana
 import { IVectorService } from '../../service/vector/core/IVectorService';
 import { IVectorRepository } from '../../service/vector/repository/IVectorRepository';
 import { IVectorCoordinationService } from '../../service/vector/coordination/IVectorCoordinationService';
+import { VectorEmbeddingService } from '../../service/vector/embedding/VectorEmbeddingService';
+import { VectorConversionService } from '../../service/vector/conversion/VectorConversionService';
+import { VectorBatchProcessor } from '../../service/vector/operations/VectorBatchProcessor';
+import { VectorMetricsCollector } from '../../service/vector/monitoring/VectorMetricsCollector';
 import { IVectorCacheManager } from '../../service/vector/caching/IVectorCacheManager';
 
 export class BusinessServiceRegistrar {
@@ -154,6 +158,10 @@ export class BusinessServiceRegistrar {
       container.bind<IVectorRepository>(TYPES.IVectorRepository).to(VectorRepository).inSingletonScope();
       container.bind<IVectorCoordinationService>(TYPES.IVectorCoordinationService).to(VectorCoordinationService).inSingletonScope();
       container.bind<IVectorService>(TYPES.IVectorService).to(VectorService).inSingletonScope();
+      container.bind<VectorEmbeddingService>(TYPES.VectorEmbeddingService).to(VectorEmbeddingService).inSingletonScope();
+      container.bind<VectorConversionService>(TYPES.VectorConversionService).to(VectorConversionService).inSingletonScope();
+      container.bind<VectorBatchProcessor>(TYPES.VectorBatchProcessor).to(VectorBatchProcessor).inSingletonScope();
+      container.bind<VectorMetricsCollector>(TYPES.VectorMetricsCollector).to(VectorMetricsCollector).inSingletonScope();
       container.bind<VectorService>(TYPES.VectorService).to(VectorService).inSingletonScope();
 
       // 索引服务架构

@@ -1,17 +1,14 @@
 import { injectable, inject } from 'inversify';
-import { EmbedderFactory } from '../../embedders/EmbedderFactory';
-import { QdrantService } from '../../database/qdrant/QdrantService';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { VectorPoint } from '../../database/qdrant/IVectorStore';
-import { EmbeddingInput } from '../../embedders/BaseEmbedder';
-import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { CodeChunk } from './types';
-import { BatchProcessingService } from '../../infrastructure/batching/BatchProcessingService';
 import * as fs from 'fs/promises';
 import { GuardCoordinator } from './guard/GuardCoordinator';
 import { ProcessingCoordinator } from './processing/coordinator/ProcessingCoordinator';
+import { VectorEmbeddingService } from '../vector/embedding/VectorEmbeddingService';
+import { VectorConversionService } from '../vector/conversion/VectorConversionService';
 
 export interface ProcessingOptions {
   maxChunkSize?: number;
@@ -33,16 +30,15 @@ export class ChunkToVectorCoordinationService {
   private projectEmbedders: Map<string, string> = new Map(); // 存储项目对应的embedder
 
   constructor(
-    @inject(TYPES.EmbedderFactory) private embedderFactory: EmbedderFactory,
-    @inject(TYPES.QdrantService) private qdrantService: QdrantService,
     @inject(TYPES.LoggerService) private logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
-    @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
     @inject(TYPES.ProcessingGuard) private processingGuard: GuardCoordinator,
     @inject(TYPES.UnifiedProcessingCoordinator) private processingCoordinator: ProcessingCoordinator,
-    @inject(TYPES.BatchProcessingService) private batchOptimizer: BatchProcessingService
+    @inject(TYPES.VectorEmbeddingService) private embeddingService: VectorEmbeddingService,
+    @inject(TYPES.VectorConversionService) private conversionService: VectorConversionService
   ) {
     // 所有策略管理完全委托给 ProcessingCoordinator 和 GuardCoordinator
+    // 向量操作委托给 VectorEmbeddingService 和 VectorConversionService
   }
 
   async processFileForEmbedding(filePath: string, projectPath: string, options?: ProcessingOptions): Promise<VectorPoint[]> {
@@ -142,49 +138,21 @@ export class ChunkToVectorCoordinationService {
 
   /**
    * 将代码块转换为向量点
+   * 委托给 VectorEmbeddingService 和 VectorConversionService
    */
   private async convertToVectorPoints(chunks: CodeChunk[], projectPath: string, options?: ProcessingOptions): Promise<VectorPoint[]> {
-    // 准备嵌入输入
-    const embeddingInputs: EmbeddingInput[] = chunks.map(chunk => ({
-      text: chunk.content,
-      metadata: {
-        ...chunk.metadata,
-        filePath: chunk.metadata.filePath,
-        language: chunk.metadata.language,
-      }
-    }));
+    // 1. 生成嵌入向量
+    const contents = chunks.map(chunk => chunk.content);
+    const embeddings = await this.embeddingService.generateBatchEmbeddings(contents, {
+      provider: this.projectEmbedders.get(projectPath),
+      batchSize: options?.maxChunkSize
+    });
 
-    // 使用批处理优化器执行嵌入操作
-    const projectId = this.projectIdManager.getProjectId(projectPath);
-    const projectEmbedder = projectId ? this.projectEmbedders.get(projectId) || this.embedderFactory.getDefaultProvider() : this.embedderFactory.getDefaultProvider();
+    // 2. 转换为向量对象
+    const vectors = await this.conversionService.convertChunksToVectors(chunks, embeddings, projectPath);
 
-    const embeddingResults = await this.batchOptimizer.processBatches(
-      embeddingInputs,
-      async (batch: EmbeddingInput[]) => {
-        const result = await this.embedderFactory.embed(batch, projectEmbedder);
-        return Array.isArray(result) ? result : [result];
-      }
-    );
-
-    // 将多维数组结果展平
-    const flatEmbeddings = embeddingResults.flat();
-
-    // 创建向量点
-    return flatEmbeddings.map((embedding: any, index: number) => ({
-      id: `${this.projectIdManager.getProjectId(projectPath)}_${index}`,
-      vector: embedding.embedding || embedding,
-      payload: {
-        content: (chunks as any)[index].content,
-        filePath: (chunks as any)[index].metadata.filePath || '',
-        language: (chunks as any)[index].metadata.language || 'unknown',
-        chunkType: ['code'],
-        startLine: (chunks as any)[index].metadata.startLine,
-        endLine: (chunks as any)[index].metadata.endLine,
-        strategy: (chunks as any)[index].metadata.strategy || 'unknown',
-        metadata: (chunks as any)[index].metadata as any,
-        timestamp: new Date()
-      }
-    }));
+    // 3. 转换为向量点
+    return vectors.map(vector => this.conversionService.convertVectorToPoint(vector));
   }
 
   setProjectEmbedder(projectId: string, embedder: string): void {
