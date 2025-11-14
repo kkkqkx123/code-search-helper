@@ -152,6 +152,8 @@ export const TYPES = {
   GraphPersistenceService: Symbol.for('GraphPersistenceService'),
   GraphQueryBuilder: Symbol.for('GraphQueryBuilder'),
   IGraphQueryBuilder: Symbol.for('IGraphQueryBuilder'),
+  BusinessQueryBuilder: Symbol.for('BusinessQueryBuilder'),
+  IBusinessQueryBuilder: Symbol.for('IBusinessQueryBuilder'),
   GraphPerformanceMonitor: Symbol.for('GraphPerformanceMonitor'),
   GraphIndexPerformanceMonitor: Symbol.for('GraphIndexPerformanceMonitor'),
   GraphBatchOptimizer: Symbol.for('GraphBatchOptimizer'),
@@ -160,6 +162,14 @@ export const TYPES = {
   GraphQueryValidator: Symbol.for('GraphQueryValidator'),
   GraphDatabaseService: Symbol.for('GraphDatabaseService'),
   GraphAnalysisService: Symbol.for('GraphAnalysisService'),
+  
+  // 16. Repository层
+  GraphRepository: Symbol.for('GraphRepository'),
+  IGraphRepository: Symbol.for('IGraphRepository'),
+  NodeRepository: Symbol.for('NodeRepository'),
+  INodeRepository: Symbol.for('INodeRepository'),
+  RelationshipRepository: Symbol.for('RelationshipRepository'),
+  IRelationshipRepository: Symbol.for('IRelationshipRepository'),
   GraphDataService: Symbol.for('GraphDataService'),
   GraphSearchServiceNew: Symbol.for('GraphSearchServiceNew'),
 

@@ -5,14 +5,14 @@ import { LoggerService } from '../../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../../config/ConfigService';
 import { IGraphService } from '../IGraphService';
-import { GraphQueryBuilder } from '../../../../database/nebula/query/GraphQueryBuilder';
+import { BusinessQueryBuilder } from '../../query/BusinessQueryBuilder';
 
 describe('GraphDataService', () => {
   let container: Container;
   let graphDataService: GraphDataService;
   let mockConfigService: jest.Mocked<ConfigService>;
   let mockGraphService: jest.Mocked<IGraphService>;
-  let mockQueryBuilder: jest.Mocked<GraphQueryBuilder>;
+  let mockQueryBuilder: jest.Mocked<BusinessQueryBuilder>;
 
   beforeEach(() => {
     container = new Container();
@@ -102,7 +102,7 @@ describe('GraphDataService', () => {
     } as any);
     container.bind<ConfigService>(TYPES.ConfigService).toConstantValue(mockConfigService);
     container.bind<IGraphService>(TYPES.IGraphService).toConstantValue(mockGraphService);
-    container.bind<GraphQueryBuilder>(TYPES.GraphQueryBuilder).toConstantValue(mockQueryBuilder);
+    container.bind<BusinessQueryBuilder>(TYPES.BusinessQueryBuilder).toConstantValue(mockQueryBuilder);
     container.bind<GraphDataService>(GraphDataService).toSelf();
 
     graphDataService = container.get(GraphDataService);

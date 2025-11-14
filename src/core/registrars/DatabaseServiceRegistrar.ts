@@ -27,6 +27,12 @@ import { NebulaProjectManager } from '../../database/nebula/NebulaProjectManager
 // 新的图服务
 import { GraphService } from '../../service/graph/core/GraphService';
 import { IGraphService } from '../../service/graph/core/IGraphService';
+// Repository层
+import { GraphRepository } from '../../service/graph/repository/GraphRepository';
+import { IGraphRepository } from '../../service/graph/repository/IGraphRepository';
+
+// 业务查询构建器
+import { BusinessQueryBuilder, IBusinessQueryBuilder } from '../../service/graph/query/BusinessQueryBuilder';
 
 // Nebula图数据库服务
 import { NebulaConnectionManager } from '../../database/nebula/NebulaConnectionManager';
@@ -99,9 +105,15 @@ export class DatabaseServiceRegistrar {
       container.bind<IGraphService>(TYPES.IGraphService).to(GraphService).inSingletonScope();
       container.bind<GraphService>(TYPES.GraphService).to(GraphService).inSingletonScope();
       
+      // Repository层
+      container.bind<GraphRepository>(TYPES.GraphRepository).to(GraphRepository).inSingletonScope();
+      container.bind<IGraphRepository>(TYPES.IGraphRepository).to(GraphRepository).inSingletonScope();
+      
       // 图数据库核心服务（保留兼容性）
       container.bind<GraphQueryBuilder>(TYPES.GraphQueryBuilder).to(GraphQueryBuilder).inSingletonScope();
       container.bind<IGraphQueryBuilder>(TYPES.IGraphQueryBuilder).to(GraphQueryBuilder).inSingletonScope();
+      container.bind<BusinessQueryBuilder>(TYPES.BusinessQueryBuilder).to(BusinessQueryBuilder).inSingletonScope();
+      container.bind<IBusinessQueryBuilder>(TYPES.IBusinessQueryBuilder).to(BusinessQueryBuilder).inSingletonScope();
       container.bind<NebulaProjectManager>(TYPES.INebulaProjectManager).to(NebulaProjectManager).inSingletonScope();
 
       // Nebula图数据库服务

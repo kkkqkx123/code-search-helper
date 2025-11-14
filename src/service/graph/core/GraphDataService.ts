@@ -4,7 +4,7 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../config/ConfigService';
 import { IGraphService } from './IGraphService';
-import { GraphQueryBuilder } from '../../../database/nebula/query/GraphQueryBuilder';
+import { BusinessQueryBuilder } from '../query/BusinessQueryBuilder';
 import {
   GraphPersistenceOptions,
   GraphPersistenceResult,
@@ -19,7 +19,7 @@ export class GraphDataService implements IGraphDataService {
   private errorHandler: ErrorHandlerService;
   private configService: ConfigService;
   private graphService: IGraphService;
-  private queryBuilder: GraphQueryBuilder;
+  private queryBuilder: BusinessQueryBuilder;
   private isInitialized: boolean = false;
 
   constructor(
@@ -27,7 +27,7 @@ export class GraphDataService implements IGraphDataService {
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) configService: ConfigService,
     @inject(TYPES.IGraphService) graphService: IGraphService,
-    @inject(TYPES.GraphQueryBuilder) queryBuilder: GraphQueryBuilder,
+    @inject(TYPES.BusinessQueryBuilder) queryBuilder: BusinessQueryBuilder,
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
