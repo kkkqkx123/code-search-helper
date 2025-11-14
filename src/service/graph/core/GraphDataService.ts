@@ -3,10 +3,8 @@ import { TYPES } from '../../../types';
 import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../config/ConfigService';
-import { GraphDatabaseService } from '../../../database/graph/GraphDatabaseService';
+import { IGraphService } from './IGraphService';
 import { GraphQueryBuilder } from '../../../database/nebula/query/GraphQueryBuilder';
-import { ICacheService } from '../../../infrastructure/caching/types';
-import { IPerformanceMonitor } from '../../../infrastructure/monitoring/types';
 import {
   GraphPersistenceOptions,
   GraphPersistenceResult,
@@ -20,28 +18,22 @@ export class GraphDataService implements IGraphDataService {
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
   private configService: ConfigService;
-  private graphDatabase: GraphDatabaseService;
+  private graphService: IGraphService;
   private queryBuilder: GraphQueryBuilder;
-  private cacheService: ICacheService;
-  private performanceMonitor: IPerformanceMonitor;
   private isInitialized: boolean = false;
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) configService: ConfigService,
-    @inject(TYPES.GraphDatabaseService) graphDatabase: GraphDatabaseService,
+    @inject(TYPES.IGraphService) graphService: IGraphService,
     @inject(TYPES.GraphQueryBuilder) queryBuilder: GraphQueryBuilder,
-    @inject(TYPES.GraphCacheService) cacheService: ICacheService,
-    @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: IPerformanceMonitor
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
     this.configService = configService;
-    this.graphDatabase = graphDatabase;
+    this.graphService = graphService;
     this.queryBuilder = queryBuilder;
-    this.cacheService = cacheService;
-    this.performanceMonitor = performanceMonitor;
   }
 
   async initialize(): Promise<boolean> {
@@ -56,11 +48,11 @@ export class GraphDataService implements IGraphDataService {
 
       this.logger.info('Initializing graph data service');
 
-      // Ensure the graph database is initialized
-      if (!this.graphDatabase.isDatabaseConnected()) {
-        const initialized = await this.graphDatabase.initialize();
+      // Ensure the graph service is initialized
+      if (!this.graphService.isDatabaseConnected()) {
+        const initialized = await this.graphService.initialize();
         if (!initialized) {
-          throw new Error('Failed to initialize graph database');
+          throw new Error('Failed to initialize graph service');
         }
       }
 
@@ -106,17 +98,17 @@ export class GraphDataService implements IGraphDataService {
         this.logger.debug('Switching to project space', { projectSpaceName, projectId: options.projectId });
         
         // Check if space exists, create if not
-        const spaceExists = await this.graphDatabase.spaceExists(projectSpaceName);
+        const spaceExists = await this.graphService.spaceExists(projectSpaceName);
         if (!spaceExists) {
           this.logger.info('Creating project space', { projectSpaceName });
-          const created = await this.graphDatabase.createSpace(projectSpaceName);
+          const created = await this.graphService.createSpace(projectSpaceName);
           if (!created) {
             throw new Error(`Failed to create project space: ${projectSpaceName}`);
           }
         }
         
         // Switch to the project space
-        await this.graphDatabase.useSpace(projectSpaceName);
+        await this.graphService.useSpace(projectSpaceName);
         this.logger.debug('Successfully switched to project space', { projectSpaceName });
       }
 
@@ -127,7 +119,7 @@ export class GraphDataService implements IGraphDataService {
       }
 
       // Execute the queries in batch
-      const batchResult = await this.graphDatabase.executeBatch(queries);
+      const batchResult = await this.graphService.executeBatch(queries);
 
       if (batchResult.success) {
         result.success = true;
@@ -193,17 +185,17 @@ export class GraphDataService implements IGraphDataService {
         this.logger.debug('Switching to project space', { projectSpaceName, projectId: options.projectId });
         
         // Check if space exists, create if not
-        const spaceExists = await this.graphDatabase.spaceExists(projectSpaceName);
+        const spaceExists = await this.graphService.spaceExists(projectSpaceName);
         if (!spaceExists) {
           this.logger.info('Creating project space', { projectSpaceName });
-          const created = await this.graphDatabase.createSpace(projectSpaceName);
+          const created = await this.graphService.createSpace(projectSpaceName);
           if (!created) {
             throw new Error(`Failed to create project space: ${projectSpaceName}`);
           }
         }
         
         // Switch to the project space
-        await this.graphDatabase.useSpace(projectSpaceName);
+        await this.graphService.useSpace(projectSpaceName);
         this.logger.debug('Successfully switched to project space', { projectSpaceName });
       }
 
@@ -214,7 +206,7 @@ export class GraphDataService implements IGraphDataService {
       }
 
       // Execute the queries in batch
-      const batchResult = await this.graphDatabase.executeBatch(queries);
+      const batchResult = await this.graphService.executeBatch(queries);
 
       if (batchResult.success) {
         result.success = true;
@@ -275,7 +267,7 @@ export class GraphDataService implements IGraphDataService {
         LIMIT 100
       `;
 
-      const result = await this.graphDatabase.executeReadQuery(query);
+      const result = await this.graphService.executeReadQuery(query);
 
       if (result && result.data) {
         return result.data.map((record: any) => this.recordToGraphNode(record));
@@ -311,7 +303,7 @@ export class GraphDataService implements IGraphDataService {
 
       // Build the path query
       const query = this.queryBuilder.buildPathQuery(sourceId, targetId, maxDepth);
-      const result = await this.graphDatabase.executeReadQuery(query.nGQL, query.parameters);
+      const result = await this.graphService.executeReadQuery(query.nGQL, query.parameters);
 
       if (result && result.data) {
         return result.data.map((record: any) => this.recordToGraphRelationship(record, sourceId, targetId));
@@ -346,7 +338,7 @@ export class GraphDataService implements IGraphDataService {
       }));
 
       // Execute the queries in batch
-      const result = await this.graphDatabase.executeBatch(queries);
+      const result = await this.graphService.executeBatch(queries);
 
       if (result.success) {
         this.logger.info('Nodes deleted successfully', {
@@ -379,24 +371,24 @@ export class GraphDataService implements IGraphDataService {
       this.logger.info('Clearing graph');
 
       // Get the current space
-      const currentSpace = this.graphDatabase.getCurrentSpace();
+      const currentSpace = this.graphService.getCurrentSpace();
       if (!currentSpace) {
         throw new Error('No active space found');
       }
 
       // Delete and recreate the space
-      const deleted = await this.graphDatabase.deleteSpace(currentSpace);
+      const deleted = await this.graphService.deleteSpace(currentSpace);
       if (!deleted) {
         throw new Error('Failed to delete space');
       }
 
-      const created = await this.graphDatabase.createSpace(currentSpace);
+      const created = await this.graphService.createSpace(currentSpace);
       if (!created) {
         throw new Error('Failed to recreate space');
       }
 
       // Switch to the recreated space
-      await this.graphDatabase.useSpace(currentSpace);
+      await this.graphService.useSpace(currentSpace);
 
       this.logger.info('Graph cleared successfully');
       return true;
@@ -419,8 +411,8 @@ export class GraphDataService implements IGraphDataService {
     try {
       this.logger.info('Closing graph data service');
 
-      // Close the graph database service
-      await this.graphDatabase.close();
+      // Close the graph service
+      await this.graphService.close();
 
       this.isInitialized = false;
       this.logger.info('Graph data service closed successfully');
@@ -443,7 +435,7 @@ export class GraphDataService implements IGraphDataService {
     try {
       this.logger.debug('Executing raw query', { query: query.substring(0, 100) + '...' });
 
-      return await this.graphDatabase.executeReadQuery(query, parameters || {});
+      return await this.graphService.executeReadQuery(query, parameters || {});
     } catch (error) {
       this.errorHandler.handleError(
         new Error(

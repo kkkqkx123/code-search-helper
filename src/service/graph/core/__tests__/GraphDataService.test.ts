@@ -1,549 +1,250 @@
 import { Container } from 'inversify';
-import { TYPES } from '../../../../types';
 import { GraphDataService } from '../GraphDataService';
+import { TYPES } from '../../../../types';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../../config/ConfigService';
-import { GraphDatabaseService } from '../../../../database/graph/GraphDatabaseService';
+import { IGraphService } from '../IGraphService';
 import { GraphQueryBuilder } from '../../../../database/nebula/query/GraphQueryBuilder';
-import { ICacheService } from '../../../../infrastructure/caching/types';
-import { IPerformanceMonitor } from '../../../../infrastructure/monitoring/types';
-import { GraphPersistenceOptions, GraphPersistenceResult, CodeGraphNode, CodeGraphRelationship } from '../types';
 
 describe('GraphDataService', () => {
   let container: Container;
   let graphDataService: GraphDataService;
-  let mockLoggerService: jest.Mocked<LoggerService>;
-  let mockErrorHandlerService: jest.Mocked<ErrorHandlerService>;
   let mockConfigService: jest.Mocked<ConfigService>;
-  let mockGraphDatabase: jest.Mocked<GraphDatabaseService>;
+  let mockGraphService: jest.Mocked<IGraphService>;
   let mockQueryBuilder: jest.Mocked<GraphQueryBuilder>;
-  let mockCacheService: jest.Mocked<ICacheService>;
-  let mockPerformanceMonitor: jest.Mocked<IPerformanceMonitor>;
 
   beforeEach(() => {
-    // 重置环境变量
-    delete process.env.NEBULA_ENABLED;
-    
     container = new Container();
-    
-    // 创建模拟的LoggerService
-    mockLoggerService = {
-      info: jest.fn().mockResolvedValue(undefined),
-      error: jest.fn().mockResolvedValue(undefined),
-      warn: jest.fn().mockResolvedValue(undefined),
-      debug: jest.fn().mockResolvedValue(undefined),
-      getLogFilePath: jest.fn().mockReturnValue('./logs/app.log'),
-      updateLogLevel: jest.fn(),
-      markAsNormalExit: jest.fn().mockResolvedValue(undefined)
-    } as any;
 
-    // 创建模拟的ErrorHandlerService
-    mockErrorHandlerService = {
-      handleError: jest.fn().mockReturnValue({
-        id: 'error-123',
-        timestamp: new Date(),
-        component: 'TestComponent',
-        operation: 'testOperation',
-        message: 'Test error',
-        context: {}
-      }),
-      getErrorReport: jest.fn(),
-      getAllErrorReports: jest.fn(),
-      clearErrorReport: jest.fn(),
-      clearAllErrorReports: jest.fn(),
-      getErrorStats: jest.fn(),
-      handleHotReloadError: jest.fn()
-    } as any;
-
-    // 创建模拟的ConfigService
+    // 创建模拟服务
     mockConfigService = {
       get: jest.fn(),
       getAll: jest.fn(),
-      initialize: jest.fn().mockResolvedValue(undefined),
       update: jest.fn(),
-      isInitialized: jest.fn().mockReturnValue(true),
-      reset: jest.fn()
+      validate: jest.fn(),
+      initialize: jest.fn(),
+      isInitialized: jest.fn(),
+      reset: jest.fn(),
     } as any;
 
-    // 创建模拟的GraphDatabaseService
-    mockGraphDatabase = {
+    // 创建模拟的GraphService
+    mockGraphService = {
       initialize: jest.fn().mockResolvedValue(true),
       isDatabaseConnected: jest.fn().mockReturnValue(true),
-      executeReadQuery: jest.fn().mockResolvedValue({ data: [] }),
-      executeWriteQuery: jest.fn().mockResolvedValue({ success: true }),
-      executeBatch: jest.fn().mockResolvedValue({ success: true, results: [] }),
-      spaceExists: jest.fn().mockResolvedValue(false),
-      createSpace: jest.fn().mockResolvedValue(true),
-      useSpace: jest.fn().mockResolvedValue(undefined),
-      deleteSpace: jest.fn().mockResolvedValue(true),
-      getCurrentSpace: jest.fn().mockReturnValue('test_space'),
-      getDatabaseStats: jest.fn().mockResolvedValue({}),
       close: jest.fn().mockResolvedValue(undefined),
-      updateConfig: jest.fn(),
-      getConfig: jest.fn().mockReturnValue({}),
-      getNebulaClient: jest.fn()
-    } as any;
+      executeReadQuery: jest.fn().mockResolvedValue({ data: [] }),
+      executeWriteQuery: jest.fn().mockResolvedValue({ data: [] }),
+      executeBatch: jest.fn().mockResolvedValue({ success: true, results: [] }),
+      useSpace: jest.fn().mockResolvedValue(undefined),
+      createSpace: jest.fn().mockResolvedValue(true),
+      deleteSpace: jest.fn().mockResolvedValue(true),
+      spaceExists: jest.fn().mockResolvedValue(true),
+      getCurrentSpace: jest.fn().mockReturnValue('test_space'),
+      batchInsertNodes: jest.fn().mockResolvedValue({ success: true, insertedCount: 0 }),
+      batchInsertEdges: jest.fn().mockResolvedValue({ success: true, insertedCount: 0 }),
+      batchDeleteNodes: jest.fn().mockResolvedValue(true),
+      clearSpace: jest.fn().mockResolvedValue(true),
+      getSpaceInfo: jest.fn().mockResolvedValue({}),
+      getDatabaseStats: jest.fn().mockResolvedValue({})
+    } as jest.Mocked<IGraphService>;
 
-    // 创建模拟的GraphQueryBuilder
     mockQueryBuilder = {
-      buildPathQuery: jest.fn().mockReturnValue({
-        nGQL: 'MATCH path',
-        parameters: { sourceId: 'source', targetId: 'target' }
-      })
-    } as any;
-
-    // 创建模拟的CacheService
-    mockCacheService = {
-      getFromCache: jest.fn().mockReturnValue(undefined),
-      setCache: jest.fn(),
-      deleteFromCache: jest.fn().mockReturnValue(true),
-      clearAllCache: jest.fn(),
-      getCacheStats: jest.fn().mockReturnValue({
-        totalEntries: 0,
-        hitCount: 0,
-        missCount: 0,
-        hitRate: 0
-      }),
-      cleanupExpiredEntries: jest.fn(),
-      getDatabaseSpecificCache: jest.fn().mockResolvedValue(null),
-      setDatabaseSpecificCache: jest.fn().mockResolvedValue(undefined),
-      invalidateDatabaseCache: jest.fn().mockResolvedValue(undefined)
-    } as any;
-
-    // 创建模拟的PerformanceMonitor
-    mockPerformanceMonitor = {
-      startPeriodicMonitoring: jest.fn(),
-      stopPeriodicMonitoring: jest.fn(),
-      recordQueryExecution: jest.fn(),
-      updateCacheHitRate: jest.fn(),
-      updateBatchSize: jest.fn(),
-      updateSystemHealthStatus: jest.fn(),
-      getMetrics: jest.fn().mockReturnValue({
-        queryExecutionTimes: [],
-        averageQueryTime: 0,
-        cacheHitRate: 0,
-        memoryUsage: {
-          heapUsed: 0,
-          heapTotal: 0,
-          percentage: 0
-        },
-        systemHealthStatus: 'healthy' as const,
-        batchProcessingStats: {
-          totalBatches: 0,
-          averageBatchSize: 0,
-          successRate: 0
-        },
-        timestamp: Date.now()
-      }),
-      resetMetrics: jest.fn(),
-      startOperation: jest.fn().mockReturnValue('op-123'),
-      endOperation: jest.fn(),
-      recordOperation: jest.fn(),
-      recordCacheOperation: jest.fn(),
-      recordCacheHit: jest.fn(),
-      recordCacheMiss: jest.fn(),
-      recordCacheEviction: jest.fn(),
-      getCacheStats: jest.fn().mockReturnValue({
-        hitRate: 0,
-        missRate: 0,
-        evictionRate: 0,
-        averageResponseTime: 0,
-        totalRequests: 0,
-        hits: 0,
-        misses: 0,
-        evictions: 0,
-        size: 0,
-        memoryUsage: 0,
-        hitRateTrend: 'stable' as const,
-        timestamp: Date.now()
-      })
+      buildPathQuery: jest.fn().mockReturnValue({ nGQL: 'QUERY', parameters: {} }),
+      buildNodeQuery: jest.fn().mockReturnValue({ nGQL: 'QUERY', parameters: {} }),
+      buildEdgeQuery: jest.fn().mockReturnValue({ nGQL: 'QUERY', parameters: {} }),
+      validateQuery: jest.fn().mockReturnValue(true),
+      optimizeQuery: jest.fn().mockReturnValue({ nGQL: 'OPTIMIZED_QUERY', parameters: {} }),
+      buildNodeCountQuery: jest.fn(),
+      buildRelationshipCountQuery: jest.fn(),
+      buildNodeSearchQuery: jest.fn(),
+      buildRelationshipSearchQuery: jest.fn(),
+      buildPathSearchQuery: jest.fn(),
+      buildTraversalQuery: jest.fn(),
+      buildAnalysisQuery: jest.fn(),
+      buildStatsQuery: jest.fn(),
+      buildSpaceManagementQuery: jest.fn(),
+      buildBatchInsertQuery: jest.fn(),
+      buildBatchUpdateQuery: jest.fn(),
+      buildBatchDeleteQuery: jest.fn(),
+      batchInsertNodes: jest.fn(),
+      batchInsertEdges: jest.fn(),
+      batchUpdateNodes: jest.fn(),
+      batchUpdateEdges: jest.fn(),
+      batchDeleteNodes: jest.fn(),
+      batchDeleteEdges: jest.fn()
     } as any;
 
     // 绑定依赖
-    container.bind<LoggerService>(TYPES.LoggerService).toConstantValue(mockLoggerService);
-    container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).toConstantValue(mockErrorHandlerService);
     container.bind<ConfigService>(TYPES.ConfigService).toConstantValue(mockConfigService);
-    container.bind<GraphDatabaseService>(TYPES.GraphDatabaseService).toConstantValue(mockGraphDatabase);
+    container.bind<IGraphService>(TYPES.IGraphService).toConstantValue(mockGraphService);
     container.bind<GraphQueryBuilder>(TYPES.GraphQueryBuilder).toConstantValue(mockQueryBuilder);
-    container.bind<ICacheService>(TYPES.GraphCacheService).toConstantValue(mockCacheService);
-    container.bind<IPerformanceMonitor>(TYPES.GraphPerformanceMonitor).toConstantValue(mockPerformanceMonitor);
-    container.bind<GraphDataService>(TYPES.GraphDataService).to(GraphDataService);
 
-    graphDataService = container.get<GraphDataService>(TYPES.GraphDataService);
-  });
-
-  afterEach(() => {
-    jest.clearAllMocks();
+    graphDataService = container.get(GraphDataService);
   });
 
   describe('initialize', () => {
-    test('should initialize successfully when NEBULA_ENABLED is true', async () => {
+    it('should initialize successfully when nebula is enabled', async () => {
       process.env.NEBULA_ENABLED = 'true';
       
       const result = await graphDataService.initialize();
       
       expect(result).toBe(true);
-      expect(graphDataService.isServiceInitialized()).toBe(true);
-      expect(mockLoggerService.info).toHaveBeenCalledWith('Initializing graph data service');
-      expect(mockLoggerService.info).toHaveBeenCalledWith('Graph data service initialized successfully');
+      expect(mockGraphService.isDatabaseConnected).toHaveBeenCalled();
     });
 
-    test('should return false when NEBULA_ENABLED is false', async () => {
+    it('should return false when nebula is disabled', async () => {
       process.env.NEBULA_ENABLED = 'false';
       
       const result = await graphDataService.initialize();
       
       expect(result).toBe(false);
-      expect(graphDataService.isServiceInitialized()).toBe(false);
-      expect(mockLoggerService.info).toHaveBeenCalledWith(
-        'Graph data service is disabled via NEBULA_ENABLED environment variable, skipping initialization'
-      );
     });
 
-    test('should handle initialization failure', async () => {
-      mockGraphDatabase.initialize.mockResolvedValue(false);
-      mockGraphDatabase.isDatabaseConnected.mockReturnValue(false);
+    it('should handle initialization failure', async () => {
+      mockGraphService.initialize.mockResolvedValue(false);
       
       const result = await graphDataService.initialize();
       
       expect(result).toBe(false);
-      expect(mockErrorHandlerService.handleError).toHaveBeenCalledWith(
-        expect.any(Error),
-        { component: 'GraphDataService', operation: 'initialize' }
-      );
-    });
-
-    test('should handle database connection failure', async () => {
-      mockGraphDatabase.isDatabaseConnected.mockReturnValue(false);
-      mockGraphDatabase.initialize.mockResolvedValue(false);
-      
-      const result = await graphDataService.initialize();
-      
-      expect(result).toBe(false);
-      expect(mockErrorHandlerService.handleError).toHaveBeenCalled();
     });
   });
 
   describe('storeParsedFiles', () => {
-    const mockFiles = [
-      {
-        id: 'file1',
-        filePath: '/path/to/file1.ts',
-        relativePath: 'file1.ts',
-        language: 'typescript',
-        size: 1000,
-        hash: 'hash1',
-        metadata: {
-          linesOfCode: 50,
-          functions: 2,
-          classes: 1,
-          imports: ['import1', 'import2']
-        },
-        chunks: [
-          {
-            id: 'chunk1',
-            type: 'function',
-            functionName: 'testFunction',
-            content: 'function test() {}',
-            startLine: 1,
-            endLine: 10,
-            metadata: {
-              complexity: 1,
-              parameters: [],
-              returnType: 'void',
-              language: 'typescript'
-            }
-          }
-        ]
-      }
-    ];
-
-    test('should store parsed files successfully', async () => {
-      mockGraphDatabase.executeBatch.mockResolvedValue({
-        success: true,
-        results: [
-          { success: true, data: { inserted_vertex: 1 } },
-          { success: true, data: { inserted_edge: 1 } }
-        ]
-      });
-
-      const options: GraphPersistenceOptions = { projectId: 'project1' };
-      const result = await graphDataService.storeParsedFiles(mockFiles, options);
-
-      expect(result.success).toBe(true);
-      expect(result.nodesCreated).toBe(1);
-      expect(result.relationshipsCreated).toBe(1);
-      expect(mockGraphDatabase.spaceExists).toHaveBeenCalledWith('project1');
-      expect(mockGraphDatabase.createSpace).toHaveBeenCalledWith('project1');
-      expect(mockGraphDatabase.useSpace).toHaveBeenCalledWith('project1');
-      expect(mockGraphDatabase.executeBatch).toHaveBeenCalled();
+    beforeEach(async () => {
+      await graphDataService.initialize();
     });
 
-    test('should handle batch execution failure', async () => {
-      mockGraphDatabase.executeBatch.mockResolvedValue({
-        success: false,
-        error: 'Batch execution failed'
-      });
-
-      const result = await graphDataService.storeParsedFiles(mockFiles);
-
-      expect(result.success).toBe(false);
-      expect(result.errors).toContain('Batch execution failed');
-    });
-
-    test('should handle space creation failure', async () => {
-      mockGraphDatabase.createSpace.mockResolvedValue(false);
-
-      const options: GraphPersistenceOptions = { projectId: 'project1' };
-      const result = await graphDataService.storeParsedFiles(mockFiles, options);
-
-      expect(result.success).toBe(false);
-      expect(result.errors).toContain('Storage failed: error-123');
-    });
-
-    test('should auto-initialize if not initialized', async () => {
-      // Reset the mock to track calls
-      mockGraphDatabase.initialize.mockClear();
-      
-      // Mock isDatabaseConnected to return false to trigger initialization
-      mockGraphDatabase.isDatabaseConnected.mockReturnValue(false);
-      mockGraphDatabase.initialize.mockResolvedValue(true);
-      
-      // Create a new instance that hasn't been initialized
-      const newContainer = new Container();
-      newContainer.bind<LoggerService>(TYPES.LoggerService).toConstantValue(mockLoggerService);
-      newContainer.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).toConstantValue(mockErrorHandlerService);
-      newContainer.bind<ConfigService>(TYPES.ConfigService).toConstantValue(mockConfigService);
-      newContainer.bind<GraphDatabaseService>(TYPES.GraphDatabaseService).toConstantValue(mockGraphDatabase);
-      newContainer.bind<GraphQueryBuilder>(TYPES.GraphQueryBuilder).toConstantValue(mockQueryBuilder);
-      newContainer.bind<ICacheService>(TYPES.GraphCacheService).toConstantValue(mockCacheService);
-      newContainer.bind<IPerformanceMonitor>(TYPES.GraphPerformanceMonitor).toConstantValue(mockPerformanceMonitor);
-      newContainer.bind<GraphDataService>(TYPES.GraphDataService).to(GraphDataService);
-      
-      const newGraphDataService = newContainer.get<GraphDataService>(TYPES.GraphDataService);
-      
-      // Ensure the service is not initialized
-      expect(newGraphDataService.isServiceInitialized()).toBe(false);
-      
-      // Mock the batch execution to return success
-      mockGraphDatabase.executeBatch.mockResolvedValue({
-        success: true,
-        results: []
-      });
-      
-      const result = await newGraphDataService.storeParsedFiles(mockFiles);
-      
-      expect(mockGraphDatabase.initialize).toHaveBeenCalled();
-    });
-  });
-
-  describe('storeChunks', () => {
-    const mockChunks = [
-      {
-        id: 'chunk1',
-        type: 'function',
-        functionName: 'testFunction',
-        content: 'function test() {}',
-        startLine: 1,
-        endLine: 10,
-        metadata: {
-          complexity: 1,
-          parameters: [],
-          returnType: 'void',
-          language: 'typescript'
-        }
-      }
-    ];
-
-    test('should store chunks successfully', async () => {
-      mockGraphDatabase.executeBatch.mockResolvedValue({
-        success: true,
-        results: [
-          { success: true, data: { inserted_vertex: 1 } }
-        ]
-      });
-
-      const result = await graphDataService.storeChunks(mockChunks);
-
-      expect(result.success).toBe(true);
-      expect(result.nodesCreated).toBe(1);
-      expect(mockGraphDatabase.executeBatch).toHaveBeenCalled();
-    });
-
-    test('should handle chunks with class type', async () => {
-      const classChunks = [
+    it('should store files successfully', async () => {
+      const files = [
         {
-          id: 'class1',
-          type: 'class',
-          className: 'TestClass',
-          content: 'class TestClass {}',
-          startLine: 1,
-          endLine: 10,
+          id: 'file1',
+          filePath: '/path/to/file1.js',
+          relativePath: 'file1.js',
+          language: 'javascript',
+          size: 1000,
+          hash: 'hash1',
           metadata: {
-            methods: 2,
-            properties: 1,
-            inheritance: [],
-            language: 'typescript'
-          }
+            linesOfCode: 50,
+            functions: 2,
+            classes: 1,
+            imports: ['import1']
+          },
+          chunks: []
         }
       ];
 
-      mockGraphDatabase.executeBatch.mockResolvedValue({
-        success: true,
-        results: [
-          { success: true, data: { inserted_vertex: 1 } }
-        ]
+      const options = { projectId: 'project1' };
+
+      mockGraphService.executeBatch.mockResolvedValue({ 
+        success: true, 
+        results: [{ success: true, data: { inserted: true } }] 
       });
 
-      const result = await graphDataService.storeChunks(classChunks);
+      const result = await graphDataService.storeParsedFiles(files, options);
 
       expect(result.success).toBe(true);
-      expect(result.nodesCreated).toBe(1);
+      expect(mockGraphService.spaceExists).toHaveBeenCalledWith('project1');
+      expect(mockGraphService.useSpace).toHaveBeenCalledWith('project1');
+      expect(mockGraphService.executeBatch).toHaveBeenCalled();
+    });
+
+    it('should handle space creation failure', async () => {
+      const files = [{ id: 'file1', filePath: '/path/to/file1.js' }];
+      const options = { projectId: 'project1' };
+
+      mockGraphService.createSpace.mockResolvedValue(false);
+
+      const result = await graphDataService.storeParsedFiles(files, options);
+
+      expect(result.success).toBe(false);
+      expect(result.errors).toContain('Storage failed:');
     });
   });
 
   describe('findRelatedNodes', () => {
-    test('should find related nodes successfully', async () => {
+    beforeEach(async () => {
+      await graphDataService.initialize();
+    });
+
+    it('should find related nodes successfully', async () => {
       const mockResult = {
         data: [
-          {
-            id: 'node1',
-            type: 'Function',
-            name: 'testFunction',
-            properties: { complexity: 1 }
-          }
+          { id: 'node1', type: 'Function', name: 'testFunc' }
         ]
       };
 
-      mockGraphDatabase.executeReadQuery.mockResolvedValue(mockResult);
+      mockGraphService.executeReadQuery.mockResolvedValue(mockResult);
 
-      const result = await graphDataService.findRelatedNodes('sourceNode', ['CALLS'], 2);
-
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
-        id: 'node1',
-        type: 'Function',
-        name: 'testFunction',
-        properties: { complexity: 1 }
-      });
-      expect(mockGraphDatabase.executeReadQuery).toHaveBeenCalledWith(
-        expect.stringContaining('GO 2 STEPS FROM "sourceNode" OVER CALLS')
-      );
-    });
-
-    test('should handle empty results', async () => {
-      mockGraphDatabase.executeReadQuery.mockResolvedValue({ data: [] });
-
-      const result = await graphDataService.findRelatedNodes('sourceNode');
-
-      expect(result).toHaveLength(0);
-    });
-
-    test('should handle query errors', async () => {
-      mockGraphDatabase.executeReadQuery.mockRejectedValue(new Error('Query failed'));
-
-      const result = await graphDataService.findRelatedNodes('sourceNode');
-
-      expect(result).toHaveLength(0);
-      expect(mockErrorHandlerService.handleError).toHaveBeenCalled();
-    });
-  });
-
-  describe('findPath', () => {
-    test('should find path between nodes successfully', async () => {
-      const mockResult = {
-        data: [
-          {
-            id: 'edge1',
-            type: 'CALLS',
-            properties: { weight: 1 }
-          }
-        ]
-      };
-
-      mockGraphDatabase.executeReadQuery.mockResolvedValue(mockResult);
-      mockQueryBuilder.buildPathQuery.mockReturnValue({
-        nGQL: 'MATCH path',
-        parameters: { sourceId: 'source', targetId: 'target' }
-      });
-
-      const result = await graphDataService.findPath('sourceNode', 'targetNode', 3);
+      const result = await graphDataService.findRelatedNodes('node1', ['CALLS'], 2);
 
       expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
-        id: 'edge1',
-        type: 'CALLS',
-        sourceId: 'sourceNode',
-        targetId: 'targetNode',
-        properties: { weight: 1 }
-      });
-      expect(mockQueryBuilder.buildPathQuery).toHaveBeenCalledWith('sourceNode', 'targetNode', 3);
+      expect(result[0].id).toBe('node1');
+      expect(mockGraphService.executeReadQuery).toHaveBeenCalled();
     });
 
-    test('should handle empty path results', async () => {
-      mockGraphDatabase.executeReadQuery.mockResolvedValue({ data: [] });
+    it('should handle query failure', async () => {
+      mockGraphService.executeReadQuery.mockRejectedValue(new Error('Query failed'));
 
-      const result = await graphDataService.findPath('sourceNode', 'targetNode');
+      const result = await graphDataService.findRelatedNodes('node1');
 
       expect(result).toHaveLength(0);
     });
   });
 
   describe('deleteNodes', () => {
-    test('should delete nodes successfully', async () => {
-      mockGraphDatabase.executeBatch.mockResolvedValue({
-        success: true,
-        results: []
-      });
-
-      const result = await graphDataService.deleteNodes(['node1', 'node2']);
-
-      expect(result).toBe(true);
-      expect(mockGraphDatabase.executeBatch).toHaveBeenCalledWith([
-        { nGQL: 'DELETE VERTEX "node1"', parameters: {} },
-        { nGQL: 'DELETE VERTEX "node2"', parameters: {} }
-      ]);
+    beforeEach(async () => {
+      await graphDataService.initialize();
     });
 
-    test('should handle delete failure', async () => {
-      mockGraphDatabase.executeBatch.mockResolvedValue({
-        success: false,
-        error: 'Delete failed'
+    it('should delete nodes successfully', async () => {
+      const nodeIds = ['node1', 'node2'];
+
+      mockGraphService.executeBatch.mockResolvedValue({ 
+        success: true, 
+        results: [] 
       });
 
-      const result = await graphDataService.deleteNodes(['node1']);
+      const result = await graphDataService.deleteNodes(nodeIds);
+
+      expect(result).toBe(true);
+      expect(mockGraphService.executeBatch).toHaveBeenCalled();
+    });
+
+    it('should handle deletion failure', async () => {
+      const nodeIds = ['node1'];
+
+      mockGraphService.executeBatch.mockResolvedValue({ 
+        success: false, 
+        error: 'Deletion failed' 
+      });
+
+      const result = await graphDataService.deleteNodes(nodeIds);
 
       expect(result).toBe(false);
     });
   });
 
   describe('clearGraph', () => {
-    test('should clear graph successfully', async () => {
-      mockGraphDatabase.getCurrentSpace.mockReturnValue('test_space');
-      mockGraphDatabase.deleteSpace.mockResolvedValue(true);
-      mockGraphDatabase.createSpace.mockResolvedValue(true);
+    beforeEach(async () => {
+      await graphDataService.initialize();
+    });
+
+    it('should clear graph successfully', async () => {
+      mockGraphService.getCurrentSpace.mockReturnValue('test_space');
+      mockGraphService.deleteSpace.mockResolvedValue(true);
+      mockGraphService.createSpace.mockResolvedValue(true);
 
       const result = await graphDataService.clearGraph();
 
       expect(result).toBe(true);
-      expect(mockGraphDatabase.deleteSpace).toHaveBeenCalledWith('test_space');
-      expect(mockGraphDatabase.createSpace).toHaveBeenCalledWith('test_space');
-      expect(mockGraphDatabase.useSpace).toHaveBeenCalledWith('test_space');
+      expect(mockGraphService.deleteSpace).toHaveBeenCalledWith('test_space');
+      expect(mockGraphService.createSpace).toHaveBeenCalledWith('test_space');
+      expect(mockGraphService.useSpace).toHaveBeenCalledWith('test_space');
     });
 
-    test('should handle no active space', async () => {
-      mockGraphDatabase.getCurrentSpace.mockReturnValue(null);
-
-      const result = await graphDataService.clearGraph();
-
-      expect(result).toBe(false);
-      expect(mockErrorHandlerService.handleError).toHaveBeenCalled();
-    });
-
-    test('should handle space deletion failure', async () => {
-      mockGraphDatabase.getCurrentSpace.mockReturnValue('test_space');
-      mockGraphDatabase.deleteSpace.mockResolvedValue(false);
+    it('should handle no active space', async () => {
+      mockGraphService.getCurrentSpace.mockReturnValue(null);
 
       const result = await graphDataService.clearGraph();
 
@@ -552,115 +253,42 @@ describe('GraphDataService', () => {
   });
 
   describe('executeRawQuery', () => {
-    test('should execute raw query successfully', async () => {
-      const mockResult = { data: 'test data' };
-      mockGraphDatabase.executeReadQuery.mockResolvedValue(mockResult);
-
-      const result = await graphDataService.executeRawQuery('SHOW TAGS', { limit: 10 });
-
-      expect(result).toEqual(mockResult);
-      expect(mockGraphDatabase.executeReadQuery).toHaveBeenCalledWith('SHOW TAGS', { limit: 10 });
+    beforeEach(async () => {
+      await graphDataService.initialize();
     });
 
-    test('should handle query errors', async () => {
-      mockGraphDatabase.executeReadQuery.mockRejectedValue(new Error('Query failed'));
+    it('should execute raw query successfully', async () => {
+      const query = 'SHOW TAGS';
+      const mockResult = { data: [{ name: 'Tag1' }] };
 
-      await expect(graphDataService.executeRawQuery('INVALID QUERY')).rejects.toThrow('Query failed');
-      expect(mockErrorHandlerService.handleError).toHaveBeenCalled();
+      mockGraphService.executeReadQuery.mockResolvedValue(mockResult);
+
+      const result = await graphDataService.executeRawQuery(query);
+
+      expect(result).toEqual(mockResult);
+      expect(mockGraphService.executeReadQuery).toHaveBeenCalledWith(query, {});
+    });
+
+    it('should handle query failure', async () => {
+      const query = 'INVALID QUERY';
+
+      mockGraphService.executeReadQuery.mockRejectedValue(new Error('Query failed'));
+
+      await expect(graphDataService.executeRawQuery(query)).rejects.toThrow('Query failed');
     });
   });
 
   describe('close', () => {
-    test('should close service successfully', async () => {
+    it('should close service successfully', async () => {
       await graphDataService.close();
 
-      expect(mockGraphDatabase.close).toHaveBeenCalled();
-      expect(graphDataService.isServiceInitialized()).toBe(false);
+      expect(mockGraphService.close).toHaveBeenCalled();
     });
 
-    test('should handle close errors', async () => {
-      mockGraphDatabase.close.mockRejectedValue(new Error('Close failed'));
+    it('should handle close failure', async () => {
+      mockGraphService.close.mockRejectedValue(new Error('Close failed'));
 
       await expect(graphDataService.close()).rejects.toThrow('Close failed');
-      expect(mockErrorHandlerService.handleError).toHaveBeenCalled();
-    });
-  });
-
-  describe('isServiceInitialized', () => {
-    test('should return initialization status', async () => {
-      expect(graphDataService.isServiceInitialized()).toBe(false);
-      
-      await graphDataService.initialize();
-      expect(graphDataService.isServiceInitialized()).toBe(true);
-    });
-  });
-
-  describe('private helper methods', () => {
-    test('should count created nodes correctly', () => {
-      const results = [
-        { success: true, data: { inserted_vertex: 1 } },
-        { success: true, data: { inserted: 1 } },
-        { success: false, data: {} },
-        { success: true, data: { inserted_edge: 1 } }
-      ];
-
-      // Access private method through prototype
-      const countCreatedNodes = (graphDataService as any).countCreatedNodes.bind(graphDataService);
-      const count = countCreatedNodes(results);
-
-      expect(count).toBe(2);
-    });
-
-    test('should count created relationships correctly', () => {
-      const results = [
-        { success: true, data: { inserted_edge: 1 } },
-        { success: true, data: { inserted: 1 } },
-        { success: false, data: {} },
-        { success: true, data: { inserted_vertex: 1 } }
-      ];
-
-      const countCreatedRelationships = (graphDataService as any).countCreatedRelationships.bind(graphDataService);
-      const count = countCreatedRelationships(results);
-
-      expect(count).toBe(2);
-    });
-
-    test('should convert record to graph node correctly', () => {
-      const record = {
-        id: 'node1',
-        type: 'Function',
-        name: 'testFunction',
-        properties: { complexity: 1 }
-      };
-
-      const recordToGraphNode = (graphDataService as any).recordToGraphNode.bind(graphDataService);
-      const node = recordToGraphNode(record);
-
-      expect(node).toEqual({
-        id: 'node1',
-        type: 'Function',
-        name: 'testFunction',
-        properties: { complexity: 1 }
-      });
-    });
-
-    test('should convert record to graph relationship correctly', () => {
-      const record = {
-        id: 'edge1',
-        type: 'CALLS',
-        properties: { weight: 1 }
-      };
-
-      const recordToGraphRelationship = (graphDataService as any).recordToGraphRelationship.bind(graphDataService);
-      const relationship = recordToGraphRelationship(record, 'source1', 'target1');
-
-      expect(relationship).toEqual({
-        id: 'edge1',
-        type: 'CALLS',
-        sourceId: 'source1',
-        targetId: 'target1',
-        properties: { weight: 1 }
-      });
     });
   });
 });

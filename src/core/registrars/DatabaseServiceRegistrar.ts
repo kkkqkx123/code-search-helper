@@ -20,10 +20,13 @@ import { DatabaseLoggerService } from '../../database/common/DatabaseLoggerServi
 import { EventToLogBridge } from '../../database/common/EventToLogBridge';
 
 // 图数据库服务
-import { GraphDatabaseService } from '../../database/graph/GraphDatabaseService';
-import { IGraphDatabaseService, INebulaClient } from '../../database/graph/interfaces';
+import { INebulaClient } from '../../database/nebula/client/NebulaClient';
 import { GraphQueryBuilder, IGraphQueryBuilder } from '../../database/nebula/query/GraphQueryBuilder';
 import { NebulaProjectManager } from '../../database/nebula/NebulaProjectManager';
+
+// 新的图服务
+import { GraphService } from '../../service/graph/core/GraphService';
+import { IGraphService } from '../../service/graph/core/IGraphService';
 
 // Nebula图数据库服务
 import { NebulaConnectionManager } from '../../database/nebula/NebulaConnectionManager';
@@ -69,7 +72,6 @@ import { SqliteProjectManager } from '../../database/splite/SqliteProjectManager
 // 图数据映射和验证服务
 import { GraphDataMappingService } from '../../service/graph/mapping/GraphDataMappingService';
 import { DataConsistencyChecker } from '../../database/common/DataConsistencyChecker';
-import { IGraphService } from '../../service/graph/core/IGraphService';
 import { DataMappingValidator } from '../../service/graph/mapping/DataMappingValidator';
 import { GraphMappingCache } from '../../service/graph/caching/GraphMappingCache';
 
@@ -93,9 +95,11 @@ export class DatabaseServiceRegistrar {
       container.bind<QdrantProjectManager>(TYPES.IQdrantProjectManager).to(QdrantProjectManager).inSingletonScope();
       container.bind<QdrantService>(TYPES.QdrantService).to(QdrantService).inSingletonScope();
 
-      // 图数据库核心服务
-      container.bind<IGraphDatabaseService>(TYPES.IGraphDatabaseService).to(GraphDatabaseService).inSingletonScope();
-      container.bind<GraphDatabaseService>(TYPES.GraphDatabaseService).to(GraphDatabaseService).inSingletonScope();
+      // 新的图服务绑定
+      container.bind<IGraphService>(TYPES.IGraphService).to(GraphService).inSingletonScope();
+      container.bind<GraphService>(TYPES.GraphService).to(GraphService).inSingletonScope();
+      
+      // 图数据库核心服务（保留兼容性）
       container.bind<GraphQueryBuilder>(TYPES.GraphQueryBuilder).to(GraphQueryBuilder).inSingletonScope();
       container.bind<IGraphQueryBuilder>(TYPES.IGraphQueryBuilder).to(GraphQueryBuilder).inSingletonScope();
       container.bind<NebulaProjectManager>(TYPES.INebulaProjectManager).to(NebulaProjectManager).inSingletonScope();

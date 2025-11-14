@@ -7,7 +7,57 @@ import { NebulaConfigService } from '../../../config/service/NebulaConfigService
 import { PerformanceMonitor } from '../../../infrastructure/monitoring/PerformanceMonitor';
 import { NebulaConfig, NebulaConnectionStatus, NebulaQueryResult } from '../NebulaTypes';
 import { IQueryRunner } from '../query/QueryRunner';
-import { INebulaClient, QueryBatch, QueryOptions } from '../../graph/interfaces';
+
+// 查询批次接口
+export interface QueryBatch {
+  query: string;
+  params?: Record<string, any>;
+}
+
+// 查询选项接口
+export interface QueryOptions {
+  timeout?: number;
+  retryAttempts?: number;
+  useCache?: boolean;
+}
+
+// NebulaClient 接口
+export interface INebulaClient {
+  // 基础操作
+  initialize(config?: any): Promise<boolean>;
+  isConnected(): boolean;
+  isInitialized(): boolean;
+  close(): Promise<void>;
+  reconnect(): Promise<boolean>;
+
+  // 连接管理
+  connect(): Promise<void>;
+  disconnect(): Promise<void>;
+
+  // 查询执行
+  execute(query: string, params?: Record<string, any>, options?: QueryOptions): Promise<any>;
+  executeQuery(query: string, params?: Record<string, any>, options?: QueryOptions): Promise<any>;
+  executeBatch(queries: QueryBatch[]): Promise<any[]>;
+
+  // 统计信息
+  getStats(): any;
+
+  // 配置管理
+  updateConfig(config: Partial<any>): void;
+  getConfig(): any;
+
+  // 事件订阅
+  on(event: string, listener: Function): void;
+  off(event: string, listener: Function): void;
+  emit(event: string, ...args: any[]): boolean;
+
+  // 健康检查
+  healthCheck(): Promise<{
+    status: 'healthy' | 'unhealthy';
+    details?: any;
+    error?: string;
+  }>;
+}
 
 /**
  * Nebula Graph 底层客户端
@@ -421,70 +471,67 @@ export class NebulaClient extends EventEmitter implements INebulaClient {
   }
 
  /**
-  * 确保已连接
-  */
- private ensureConnected(): void {
-   if (!this.isConnectedFlag) {
-     throw new Error('Not connected to Nebula Graph');
-   }
- }
-
- /**
-  * 获取数据库统计信息
-  */
- async getDatabaseStats(): Promise<any> {
-   this.ensureConnected();
-   
-   // 获取当前连接状态和基本统计
-   const stats = this.getStats();
-   
-   // 尝试获取更多数据库特定的统计信息
-   try {
-     const spacesResult = await this.execute('SHOW SPACES');
-     const spaces = spacesResult?.data || [];
-     
-     return {
-       ...stats,
-       spaces: spaces.length,
-       connected: this.isConnectedFlag,
-       connectionStatus: this.connectionStatus
-     };
-   } catch (error) {
-     this.logger.error('Failed to get database stats', error);
-     return {
-       ...stats,
-       error: error instanceof Error ? error.message : String(error),
-       connected: this.isConnectedFlag
-     };
-   }
- }
-
- /**
-  * 删除项目空间
-  */
- async deleteSpaceForProject(projectPath: string): Promise<boolean> {
-   try {
-     this.logger.info('Deleting space for project', { projectPath });
-     
-     // 生成空间名称
-     const spaceName = projectPath.startsWith('project_')
-       ? projectPath
-       : `project_${projectPath.replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase()}`;
-     
-     // 执行删除空间的查询
-     await this.execute(`DROP SPACE IF EXISTS ${spaceName}`);
-     
-     this.logger.info('Successfully deleted space for project', { projectPath, spaceName });
-     return true;
-   } catch (error) {
-     this.errorHandler.handleError(
-       error instanceof Error ? error : new Error(String(error)),
-       { component: 'NebulaClient', operation: 'deleteSpaceForProject', projectPath }
-     );
-     return false;
-   }
- }
+ * 确保已连接
+ */
+private ensureConnected(): void {
+  if (!this.isConnectedFlag) {
+    throw new Error('Not connected to Nebula Graph');
+  }
 }
 
-// 重新导出接口以保持向后兼容
-export { INebulaClient, QueryBatch, QueryOptions } from '../../graph/interfaces';
+/**
+ * 获取数据库统计信息
+ */
+async getDatabaseStats(): Promise<any> {
+  this.ensureConnected();
+  
+  // 获取当前连接状态和基本统计
+  const stats = this.getStats();
+  
+  // 尝试获取更多数据库特定的统计信息
+  try {
+    const spacesResult = await this.execute('SHOW SPACES');
+    const spaces = spacesResult?.data || [];
+    
+    return {
+      ...stats,
+      spaces: spaces.length,
+      connected: this.isConnectedFlag,
+      connectionStatus: this.connectionStatus
+    };
+  } catch (error) {
+    this.logger.error('Failed to get database stats', error);
+    return {
+      ...stats,
+      error: error instanceof Error ? error.message : String(error),
+      connected: this.isConnectedFlag
+    };
+  }
+}
+
+/**
+ * 删除项目空间
+ */
+async deleteSpaceForProject(projectPath: string): Promise<boolean> {
+  try {
+    this.logger.info('Deleting space for project', { projectPath });
+    
+    // 生成空间名称
+    const spaceName = projectPath.startsWith('project_')
+      ? projectPath
+      : `project_${projectPath.replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase()}`;
+    
+    // 执行删除空间的查询
+    await this.execute(`DROP SPACE IF EXISTS ${spaceName}`);
+    
+    this.logger.info('Successfully deleted space for project', { projectPath, spaceName });
+    return true;
+  } catch (error) {
+    this.errorHandler.handleError(
+      error instanceof Error ? error : new Error(String(error)),
+      { component: 'NebulaClient', operation: 'deleteSpaceForProject', projectPath }
+    );
+    return false;
+  }
+}
+}

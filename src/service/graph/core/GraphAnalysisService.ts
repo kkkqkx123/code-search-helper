@@ -4,7 +4,6 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../config/ConfigService';
 import { IGraphService } from './IGraphService';
-import { ICacheService } from '../../../infrastructure/caching/types';
 import { IPerformanceMonitor } from '../../../infrastructure/monitoring/types';
 import {
   GraphAnalysisOptions,
@@ -22,7 +21,6 @@ export class GraphAnalysisService {
   private errorHandler: ErrorHandlerService;
   private configService: ConfigService;
   private graphService: IGraphService;
-  private cacheService: ICacheService;
   private performanceMonitor: IPerformanceMonitor;
   private isInitialized: boolean = false;
 
@@ -31,14 +29,12 @@ export class GraphAnalysisService {
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) configService: ConfigService,
     @inject(TYPES.IGraphService) graphService: IGraphService,
-    @inject(TYPES.GraphCacheService) cacheService: ICacheService,
     @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: IPerformanceMonitor
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
     this.configService = configService;
     this.graphService = graphService;
-    this.cacheService = cacheService;
     this.performanceMonitor = performanceMonitor;
   }
 
@@ -81,18 +77,6 @@ export class GraphAnalysisService {
     }
 
     const startTime = Date.now();
-    const cacheKey = `analysis_${projectPath}_${JSON.stringify(options)}`;
-
-    // 检查缓存
-    const cachedResult = this.cacheService.getFromCache<{
-      result: GraphAnalysisResult;
-      formattedResult: any;
-    }>(cacheKey);
-    if (cachedResult) {
-      this.performanceMonitor.updateCacheHitRate?.(true);
-      this.logger.info('Returning cached codebase analysis result', { projectPath });
-      return cachedResult;
-    }
 
     try {
       this.logger.info('Starting codebase analysis', {
@@ -106,10 +90,6 @@ export class GraphAnalysisService {
 
       const processedResult = this.processAnalysisResult(result, options);
       const formattedResult = this.formatForLLM(processedResult);
-
-      // 缓存结果
-      this.cacheService.setCache(cacheKey, { result: processedResult, formattedResult }, 300000); // 5分钟
-      this.performanceMonitor.updateCacheHitRate?.(false);
 
       const executionTime = Date.now() - startTime;
       this.performanceMonitor.recordQueryExecution?.(executionTime);

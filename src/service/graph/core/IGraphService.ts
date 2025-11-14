@@ -23,6 +23,37 @@ export interface IGraphService {
   // 批处理操作
   batchInsertNodes(nodes: any[], projectId: string): Promise<any>;
   batchInsertEdges(edges: any[], projectId: string): Promise<any>;
+  batchDeleteNodes(nodeIds: string[], projectId: string): Promise<boolean>;
+
+  // 空间管理扩展
+  clearSpace(projectId: string): Promise<boolean>;
+  getSpaceInfo(projectId: string): Promise<any>;
+
+  // 统计和监控
+  getDatabaseStats(): Promise<any>;
+
+  // 分析方法
+  analyzeDependencies(filePath: string, projectId: string, options?: any): Promise<any>;
+  detectCircularDependencies(projectId: string): Promise<any>;
+  analyzeCallGraph(functionName: string, projectId: string, options?: any): Promise<any>;
+  analyzeImpact(nodeIds: string[], projectId: string, options?: any): Promise<any>;
+  getProjectOverview(projectId: string): Promise<any>;
+  getStructureMetrics(projectId: string): Promise<any>;
+  getGraphStats(projectId: string): Promise<any>;
+
+  // 查询方法
+  executeRawQuery(query: string, parameters?: Record<string, any>): Promise<any>;
+  findRelatedNodes(nodeId: string, relationshipTypes?: string[], maxDepth?: number): Promise<any>;
+  findPath(sourceId: string, targetId: string, maxDepth?: number): Promise<any>;
+  search(query: string, options?: any): Promise<any>;
+  getSearchSuggestions(query: string): Promise<string[]>;
+
+  // 健康检查
+  isHealthy(): Promise<boolean>;
+  getStatus(): Promise<any>;
+
+  // 空间管理扩展
+  dropSpace(projectId: string): Promise<boolean>;
 }
 
 /**

@@ -4,7 +4,6 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../config/ConfigService';
 import { IGraphService } from './IGraphService';
-import { ICacheService } from '../../../infrastructure/caching/types';
 import { IPerformanceMonitor } from '../../../infrastructure/monitoring/types';
 import {
   GraphSearchOptions,
@@ -31,7 +30,6 @@ export class GraphSearchService {
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) configService: ConfigService,
     @inject(TYPES.IGraphService) graphService: IGraphService,
-    @inject(TYPES.GraphCacheService) cacheService: ICacheService,
     @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: IPerformanceMonitor
   ) {
     this.logger = logger;
@@ -74,7 +72,6 @@ export class GraphSearchService {
     }
 
     const startTime = Date.now();
-    const cacheKey = this.generateSearchCacheKey(query, options);
 
     try {
       this.logger.info('Executing search', { query, options });
@@ -333,12 +330,6 @@ export class GraphSearchService {
 
   // 私有方法
 
-  /**
-   * 生成搜索缓存键
-   */
-  private generateSearchCacheKey(query: string, options: GraphSearchOptions): string {
-    return `search_${query}_${JSON.stringify(options)}`.replace(/\s+/g, '_');
-  }
 
   /**
    * 构建搜索查询
@@ -452,3 +443,6 @@ export class GraphSearchService {
     };
   }
 }
+// 向后兼容的导出
+export const GraphSearchServiceNew = GraphSearchService;
+export type GraphSearchServiceNew = GraphSearchService;

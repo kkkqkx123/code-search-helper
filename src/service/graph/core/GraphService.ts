@@ -344,6 +344,94 @@ export class GraphService implements IGraphService {
   }
 
   /**
+   * 批量删除节点
+   */
+  async batchDeleteNodes(nodeIds: string[], projectId: string): Promise<boolean> {
+    try {
+      await this.useSpace(projectId);
+      
+      // 构建删除查询
+      const nodeIdsStr = nodeIds.map(id => `"${id}"`).join(', ');
+      const deleteQuery = `DELETE VERTEX ${nodeIdsStr} WITH EDGE`;
+      
+      await this.connectionManager.executeQuery(deleteQuery, {});
+      
+      this.logger.info('Nodes deleted successfully', { projectId, nodeCount: nodeIds.length });
+      return true;
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(`Failed to batch delete nodes: ${error instanceof Error ? error.message : String(error)}`),
+        { component: 'GraphService', operation: 'batchDeleteNodes' }
+      );
+      return false;
+    }
+  }
+
+  /**
+   * 清空空间
+   */
+  async clearSpace(projectId: string): Promise<boolean> {
+    try {
+      this.logger.info('Clearing space', { projectId });
+      const cleared = await this.spaceManager.clearSpace(projectId);
+      if (cleared) {
+        this.logger.info('Space cleared successfully', { projectId });
+      }
+      return cleared;
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(`Failed to clear space ${projectId}: ${error instanceof Error ? error.message : String(error)}`),
+        { component: 'GraphService', operation: 'clearSpace' }
+      );
+      return false;
+    }
+  }
+
+  /**
+   * 获取空间信息
+   */
+  async getSpaceInfo(projectId: string): Promise<any> {
+    try {
+      this.logger.info('Getting space info', { projectId });
+      const spaceInfo = await this.spaceManager.getSpaceInfo(projectId);
+      return spaceInfo;
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(`Failed to get space info for ${projectId}: ${error instanceof Error ? error.message : String(error)}`),
+        { component: 'GraphService', operation: 'getSpaceInfo' }
+      );
+      return null;
+    }
+  }
+
+  /**
+   * 获取数据库统计信息
+   */
+  async getDatabaseStats(): Promise<any> {
+    try {
+      const nebulaStats = await this.nebulaClient.getStats();
+      const performanceStats = this.performanceMonitor.getMetrics?.() || {};
+      const cacheStats = this.cacheService.getCacheStats();
+
+      return {
+        ...nebulaStats,
+        performance: performanceStats,
+        cache: cacheStats,
+        currentSpace: this.currentSpace,
+        isConnected: this.isDatabaseConnected(),
+      };
+    } catch (error) {
+      this.errorHandler.handleError(
+        new Error(`Failed to get database stats: ${error instanceof Error ? error.message : String(error)}`),
+        { component: 'GraphService', operation: 'getDatabaseStats' }
+      );
+      return {
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  /**
    * 获取当前空间
    */
   getCurrentSpace(): string | null {
@@ -400,5 +488,143 @@ export class GraphService implements IGraphService {
         this.logger.warn('Cache clearing by pattern not implemented', { currentSpace: this.currentSpace });
       }
     }
+  }
+
+  // 分析方法实现
+  async analyzeDependencies(filePath: string, projectId: string, options?: any): Promise<any> {
+    // 简化实现，实际应该委托给GraphAnalysisService
+    const query = `
+      MATCH (file:File {path: "${filePath}"})-[:IMPORTS|CONTAINS*1..3]->(related)
+      RETURN file, related, type(relationship(file, related)) AS relationType
+      LIMIT 50
+    `;
+    return await this.executeReadQuery(query);
+  }
+
+  async detectCircularDependencies(projectId: string): Promise<any> {
+    const query = `
+      MATCH (v1)-[:IMPORTS*2..]->(v1)
+      RETURN DISTINCT v1.id AS nodeId, v1.name AS nodeName
+      LIMIT 100
+    `;
+    return await this.executeReadQuery(query);
+  }
+
+  async analyzeCallGraph(functionName: string, projectId: string, options?: any): Promise<any> {
+    const query = `
+      MATCH (func:Function {name: "${functionName}"})-[:CALLS*1..3]->(called:Function)
+      RETURN func, called, length(path((func)-[:CALLS*]->(called))) AS depth
+      LIMIT 50
+    `;
+    return await this.executeReadQuery(query);
+  }
+
+  async analyzeImpact(nodeIds: string[], projectId: string, options?: any): Promise<any> {
+    const nodeIdList = nodeIds.map(id => `"${id}"`).join(', ');
+    const maxDepth = options?.depth || 3;
+    const query = `
+      MATCH (start)-[:CALLS|CONTAINS|IMPORTS*1..${maxDepth}]->(affected)
+      WHERE start.id IN [${nodeIdList}]
+      RETURN DISTINCT affected.id, affected.name, affected.type
+      LIMIT 100
+    `;
+    return await this.executeReadQuery(query);
+  }
+
+  async getProjectOverview(projectId: string): Promise<any> {
+    await this.useSpace(projectId);
+    const statsQuery = `
+      MATCH (v)
+      RETURN v.type AS nodeType, count(*) AS count
+    `;
+    return await this.executeReadQuery(statsQuery);
+  }
+
+  async getStructureMetrics(projectId: string): Promise<any> {
+    await this.useSpace(projectId);
+    const query = `
+      MATCH (f:File)
+      OPTIONAL MATCH (f)-[:CONTAINS]->(func:Function)
+      OPTIONAL MATCH (f)-[:CONTAINS]->(cls:Class)
+      OPTIONAL MATCH (f)-[:IMPORTS]->(imp:Import)
+      RETURN 
+        count(DISTINCT f) AS fileCount,
+        count(DISTINCT func) AS functionCount,
+        count(DISTINCT cls) AS classCount,
+        count(DISTINCT imp) AS importCount
+    `;
+    return await this.executeReadQuery(query);
+  }
+
+  async getGraphStats(projectId: string): Promise<any> {
+    return await this.getStructureMetrics(projectId);
+  }
+
+  // 查询方法实现
+  async executeRawQuery(query: string, parameters?: Record<string, any>): Promise<any> {
+    return await this.executeReadQuery(query, parameters);
+  }
+
+  async findRelatedNodes(nodeId: string, relationshipTypes?: string[], maxDepth?: number): Promise<any> {
+    const edgeTypes = relationshipTypes?.join(',') || '*';
+    const depth = maxDepth || 2;
+    const query = `
+      GO ${depth} STEPS FROM "${nodeId}" OVER ${edgeTypes}
+      YIELD dst(edge) AS relatedNodeId
+      | FETCH PROP ON * $-.relatedNodeId YIELD vertex AS relatedNode
+      LIMIT 100
+    `;
+    return await this.executeReadQuery(query);
+  }
+
+  async findPath(sourceId: string, targetId: string, maxDepth?: number): Promise<any> {
+    const depth = maxDepth || 5;
+    const query = `
+      FIND SHORTEST PATH FROM "${sourceId}" TO "${targetId}" OVER *
+      YIELD path AS p
+      RETURN p
+    `;
+    return await this.executeReadQuery(query);
+  }
+
+  async search(query: string, options?: any): Promise<any> {
+    const limit = options?.limit || 100;
+    const searchQuery = `
+      MATCH (v)
+      WHERE v.name CONTAINS "${query}" OR v.properties.name CONTAINS "${query}"
+      RETURN v AS node
+      LIMIT ${limit}
+    `;
+    return await this.executeReadQuery(searchQuery);
+  }
+
+  async getSearchSuggestions(query: string): Promise<string[]> {
+    // 简单的建议实现
+    const suggestions: string[] = [];
+    if (query.toLowerCase().includes('function')) {
+      suggestions.push('函数名', '函数调用', '函数定义');
+    }
+    if (query.toLowerCase().includes('class')) {
+      suggestions.push('类继承', '类方法', '类属性');
+    }
+    return suggestions.slice(0, 5);
+  }
+
+  // 健康检查实现
+  async isHealthy(): Promise<boolean> {
+    return this.isDatabaseConnected();
+  }
+
+  async getStatus(): Promise<any> {
+    return {
+      connected: this.isDatabaseConnected(),
+      currentSpace: this.getCurrentSpace(),
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  // 空间管理扩展
+  async dropSpace(projectId: string): Promise<boolean> {
+    return await this.deleteSpace(projectId);
   }
 }
