@@ -17,7 +17,7 @@ export interface Vector {
  * 向量元数据
  */
 export interface VectorMetadata {
-  projectId: string;
+  projectId?: string;
   filePath?: string;
   language?: string;
   chunkType?: string[];
@@ -65,7 +65,7 @@ export interface SearchResult {
  * 向量操作
  */
 export interface VectorOperation {
-  type: 'create' | 'update' | 'delete';
+  type: 'create' | 'delete';
   data: Vector | string;
 }
 
@@ -208,7 +208,8 @@ export enum VectorErrorCode {
   VALIDATION_ERROR = 'VALIDATION_ERROR',
   OPERATION_TIMEOUT = 'OPERATION_TIMEOUT',
   RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED',
-  INSUFFICIENT_RESOURCES = 'INSUFFICIENT_RESOURCES'
+  INSUFFICIENT_RESOURCES = 'INSUFFICIENT_RESOURCES',
+  OPERATION_NOT_SUPPORTED = 'OPERATION_NOT_SUPPORTED'
 }
 
 /**
@@ -230,7 +231,6 @@ export class VectorError extends Error {
  */
 export enum VectorEventType {
   VECTOR_CREATED = 'VECTOR_CREATED',
-  VECTOR_UPDATED = 'VECTOR_UPDATED',
   VECTOR_DELETED = 'VECTOR_DELETED',
   VECTORS_BATCH_CREATED = 'VECTORS_BATCH_CREATED',
   VECTORS_BATCH_DELETED = 'VECTORS_BATCH_DELETED',

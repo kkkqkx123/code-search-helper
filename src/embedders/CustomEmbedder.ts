@@ -6,6 +6,7 @@ import { BaseEmbedder, EmbeddingInput, EmbeddingResult } from './BaseEmbedder';
 /**
  * 自定义HTTP嵌入器实现
  * 支持CUSTOM_CUSTOM1格式的配置
+ * SIMILARITY也使用该文件实现
  */
 export class CustomEmbedder extends BaseEmbedder {
   private apiKey: string;
@@ -21,14 +22,14 @@ export class CustomEmbedder extends BaseEmbedder {
     providerName: string = 'custom1'
   ) {
     super(logger, errorHandler);
-    
+
     this.providerName = providerName;
 
     // 根据providerName获取相应的配置
     let prefix: string;
     let defaultModel: string;
     let defaultDimensions: string;
-    
+
     if (providerName === 'similarity') {
       prefix = 'SIMILARITY';
       defaultModel = 'sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2';
@@ -38,7 +39,7 @@ export class CustomEmbedder extends BaseEmbedder {
       defaultModel = 'default-model';
       defaultDimensions = '768';
     }
-    
+
     this.apiKey = process.env[`${prefix}_API_KEY`] || '';
     this.baseUrl = process.env[`${prefix}_BASE_URL`] || '';
     this.model = process.env[`${prefix}_MODEL`] || defaultModel;
@@ -52,7 +53,7 @@ export class CustomEmbedder extends BaseEmbedder {
     if (this.isProviderDisabled(this.providerName)) {
       throw new Error(`Custom provider ${this.providerName} is disabled`);
     }
-    
+
     return await this.embedWithCache(input, async inputs => {
       return await this.makeCustomRequest(inputs);
     });
@@ -72,7 +73,7 @@ export class CustomEmbedder extends BaseEmbedder {
       this.logger.info(`Custom provider ${this.providerName} is disabled`);
       return false;
     }
-    
+
     try {
       if (!this.baseUrl) {
         this.logger.warn('Custom embedder base URL is not configured');
@@ -116,7 +117,7 @@ export class CustomEmbedder extends BaseEmbedder {
       }
 
       const data = await response.json();
-      
+
       // 根据API响应格式处理结果
       return this.processApiResponse(data);
     } catch (error) {

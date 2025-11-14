@@ -19,13 +19,9 @@ describe('VectorService', () => {
     mockRepository = {
       create: jest.fn(),
       createBatch: jest.fn(),
-      findById: jest.fn(),
-      findByIds: jest.fn(),
-      update: jest.fn(),
       delete: jest.fn(),
       deleteBatch: jest.fn(),
       searchByVector: jest.fn(),
-      searchByFilter: jest.fn(),
       count: jest.fn(),
       getStats: jest.fn(),
       createIndex: jest.fn(),

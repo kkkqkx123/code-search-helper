@@ -32,9 +32,14 @@ export class VectorRepository implements IVectorRepository {
 
   async create(vector: Vector): Promise<string> {
     try {
+      const projectId = vector.metadata.projectId;
+      if (!projectId) {
+        throw new VectorError('Project ID is required', VectorErrorCode.VALIDATION_ERROR);
+      }
+      
       const vectorPoint = this.convertToVectorPoint(vector);
       const success = await this.qdrantService.upsertVectorsForProject(
-        vector.metadata.projectId,
+        projectId,
         [vectorPoint]
       );
       
@@ -57,6 +62,10 @@ export class VectorRepository implements IVectorRepository {
       if (vectors.length === 0) return [];
       
       const projectId = vectors[0].metadata.projectId;
+      if (!projectId) {
+        throw new VectorError('Project ID is required', VectorErrorCode.VALIDATION_ERROR);
+      }
+      
       const vectorPoints = vectors.map(v => this.convertToVectorPoint(v));
       
       const success = await this.qdrantService.upsertVectorsForProject(projectId, vectorPoints);
@@ -75,29 +84,34 @@ export class VectorRepository implements IVectorRepository {
     }
   }
 
-  async findById(id: string): Promise<Vector | null> {
-    // 暂不实现，需要Qdrant支持按ID查询
-    return null;
-  }
-
-  async findByIds(ids: string[]): Promise<Vector[]> {
-    // 暂不实现，需要Qdrant支持按ID批量查询
-    return [];
-  }
-
-  async update(id: string, vector: Partial<Vector>): Promise<boolean> {
-    // 暂不实现，需要先查询再更新
-    return false;
-  }
-
   async delete(id: string): Promise<boolean> {
-    // 暂不实现，需要Qdrant支持按ID删除
-    return false;
+    try {
+      // 通过ID在payload中查找向量（需要Qdrant支持按payload删除）
+      // 由于Qdrant不支持直接按ID删除，这里需要使用过滤条件
+      // 暂时返回false，因为Qdrant不支持此操作
+      throw new VectorError('Direct delete by ID is not supported by Qdrant', VectorErrorCode.OPERATION_NOT_SUPPORTED);
+    } catch (error) {
+      this.errorHandler.handleError(error as Error, {
+        component: 'VectorRepository',
+        operation: 'delete'
+      });
+      throw error;
+    }
   }
 
   async deleteBatch(ids: string[]): Promise<boolean> {
-    // 暂不实现，需要Qdrant支持按ID批量删除
-    return false;
+    try {
+      if (ids.length === 0) return true;
+      
+      // Qdrant不支持直接按ID批量删除
+      throw new VectorError('Batch delete by IDs is not supported by Qdrant', VectorErrorCode.OPERATION_NOT_SUPPORTED);
+    } catch (error) {
+      this.errorHandler.handleError(error as Error, {
+        component: 'VectorRepository',
+        operation: 'deleteBatch'
+      });
+      throw error;
+    }
   }
 
   async searchByVector(query: number[], options?: SearchOptions): Promise<SearchResult[]> {
@@ -127,10 +141,7 @@ export class VectorRepository implements IVectorRepository {
     }
   }
 
-  async searchByFilter(filter: VectorFilter, options?: SearchOptions): Promise<Vector[]> {
-    // 暂不实现，需要Qdrant支持纯过滤查询
-    return [];
-  }
+  
 
   async count(filter?: VectorFilter): Promise<number> {
     try {

@@ -44,11 +44,6 @@ export interface IVectorService {
   createVectors(content: string[], options?: VectorOptions): Promise<Vector[]>;
 
   /**
-   * 更新向量
-   */
-  updateVectors(vectors: Vector[]): Promise<boolean>;
-
-  /**
    * 删除向量
    */
   deleteVectors(vectorIds: string[]): Promise<boolean>;

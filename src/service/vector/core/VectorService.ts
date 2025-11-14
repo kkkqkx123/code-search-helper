@@ -91,21 +91,7 @@ export class VectorService implements IVectorService {
     }
   }
 
-  async updateVectors(vectors: Vector[]): Promise<boolean> {
-    try {
-      this.logger.info(`Updating ${vectors.length} vectors`);
-      for (const vector of vectors) {
-        await this.repository.update(vector.id, vector);
-      }
-      return true;
-    } catch (error) {
-      this.errorHandler.handleError(error as Error, {
-        component: 'VectorService',
-        operation: 'updateVectors'
-      });
-      throw error;
-    }
-  }
+  
 
   async deleteVectors(vectorIds: string[]): Promise<boolean> {
     try {

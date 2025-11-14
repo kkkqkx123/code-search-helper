@@ -118,6 +118,12 @@ describe('EmbedderFactory', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
+    // Set environment variables for testing
+    process.env.EMBEDDING_PROVIDER = 'siliconflow';
+    process.env.SILICONFLOW_ENABLED = 'true';
+    process.env.OPENAI_ENABLED = 'false';
+    process.env.OLLAMA_ENABLED = 'false';
+    
     // Setup services
     // Create a mock ConfigService for testing
     const mockConfigService = {

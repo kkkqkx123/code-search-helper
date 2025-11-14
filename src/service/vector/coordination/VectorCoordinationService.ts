@@ -119,9 +119,6 @@ export class VectorCoordinationService implements IVectorCoordinationService {
             case 'create':
               await this.repository.create(op.data as Vector);
               break;
-            case 'update':
-              await this.repository.update((op.data as Vector).id, op.data as Vector);
-              break;
             case 'delete':
               await this.repository.delete(op.data as string);
               break;

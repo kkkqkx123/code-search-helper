@@ -188,21 +188,6 @@ export class BusinessServiceRegistrar {
       container.bind<TreeSitterCoreService>(TYPES.TreeSitterCoreService).to(TreeSitterCoreService).inSingletonScope();
       container.bind<TreeSitterService>(TYPES.TreeSitterService).to(TreeSitterService).inSingletonScope();
       container.bind<TreeSitterQueryEngine>(TYPES.TreeSitterQueryEngine).to(TreeSitterQueryEngine).inSingletonScope();
-      
-      // 向量服务模块
-      const { VectorService } = require('../../service/vector/core/VectorService');
-      const { VectorRepository } = require('../../service/vector/repository/VectorRepository');
-      const { VectorCacheManager } = require('../../service/vector/caching/VectorCacheManager');
-      const { VectorCoordinationService } = require('../../service/vector/coordination/VectorCoordinationService');
-      
-      container.bind(TYPES.IVectorRepository).to(VectorRepository).inSingletonScope();
-      container.bind(TYPES.VectorRepository).to(VectorRepository).inSingletonScope();
-      container.bind(TYPES.IVectorCacheManager).to(VectorCacheManager).inSingletonScope();
-      container.bind(TYPES.VectorCacheManager).to(VectorCacheManager).inSingletonScope();
-      container.bind(TYPES.IVectorCoordinationService).to(VectorCoordinationService).inSingletonScope();
-      container.bind(TYPES.VectorCoordinationService).to(VectorCoordinationService).inSingletonScope();
-      container.bind(TYPES.IVectorService).to(VectorService).inSingletonScope();
-      container.bind(TYPES.VectorService).to(VectorService).inSingletonScope();
       container.bind<ChunkToVectorCoordinationService>(TYPES.ChunkToVectorCoordinationService).to(ChunkToVectorCoordinationService).inSingletonScope();
 
       // 标准化服务
