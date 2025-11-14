@@ -16,6 +16,10 @@ import { ChunkPostProcessorCoordinator } from '../../post-processing/ChunkPostPr
 import { PostProcessingContext } from '../../post-processing/IChunkPostProcessor';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { injectable, inject, optional } from 'inversify';
+import { FileFeatureDetector } from '../../detection/FileFeatureDetector';
+import { DetectionService } from '../../detection/DetectionService';
+import { ComplexityCalculator } from '../../../../utils/parser/ComplexityCalculator';
+import { ChunkFactory } from '../../../../utils/parser/ChunkFactory';
 import { TYPES } from '../../../../types';
 import {
   UNIFIED_STRATEGY_PRIORITIES,
@@ -41,6 +45,11 @@ export class ProcessingCoordinator {
 
   /** 日志服务 */
   private logger?: LoggerService;
+  /** 文件特征检测器 */
+  private fileFeatureDetector: FileFeatureDetector;
+
+  /** 检测服务 */
+  private detectionService: DetectionService;
 
   /** 性能监控 */
   private performanceStats: ProcessingPerformanceStats;
@@ -55,11 +64,15 @@ export class ProcessingCoordinator {
   constructor(
     @inject(TYPES.StrategyFactory) strategyFactory: IStrategyFactory,
     @inject(TYPES.ConfigurationManager) configManager: IConfigManager,
+    @inject(TYPES.FileFeatureDetector) fileFeatureDetector: FileFeatureDetector,
+    @inject(TYPES.DetectionService) detectionService: DetectionService,
     @inject(TYPES.ChunkPostProcessorCoordinator) postProcessorCoordinator: ChunkPostProcessorCoordinator,
     @inject(TYPES.LoggerService) @optional() logger?: LoggerService
   ) {
     this.strategyFactory = strategyFactory;
     this.configManager = configManager;
+    this.fileFeatureDetector = fileFeatureDetector;
+    this.detectionService = detectionService;
     this.postProcessorCoordinator = postProcessorCoordinator;
     this.logger = logger;
     this.performanceStats = this.initializePerformanceStats();
@@ -441,7 +454,8 @@ export class ProcessingCoordinator {
     } else if (crCount > 0 && crlfCount === 0 && lfCount === 0) {
       return LineEndingType.CR;
     } else {
-      return LineEndingType.MIXED;
+      // 使用 FileFeatureDetector 进行换行符类型检测
+    return this.fileFeatureDetector.detectLineEndingType(content);
     }
   }
 
@@ -483,7 +497,8 @@ export class ProcessingCoordinator {
       ? spaceIndents.reduce((sum, pattern) => sum + pattern.length, 0) / spaceIndents.length
       : 0;
 
-    return { type, size: Math.round(averageIndentSize) };
+    // 使用 FileFeatureDetector 进行缩进类型检测
+    return this.fileFeatureDetector.detectIndentationType(content);
   }
 
   /**
@@ -491,7 +506,7 @@ export class ProcessingCoordinator {
    */
   private isBinaryContent(content: string): boolean {
     // 简单的二进制检测：检查是否包含null字节
-    return content.includes('\0');
+    return this.fileFeatureDetector.isBinaryContent(content);
   }
 
   /**
@@ -599,7 +614,8 @@ export class ProcessingCoordinator {
       /public\s+\w+/
     ];
 
-    return codePatterns.some(pattern => pattern.test(content));
+    // 使用 FileFeatureDetector 进行代码内容检测
+    return this.fileFeatureDetector.isCodeContent(content);
   }
 
   /**

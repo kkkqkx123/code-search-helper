@@ -9,6 +9,8 @@ import { ChunkPostProcessorCoordinator } from '../../post-processing/ChunkPostPr
 import { ProcessingContext, ContextBuilder } from '../types/Context';
 import { UNIFIED_STRATEGY_PRIORITIES, getPrioritizedStrategies, getLanguageSpecificStrategies } from '../../constants/StrategyPriorities';
 import { ProcessingConfig } from '../core/types/ConfigTypes';
+import { FileFeatureDetector } from '../../detection/FileFeatureDetector';
+import { DetectionService } from '../../detection/DetectionService';
 
 // 创建一个简单的策略模拟
 class MockStrategy {
@@ -80,12 +82,16 @@ describe('Strategy Priority Integration Tests', () => {
   let strategyFactory: StrategyFactory;
   let configManager: MockConfigManager;
   let postProcessorCoordinator: ChunkPostProcessorCoordinator;
+  let fileFeatureDetector: FileFeatureDetector;
+  let detectionService: DetectionService;
 
   beforeEach(() => {
     // 初始化依赖
     configManager = new MockConfigManager();
     strategyFactory = new StrategyFactory(configManager.getConfig());
     postProcessorCoordinator = new ChunkPostProcessorCoordinator();
+    fileFeatureDetector = new FileFeatureDetector();
+    detectionService = new DetectionService();
 
     // 手动注册一些策略用于测试
     strategyFactory.registerStrategy('markdown-segmentation', MockStrategy as any);
@@ -98,6 +104,8 @@ describe('Strategy Priority Integration Tests', () => {
     coordinator = new ProcessingCoordinator(
       strategyFactory,
       configManager as any,
+      fileFeatureDetector,
+      detectionService,
       postProcessorCoordinator
     );
   });

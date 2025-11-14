@@ -43,6 +43,7 @@ export class HotReloadMonitoringService {
   private readonly defaultMetrics: HotReloadMetrics;
   private systemMetrics: SystemMetrics | null = null;
   private lastMetricsTime: Map<string, number> = new Map(); // 记录上次指标更新时间
+  private systemMetricsInterval: NodeJS.Timeout | null = null;
 
   constructor(
     @inject(TYPES.LoggerService) private logger: LoggerService,
@@ -79,7 +80,7 @@ export class HotReloadMonitoringService {
 
   private startSystemMetricsCollection(): void {
     // 定期收集系统指标
-    setInterval(() => {
+    this.systemMetricsInterval = setInterval(() => {
       this.systemMetrics = {
         memoryUsage: process.memoryUsage(),
         cpuUsage: null, // Node.js doesn't provide direct CPU usage, would need additional library
@@ -393,6 +394,11 @@ export class HotReloadMonitoringService {
     if (this.monitoringInterval) {
       clearInterval(this.monitoringInterval);
       this.monitoringInterval = null;
+    }
+
+    if (this.systemMetricsInterval) {
+      clearInterval(this.systemMetricsInterval);
+      this.systemMetricsInterval = null;
     }
 
     this.logger.info('HotReloadMonitoringService destroyed');

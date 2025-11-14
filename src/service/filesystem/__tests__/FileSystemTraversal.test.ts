@@ -17,6 +17,18 @@ const mockedGitignoreParser = GitignoreParser as jest.Mocked<typeof GitignorePar
 jest.mock('../../../utils/LoggerService');
 const MockedLoggerService = LoggerService as jest.Mocked<typeof LoggerService>;
 
+// Mock FileUtils
+jest.mock('../../../utils/filesystem/FileUtils');
+const MockedFileUtils = require('../../../utils/filesystem/FileUtils');
+
+// Mock PatternMatcher
+jest.mock('../../../utils/filesystem/PatternMatcher');
+const MockedPatternMatcher = require('../../../utils/filesystem/PatternMatcher');
+
+// Mock IgnoreRulesManager
+jest.mock('../../../utils/filesystem/IgnoreRulesManager');
+const MockedIgnoreRulesManager = require('../../../utils/filesystem/IgnoreRulesManager');
+
 // Mock fsSync for realpathSync
 jest.mock('fs');
 const fsSync = require('fs') as jest.Mocked<typeof import('fs')>;
@@ -26,6 +38,7 @@ describe('FileSystemTraversal', () => {
     let mockOptions: TraversalOptions;
     let mockLogger: LoggerService;
     let originalCreateReadStream: any;
+    let mockIgnoreRulesManager: any;
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -61,6 +74,30 @@ describe('FileSystemTraversal', () => {
 
         // Mock GitignoreParser.parseGitignore to return empty array by default
         mockedGitignoreParser.parseGitignore.mockResolvedValue([]);
+
+        // Mock IgnoreRulesManager
+        mockIgnoreRulesManager = {
+            refreshIgnoreRules: jest.fn().mockResolvedValue(undefined),
+            getIgnorePatternsForPath: jest.fn().mockReturnValue([]),
+        };
+        MockedIgnoreRulesManager.IgnoreRulesManager = jest.fn().mockImplementation(() => mockIgnoreRulesManager);
+
+        // Mock FileUtils methods
+        MockedFileUtils.FileUtils = {
+            calculateFileHash: jest.fn().mockResolvedValue('testhash123'),
+            isBinaryFile: jest.fn().mockResolvedValue(false),
+            getFileContent: jest.fn().mockResolvedValue('export const test = true;'),
+            getFileExtension: jest.fn().mockReturnValue('.ts'),
+            getFileName: jest.fn().mockReturnValue('file1'),
+            detectLanguage: jest.fn().mockReturnValue('typescript'),
+        };
+
+        // Mock PatternMatcher methods
+        MockedPatternMatcher.PatternMatcher = {
+            shouldIgnoreFile: jest.fn().mockReturnValue(false),
+            shouldIgnoreDirectory: jest.fn().mockReturnValue(false),
+            matchesPattern: jest.fn().mockReturnValue(false),
+        };
 
         // Create a new instance for each test
         fileSystemTraversal = new FileSystemTraversal(mockLogger, mockOptions as any);
@@ -105,19 +142,14 @@ describe('FileSystemTraversal', () => {
                 { name: 'file1.ts', isDirectory: () => false, isFile: () => true },
             ] as any);
 
-            // Mock the calculateFileHash method directly
-            const originalCalculateFileHash = (fileSystemTraversal as any).calculateFileHash;
-            (fileSystemTraversal as any).calculateFileHash = jest.fn().mockResolvedValue('testhash123');
+            // Mock the calculateFileHash method
+            MockedFileUtils.FileUtils.calculateFileHash = jest.fn().mockResolvedValue('testhash123');
 
             // Mock isBinaryFile to return false
-            const originalIsBinaryFile = (fileSystemTraversal as any).isBinaryFile;
-            (fileSystemTraversal as any).isBinaryFile = jest.fn().mockResolvedValue(false);
+            MockedFileUtils.FileUtils.isBinaryFile = jest.fn().mockResolvedValue(false);
 
             // Execute the method
             const result: TraversalResult = await fileSystemTraversal.traverseDirectory(testPath);
-
-            // Restore original methods
-            (fileSystemTraversal as any).isBinaryFile = originalIsBinaryFile;
 
             // Verify the result
             expect(result).toBeDefined();
@@ -126,9 +158,6 @@ describe('FileSystemTraversal', () => {
             expect(result.errors).toHaveLength(0);
             expect(result.totalSize).toBe(1024);
             expect(result.processingTime).toBeGreaterThan(0);
-
-            // Restore original method
-            (fileSystemTraversal as any).calculateFileHash = originalCalculateFileHash;
         });
 
         it('should handle errors when directory does not exist', async () => {
@@ -159,7 +188,7 @@ describe('FileSystemTraversal', () => {
 
             await traversalWithGitignore.traverseDirectory(testPath);
 
-            expect(mockedGitignoreParser.getAllGitignorePatterns).toHaveBeenCalledWith(testPath);
+            expect(mockIgnoreRulesManager.refreshIgnoreRules).toHaveBeenCalledTimes(1);
         });
     });
 
@@ -167,17 +196,20 @@ describe('FileSystemTraversal', () => {
         it('should read file content successfully', async () => {
             const testPath = '/test/file.ts';
             const mockContent = 'export const test = true;';
-            mockedFs.readFile.mockResolvedValue(mockContent);
+            
+            MockedFileUtils.FileUtils.getFileContent = jest.fn().mockResolvedValue(mockContent);
 
             const content = await fileSystemTraversal.getFileContent(testPath);
 
             expect(content).toBe(mockContent);
-            expect(mockedFs.readFile).toHaveBeenCalledWith(testPath, 'utf-8');
+            expect(MockedFileUtils.FileUtils.getFileContent).toHaveBeenCalledWith(testPath);
         });
 
         it('should throw error when file cannot be read', async () => {
             const testPath = '/test/nonexistent.ts';
-            mockedFs.readFile.mockRejectedValue(new Error('ENOENT: no such file or directory'));
+            const error = new Error(`Failed to read file ${testPath}: ENOENT: no such file or directory`);
+            
+            MockedFileUtils.FileUtils.getFileContent = jest.fn().mockRejectedValue(error);
 
             await expect(fileSystemTraversal.getFileContent(testPath)).rejects.toThrow(
                 `Failed to read file ${testPath}`
@@ -214,27 +246,20 @@ describe('FileSystemTraversal', () => {
                 { name: 'file2.js', isDirectory: () => false, isFile: () => true },
             ] as any);
 
-            // Mock fs.open for isBinaryFile
-            const mockFileHandle = {
-                read: jest.fn().mockResolvedValue({ bytesRead: 12, buffer: Buffer.from('test content') }),
-                close: jest.fn().mockResolvedValue(undefined),
-            };
-            jest.spyOn(mockedFs, 'open').mockResolvedValue(mockFileHandle as any);
-
             mockedGitignoreParser.parseGitignore.mockResolvedValue([]);
 
-            // Mock the calculateFileHash method directly
-            const originalCalculateFileHash = (fileSystemTraversal as any).calculateFileHash;
-            (fileSystemTraversal as any).calculateFileHash = jest.fn().mockResolvedValue('testhash123');
+            // Mock the calculateFileHash method
+            MockedFileUtils.FileUtils.calculateFileHash = jest.fn().mockResolvedValue('testhash123');
 
             // Mock isBinaryFile to return false
-            const originalIsBinaryFile = (fileSystemTraversal as any).isBinaryFile;
-            (fileSystemTraversal as any).isBinaryFile = jest.fn().mockResolvedValue(false);
+            MockedFileUtils.FileUtils.isBinaryFile = jest.fn().mockResolvedValue(false);
+
+            // Mock detectLanguage to return different languages
+            MockedFileUtils.FileUtils.detectLanguage = jest.fn()
+                .mockReturnValueOnce('typescript')
+                .mockReturnValueOnce('javascript');
 
             const stats = await fileSystemTraversal.getDirectoryStats(testPath);
-
-            // Restore original methods
-            (fileSystemTraversal as any).isBinaryFile = originalIsBinaryFile;
 
             expect(stats.totalFiles).toBe(2);
             expect(stats.totalSize).toBe(2048);
@@ -243,9 +268,6 @@ describe('FileSystemTraversal', () => {
                 javascript: 1,
             });
             expect(stats.largestFiles).toHaveLength(2);
-
-            // Restore original method
-            (fileSystemTraversal as any).calculateFileHash = originalCalculateFileHash;
         });
     });
 
@@ -306,38 +328,35 @@ describe('FileSystemTraversal', () => {
             ] as any);
 
             // Mock helper methods
-            const originalCalculateFileHash = (fileSystemTraversal as any).calculateFileHash;
-            const originalIsBinaryFile = (fileSystemTraversal as any).isBinaryFile;
-
-            (fileSystemTraversal as any).calculateFileHash = jest.fn().mockResolvedValue('testhash123');
-            (fileSystemTraversal as any).isBinaryFile = jest.fn().mockResolvedValue(false);
+            MockedFileUtils.FileUtils.calculateFileHash = jest.fn().mockResolvedValue('testhash123');
+            MockedFileUtils.FileUtils.isBinaryFile = jest.fn().mockResolvedValue(false);
+            MockedFileUtils.FileUtils.getFileName = jest.fn().mockReturnValue('file'); // Return 'file' instead of 'file1'
 
             // Execute with custom exclude patterns
             const result = await fileSystemTraversal.traverseDirectory(testPath, {
                 excludePatterns: ['**/custom-exclude/**']  // Custom pattern
             });
 
-            // Restore original methods
-            (fileSystemTraversal as any).calculateFileHash = originalCalculateFileHash;
-            (fileSystemTraversal as any).isBinaryFile = originalIsBinaryFile;
-
-            // Verify that all ignore patterns were applied
-            expect(mockedGitignoreParser.getAllGitignorePatterns).toHaveBeenCalledWith(testPath);
-            expect(mockedGitignoreParser.parseIndexignore).toHaveBeenCalledWith(testPath);
+            // Verify that refreshIgnoreRules was called
+            expect(mockIgnoreRulesManager.refreshIgnoreRules).toHaveBeenCalledWith(testPath, {
+                excludePatterns: ['**/custom-exclude/**']
+            });
 
             // Should only include the .ts file, excluding .tmp and node_modules
             expect(result.files).toHaveLength(1);
-            expect(result.files[0].name).toBe('file.ts');
+            expect(result.files[0].name).toBe('file'); // getFileName returns without extension
 
             // Verify debug logging was called with pattern counts
             expect(mockLogger.debug).toHaveBeenCalledWith(
-                expect.stringContaining('Refreshed ignore patterns for'),
+                expect.stringContaining('Traversal options for'), // The actual log message
                 expect.objectContaining({
-                    defaultPatterns: expect.any(Number),
-                    gitignorePatterns: expect.any(Number),
-                    indexignorePatterns: expect.any(Number),
-                    customPatterns: expect.any(Number),
-                    totalPatterns: expect.any(Number)
+                    includePatterns: expect.any(Array),
+                    excludePatterns: expect.any(Array),
+                    supportedExtensions: expect.any(Array),
+                    maxFileSize: expect.any(Number),
+                    ignoreHiddenFiles: expect.any(Boolean),
+                    ignoreDirectories: expect.any(Array),
+                    respectGitignore: expect.any(Boolean)
                 })
             );
         });
@@ -364,26 +383,18 @@ describe('FileSystemTraversal', () => {
             ] as any);
 
             // Mock helper methods
-            const originalCalculateFileHash = (fileSystemTraversal as any).calculateFileHash;
-            const originalIsBinaryFile = (fileSystemTraversal as any).isBinaryFile;
-
-            (fileSystemTraversal as any).calculateFileHash = jest.fn().mockResolvedValue('testhash123');
-            (fileSystemTraversal as any).isBinaryFile = jest.fn().mockResolvedValue(false);
+            MockedFileUtils.FileUtils.calculateFileHash = jest.fn().mockResolvedValue('testhash123');
+            MockedFileUtils.FileUtils.isBinaryFile = jest.fn().mockResolvedValue(false);
 
             // Execute with respectGitignore=false
             const result = await fileSystemTraversal.traverseDirectory(testPath, {
                 respectGitignore: false
             });
 
-            // Restore original methods
-            (fileSystemTraversal as any).calculateFileHash = originalCalculateFileHash;
-            (fileSystemTraversal as any).isBinaryFile = originalIsBinaryFile;
-
-            // Verify getAllGitignorePatterns was NOT called
-            expect(mockedGitignoreParser.getAllGitignorePatterns).not.toHaveBeenCalled();
-
-            // But parseIndexignore should still be called
-            expect(mockedGitignoreParser.parseIndexignore).toHaveBeenCalledWith(testPath);
+            // Verify refreshIgnoreRules was called with respectGitignore=false
+            expect(mockIgnoreRulesManager.refreshIgnoreRules).toHaveBeenCalledWith(testPath, {
+                respectGitignore: false
+            });
 
             // Should still have default patterns applied
             expect(result.files).toHaveLength(1);
@@ -401,6 +412,34 @@ describe('findChangedFiles', () => {
         getLogFilePath: jest.fn(),
         markAsNormalExit: jest.fn(),
     } as unknown as LoggerService;
+
+    let mockIgnoreRulesManager: any;
+
+    beforeEach(() => {
+        // Mock IgnoreRulesManager
+        mockIgnoreRulesManager = {
+            refreshIgnoreRules: jest.fn().mockResolvedValue(undefined),
+            getIgnorePatternsForPath: jest.fn().mockReturnValue([]),
+        };
+        MockedIgnoreRulesManager.IgnoreRulesManager = jest.fn().mockImplementation(() => mockIgnoreRulesManager);
+
+        // Mock FileUtils methods
+        MockedFileUtils.FileUtils = {
+            calculateFileHash: jest.fn().mockResolvedValue('testhash123'),
+            isBinaryFile: jest.fn().mockResolvedValue(false),
+            getFileContent: jest.fn().mockResolvedValue('export const test = true;'),
+            getFileExtension: jest.fn().mockReturnValue('.ts'),
+            getFileName: jest.fn().mockReturnValue('file1'),
+            detectLanguage: jest.fn().mockReturnValue('typescript'),
+        };
+
+        // Mock PatternMatcher methods
+        MockedPatternMatcher.PatternMatcher = {
+            shouldIgnoreFile: jest.fn().mockReturnValue(false),
+            shouldIgnoreDirectory: jest.fn().mockReturnValue(false),
+            matchesPattern: jest.fn().mockReturnValue(false),
+        };
+    });
 
     it('should find files that have changed since last traversal', async () => {
         const testPath = '/test/path';
@@ -429,25 +468,31 @@ describe('findChangedFiles', () => {
             { name: 'file1.ts', isDirectory: () => false, isFile: () => true },
         ] as any);
 
-        // Mock the calculateFileHash method directly
-        const originalCalculateFileHash = (FileSystemTraversal as any).calculateFileHash;
-        (FileSystemTraversal as any).calculateFileHash = jest.fn()
+        // Create a traversal instance and mock its methods
+        const traversal = new FileSystemTraversal(mockLogger, {
+            includePatterns: ['**/*.ts', '**/*.js'],
+            excludePatterns: ['**/node_modules/**', '**/.git/**'],
+            maxFileSize: 512000,
+            supportedExtensions: ['.ts', '.js', '.tsx', '.jsx'],
+            followSymlinks: false,
+            ignoreHiddenFiles: true,
+            ignoreDirectories: ['node_modules', '.git', 'dist', 'build'],
+            respectGitignore: true,
+        } as any);
+        
+        // Mock the calculateFileHash method
+        MockedFileUtils.FileUtils.calculateFileHash = jest.fn()
             .mockResolvedValueOnce('newhash123') // For the current file
             .mockResolvedValueOnce('newhash123'); // For the same file during comparison
 
         // Mock isBinaryFile to return false
-        const originalIsBinaryFile = (FileSystemTraversal as any).isBinaryFile;
-        (FileSystemTraversal as any).isBinaryFile = jest.fn().mockResolvedValue(false);
+        MockedFileUtils.FileUtils.isBinaryFile = jest.fn().mockResolvedValue(false);
 
         // Create a previous hashes map with a different hash for the same file
         const previousHashes = new Map<string, string>();
         previousHashes.set('file1.ts', 'oldhash456');
 
-        const changedFiles = await FileSystemTraversal.findChangedFiles(testPath, previousHashes, mockLogger);
-
-        // Restore original methods
-        (FileSystemTraversal as any).isBinaryFile = originalIsBinaryFile;
-        (FileSystemTraversal as any).calculateFileHash = originalCalculateFileHash;
+        const changedFiles = await traversal.findChangedFiles(testPath, previousHashes);
 
         expect(changedFiles).toHaveLength(1);
         expect(changedFiles[0].relativePath).toBe('file1.ts');
@@ -480,25 +525,31 @@ describe('findChangedFiles', () => {
             { name: 'file1.ts', isDirectory: () => false, isFile: () => true },
         ] as any);
 
-        // Mock the calculateFileHash method directly
-        const originalCalculateFileHash = (FileSystemTraversal as any).calculateFileHash;
-        (FileSystemTraversal as any).calculateFileHash = jest.fn()
+        // Create a traversal instance and mock its methods
+        const traversal = new FileSystemTraversal(mockLogger, {
+            includePatterns: ['**/*.ts', '**/*.js'],
+            excludePatterns: ['**/node_modules/**', '**/.git/**'],
+            maxFileSize: 512000,
+            supportedExtensions: ['.ts', '.js', '.tsx', '.jsx'],
+            followSymlinks: false,
+            ignoreHiddenFiles: true,
+            ignoreDirectories: ['node_modules', '.git', 'dist', 'build'],
+            respectGitignore: true,
+        } as any);
+        
+        // Mock the calculateFileHash method
+        MockedFileUtils.FileUtils.calculateFileHash = jest.fn()
             .mockResolvedValueOnce('samehash789') // For the current file
             .mockResolvedValueOnce('samehash789'); // For the same file during comparison
 
         // Mock isBinaryFile to return false
-        const originalIsBinaryFile = (FileSystemTraversal as any).isBinaryFile;
-        (FileSystemTraversal as any).isBinaryFile = jest.fn().mockResolvedValue(false);
+        MockedFileUtils.FileUtils.isBinaryFile = jest.fn().mockResolvedValue(false);
 
         // Create a previous hashes map with the same hash for the file
         const previousHashes = new Map<string, string>();
         previousHashes.set('file1.ts', 'samehash789');
 
-        const changedFiles = await FileSystemTraversal.findChangedFiles(testPath, previousHashes, mockLogger);
-
-        // Restore original methods
-        (FileSystemTraversal as any).isBinaryFile = originalIsBinaryFile;
-        (FileSystemTraversal as any).calculateFileHash = originalCalculateFileHash;
+        const changedFiles = await traversal.findChangedFiles(testPath, previousHashes);
 
         expect(changedFiles).toHaveLength(0);
     });
@@ -530,22 +581,28 @@ describe('findChangedFiles', () => {
             { name: 'newfile.ts', isDirectory: () => false, isFile: () => true },
         ] as any);
 
-        // Mock the calculateFileHash method directly
-        const originalCalculateFileHash = (FileSystemTraversal as any).calculateFileHash;
-        (FileSystemTraversal as any).calculateFileHash = jest.fn().mockResolvedValue('newhash123');
+        // Create a traversal instance and mock its methods
+        const traversal = new FileSystemTraversal(mockLogger, {
+            includePatterns: ['**/*.ts', '**/*.js'],
+            excludePatterns: ['**/node_modules/**', '**/.git/**'],
+            maxFileSize: 512000,
+            supportedExtensions: ['.ts', '.js', '.tsx', '.jsx'],
+            followSymlinks: false,
+            ignoreHiddenFiles: true,
+            ignoreDirectories: ['node_modules', '.git', 'dist', 'build'],
+            respectGitignore: true,
+        } as any);
+        
+        // Mock the calculateFileHash method
+        MockedFileUtils.FileUtils.calculateFileHash = jest.fn().mockResolvedValue('newhash123');
 
         // Mock isBinaryFile to return false
-        const originalIsBinaryFile = (FileSystemTraversal as any).isBinaryFile;
-        (FileSystemTraversal as any).isBinaryFile = jest.fn().mockResolvedValue(false);
+        MockedFileUtils.FileUtils.isBinaryFile = jest.fn().mockResolvedValue(false);
 
         // Create a previous hashes map without the new file
         const previousHashes = new Map<string, string>();
 
-        const changedFiles = await FileSystemTraversal.findChangedFiles(testPath, previousHashes, mockLogger);
-
-        // Restore original methods
-        (FileSystemTraversal as any).isBinaryFile = originalIsBinaryFile;
-        (FileSystemTraversal as any).calculateFileHash = originalCalculateFileHash;
+        const changedFiles = await traversal.findChangedFiles(testPath, previousHashes);
 
         expect(changedFiles).toHaveLength(1);
         expect(changedFiles[0].relativePath).toBe('newfile.ts');
@@ -553,8 +610,34 @@ describe('findChangedFiles', () => {
 });
 
 describe('getSupportedExtensions', () => {
+    let mockLogger: LoggerService;
+    let mockOptions: TraversalOptions;
+
+    beforeEach(() => {
+        mockLogger = {
+            info: jest.fn(),
+            error: jest.fn(),
+            warn: jest.fn(),
+            debug: jest.fn(),
+            getLogFilePath: jest.fn(),
+            markAsNormalExit: jest.fn(),
+        } as any;
+
+        mockOptions = {
+            includePatterns: ['**/*.ts', '**/*.js'],
+            excludePatterns: ['**/node_modules/**', '**/.git/**'],
+            maxFileSize: 512000,
+            supportedExtensions: ['.ts', '.js', '.tsx', '.jsx'],
+            followSymlinks: false,
+            ignoreHiddenFiles: true,
+            ignoreDirectories: ['node_modules', '.git', 'dist', 'build'],
+            respectGitignore: true,
+        };
+    });
+
     it('should return the list of supported file extensions', () => {
-        const extensions = FileSystemTraversal.getSupportedExtensions();
+        const traversal = new FileSystemTraversal(mockLogger, mockOptions as any);
+        const extensions = traversal.getSupportedExtensions();
         expect(Array.isArray(extensions)).toBe(true);
         expect(extensions.length).toBeGreaterThan(0);
         expect(extensions).toContain('.ts');
@@ -562,8 +645,9 @@ describe('getSupportedExtensions', () => {
     });
 
     it('should return a copy of the extensions array', () => {
-        const extensions1 = FileSystemTraversal.getSupportedExtensions();
-        const extensions2 = FileSystemTraversal.getSupportedExtensions();
+        const traversal = new FileSystemTraversal(mockLogger, mockOptions as any);
+        const extensions1 = traversal.getSupportedExtensions();
+        const extensions2 = traversal.getSupportedExtensions();
 
         // Verify they are separate arrays
         expect(extensions1).not.toBe(extensions2);

@@ -1,10 +1,12 @@
 import { VectorCacheManager } from '../caching/VectorCacheManager';
 import { LoggerService } from '../../../utils/LoggerService';
-import { Vector, SearchResult, CacheStats } from '../types/VectorTypes';
+import { Vector, SearchResult, CacheStats, CacheClearOptions, CacheClearResult } from '../types/VectorTypes';
+import { ICacheService } from '../../../infrastructure/caching/types';
 
 describe('VectorCacheManager', () => {
   let vectorCacheManager: VectorCacheManager;
   let mockLoggerService: jest.Mocked<LoggerService>;
+  let mockCacheService: jest.Mocked<ICacheService>;
 
   beforeEach(() => {
     mockLoggerService = {
@@ -14,7 +16,22 @@ describe('VectorCacheManager', () => {
       debug: jest.fn(),
     } as any;
 
-    vectorCacheManager = new VectorCacheManager(mockLoggerService);
+    mockCacheService = {
+      getFromCache: jest.fn(),
+      setCache: jest.fn(),
+      deleteFromCache: jest.fn(),
+      clearAllCache: jest.fn(),
+      getCacheStats: jest.fn(),
+      cleanupExpiredEntries: jest.fn(),
+      isGraphCacheHealthy: jest.fn(),
+      deleteByPattern: jest.fn(),
+      getKeysByPattern: jest.fn(),
+      getDatabaseSpecificCache: jest.fn(),
+      setDatabaseSpecificCache: jest.fn(),
+      invalidateDatabaseCache: jest.fn(),
+    } as any;
+
+    vectorCacheManager = new VectorCacheManager(mockCacheService, mockLoggerService);
   });
 
   afterEach(() => {
@@ -34,47 +51,27 @@ describe('VectorCacheManager', () => {
         timestamp: new Date()
       };
 
+      (mockCacheService.getFromCache as jest.Mock).mockReturnValue(vector);
       await vectorCacheManager.setVector(key, vector);
 
       // Act
       const result = await vectorCacheManager.getVector(key);
 
       // Assert
+      expect(mockCacheService.getFromCache).toHaveBeenCalledWith(`vector:${key}`);
       expect(result).toEqual(vector);
     });
 
     it('should return null when vector not found', async () => {
       // Arrange
       const key = 'non-existent-key';
+      (mockCacheService.getFromCache as jest.Mock).mockReturnValue(undefined);
 
       // Act
       const result = await vectorCacheManager.getVector(key);
 
       // Assert
-      expect(result).toBeNull();
-    });
-
-    it('should return null when vector is expired', async () => {
-      // Arrange
-      const key = 'test-vector-key';
-      const vector: Vector = {
-        id: 'test-vector-id',
-        vector: [0.1, 0.2, 0.3, 0.4],
-        content: 'test content',
-        metadata: { projectId: 'test-project' },
-        timestamp: new Date()
-      };
-
-      // Set with very short TTL
-      await vectorCacheManager.setVector(key, vector, 1);
-
-      // Fast-forward time to ensure expiration
-      jest.advanceTimersByTime(10);
-
-      // Act
-      const result = await vectorCacheManager.getVector(key);
-
-      // Assert
+      expect(mockCacheService.getFromCache).toHaveBeenCalledWith(`vector:${key}`);
       expect(result).toBeNull();
     });
   });
@@ -95,8 +92,7 @@ describe('VectorCacheManager', () => {
       await vectorCacheManager.setVector(key, vector);
 
       // Assert
-      const result = await vectorCacheManager.getVector(key);
-      expect(result).toEqual(vector);
+      expect(mockCacheService.setCache).toHaveBeenCalledWith(`vector:${key}`, vector, 300000);
     });
 
     it('should use custom TTL when provided', async () => {
@@ -114,8 +110,7 @@ describe('VectorCacheManager', () => {
       await vectorCacheManager.setVector(key, vector, 5000); // 5 seconds
 
       // Assert
-      const result = await vectorCacheManager.getVector(key);
-      expect(result).toEqual(vector);
+      expect(mockCacheService.setCache).toHaveBeenCalledWith(`vector:${key}`, vector, 5000);
     });
   });
 
@@ -131,47 +126,27 @@ describe('VectorCacheManager', () => {
         }
       ];
 
+      (mockCacheService.getFromCache as jest.Mock).mockReturnValue(searchResults);
       await vectorCacheManager.setSearchResult(key, searchResults);
 
       // Act
       const result = await vectorCacheManager.getSearchResult(key);
 
       // Assert
+      expect(mockCacheService.getFromCache).toHaveBeenCalledWith(`search:${key}`);
       expect(result).toEqual(searchResults);
     });
 
     it('should return null when search results not found', async () => {
       // Arrange
       const key = 'non-existent-key';
+      (mockCacheService.getFromCache as jest.Mock).mockReturnValue(undefined);
 
       // Act
       const result = await vectorCacheManager.getSearchResult(key);
 
       // Assert
-      expect(result).toBeNull();
-    });
-
-    it('should return null when search results are expired', async () => {
-      // Arrange
-      const key = 'test-search-key';
-      const searchResults: SearchResult[] = [
-        {
-          id: 'result-1',
-          score: 0.9,
-          metadata: { projectId: 'test-project' }
-        }
-      ];
-
-      // Set with very short TTL
-      await vectorCacheManager.setSearchResult(key, searchResults, 1);
-
-      // Fast-forward time to ensure expiration
-      jest.advanceTimersByTime(10);
-
-      // Act
-      const result = await vectorCacheManager.getSearchResult(key);
-
-      // Assert
+      expect(mockCacheService.getFromCache).toHaveBeenCalledWith(`search:${key}`);
       expect(result).toBeNull();
     });
   });
@@ -192,8 +167,7 @@ describe('VectorCacheManager', () => {
       await vectorCacheManager.setSearchResult(key, searchResults);
 
       // Assert
-      const result = await vectorCacheManager.getSearchResult(key);
-      expect(result).toEqual(searchResults);
+      expect(mockCacheService.setCache).toHaveBeenCalledWith(`search:${key}`, searchResults, 300000);
     });
 
     it('should use custom TTL when provided', async () => {
@@ -211,8 +185,7 @@ describe('VectorCacheManager', () => {
       await vectorCacheManager.setSearchResult(key, searchResults, 5000); // 5 seconds
 
       // Assert
-      const result = await vectorCacheManager.getSearchResult(key);
-      expect(result).toEqual(searchResults);
+      expect(mockCacheService.setCache).toHaveBeenCalledWith(`search:${key}`, searchResults, 5000);
     });
   });
 
@@ -220,135 +193,198 @@ describe('VectorCacheManager', () => {
     it('should delete vector and search results by key', async () => {
       // Arrange
       const key = 'test-key';
-      const vector: Vector = {
-        id: 'test-vector-id',
-        vector: [0.1, 0.2, 0.3, 0.4],
-        content: 'test content',
-        metadata: { projectId: 'test-project' },
-        timestamp: new Date()
-      };
-      const searchResults: SearchResult[] = [
-        {
-          id: 'result-1',
-          score: 0.9,
-          metadata: { projectId: 'test-project' }
-        }
-      ];
-
-      await vectorCacheManager.setVector(key, vector);
-      await vectorCacheManager.setSearchResult(key, searchResults);
-
-      // Verify items are cached
-      expect(await vectorCacheManager.getVector(key)).toEqual(vector);
-      expect(await vectorCacheManager.getSearchResult(key)).toEqual(searchResults);
 
       // Act
       await vectorCacheManager.delete(key);
 
       // Assert
-      expect(await vectorCacheManager.getVector(key)).toBeNull();
-      expect(await vectorCacheManager.getSearchResult(key)).toBeNull();
+      expect(mockCacheService.deleteFromCache).toHaveBeenCalledWith(`vector:${key}`);
+      expect(mockCacheService.deleteFromCache).toHaveBeenCalledWith(`search:${key}`);
     });
   });
 
   describe('deleteByPattern', () => {
     it('should delete items matching pattern', async () => {
       // Arrange
-      const key1 = 'test-key-1';
-      const key2 = 'test-key-2';
-      const key3 = 'other-key';
-      const vector: Vector = {
-        id: 'test-vector-id',
-        vector: [0.1, 0.2, 0.3, 0.4],
-        content: 'test content',
-        metadata: { projectId: 'test-project' },
-        timestamp: new Date()
-      };
-
-      await vectorCacheManager.setVector(key1, vector);
-      await vectorCacheManager.setVector(key2, vector);
-      await vectorCacheManager.setVector(key3, vector);
+      const pattern = 'test-.*';
+      const vectorPattern = /^vector:test-.*/;
+      const searchPattern = /^search:test-.*/;
 
       // Act
-      await vectorCacheManager.deleteByPattern('test-.*');
+      await vectorCacheManager.deleteByPattern(pattern);
 
       // Assert
-      expect(await vectorCacheManager.getVector(key1)).toBeNull();
-      expect(await vectorCacheManager.getVector(key2)).toBeNull();
-      expect(await vectorCacheManager.getVector(key3)).toEqual(vector);
+      expect(mockCacheService.deleteByPattern).toHaveBeenCalledWith(vectorPattern);
+      expect(mockCacheService.deleteByPattern).toHaveBeenCalledWith(searchPattern);
     });
-  });
+ });
 
   describe('clear', () => {
-    it('should clear all cached items', async () => {
+    it('should clear all cached items and return statistics', async () => {
       // Arrange
-      const key1 = 'test-key-1';
-      const key2 = 'test-key-2';
-      const vector: Vector = {
-        id: 'test-vector-id',
-        vector: [0.1, 0.2, 0.3, 0.4],
-        content: 'test content',
-        metadata: { projectId: 'test-project' },
-        timestamp: new Date()
-      };
-      const searchResults: SearchResult[] = [
-        {
-          id: 'result-1',
-          score: 0.9,
-          metadata: { projectId: 'test-project' }
-        }
-      ];
-
-      await vectorCacheManager.setVector(key1, vector);
-      await vectorCacheManager.setVector(key2, vector);
-      await vectorCacheManager.setSearchResult(key1, searchResults);
+      const mockKeys = ['vector:test1', 'vector:test2', 'search:test1'];
+      (mockCacheService.getKeysByPattern as jest.Mock).mockReturnValue(mockKeys);
+      (mockCacheService.deleteFromCache as jest.Mock).mockReturnValue(true);
 
       // Act
-      await vectorCacheManager.clear();
+      const result = await vectorCacheManager.clear();
 
       // Assert
-      expect(await vectorCacheManager.getVector(key1)).toBeNull();
-      expect(await vectorCacheManager.getVector(key2)).toBeNull();
-      expect(await vectorCacheManager.getSearchResult(key1)).toBeNull();
+      expect(mockCacheService.getKeysByPattern).toHaveBeenCalled();
+      expect(mockCacheService.deleteFromCache).toHaveBeenCalledTimes(3);
+      expect(result).toEqual({
+        vectorsCleared: 2,
+        searchResultsCleared: 1,
+        totalCleared: 3,
+        success: true,
+        executionTime: expect.any(Number)
+      });
+    });
+
+    it('should clear only vectors when specified', async () => {
+      // Arrange
+      const mockKeys = ['vector:test1', 'vector:test2'];
+      (mockCacheService.getKeysByPattern as jest.Mock).mockReturnValue(mockKeys);
+      (mockCacheService.deleteFromCache as jest.Mock).mockReturnValue(true);
+      const options: CacheClearOptions = { clearVectors: true, clearSearchResults: false };
+
+      // Act
+      const result = await vectorCacheManager.clear(options);
+
+      // Assert
+      expect(result).toEqual({
+        vectorsCleared: 2,
+        searchResultsCleared: 0,
+        totalCleared: 2,
+        success: true,
+        executionTime: expect.any(Number)
+      });
+    });
+
+    it('should clear only search results when specified', async () => {
+      // Arrange
+      const mockKeys = ['search:test1', 'search:test2'];
+      (mockCacheService.getKeysByPattern as jest.Mock).mockReturnValue(mockKeys);
+      (mockCacheService.deleteFromCache as jest.Mock).mockReturnValue(true);
+      const options: CacheClearOptions = { clearVectors: false, clearSearchResults: true };
+
+      // Act
+      const result = await vectorCacheManager.clear(options);
+
+      // Assert
+      expect(result).toEqual({
+        vectorsCleared: 0,
+        searchResultsCleared: 2,
+        totalCleared: 2,
+        success: true,
+        executionTime: expect.any(Number)
+      });
+    });
+
+    it('should filter by timestamp when olderThan is specified', async () => {
+      // Arrange
+      const mockKeys = ['vector:test1', 'search:test1'];
+      const oldTimestamp = Date.now() - 1000000; // 1 second ago
+      const mockEntry = { timestamp: oldTimestamp - 1000 }; // older than olderThan
+      (mockCacheService.getKeysByPattern as jest.Mock).mockReturnValue(mockKeys);
+      (mockCacheService.getFromCache as jest.Mock).mockReturnValue(mockEntry);
+      (mockCacheService.deleteFromCache as jest.Mock).mockReturnValue(true);
+      const options: CacheClearOptions = { olderThan: oldTimestamp };
+
+      // Act
+      const result = await vectorCacheManager.clear(options);
+
+      // Assert
+      expect(mockCacheService.getFromCache).toHaveBeenCalledTimes(2);
+      expect(result).toEqual({
+        vectorsCleared: 1,
+        searchResultsCleared: 1,
+        totalCleared: 2,
+        success: true,
+        executionTime: expect.any(Number)
+      });
+    });
+
+    it('should handle errors gracefully', async () => {
+      // Arrange
+      const errorMessage = 'Cache service error';
+      (mockCacheService.getKeysByPattern as jest.Mock).mockImplementation(() => {
+        throw new Error(errorMessage);
+      });
+
+      // Act
+      const result = await vectorCacheManager.clear();
+
+      // Assert
+      expect(result).toEqual({
+        vectorsCleared: 0,
+        searchResultsCleared: 0,
+        totalCleared: 0,
+        success: false,
+        error: errorMessage,
+        executionTime: expect.any(Number)
+      });
+    });
+
+    it('should return empty result when no clearing options are selected', async () => {
+      // Arrange
+      const options: CacheClearOptions = { clearVectors: false, clearSearchResults: false };
+
+      // Act
+      const result = await vectorCacheManager.clear(options);
+
+      // Assert
+      expect(mockCacheService.getKeysByPattern).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        vectorsCleared: 0,
+        searchResultsCleared: 0,
+        totalCleared: 0,
+        success: true,
+        executionTime: expect.any(Number)
+      });
     });
   });
 
   describe('getStats', () => {
     it('should return cache statistics', async () => {
       // Arrange
-      const key1 = 'test-key-1';
-      const key2 = 'test-key-2';
-      const vector: Vector = {
-        id: 'test-vector-id',
-        vector: [0.1, 0.2, 0.3, 0.4],
-        content: 'test content',
-        metadata: { projectId: 'test-project' },
-        timestamp: new Date()
+      const mockStats = {
+        totalEntries: 5,
+        hitCount: 3,
+        missCount: 2,
+        hitRate: 0.6
       };
-
-      await vectorCacheManager.setVector(key1, vector);
-      await vectorCacheManager.setVector(key2, vector);
-
-      // Generate some hits and misses
-      await vectorCacheManager.getVector(key1); // hit
-      await vectorCacheManager.getVector('non-existent'); // miss
+      (mockCacheService.getCacheStats as jest.Mock).mockReturnValue(mockStats);
 
       // Act
       const stats = await vectorCacheManager.getStats();
 
       // Assert
-      expect(stats.hitCount).toBe(1);
-      expect(stats.missCount).toBe(1);
-      expect(stats.hitRate).toBe(0.5);
-      expect(stats.totalEntries).toBe(2);
-      expect(stats.memoryUsage).toBe(0);
+      expect(mockCacheService.getCacheStats).toHaveBeenCalled();
+      expect(stats).toEqual({
+        hitCount: 3,
+        missCount: 2,
+        hitRate: 0.6,
+        totalEntries: 5,
+        memoryUsage: 0
+      });
     });
 
     it('should handle zero operations correctly', async () => {
+      // Arrange
+      const mockStats = {
+        totalEntries: 0,
+        hitCount: 0,
+        missCount: 0,
+        hitRate: 0
+      };
+      (mockCacheService.getCacheStats as jest.Mock).mockReturnValue(mockStats);
+
       // Act
       const stats = await vectorCacheManager.getStats();
 
       // Assert
+      expect(mockCacheService.getCacheStats).toHaveBeenCalled();
       expect(stats.hitCount).toBe(0);
       expect(stats.missCount).toBe(0);
       expect(stats.hitRate).toBe(0);
@@ -357,40 +393,5 @@ describe('VectorCacheManager', () => {
     });
   });
 
-  describe('cleanup mechanism', () => {
-    beforeEach(() => {
-      jest.useFakeTimers();
-    });
-
-    afterEach(() => {
-      jest.useRealTimers();
-    });
-
-    it('should clean up expired entries periodically', async () => {
-      // Arrange
-      const key = 'test-key';
-      const vector: Vector = {
-        id: 'test-vector-id',
-        vector: [0.1, 0.2, 0.3, 0.4],
-        content: 'test content',
-        metadata: { projectId: 'test-project' },
-        timestamp: new Date()
-      };
-
-      // Set with very short TTL
-      await vectorCacheManager.setVector(key, vector, 1);
-
-      // Verify item is cached
-      expect(await vectorCacheManager.getVector(key)).toEqual(vector);
-
-      // Fast-forward time to trigger cleanup
-      jest.advanceTimersByTime(61000); // 61 seconds (cleanup interval is 60 seconds)
-
-      // Manually trigger the cleanup by running pending timers
-      jest.runOnlyPendingTimers();
-
-      // Assert
-      expect(await vectorCacheManager.getVector(key)).toBeNull();
-    });
-  });
+  // 移除cleanup mechanism测试，因为现在依赖CacheService的清理机制
 });

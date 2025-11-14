@@ -11,6 +11,7 @@ export interface ICacheService {
   setCache<T>(key: string, data: T, ttl: number): void;
   deleteByPattern(pattern: RegExp): number;
   deleteFromCache(key: string): boolean;
+  getKeysByPattern(pattern: RegExp): string[];
   clearAllCache(): void;
   getCacheStats(): {
     totalEntries: number;

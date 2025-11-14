@@ -26,7 +26,7 @@ describe('Binary File Detection', () => {
     await fs.writeFile(binaryFilePath, binaryBuffer);
 
     try {
-      const result = await (fileSystemTraversal as any).isBinaryFile(binaryFilePath);
+      const result = await fileSystemTraversal.isBinaryFile(binaryFilePath);
       expect(result).toBe(true);
     } finally {
       // Clean up
@@ -40,7 +40,7 @@ describe('Binary File Detection', () => {
     await fs.writeFile(textFilePath, 'This is a test text file.\nIt contains multiple lines.\nBut no null bytes.');
 
     try {
-      const result = await (fileSystemTraversal as any).isBinaryFile(textFilePath);
+      const result = await fileSystemTraversal.isBinaryFile(textFilePath);
       expect(result).toBe(false);
     } finally {
       // Clean up
@@ -54,7 +54,7 @@ describe('Binary File Detection', () => {
     await fs.writeFile(smallFilePath, 'Hi'); // Very small file
 
     try {
-      const result = await (fileSystemTraversal as any).isBinaryFile(smallFilePath);
+      const result = await fileSystemTraversal.isBinaryFile(smallFilePath);
       expect(result).toBe(false);
     } finally {
       // Clean up
@@ -68,7 +68,7 @@ describe('Binary File Detection', () => {
     await fs.writeFile(emptyFilePath, '');
 
     try {
-      const result = await (fileSystemTraversal as any).isBinaryFile(emptyFilePath);
+      const result = await fileSystemTraversal.isBinaryFile(emptyFilePath);
       expect(result).toBe(false);
     } finally {
       // Clean up
@@ -86,7 +86,7 @@ describe('Binary File Detection', () => {
     await fs.writeFile(pngFilePath, pngBuffer);
 
     try {
-      const result = await (fileSystemTraversal as any).isBinaryFile(pngFilePath);
+      const result = await fileSystemTraversal.isBinaryFile(pngFilePath);
       expect(result).toBe(true);
     } finally {
       // Clean up
@@ -98,7 +98,7 @@ describe('Binary File Detection', () => {
     // Test with a non-existent file
     const nonExistentPath = path.join(__dirname, 'non_existent_file.bin');
     
-    const result = await (fileSystemTraversal as any).isBinaryFile(nonExistentPath);
+    const result = await fileSystemTraversal.isBinaryFile(nonExistentPath);
     expect(result).toBe(true); // Should return true on error (safety measure)
   });
 });

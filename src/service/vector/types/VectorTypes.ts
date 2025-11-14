@@ -264,3 +264,51 @@ export interface VectorEvent {
 export interface VectorEventListener {
   (event: VectorEvent): void;
 }
+
+/**
+ * 缓存清理选项
+ */
+export interface CacheClearOptions {
+  /**
+   * 是否清理向量缓存
+   */
+  clearVectors?: boolean;
+  /**
+   * 是否清理搜索结果缓存
+   */
+  clearSearchResults?: boolean;
+  /**
+   * 只清理指定时间之前的缓存（时间戳）
+   */
+  olderThan?: number;
+}
+
+/**
+ * 缓存清理结果
+ */
+export interface CacheClearResult {
+  /**
+   * 清理的向量缓存数量
+   */
+  vectorsCleared: number;
+  /**
+   * 清理的搜索结果缓存数量
+   */
+  searchResultsCleared: number;
+  /**
+   * 总清理数量
+   */
+  totalCleared: number;
+  /**
+   * 清理操作是否成功
+   */
+  success: boolean;
+  /**
+   * 错误信息（如果有）
+   */
+  error?: string;
+  /**
+   * 清理操作耗时（毫秒）
+   */
+  executionTime: number;
+}

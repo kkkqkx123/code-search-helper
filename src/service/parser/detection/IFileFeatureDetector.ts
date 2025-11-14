@@ -1,3 +1,5 @@
+import { LineEndingType, IndentType } from '../../../utils/FileContentDetector';
+
 /**
  * 文件特征检测器接口
  * 定义文件特征检测的抽象接口
@@ -93,6 +95,33 @@ export interface IFileFeatureDetector {
    */
   hasClasses(content: string, language: string): boolean;
 
+  /**
+   * 检查是否为二进制内容
+   * @param content 文件内容
+   * @returns 是否为二进制内容
+   */
+  isBinaryContent(content: string): boolean;
+
+  /**
+   * 检查是否为代码内容
+   * @param content 文件内容
+   * @returns 是否为代码内容
+   */
+  isCodeContent(content: string): boolean;
+
+  /**
+   * 检测换行符类型
+   * @param content 文件内容
+   * @returns 换行符类型
+   */
+  detectLineEndingType(content: string): LineEndingType;
+
+  /**
+   * 检测缩进类型
+   * @param content 文件内容
+   * @returns 缩进类型和大小
+   */
+  detectIndentationType(content: string): { type: IndentType; size: number };
   /**
    * 获取文件的基本统计信息
    * @param content 文件内容

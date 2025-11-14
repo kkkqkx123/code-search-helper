@@ -2,6 +2,8 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
 import { IFileFeatureDetector } from './IFileFeatureDetector';
+import { ComplexityCalculator } from '../../../utils/parser/ComplexityCalculator';
+import { FileContentDetector, LineEndingType, IndentType } from '../../../utils/FileContentDetector';
 import {
   CODE_LANGUAGES,
   STRUCTURED_LANGUAGES,
@@ -105,24 +107,8 @@ export class FileFeatureDetector implements IFileFeatureDetector {
    * 计算内容复杂度
    */
   calculateComplexity(content: string): number {
-    // 如果内容为空，返回0
-    if (!content || content.trim().length === 0) {
-      return 0;
-    }
-
-    let complexity = 0;
-
-    // 基于代码结构计算复杂度
-    complexity += (content.match(/\b(if|else|while|for|switch|case|try|catch|finally)\b/g) || []).length * 2;
-    complexity += (content.match(/\b(function|method|class|interface)\b/g) || []).length * 3;
-    complexity += (content.match(/[{}]/g) || []).length;
-    complexity += (content.match(/[()]/g) || []).length * 0.5;
-
-    // 基于代码长度调整
-    const lines = content.split('\n').length;
-    complexity += Math.log10(lines + 1) * 2;
-
-    return Math.round(complexity);
+    // 使用 ComplexityCalculator 进行复杂度计算
+    return ComplexityCalculator.calculateCodeComplexity(content).score;
   }
 
   /**
@@ -219,6 +205,41 @@ export class FileFeatureDetector implements IFileFeatureDetector {
       bracketCount,
       tagCount,
       complexity: this.calculateComplexity(content)
+    };
+  }
+  /**
+   * 检查是否为二进制内容
+   */
+  isBinaryContent(content: string): boolean {
+    // 使用全局工具类的增强二进制检测
+    return FileContentDetector.isBinaryContent(content);
+  }
+
+  /**
+   * 检查是否为代码内容
+   */
+  isCodeContent(content: string): boolean {
+    // 使用全局工具类的增强代码检测，基于 processing-constants.ts 中的语法模式
+    return FileContentDetector.isCodeContent(content);
+  }
+
+  /**
+   * 检测换行符类型
+   */
+  detectLineEndingType(content: string): LineEndingType {
+    // 使用全局工具类的换行符检测
+    return FileContentDetector.detectLineEndingType(content);
+  }
+
+  /**
+   * 检测缩进类型
+   */
+  detectIndentationType(content: string): { type: IndentType; size: number } {
+    // 使用全局工具类的缩进检测
+    const result = FileContentDetector.detectIndentationType(content);
+    return {
+      type: result.type,
+      size: result.size
     };
   }
 }

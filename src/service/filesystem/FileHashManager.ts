@@ -3,6 +3,8 @@ import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { SqliteDatabaseService } from '../../database/splite/SqliteDatabaseService';
 import { EventEmitter } from 'events';
+import { LRUCache, StatsDecorator } from '../../utils/cache';
+import { DetailedStats } from '../../utils/cache/StatsDecorator';
 
 export interface FileHashEntry {
   projectId: string;
@@ -29,12 +31,9 @@ export interface FileHashManager {
 
 @injectable()
 export class FileHashManagerImpl extends EventEmitter implements FileHashManager {
-  private memoryCache: Map<string, FileHashEntry> = new Map();
+  private cache: StatsDecorator<string, FileHashEntry>;
   private sqliteService: SqliteDatabaseService;
   private logger: LoggerService;
-  private cacheSize: number = 10000; // 最大缓存条目数
-  private cacheHitCount: number = 0;
-  private cacheMissCount: number = 0;
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
@@ -43,6 +42,15 @@ export class FileHashManagerImpl extends EventEmitter implements FileHashManager
     super();
     this.logger = logger;
     this.sqliteService = sqliteService;
+    
+    // 创建基础LRUCache
+    const baseCache = new LRUCache<string, FileHashEntry>(10000, {
+      enableStats: true,
+      defaultTTL: 5 * 60 * 1000 // 5分钟TTL，与原有逻辑一致
+    });
+    
+    // 使用StatsDecorator包装以获得详细统计功能
+    this.cache = new StatsDecorator(baseCache);
   }
 
   /**
@@ -52,13 +60,10 @@ export class FileHashManagerImpl extends EventEmitter implements FileHashManager
     const cacheKey = `${projectId}:${filePath}`;
     
     // 1. 检查内存缓存
-    const cached = this.memoryCache.get(cacheKey);
-    if (cached && !this.isCacheExpired(cached)) {
-      this.cacheHitCount++;
+    const cached = this.cache.get(cacheKey);
+    if (cached) {
       return cached.hash;
     }
-    
-    this.cacheMissCount++;
     
     // 2. 从数据库查询
     try {
@@ -86,7 +91,7 @@ export class FileHashManagerImpl extends EventEmitter implements FileHashManager
           updatedAt: new Date()
         };
         
-        this.updateCache(cacheKey, entry);
+        this.cache.set(cacheKey, entry);
         return result.content_hash;
       }
       
@@ -117,7 +122,7 @@ export class FileHashManagerImpl extends EventEmitter implements FileHashManager
       updatedAt: now
     };
     
-    this.updateCache(cacheKey, entry);
+    this.cache.set(cacheKey, entry);
     
     // 2. 异步更新数据库
     try {
@@ -246,7 +251,7 @@ export class FileHashManagerImpl extends EventEmitter implements FileHashManager
             updatedAt: now
           };
           
-          this.updateCache(cacheKey, entry);
+          this.cache.set(cacheKey, entry);
         }
       });
       
@@ -265,7 +270,7 @@ export class FileHashManagerImpl extends EventEmitter implements FileHashManager
     const cacheKey = `${projectId}:${filePath}`;
     
     // 从内存缓存中删除
-    this.memoryCache.delete(cacheKey);
+    this.cache.delete(cacheKey);
     
     // 从数据库中删除
     try {
@@ -306,7 +311,7 @@ export class FileHashManagerImpl extends EventEmitter implements FileHashManager
       }
       
       // 更新内存缓存
-      const cachedEntry = this.memoryCache.get(oldCacheKey);
+      const cachedEntry = this.cache.get(oldCacheKey);
       if (cachedEntry) {
         // 更新缓存条目
         const updatedEntry: FileHashEntry = {
@@ -316,10 +321,10 @@ export class FileHashManagerImpl extends EventEmitter implements FileHashManager
         };
         
         // 删除旧缓存条目
-        this.memoryCache.delete(oldCacheKey);
+        this.cache.delete(oldCacheKey);
         
         // 添加新缓存条目
-        this.updateCache(newCacheKey, updatedEntry);
+        this.cache.set(newCacheKey, updatedEntry);
       }
       
       this.emit('hashRenamed', { projectId, oldPath, newPath });
@@ -378,7 +383,8 @@ export class FileHashManagerImpl extends EventEmitter implements FileHashManager
       const deletedCount = result.changes;
       
       // 清理内存缓存
-      this.cleanupMemoryCache();
+      const underlyingCache = this.cache.getUnderlyingCache();
+      underlyingCache.cleanup();
       
       this.logger.info(`Cleaned up ${deletedCount} expired file hashes`);
       return deletedCount;
@@ -396,13 +402,11 @@ export class FileHashManagerImpl extends EventEmitter implements FileHashManager
     cacheHitRate: number;
     memoryUsage: number;
   } {
-    const totalRequests = this.cacheHitCount + this.cacheMissCount;
-    const cacheHitRate = totalRequests > 0 ? (this.cacheHitCount / totalRequests) * 100 : 0;
-    
+    const stats = this.cache.getStats() as DetailedStats;
     return {
-      cacheSize: this.memoryCache.size,
-      cacheHitRate,
-      memoryUsage: this.estimateMemoryUsage()
+      cacheSize: stats.size,
+      cacheHitRate: stats.hitRate * 100, // 转换为百分比
+      memoryUsage: stats.memoryUsage
     };
   }
 
@@ -410,8 +414,7 @@ export class FileHashManagerImpl extends EventEmitter implements FileHashManager
    * 重置缓存统计
    */
   resetCacheStats(): void {
-    this.cacheHitCount = 0;
-    this.cacheMissCount = 0;
+    this.cache.resetStats();
   }
 
   /**
@@ -423,75 +426,54 @@ export class FileHashManagerImpl extends EventEmitter implements FileHashManager
     if (filePaths.length === 0) return result;
     
     try {
-      // 构建IN查询
-      const placeholders = filePaths.map(() => '?').join(',');
-      const stmt = this.sqliteService.prepare(`
-        SELECT file_path, content_hash
-        FROM file_index_states 
-        WHERE project_id = ? AND file_path IN (${placeholders})
-      `);
+      // 先检查缓存
+      const uncachedFiles: string[] = [];
       
-      const queryResults = stmt.all(projectId, ...filePaths) as any[];
+      for (const filePath of filePaths) {
+        const cacheKey = `${projectId}:${filePath}`;
+        const cached = this.cache.get(cacheKey);
+        if (cached) {
+          result.set(filePath, cached.hash);
+        } else {
+          uncachedFiles.push(filePath);
+        }
+      }
       
-      queryResults.forEach(row => {
-        result.set(row.file_path, row.content_hash);
-      });
+      // 对未缓存的文件进行数据库查询
+      if (uncachedFiles.length > 0) {
+        const placeholders = uncachedFiles.map(() => '?').join(',');
+        const stmt = this.sqliteService.prepare(`
+          SELECT file_path, content_hash
+          FROM file_index_states 
+          WHERE project_id = ? AND file_path IN (${placeholders})
+        `);
+        
+        const queryResults = stmt.all(projectId, ...uncachedFiles) as any[];
+        
+        queryResults.forEach(row => {
+          result.set(row.file_path, row.content_hash);
+          
+          // 将查询结果加入缓存
+          const cacheKey = `${projectId}:${row.file_path}`;
+          // 这里我们只有hash信息，需要构建一个基本的entry
+          const entry: FileHashEntry = {
+            projectId,
+            filePath: row.file_path,
+            hash: row.content_hash,
+            lastModified: new Date(), // 使用当前时间作为默认值
+            fileSize: 0,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+          this.cache.set(cacheKey, entry);
+        });
+      }
       
       return result;
     } catch (error) {
       this.logger.error(`Failed to get batch hashes for project: ${projectId}`, error);
       return result;
     }
-  }
-
-  /**
-   * 更新缓存（LRU策略）
-   */
-  private updateCache(cacheKey: string, entry: FileHashEntry): void {
-    // 如果缓存已满，删除最旧的条目
-    if (this.memoryCache.size >= this.cacheSize && !this.memoryCache.has(cacheKey)) {
-      const oldestKey = this.memoryCache.keys().next().value;
-      if (oldestKey) {
-        this.memoryCache.delete(oldestKey);
-      }
-    }
-    
-    this.memoryCache.set(cacheKey, entry);
-  }
-
-  /**
-   * 检查缓存是否过期
-   */
-  private isCacheExpired(entry: FileHashEntry): boolean {
-    const now = new Date();
-    const cacheAge = now.getTime() - entry.updatedAt.getTime();
-    const maxCacheAge = 5 * 60 * 1000; // 5分钟
-    
-    return cacheAge > maxCacheAge;
-  }
-
-  /**
-   * 清理内存缓存
-   */
-  private cleanupMemoryCache(): void {
-    const now = new Date();
-    const maxCacheAge = 5 * 60 * 1000; // 5分钟
-    
-    for (const [key, entry] of this.memoryCache.entries()) {
-      const cacheAge = now.getTime() - entry.updatedAt.getTime();
-      if (cacheAge > maxCacheAge) {
-        this.memoryCache.delete(key);
-      }
-    }
-  }
-
-  /**
-   * 估算内存使用量
-   */
-  private estimateMemoryUsage(): number {
-    // 粗略估算每个缓存条目的大小（字节）
-    const bytesPerEntry = 200;
-    return this.memoryCache.size * bytesPerEntry;
   }
 
   /**

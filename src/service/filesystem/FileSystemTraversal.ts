@@ -2,11 +2,12 @@ import { injectable, inject, optional } from 'inversify';
 import * as fs from 'fs/promises';
 import * as fsSync from 'fs';
 import * as path from 'path';
-import { createHash } from 'crypto';
-import { GitignoreParser } from '../ignore/GitignoreParser';
 import { LoggerService } from '../../utils/LoggerService';
 import { TYPES } from '../../types';
-import { DEFAULT_IGNORE_PATTERNS } from '../ignore/defaultIgnorePatterns';
+import { DEFAULT_SUPPORTED_EXTENSIONS } from '../parser/constants/language-constants';
+import { PatternMatcher } from '../../utils/filesystem/PatternMatcher';
+import { FileUtils } from '../../utils/filesystem/FileUtils';
+import { IgnoreRulesManager } from '../../utils/filesystem/IgnoreRulesManager';
 
 export interface FileInfo {
   path: string;
@@ -42,7 +43,7 @@ export interface TraversalResult {
 @injectable()
 export class FileSystemTraversal {
   private defaultOptions: Required<TraversalOptions>;
-  private cachedIgnorePatterns: Map<string, string[]> = new Map(); // Cache ignore patterns by root path
+  private ignoreRulesManager: IgnoreRulesManager;
 
   constructor(
     @inject(TYPES.LoggerService) private logger: LoggerService,
@@ -56,28 +57,9 @@ export class FileSystemTraversal {
         '**/dist/**',
         '**/build/**',
       ],
-      maxFileSize: options?.maxFileSize ?? 512000, // 500KB (512000 bytes)
-      supportedExtensions: options?.supportedExtensions ?? [
-        '.ts',
-        '.js',
-        '.tsx',
-        '.jsx',
-        '.py',
-        '.java',
-        '.go',
-        '.rs',
-        '.cpp',
-        '.c',
-        '.h',
-        '.hpp',
-        '.txt',
-        '.md',
-        '.json',
-        '.yaml',
-        '.yml',
-        '.xml',
-        '.csv',
-      ],
+      maxFileSize: options?.maxFileSize ?? 512000, // 500KB (512000 字节)
+      // 使用 language-constants.ts 中的 DEFAULT_SUPPORTED_EXTENSIONS 以保持一致性
+      supportedExtensions: options?.supportedExtensions ?? DEFAULT_SUPPORTED_EXTENSIONS,
       followSymlinks: options?.followSymlinks ?? false,
       ignoreHiddenFiles: options?.ignoreHiddenFiles ?? true,
       ignoreDirectories: options?.ignoreDirectories ?? [
@@ -90,57 +72,17 @@ export class FileSystemTraversal {
       ],
       respectGitignore: options?.respectGitignore ?? true,
     };
+
+    // 初始化忽略规则管理器
+    this.ignoreRulesManager = new IgnoreRulesManager(this.logger);
   }
 
   /**
-   * Refreshes the ignore patterns for a specific root path
-   * This allows for hot updates to ignore rules (e.g., when .gitignore or .indexignore files change)
+   * 刷新特定根路径的忽略模式
+   * 这允许对忽略规则进行热更新（例如，当 .gitignore 或 .indexignore 文件更改时）
    */
   async refreshIgnoreRules(rootPath: string, options?: TraversalOptions): Promise<void> {
-    const traversalOptions = { ...this.defaultOptions, ...options };
-    const allIgnorePatterns: string[] = [];
-
-    // 1. Add default ignore patterns
-    allIgnorePatterns.push(...this.getDefaultIgnorePatterns());
-
-    // 2. Add .gitignore rules (if enabled)
-    if (traversalOptions.respectGitignore) {
-      const gitignorePatterns = await GitignoreParser.getAllGitignorePatterns(rootPath);
-      if (Array.isArray(gitignorePatterns)) {
-        allIgnorePatterns.push(...gitignorePatterns);
-      }
-    }
-
-    // 3. Add .indexignore rules
-    const indexignorePatterns = await GitignoreParser.parseIndexignore(rootPath);
-    if (Array.isArray(indexignorePatterns)) {
-      allIgnorePatterns.push(...indexignorePatterns);
-    }
-
-    // 4. Add user custom exclude rules
-    if (traversalOptions.excludePatterns) {
-      allIgnorePatterns.push(...traversalOptions.excludePatterns);
-    }
-
-    // Store the patterns in cache
-    this.cachedIgnorePatterns.set(rootPath, [...new Set(allIgnorePatterns)]); // Remove duplicates
-
-    // Log rule information (for debugging)
-    this.logger.debug(`[DEBUG] Refreshed ignore patterns for ${rootPath}`, {
-      defaultPatterns: this.getDefaultIgnorePatterns().length,
-      gitignorePatterns: traversalOptions.respectGitignore ?
-        (await GitignoreParser.getAllGitignorePatterns(rootPath) || []).length : 0,
-      indexignorePatterns: Array.isArray(indexignorePatterns) ? indexignorePatterns.length : 0,
-      customPatterns: options?.excludePatterns?.length || 0,
-      totalPatterns: allIgnorePatterns.length
-    });
-  }
-
-  /**
-   * Gets the cached ignore patterns for a specific root path
-   */
-  private getIgnorePatternsForPath(rootPath: string): string[] {
-    return this.cachedIgnorePatterns.get(rootPath) || [];
+    await this.ignoreRulesManager.refreshIgnoreRules(rootPath, options);
   }
 
   async traverseDirectory(rootPath: string, options?: TraversalOptions): Promise<TraversalResult> {
@@ -151,16 +93,16 @@ export class FileSystemTraversal {
 
     const traversalOptions = { ...this.defaultOptions, ...options };
 
-    // Get the ignore patterns for this path
-    const allIgnorePatterns = this.getIgnorePatternsForPath(rootPath);
+    // 获取此路径的忽略模式
+    const allIgnorePatterns = this.ignoreRulesManager.getIgnorePatternsForPath(rootPath);
 
-    // Update traversal options with the latest ignore patterns
+    // 使用最新的忽略模式更新遍历选项
     const updatedOptions = {
       ...traversalOptions,
       excludePatterns: allIgnorePatterns
     };
 
-    // Debug: Log the traversal options
+    // 调试：记录遍历选项
     this.logger.debug(`[DEBUG] Traversal options for ${rootPath}`, {
       includePatterns: updatedOptions.includePatterns,
       excludePatterns: updatedOptions.excludePatterns,
@@ -183,7 +125,7 @@ export class FileSystemTraversal {
       await this.traverseRecursive(rootPath, rootPath, result, updatedOptions);
       result.processingTime = Date.now() - startTime;
 
-      // Debug: Log the final results
+      // 调试：记录最终结果
       this.logger.debug(`[DEBUG] Traversal completed for ${rootPath}`, {
         filesFound: result.files.length,
         directoriesFound: result.directories.length,
@@ -198,7 +140,7 @@ export class FileSystemTraversal {
       );
       result.processingTime = Date.now() - startTime;
 
-      // Debug: Log the error
+      // 调试：记录错误
       this.logger.error(`[DEBUG] Traversal failed for ${rootPath}`, error);
     }
 
@@ -213,7 +155,7 @@ export class FileSystemTraversal {
     visitedPaths: Set<string> = new Set()
   ): Promise<void> {
     try {
-      // Check for circular references to prevent infinite recursion
+      // 检查循环引用来防止无限递归
       let realPath: string;
       try {
         realPath = fsSync.realpathSync(currentPath);
@@ -228,7 +170,7 @@ export class FileSystemTraversal {
       }
       visitedPaths.add(realPath);
 
-      // Limit recursion depth to prevent stack overflow
+      // 限制递归深度以防止堆栈溢出
       if (visitedPaths.size > 1000) {
         result.errors.push(`Maximum recursion depth exceeded: ${currentPath}`);
         return;
@@ -243,7 +185,7 @@ export class FileSystemTraversal {
         await this.processFile(currentPath, relativePath, stats, result, options);
       }
     } catch (error) {
-      // If this is the root path, rethrow to be caught by the outer try-catch
+      // 如果这是根路径，则重新抛出异常，以便被外部 try-catch 捕获
       if (currentPath === rootPath) {
         throw error;
       }
@@ -263,7 +205,7 @@ export class FileSystemTraversal {
   ): Promise<void> {
     const dirName = path.basename(dirPath);
 
-    if (this.shouldIgnoreDirectory(dirName, options)) {
+    if (PatternMatcher.shouldIgnoreDirectory(dirName, options)) {
       return;
     }
 
@@ -297,10 +239,10 @@ export class FileSystemTraversal {
     result: TraversalResult,
     options: Required<TraversalOptions>
   ): Promise<void> {
-    // Debug: Log file processing attempt
+    // 调试：记录文件处理尝试
     this.logger.debug(`[DEBUG] Processing file`, { filePath, relativePath });
 
-    if (this.shouldIgnoreFile(relativePath, options)) {
+    if (PatternMatcher.shouldIgnoreFile(relativePath, options)) {
       this.logger.debug(`[DEBUG] File ignored by pattern`, { relativePath });
       return;
     }
@@ -311,8 +253,8 @@ export class FileSystemTraversal {
       return;
     }
 
-    const extension = path.extname(filePath).toLowerCase();
-    const language = this.detectLanguage(extension, options.supportedExtensions);
+    const extension = FileUtils.getFileExtension(filePath);
+    const language = FileUtils.detectLanguage(extension, options.supportedExtensions);
 
     this.logger.debug(`[DEBUG] File detected`, { extension, language, supported: options.supportedExtensions.includes(extension) });
 
@@ -323,7 +265,7 @@ export class FileSystemTraversal {
 
     try {
       this.logger.debug(`[DEBUG] Starting isBinaryFile check for ${relativePath}`);
-      const isBinary = await this.isBinaryFile(filePath);
+      const isBinary = await FileUtils.isBinaryFile(filePath, this.logger);
       this.logger.debug(`[DEBUG] File binary check completed`, { isBinary });
 
       if (isBinary) {
@@ -332,13 +274,13 @@ export class FileSystemTraversal {
       }
 
       this.logger.debug(`[DEBUG] Starting hash calculation for ${relativePath}`);
-      const hash = await this.calculateFileHash(filePath);
+      const hash = await FileUtils.calculateFileHash(filePath, this.logger);
       this.logger.debug(`[DEBUG] Hash calculation completed`, { hash });
 
       const fileInfo: FileInfo = {
         path: filePath,
         relativePath,
-        name: path.basename(filePath),
+        name: FileUtils.getFileName(filePath),
         extension,
         size: stats.size,
         hash,
@@ -356,208 +298,6 @@ export class FileSystemTraversal {
         `Error processing file ${relativePath}: ${errorMessage}`
       );
       this.logger.error(`[DEBUG] Error processing file ${relativePath}`, { error: errorMessage, stack: error instanceof Error ? error.stack : undefined });
-    }
-  }
-
-  private shouldIgnoreDirectory(dirName: string, options: Required<TraversalOptions>): boolean {
-    if (options.ignoreHiddenFiles && dirName.startsWith('.')) {
-      return true;
-    }
-
-    return options.ignoreDirectories.includes(dirName);
-  }
-
-  private shouldIgnoreFile(relativePath: string, options: Required<TraversalOptions>): boolean {
-    if (options.ignoreHiddenFiles && path.basename(relativePath).startsWith('.')) {
-      return true;
-    }
-
-    const fileName = path.basename(relativePath).toLowerCase();
-
-    // Check if excludePatterns is an array before iterating
-    if (Array.isArray(options.excludePatterns)) {
-      for (const pattern of options.excludePatterns) {
-        if (this.matchesPattern(relativePath, pattern)) {
-          return true;
-        }
-      }
-    }
-
-    // If no include patterns are specified, don't filter by include patterns
-    if (!Array.isArray(options.includePatterns) || options.includePatterns.length === 0) {
-      return false;
-    }
-
-    // If include patterns are specified, file must match at least one
-    for (const pattern of options.includePatterns) {
-      if (this.matchesPattern(relativePath, pattern)) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  private matchesPattern(filePath: string, pattern: string): boolean {
-    try {
-      // Convert glob pattern to regex
-      let regexPattern = pattern
-        .replace(/\*\*/g, '__DOUBLE_ASTERISK__')
-        .replace(/\*/g, '[^/]*')
-        .replace(/\?/g, '[^/]')
-        .replace(/\./g, '\\.')
-        .replace(/__DOUBLE_ASTERISK__/g, '.*');
-
-      // Ensure the pattern matches the entire path
-      if (!regexPattern.startsWith('^')) {
-        regexPattern = '^' + regexPattern;
-      }
-      if (!regexPattern.endsWith('$')) {
-        regexPattern = regexPattern + '$';
-      }
-
-      const regex = new RegExp(regexPattern);
-      if (regex.test(filePath)) {
-        return true;
-      }
-
-      // Special case for patterns like **/*.js - also try matching without the path part
-      if (pattern.startsWith('**/') && pattern.includes('/') && !filePath.includes('/')) {
-        const filenameOnlyPattern = pattern.replace(/^\*\*\//, '');
-        let filenameRegexPattern = filenameOnlyPattern
-          .replace(/\*/g, '[^/]*')
-          .replace(/\?/g, '[^/]')
-          .replace(/\./g, '\\.');
-
-        if (!filenameRegexPattern.startsWith('^')) {
-          filenameRegexPattern = '^' + filenameRegexPattern;
-        }
-        if (!filenameRegexPattern.endsWith('$')) {
-          filenameRegexPattern = filenameRegexPattern + '$';
-        }
-
-        const filenameRegex = new RegExp(filenameRegexPattern);
-        if (filenameRegex.test(filePath)) {
-          return true;
-        }
-      }
-
-      // For patterns that expect a directory path (like **/*.js), also check if the pattern
-      // matches just the filename part for cases where filePath is just a filename
-      if (pattern.includes('/') && !filePath.includes('/')) {
-        // Extract the filename part from pattern (after the last /)
-        const lastSlashIndex = pattern.lastIndexOf('/');
-        if (lastSlashIndex !== -1) {
-          const filenamePattern = pattern.substring(lastSlashIndex + 1);
-          // Convert this filename pattern to regex and test against filePath
-          // For filename patterns like *.js, we want to match files ending with .js
-          // We need to be careful about escaping - only escape literal dots
-          let filenameRegexPattern = filenamePattern
-            .replace(/\*/g, '.*')   // Replace * with .*
-            .replace(/\?/g, '.')    // Replace ? with .
-            .replace(/\./g, '\\.'); // Escape literal dots (this needs to be last to avoid escaping the dots we just added)
-
-          if (!filenameRegexPattern.startsWith('^')) {
-            filenameRegexPattern = '^' + filenameRegexPattern;
-          }
-          if (!filenameRegexPattern.endsWith('$')) {
-            filenameRegexPattern = filenameRegexPattern + '$';
-          }
-
-          const filenameRegex = new RegExp(filenameRegexPattern);
-          if (filenameRegex.test(filePath)) {
-            return true;
-          }
-        }
-      }
-
-      // Additional check: For patterns like **/*.js, also check if the pattern without the **/ prefix matches
-      if (pattern.startsWith('**/') && pattern.includes('/') && !filePath.includes('/')) {
-        const filenamePattern = pattern.substring(3); // Remove **/ prefix
-        let filenameRegexPattern = filenamePattern
-          .replace(/\*/g, '.*')   // Replace * with .*
-          .replace(/\?/g, '.')    // Replace ? with .
-          .replace(/\./g, '\\.'); // Escape literal dots
-
-        if (!filenameRegexPattern.startsWith('^')) {
-          filenameRegexPattern = '^' + filenameRegexPattern;
-        }
-        if (!filenameRegexPattern.endsWith('$')) {
-          filenameRegexPattern = filenameRegexPattern + '$';
-        }
-
-        const filenameRegex = new RegExp(filenameRegexPattern);
-        if (filenameRegex.test(filePath)) {
-          return true;
-        }
-      }
-
-      return false;
-    } catch (error) {
-      // If the pattern is invalid, return false
-      return false;
-    }
-  }
-
-  private detectLanguage(extension: string, supportedExtensions: string[]): string | null {
-    const languageMap: Record<string, string> = {
-      '.ts': 'typescript',
-      '.tsx': 'typescript',
-      '.js': 'javascript',
-      '.jsx': 'javascript',
-      '.py': 'python',
-      '.java': 'java',
-      '.go': 'go',
-      '.rs': 'rust',
-      '.cpp': 'cpp',
-      '.cc': 'cpp',
-      '.cxx': 'cpp',
-      '.c++': 'cpp',
-      '.c': 'c',
-      '.h': 'c',
-      '.hpp': 'cpp',
-      '.txt': 'text',
-      '.md': 'markdown',
-      '.json': 'json',
-      '.yaml': 'yaml',
-      '.yml': 'yaml',
-      '.xml': 'xml',
-      '.csv': 'csv',
-    };
-
-    const language = languageMap[extension];
-    return language && supportedExtensions.includes(extension) ? language : null;
-  }
-
-  private async isBinaryFile(filePath: string): Promise<boolean> {
-    try {
-      // Use simpler approach with readFile
-      const buffer = await fs.readFile(filePath, { encoding: null });
-
-      // Check first 1024 bytes for null bytes (indicating binary file)
-      const checkLength = Math.min(buffer.length, 1024);
-      for (let i = 0; i < checkLength; i++) {
-        if (buffer[i] === 0) {
-          return true;
-        }
-      }
-
-      return false;
-    } catch (error) {
-      this.logger.debug(`[DEBUG] Error checking if file is binary: ${filePath}`, { error: error instanceof Error ? error.message : String(error) });
-      return true;
-    }
-  }
-
-  private async calculateFileHash(filePath: string): Promise<string> {
-    try {
-      // Use simpler approach with readFile
-      const data = await fs.readFile(filePath);
-      const hash = createHash('sha256');
-      hash.update(data);
-      return hash.digest('hex');
-    } catch (error) {
-      this.logger.debug(`[DEBUG] Error calculating file hash: ${filePath}`, { error: error instanceof Error ? error.message : String(error) });
-      throw new Error(`Failed to calculate hash for ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -580,36 +320,8 @@ export class FileSystemTraversal {
     return changedFiles;
   }
 
-  /**
-   * Static version of findChangedFiles for testing purposes
-   */
-  static async findChangedFiles(
-    rootPath: string,
-    previousHashes: Map<string, string>,
-    logger?: LoggerService,
-    options?: TraversalOptions
-  ): Promise<FileInfo[]> {
-    const traversal = new FileSystemTraversal(logger || {} as LoggerService, options);
-    return traversal.findChangedFiles(rootPath, previousHashes, options);
-  }
-
   async getFileContent(filePath: string): Promise<string> {
-    try {
-      return await fs.readFile(filePath, 'utf-8');
-    } catch (error) {
-      throw new Error(
-        `Failed to read file ${filePath}: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
-  }
-
-  /**
-   * Gets default ignore patterns
-   * @returns Array of default ignore patterns
-   */
-  private getDefaultIgnorePatterns(): string[] {
-    // Use the unified default ignore patterns
-    return DEFAULT_IGNORE_PATTERNS;
+    return await FileUtils.getFileContent(filePath);
   }
 
   async getDirectoryStats(
@@ -647,29 +359,23 @@ export class FileSystemTraversal {
   }
 
   /**
-   * Static version of getSupportedExtensions for testing purposes
+   * 清除特定路径的忽略规则缓存
    */
-  static getSupportedExtensions(): string[] {
-    return [
-      '.ts',
-      '.js',
-      '.tsx',
-      '.jsx',
-      '.py',
-      '.java',
-      '.go',
-      '.rs',
-      '.cpp',
-      '.c',
-      '.h',
-      '.hpp',
-      '.txt',
-      '.md',
-      '.json',
-      '.yaml',
-      '.yml',
-      '.xml',
-      '.csv',
-    ];
+  clearIgnoreRulesCache(rootPath: string): void {
+    this.ignoreRulesManager.clearCacheForPath(rootPath);
+  }
+  /**
+   * 检查文件是否为二进制文件
+   * 提供公共方法以便外部调用
+   */
+  async isBinaryFile(filePath: string): Promise<boolean> {
+    return await FileUtils.isBinaryFile(filePath, this.logger);
+  }
+
+  /**
+   * 清除所有忽略规则缓存
+   */
+  clearAllIgnoreRulesCache(): void {
+    this.ignoreRulesManager.clearAllCache();
   }
 }

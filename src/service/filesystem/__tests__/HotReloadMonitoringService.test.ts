@@ -38,7 +38,7 @@ describe('HotReloadMonitoringService', () => {
       expect(monitoringService).toBeDefined();
       const config = (monitoringService as any).config;
       expect(config.enableMetricsCollection).toBe(true);
-      expect(config.metricsCollectionInterval).toBe(3000);
+      expect(config.metricsCollectionInterval).toBe(10000);
       expect(config.enableDetailedLogging).toBe(false);
       expect(config.maxMetricsHistory).toBe(100);
       expect(config.alertThresholds).toEqual({

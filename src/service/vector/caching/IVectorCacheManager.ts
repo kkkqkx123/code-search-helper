@@ -1,4 +1,4 @@
-import { Vector, SearchResult, CacheStats } from '../types/VectorTypes';
+import { Vector, SearchResult, CacheStats, CacheClearOptions, CacheClearResult } from '../types/VectorTypes';
 
 /**
  * 向量缓存管理器接口
@@ -37,7 +37,7 @@ export interface IVectorCacheManager {
   /**
    * 清空所有缓存
    */
-  clear(): Promise<void>;
+  clear(options?: CacheClearOptions): Promise<CacheClearResult>;
 
   /**
    * 获取缓存统计

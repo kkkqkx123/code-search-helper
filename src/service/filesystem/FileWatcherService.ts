@@ -25,6 +25,8 @@ class CodebaseIndexError extends Error {
   }
 }
 import { FileSystemTraversal, FileInfo, TraversalOptions } from './FileSystemTraversal';
+import { FileUtils } from '../../utils/filesystem/FileUtils';
+import { PatternMatcher } from '../../utils/filesystem/PatternMatcher';
 import { TYPES } from '../../types';
 
 export interface FileWatcherOptions {
@@ -294,7 +296,7 @@ export class FileWatcherService {
 
       // 获取新文件的哈希
       const fullPath = path.resolve(watchPath, filePath);
-      const hash = await this.fileSystemTraversal['calculateFileHash'](fullPath);
+      const hash = await FileUtils.calculateFileHash(fullPath);
       
       // 检查是否有匹配的待处理删除事件
       const matchedUnlink = this.findMatchingUnlink(filePath, hash, stats?.size || 0);
@@ -392,7 +394,7 @@ export class FileWatcherService {
       try {
         const fullPath = path.resolve(watchPath, filePath);
         const stats = await fs.stat(fullPath);
-        const hash = await this.fileSystemTraversal['calculateFileHash'](fullPath);
+        const hash = await FileUtils.calculateFileHash(fullPath);
         
         // 记录待处理的删除事件，包含哈希和大小信息
         this.pendingUnlinks.set(filePath, {
@@ -684,12 +686,12 @@ export class FileWatcherService {
         return null;
       }
 
-      const isBinary = await this.fileSystemTraversal['isBinaryFile'](fullPath);
+      const isBinary = await FileUtils.isBinaryFile(fullPath);
       if (isBinary) {
         return null;
       }
 
-      const hash = await this.fileSystemTraversal['calculateFileHash'](fullPath);
+      const hash = await FileUtils.calculateFileHash(fullPath);
 
       return {
         path: fullPath,
@@ -718,7 +720,7 @@ export class FileWatcherService {
 
     // Check ignore patterns
     for (const pattern of this.allIgnorePatterns) {
-      if (this.fileSystemTraversal['matchesPattern'](relativePath, pattern)) {
+      if (PatternMatcher.matchesPattern(relativePath, pattern)) {
         return true;
       }
     }

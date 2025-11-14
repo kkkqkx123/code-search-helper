@@ -14,6 +14,7 @@ interface ErrorContext {
 }
 import { FileWatcherService, FileWatcherCallbacks } from './FileWatcherService';
 import { FileSystemTraversal, FileInfo } from './FileSystemTraversal';
+import { FileUtils } from '../../utils/filesystem/FileUtils';
 import { ProjectIdManager } from '../../database/ProjectIdManager';
 import { TYPES } from '../../types';
 import * as path from 'path';
@@ -370,7 +371,7 @@ export class ChangeDetectionService extends EventEmitter {
       const timeoutId = setTimeout(async () => {
         try {
           const currentHash = this.options.enableHashComparison
-            ? await this.fileSystemTraversal['calculateFileHash'](fileInfo.path)
+            ? await FileUtils.calculateFileHash(fileInfo.path)
             : fileInfo.hash;
 
           if (previousHash !== currentHash) {
@@ -826,7 +827,7 @@ export class ChangeDetectionService extends EventEmitter {
   private async hasFileChangedForUpdate(projectId: string, filePath: string): Promise<boolean> {
     try {
       // 获取当前文件哈希
-      const currentHash = await this.fileSystemTraversal['calculateFileHash'](filePath);
+      const currentHash = await FileUtils.calculateFileHash(filePath);
 
       // 从FileHashManager获取缓存的哈希
       const cachedHash = await this.fileHashManager.getFileHash(projectId, filePath);

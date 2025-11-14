@@ -19,6 +19,11 @@ describe('VectorService Integration', () => {
     container.bind<LoggerService>(TYPES.LoggerService).to(LoggerService).inSingletonScope();
     container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).to(ErrorHandlerService).inSingletonScope();
 
+    // 注册缓存服务（VectorCacheManager依赖）
+    const { CacheService } = require('../../../../infrastructure/caching/CacheService');
+    container.bind(CacheService).toSelf().inSingletonScope();
+    container.bind(TYPES.CacheService).to(CacheService).inSingletonScope();
+
     // 注册向量服务模块
     container.bind(TYPES.IVectorRepository).to(VectorRepository).inSingletonScope();
     container.bind(TYPES.VectorRepository).to(VectorRepository).inSingletonScope();

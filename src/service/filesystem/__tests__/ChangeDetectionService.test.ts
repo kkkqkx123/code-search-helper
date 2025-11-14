@@ -6,6 +6,7 @@ import { FileSystemTraversal, FileInfo, TraversalResult } from '../FileSystemTra
 import { HotReloadRecoveryService } from '../HotReloadRecoveryService';
 import { FileHashManager } from '../FileHashManager';
 import { ProjectIdManager } from '../../../database/ProjectIdManager';
+import { FileUtils } from '../../../utils/filesystem/FileUtils';
 import { TYPES } from '../../../types';
 import { Container } from 'inversify';
 import * as path from 'path';
@@ -18,6 +19,7 @@ jest.mock('../FileSystemTraversal');
 jest.mock('../HotReloadRecoveryService');
 jest.mock('../FileHashManager');
 jest.mock('../../../database/ProjectIdManager');
+jest.mock('../../../utils/filesystem/FileUtils');
 
 const MockedLoggerService = LoggerService as jest.Mocked<typeof LoggerService>;
 const MockedErrorHandlerService = ErrorHandlerService as jest.Mocked<typeof ErrorHandlerService>;
@@ -25,6 +27,7 @@ const MockedFileWatcherService = FileWatcherService as jest.Mocked<typeof FileWa
 const MockedFileSystemTraversal = FileSystemTraversal as jest.Mocked<typeof FileSystemTraversal>;
 const MockedHotReloadRecoveryService = HotReloadRecoveryService as jest.Mocked<typeof HotReloadRecoveryService>;
 const MockedProjectIdManager = ProjectIdManager as jest.Mocked<typeof ProjectIdManager>;
+const MockedFileUtils = FileUtils as jest.Mocked<typeof FileUtils>;
 
 describe('ChangeDetectionService', () => {
     let changeDetectionService: ChangeDetectionService;
@@ -281,7 +284,7 @@ describe('ChangeDetectionService', () => {
             
             // Set up initial hash
             (mockFileHashManager.getFileHash as jest.Mock).mockResolvedValue('oldhash');
-            mockFileSystemTraversal['calculateFileHash'] = jest.fn().mockResolvedValue('newhash');
+            MockedFileUtils.calculateFileHash = jest.fn().mockResolvedValue('newhash');
             (mockFileHashManager.updateFileHash as jest.Mock).mockResolvedValue(undefined);
 
             // Use real timers for this test since debounce uses real timing
