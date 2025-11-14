@@ -23,7 +23,7 @@ export class GraphService implements IGraphService {
     @inject(TYPES.ConfigService) private configService: ConfigService,
     @inject(TYPES.IGraphRepository) private repository: IGraphRepository,
     @inject(TYPES.NebulaSpaceManager) private spaceManager: NebulaSpaceManager,
-    @inject(TYPES.GraphCacheService) private cacheService: ICacheService,
+    @inject(TYPES.CacheService) private cacheService: ICacheService,
     @inject(TYPES.GraphPerformanceMonitor) private performanceMonitor: IPerformanceMonitor
   ) {}
 

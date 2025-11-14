@@ -2,6 +2,7 @@ import { injectable, inject } from 'inversify';
 import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { DatabaseType } from '../types';
+import { CompressionUtils } from '../../utils/cache/CompressionUtils';
 import { ICacheService, CacheEntry, CacheConfig, GraphAnalysisResult } from './types';
 
 @injectable()
@@ -15,6 +16,7 @@ export class CacheService implements ICacheService {
     hitCount: number;
     missCount: number;
   };
+  private compressedKeys: Set<string> = new Set();
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService
@@ -22,7 +24,6 @@ export class CacheService implements ICacheService {
     this.logger = logger;
     this.cache = new Map();
     this.databaseSpecificCache = new Map();
-    // 初始化数据库特定缓存映射
     Object.values(DatabaseType).forEach(dbType => {
       this.databaseSpecificCache.set(dbType, new Map<string, CacheEntry<any>>());
     });
@@ -32,9 +33,9 @@ export class CacheService implements ICacheService {
     };
 
     this.config = {
-      defaultTTL: 300000, // 5 minutes
+      defaultTTL: 300000,
       maxEntries: 10000,
-      cleanupInterval: 60000, // 1 minute
+      cleanupInterval: 60000,
       enableStats: true,
       databaseSpecific: {}
     };
@@ -46,38 +47,55 @@ export class CacheService implements ICacheService {
     const entry = this.cache.get(key);
 
     if (!entry) {
-      if (this.config.enableStats) {
-        this.stats.missCount++;
-      }
+      if (this.config.enableStats) this.stats.missCount++;
       this.logger.debug('Cache miss', { key });
       return undefined;
     }
 
-    // Check if entry is expired
     if (Date.now() - entry.timestamp > entry.ttl) {
       this.cache.delete(key);
-      if (this.config.enableStats) {
-        this.stats.missCount++;
-      }
+      this.compressedKeys.delete(key);
+      if (this.config.enableStats) this.stats.missCount++;
       this.logger.debug('Cache entry expired', { key });
       return undefined;
     }
 
-    if (this.config.enableStats) {
-      this.stats.hitCount++;
-    }
+    if (this.config.enableStats) this.stats.hitCount++;
     this.logger.debug('Cache hit', { key });
+    
+    // 解压缩
+    if (this.compressedKeys.has(key)) {
+      const decompressed = CompressionUtils.decompress(entry.data as Buffer);
+      return JSON.parse(decompressed) as T;
+    }
+    
     return entry.data;
   }
 
   setCache<T>(key: string, data: T, ttl: number = this.config.defaultTTL): void {
-    // Check if we need to evict entries
+    // 内存检查
+    this.checkMemoryUsage();
+    
     if (this.cache.size >= this.config.maxEntries) {
       this.evictEntries();
     }
 
+    let finalData: any = data;
+    
+    // 压缩逻辑
+    if (this.config.enableCompression) {
+      const dataStr = JSON.stringify(data);
+      const dataSize = Buffer.byteLength(dataStr);
+      
+      if (dataSize > (this.config.compressionThreshold || 1024)) {
+        finalData = CompressionUtils.compress(dataStr);
+        this.compressedKeys.add(key);
+        this.logger.debug('Data compressed', { key, originalSize: dataSize, compressedSize: finalData.length });
+      }
+    }
+
     const entry: CacheEntry<T> = {
-      data,
+      data: finalData,
       timestamp: Date.now(),
       ttl,
     };
@@ -88,10 +106,9 @@ export class CacheService implements ICacheService {
 
   deleteFromCache(key: string): boolean {
     const deleted = this.cache.delete(key);
+    this.compressedKeys.delete(key);
     if (deleted) {
       this.logger.debug('Cache entry deleted', { key });
-    } else {
-      this.logger.debug('Cache entry not found for deletion', { key });
     }
     return deleted;
   }
@@ -99,6 +116,7 @@ export class CacheService implements ICacheService {
   clearAllCache(): void {
     const size = this.cache.size;
     this.cache.clear();
+    this.compressedKeys.clear();
     this.logger.info('Cache cleared', { entriesRemoved: size });
   }
 
@@ -121,6 +139,7 @@ export class CacheService implements ICacheService {
     for (const [key, entry] of this.cache.entries()) {
       if (now - entry.timestamp > entry.ttl) {
         this.cache.delete(key);
+        this.compressedKeys.delete(key);
         expiredCount++;
       }
     }
@@ -130,24 +149,51 @@ export class CacheService implements ICacheService {
     }
   }
 
+  private checkMemoryUsage(): void {
+    if (!this.config.maxMemory) return;
+    
+    const usage = process.memoryUsage();
+    const heapRatio = usage.heapUsed / usage.heapTotal;
+    const threshold = this.config.memoryThreshold || 0.8;
+    
+    if (heapRatio > threshold) {
+      this.logger.warn('High memory usage detected', { heapRatio, threshold });
+      this.aggressiveCleanup();
+    }
+  }
+  
+  private aggressiveCleanup(): void {
+    const entriesToRemove = Math.ceil(this.cache.size * 0.3);
+    const keys = Array.from(this.cache.keys());
+    
+    for (let i = 0; i < entriesToRemove && i < keys.length; i++) {
+      this.cache.delete(keys[i]);
+      this.compressedKeys.delete(keys[i]);
+    }
+    
+    this.logger.info('Aggressive cleanup completed', {
+      entriesRemoved: entriesToRemove,
+      remainingEntries: this.cache.size
+    });
+  }
+
   private startCleanupInterval(): void {
     this.cleanupInterval = setInterval(() => {
       this.cleanupExpiredEntries();
     }, this.config.cleanupInterval);
 
-    // Ensure interval doesn't prevent Node.js from exiting
     if (this.cleanupInterval.unref) {
       this.cleanupInterval.unref();
     }
   }
 
   private evictEntries(): void {
-    // Simple LRU eviction: remove the oldest 10% of entries
     const entriesToRemove = Math.ceil(this.cache.size * 0.1);
     const keys = Array.from(this.cache.keys());
 
     for (let i = 0; i < entriesToRemove && i < keys.length; i++) {
       this.cache.delete(keys[i]);
+      this.compressedKeys.delete(keys[i]);
     }
 
     this.logger.info('Evicted cache entries due to size limit', {
@@ -165,19 +211,23 @@ export class CacheService implements ICacheService {
     this.setCache('graph_stats', data, ttl);
   }
 
+  async cacheGraphData(key: string, data: any, ttl?: number): Promise<void> {
+    this.setCache(`graph:${key}`, data, ttl || this.config.defaultTTL);
+  }
+  
+  async getGraphData(key: string): Promise<any | null> {
+    return this.getFromCache(`graph:${key}`) || null;
+  }
+
   // Additional utility methods
   hasKey(key: string): boolean {
     const entry = this.cache.get(key);
-    if (!entry) {
-      return false;
-    }
-
-    // Check if entry is expired
+    if (!entry) return false;
     if (Date.now() - entry.timestamp > entry.ttl) {
       this.cache.delete(key);
+      this.compressedKeys.delete(key);
       return false;
     }
-
     return true;
   }
 
@@ -202,12 +252,10 @@ export class CacheService implements ICacheService {
     }
   }
 
-  // Method to manually trigger cleanup
   forceCleanup(): void {
     this.cleanupExpiredEntries();
   }
 
-  // Method to get cache performance metrics
   getPerformanceMetrics() {
     const stats = this.getCacheStats();
     const now = Date.now();
@@ -233,7 +281,6 @@ export class CacheService implements ICacheService {
     };
   }
 
-  // Method to preload cache with data
   preloadCache<T>(entries: Array<{ key: string; data: T; ttl?: number }>): void {
     for (const entry of entries) {
       this.setCache(entry.key, entry.data, entry.ttl || this.config.defaultTTL);
@@ -241,12 +288,10 @@ export class CacheService implements ICacheService {
     this.logger.info('Preloaded cache with entries', { count: entries.length });
   }
 
-  // Method to get cache entries by pattern
   getKeysByPattern(pattern: RegExp): string[] {
     return this.getKeys().filter(key => pattern.test(key));
   }
 
-  // Method to delete cache entries by pattern
   deleteByPattern(pattern: RegExp): number {
     const keysToDelete = this.getKeysByPattern(pattern);
     let deletedCount = 0;
@@ -265,7 +310,6 @@ export class CacheService implements ICacheService {
     return deletedCount;
   }
 
-  // 扩展方法：支持多数据库类型的缓存
   async getDatabaseSpecificCache<T>(key: string, databaseType: DatabaseType): Promise<T | null> {
     const dbCache = this.databaseSpecificCache.get(databaseType);
     if (!dbCache) {
@@ -279,7 +323,6 @@ export class CacheService implements ICacheService {
       return null;
     }
 
-    // Check if entry is expired
     if (Date.now() - entry.timestamp > entry.ttl) {
       dbCache.delete(key);
       this.logger.debug('Database-specific cache entry expired', { key, databaseType });
@@ -297,13 +340,11 @@ export class CacheService implements ICacheService {
       return;
     }
 
-    // 获取特定数据库类型的配置
     const dbConfig = this.config.databaseSpecific[databaseType] || {
       defaultTTL: this.config.defaultTTL,
       maxEntries: this.config.maxEntries
     };
 
-    // 检查是否需要驱逐条目
     if (dbCache.size >= dbConfig.maxEntries) {
       this.evictDatabaseSpecificEntries(databaseType);
     }
@@ -335,13 +376,11 @@ export class CacheService implements ICacheService {
     const dbCache = this.databaseSpecificCache.get(databaseType);
     if (!dbCache) return;
 
-    // 获取特定数据库类型的配置
     const dbConfig = this.config.databaseSpecific[databaseType] || {
       defaultTTL: this.config.defaultTTL,
       maxEntries: this.config.maxEntries
     };
 
-    // 简单的LRU驱逐：删除最老的10%条目
     const entriesToRemove = Math.ceil(dbCache.size * 0.1);
     const keys = Array.from(dbCache.keys());
 
@@ -356,7 +395,6 @@ export class CacheService implements ICacheService {
     });
   }
 
-  // 专门用于Nebula图数据的缓存方法
   async cacheNebulaGraphData(spaceName: string, data: any): Promise<void> {
     const key = `nebula:graph:${spaceName}`;
     await this.setDatabaseSpecificCache(key, data, DatabaseType.NEBULA);
@@ -367,7 +405,6 @@ export class CacheService implements ICacheService {
     return await this.getDatabaseSpecificCache(key, DatabaseType.NEBULA);
   }
 
-  // 专门用于Qdrant向量数据的缓存方法
   async cacheVectorData(collectionName: string, data: any): Promise<void> {
     const key = `qdrant:vector:${collectionName}`;
     await this.setDatabaseSpecificCache(key, data, DatabaseType.QDRANT);

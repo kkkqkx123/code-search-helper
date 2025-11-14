@@ -1,5 +1,6 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../../types';
+import { ICacheService } from '../../../infrastructure/caching/types';
 import { LoggerService } from '../../../utils/LoggerService';
 import { MetadataBuilder } from '../../parser/core/normalization/utils/MetadataBuilder';
 import {
@@ -96,7 +97,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.DataMappingValidator) validator: DataMappingValidator,
     @inject(TYPES.GraphMappingCache) cache: GraphMappingCache,
-    @inject(TYPES.GraphCacheService) unifiedCache: any,
+    @inject(TYPES.CacheService) unifiedCache: ICacheService,
     @inject(TYPES.BatchProcessingService) batchOptimizer: BatchProcessingService,
     @inject(TYPES.FaultToleranceHandler) faultToleranceHandler: FaultToleranceHandler
   ) {

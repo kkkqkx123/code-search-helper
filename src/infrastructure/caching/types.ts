@@ -39,6 +39,10 @@ export interface CacheConfig {
   defaultTTL: number;
   maxEntries: number;
   cleanupInterval: number;
+  enableCompression?: boolean;
+  compressionThreshold?: number;
+  maxMemory?: number;
+  memoryThreshold?: number;
   enableStats: boolean;
   // 添加数据库特定配置
   databaseSpecific: {

@@ -17,6 +17,7 @@ import { ProjectLookupService } from '../database/ProjectLookupService';
 import { VectorIndexService } from '../service/index/VectorIndexService.js';
 import { HybridIndexService } from '../service/index/HybridIndexService';
 import { EmbedderFactory } from '../embedders/EmbedderFactory';
+import { ICacheService } from '../infrastructure/caching/types';
 import { QdrantService } from '../database/qdrant/QdrantService.js';
 import { ProjectStateManager } from '../service/project/ProjectStateManager';
 import { diContainer } from '../core/DIContainer';
@@ -92,7 +93,7 @@ export class ApiServer {
     // 从依赖注入容器获取Graph服务
     const graphSearchService = diContainer.get<any>(TYPES.GraphSearchServiceNew);
     const graphService = diContainer.get<any>(TYPES.GraphService);
-    const graphCacheService = diContainer.get<any>(TYPES.GraphCacheService);
+    const graphCacheService = diContainer.get<ICacheService>(TYPES.CacheService);
     const graphPerformanceMonitor = diContainer.get<any>(TYPES.GraphPerformanceMonitor);
     const graphQueryValidator = diContainer.get<any>(TYPES.GraphQueryValidator);
     const graphLoggerService = new (require('../utils/LoggerService').LoggerService)(diContainer.get(TYPES.ConfigService));

@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { inject, injectable } from 'inversify';
 import { TYPES } from '../../types';
 import { IGraphService } from '../../service/graph/core/IGraphService';
-import { GraphCacheService } from '../../service/caching/GraphCacheService';
+import { ICacheService } from '../../infrastructure/caching/types';
 import { GraphPerformanceMonitor } from '../../service/graph/performance/GraphPerformanceMonitor';
 import { LoggerService } from '../../utils/LoggerService';
 
@@ -10,13 +10,13 @@ import { LoggerService } from '../../utils/LoggerService';
 export class GraphStatsRoutes {
   protected router: Router;
   protected graphService: IGraphService;
-  protected graphCacheService: GraphCacheService;
+  protected graphCacheService: ICacheService;
   protected performanceMonitor: GraphPerformanceMonitor;
   protected logger: LoggerService;
 
   constructor(
     @inject(TYPES.GraphService) graphService: IGraphService,
-    @inject(TYPES.GraphCacheService) graphCacheService: GraphCacheService,
+    @inject(TYPES.CacheService) graphCacheService: ICacheService,
     @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: GraphPerformanceMonitor,
     @inject(TYPES.LoggerService) logger: LoggerService
   ) {

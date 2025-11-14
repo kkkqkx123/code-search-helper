@@ -180,7 +180,7 @@ export const TYPES = {
   HealthChecker: Symbol.for('HealthChecker'),
   InfrastructureManager: Symbol.for('InfrastructureManager'),
   DatabaseHealthChecker: Symbol.for('DatabaseHealthChecker'),
-  GraphCacheService: Symbol.for('GraphCacheService'),
+  
 
   CacheConfig: Symbol.for('CacheConfig'),
   InfrastructureErrorHandler: Symbol.for('InfrastructureErrorHandler'),

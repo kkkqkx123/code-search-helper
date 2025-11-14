@@ -12,7 +12,7 @@ const mockLoggerService = {
 
 // Simple mock for NebulaService
 const mockNebulaService = {
-  executeReadQuery: jest.fn(),
+  executeQuery: jest.fn(),
   executeWriteQuery: jest.fn(),
   isConnected: jest.fn().mockReturnValue(true),
   isInitialized: jest.fn().mockReturnValue(true),
@@ -263,7 +263,7 @@ describe('GraphPersistenceUtils', () => {
 
   describe('getExistingNodeIds', () => {
     it('should get existing node IDs by type', async () => {
-      mockNebulaService.executeReadQuery.mockResolvedValue({
+      mockNebulaService.executeQuery.mockResolvedValue({
         success: true,
         data: {
           rows: []
@@ -276,7 +276,7 @@ describe('GraphPersistenceUtils', () => {
     });
 
     it('should handle query failure', async () => {
-      mockNebulaService.executeReadQuery.mockRejectedValue(new Error('Query failed'));
+      mockNebulaService.executeQuery.mockRejectedValue(new Error('Query failed'));
       
       await expect(async () => {
         await persistenceUtils.getExistingNodeIds('File', {});
@@ -287,7 +287,7 @@ describe('GraphPersistenceUtils', () => {
   describe('getExistingNodeIdsByIds', () => {
     it('should get existing node IDs by specific IDs', async () => {
       const nodeIds = ['node-1', 'node-2', 'node-3'];
-      mockNebulaService.executeReadQuery.mockResolvedValue({
+      mockNebulaService.executeQuery.mockResolvedValue({
         success: true,
         data: {
           rows: [{ id: 'node-1' }, { id: 'node-2' }]
@@ -309,7 +309,7 @@ describe('GraphPersistenceUtils', () => {
   describe('getNodeIdsByFiles', () => {
     it('should get node IDs by file paths', async () => {
       const filePaths = ['/src/file1.ts', '/src/file2.ts'];
-      mockNebulaService.executeReadQuery.mockResolvedValue({
+      mockNebulaService.executeQuery.mockResolvedValue({
         success: true,
         data: {
           rows: []
@@ -357,13 +357,13 @@ describe('GraphPersistenceUtils', () => {
 
   describe('waitForSpaceDeletion', () => {
     it('should wait for space deletion', async () => {
-      mockNebulaService.executeReadQuery.mockResolvedValue({
+      mockNebulaService.executeQuery.mockResolvedValue({
         data: []
       });
 
       await persistenceUtils.waitForSpaceDeletion(mockNebulaService as any, 'test-space', 3, 10);
 
-      expect(mockNebulaService.executeReadQuery).toHaveBeenCalled();
+      expect(mockNebulaService.executeQuery).toHaveBeenCalled();
     });
   });
 

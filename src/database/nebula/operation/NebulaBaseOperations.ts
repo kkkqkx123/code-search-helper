@@ -5,6 +5,7 @@ import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { INebulaSpaceManager } from '../space/NebulaSpaceManager';
 import { INebulaQueryService } from '../query/NebulaQueryService';
 import { DatabaseError } from '../../common/DatabaseError';
+import { DatabaseEventType } from '../../common/DatabaseEventTypes';
 
 /**
  * Nebula操作基类
@@ -98,5 +99,41 @@ export abstract class NebulaBaseOperations {
         projectId
       }
     }));
+  }
+
+  /**
+   * 格式化查询值
+   */
+  protected formatValue(value: any): string {
+    return typeof value === 'string' ? `"${value}"` : String(value);
+  }
+
+  /**
+   * 记录成功操作日志
+   */
+  protected logSuccess(operation: string, data: Record<string, any>): void {
+    this.databaseLogger.logDatabaseEvent({
+      type: DatabaseEventType.QUERY_EXECUTED,
+      source: 'nebula',
+      timestamp: new Date(),
+      data: { operation, ...data }
+    }).catch(err => console.error('Failed to log success:', err));
+  }
+
+  /**
+   * 记录错误操作日志
+   */
+  protected logError(operation: string, data: Record<string, any>, error: unknown): void {
+    this.databaseLogger.logDatabaseEvent({
+      type: DatabaseEventType.ERROR_OCCURRED,
+      source: 'nebula',
+      timestamp: new Date(),
+      data: {
+        operation,
+        ...data,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      }
+    }).catch(err => console.error('Failed to log error:', err));
   }
 }

@@ -4,6 +4,7 @@ import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
 import { INebulaDataOperations } from '../../../../database/nebula/operation/NebulaDataOperations';
 import { INebulaGraphOperations } from '../../../../database/nebula/operation/NebulaGraphOperations';
 import { INebulaQueryService } from '../../../../database/nebula/query/NebulaQueryService';
+import { ICacheService } from '../../../../infrastructure/caching/types';
 
 describe('GraphRepository', () => {
   let repository: GraphRepository;
@@ -12,6 +13,7 @@ describe('GraphRepository', () => {
   let mockDataOps: jest.Mocked<INebulaDataOperations>;
   let mockGraphOps: jest.Mocked<INebulaGraphOperations>;
   let mockQueryService: jest.Mocked<INebulaQueryService>;
+  let mockCache: jest.Mocked<ICacheService>;
 
   beforeEach(() => {
     mockLogger = {
@@ -43,12 +45,26 @@ describe('GraphRepository', () => {
       executeQuery: jest.fn().mockResolvedValue({ data: [] })
     } as any;
 
+    mockCache = {
+      getFromCache: jest.fn(),
+      setCache: jest.fn(),
+      deleteByPattern: jest.fn(),
+      deleteFromCache: jest.fn(),
+      clearAllCache: jest.fn(),
+      getCacheStats: jest.fn(),
+      cleanupExpiredEntries: jest.fn(),
+      getDatabaseSpecificCache: jest.fn(),
+      setDatabaseSpecificCache: jest.fn(),
+      invalidateDatabaseCache: jest.fn()
+    } as any;
+
     repository = new GraphRepository(
       mockLogger,
       mockErrorHandler,
       mockDataOps,
       mockGraphOps,
-      mockQueryService
+      mockQueryService,
+      mockCache
     );
   });
 

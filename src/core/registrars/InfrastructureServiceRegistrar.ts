@@ -6,7 +6,7 @@ import { EmbedderFactory } from '../../embedders/EmbedderFactory';
 import { EmbeddingCacheService } from '../../embedders/EmbeddingCacheService';
 
 // 图服务基础设施
-import { GraphCacheService } from '../../service/caching/GraphCacheService';
+
 import { GraphPerformanceMonitor } from '../../service/graph/performance/GraphPerformanceMonitor';
 import { GraphQueryValidator } from '../../service/graph/query/GraphQueryValidator';
 
@@ -113,7 +113,7 @@ export class InfrastructureServiceRegistrar {
       }).inSingletonScope();
 
       // 图服务基础设施
-      container.bind<GraphCacheService>(TYPES.GraphCacheService).to(GraphCacheService).inSingletonScope();
+      
       container.bind<GraphPerformanceMonitor>(TYPES.GraphPerformanceMonitor).to(GraphPerformanceMonitor).inSingletonScope();
       container.bind<GraphQueryValidator>(TYPES.GraphQueryValidator).to(GraphQueryValidator).inSingletonScope();
       container.bind<MappingCacheManager>(TYPES.MappingCacheManager).to(MappingCacheManager).inSingletonScope();
