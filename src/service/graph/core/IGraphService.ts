@@ -1,80 +1,58 @@
-import { IGraphAnalysisService } from './IGraphAnalysisService';
-import { IGraphDataService } from './IGraphDataService';
-import { IGraphSearchService } from './IGraphSearchService';
-import { IGraphSpaceService } from './IGraphSpaceService';
-
 /**
- * 图服务组合接口
- * 遵循接口隔离原则，通过组合多个专用接口提供完整的图服务功能
- * 
- * 客户端可以根据实际需求选择性地依赖特定的接口，而不是被迫实现不需要的方法
+ * 统一的图服务接口
+ * 职责：提供图数据操作的核心接口，直接使用 database/nebula 层组件
  */
-export interface IGraphService extends 
-  IGraphAnalysisService,
-  IGraphDataService,
-  IGraphSearchService,
-  IGraphSpaceService {
-  // 组合接口本身不需要额外的方法，所有功能都通过继承专用接口获得
+export interface IGraphService {
+  // 初始化和连接管理
+  initialize(): Promise<boolean>;
+  close(): Promise<void>;
+  isDatabaseConnected(): boolean;
+
+  // 查询执行
+  executeReadQuery(query: string, parameters?: Record<string, any>): Promise<any>;
+  executeWriteQuery(query: string, parameters?: Record<string, any>): Promise<any>;
+  executeBatch(queries: Array<{ nGQL: string; parameters?: Record<string, any> }>): Promise<any>;
+
+  // 空间管理
+  useSpace(spaceName: string): Promise<void>;
+  createSpace(spaceName: string, options?: any): Promise<boolean>;
+  deleteSpace(spaceName: string): Promise<boolean>;
+  spaceExists(spaceName: string): Promise<boolean>;
+  getCurrentSpace(): string | null;
+
+  // 批处理操作
+  batchInsertNodes(nodes: any[], projectId: string): Promise<any>;
+  batchInsertEdges(edges: any[], projectId: string): Promise<any>;
 }
 
 /**
- * 图服务工厂接口
- * 用于创建和管理不同类型的图服务实例
+ * 图查询接口
  */
-export interface IGraphServiceFactory {
-  /**
-   * 创建分析服务实例
-   */
-  createAnalysisService(): IGraphAnalysisService;
-
-  /**
-   * 创建数据服务实例
-   */
-  createDataService(): IGraphDataService;
-
-  /**
-   * 创建搜索服务实例
-   */
-  createSearchService(): IGraphSearchService;
-
-  /**
-   * 创建空间管理服务实例
-   */
-  createSpaceService(): IGraphSpaceService;
-
-  /**
-   * 创建完整的图服务实例
-   */
-  createGraphService(): IGraphService;
+export interface GraphQuery {
+  nGQL: string;
+  parameters?: Record<string, any>;
 }
 
 /**
- * 图服务适配器接口
- * 用于适配不同的图服务实现，确保接口兼容性
+ * 图服务配置接口
  */
-export interface IGraphServiceAdapter {
-  /**
-   * 获取分析服务
-   */
-  getAnalysisService(): IGraphAnalysisService;
+export interface GraphServiceConfig {
+  defaultSpace: string;
+  enableCaching: boolean;
+  cacheTTL: number;
+  maxRetries: number;
+  retryDelay: number;
+  connectionTimeout: number;
+  healthCheckInterval: number;
+}
 
-  /**
-   * 获取数据服务
-   */
-  getDataService(): IGraphDataService;
-
-  /**
-   * 获取搜索服务
-   */
-  getSearchService(): IGraphSearchService;
-
-  /**
-   * 获取空间管理服务
-   */
-  getSpaceService(): IGraphSpaceService;
-
-  /**
-   * 获取完整的图服务
-   */
-  getGraphService(): IGraphService;
+/**
+ * 批处理结果接口
+ */
+export interface BatchResult {
+  success: boolean;
+  insertedCount: number;
+  failedCount: number;
+  errors: string[];
+  executionTime?: number;
 }

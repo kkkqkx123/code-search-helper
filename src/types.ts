@@ -146,6 +146,7 @@ export const TYPES = {
 
   // 15. 图服务
   GraphService: Symbol.for('GraphService'),
+  IGraphService: Symbol.for('IGraphService'),
   GraphSearchService: Symbol.for('GraphSearchService'),
   IGraphSearchService: Symbol.for('IGraphSearchService'),
   GraphPersistenceService: Symbol.for('GraphPersistenceService'),

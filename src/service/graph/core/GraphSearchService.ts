@@ -3,7 +3,7 @@ import { TYPES } from '../../../types';
 import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../config/ConfigService';
-import { GraphDatabaseService } from '../../../database/graph/GraphDatabaseService';
+import { IGraphService } from './IGraphService';
 import { ICacheService } from '../../../infrastructure/caching/types';
 import { IPerformanceMonitor } from '../../../infrastructure/monitoring/types';
 import {
@@ -12,185 +12,237 @@ import {
   CodeGraphNode,
   CodeGraphRelationship
 } from './types';
-import { IGraphSearchService } from './IGraphSearchService';
 
-// 导入工具类
-import { CacheManager } from '../utils/CacheManager';
-import { QueryBuilder } from '../utils/QueryBuilder';
-import { PropertyFormatter } from '../utils/PropertyFormatter';
-
-// 导入常量
-import { ERROR_MESSAGES, LOG_MESSAGES } from '../constants/GraphSearchConstants';
-
+/**
+ * 图搜索服务
+ * 职责：专注于搜索逻辑，不包含缓存、空间管理等重复功能
+ */
 @injectable()
-export class GraphSearchServiceFinal implements IGraphSearchService {
+export class GraphSearchService {
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
   private configService: ConfigService;
-  private graphDatabase: GraphDatabaseService;
+  private graphService: IGraphService;
   private performanceMonitor: IPerformanceMonitor;
   private isInitialized: boolean = false;
-
-  // 工具类实例
-  private cacheManager: CacheManager;
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) configService: ConfigService,
-    @inject(TYPES.GraphDatabaseService) graphDatabase: GraphDatabaseService,
+    @inject(TYPES.IGraphService) graphService: IGraphService,
     @inject(TYPES.GraphCacheService) cacheService: ICacheService,
     @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: IPerformanceMonitor
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
     this.configService = configService;
-    this.graphDatabase = graphDatabase;
+    this.graphService = graphService;
     this.performanceMonitor = performanceMonitor;
-
-    // 初始化工具类
-    this.cacheManager = new CacheManager(cacheService, performanceMonitor, configService, logger);
   }
 
   async initialize(): Promise<boolean> {
     try {
-      this.logger.info(LOG_MESSAGES.INITIALIZING);
+      this.logger.info('Initializing graph search service');
 
-      // 确保图数据库已初始化
-      if (!this.graphDatabase.isDatabaseConnected()) {
-        const initialized = await this.graphDatabase.initialize();
+      // 确保图服务已初始化
+      if (!this.graphService.isDatabaseConnected()) {
+        const initialized = await this.graphService.initialize();
         if (!initialized) {
-          throw new Error(ERROR_MESSAGES.DATABASE_INITIALIZATION_FAILED);
+          throw new Error('Failed to initialize graph service');
         }
       }
 
       this.isInitialized = true;
-      this.logger.info(LOG_MESSAGES.INITIALIZATION_SUCCESS);
+      this.logger.info('Graph search service initialized successfully');
       return true;
     } catch (error) {
       this.errorHandler.handleError(
-        new Error(`${ERROR_MESSAGES.INITIALIZATION_FAILED}: ${error instanceof Error ? error.message : String(error)}`),
-        { component: 'GraphSearchServiceFinal', operation: 'initialize' }
+        new Error(`Failed to initialize graph search service: ${error instanceof Error ? error.message : String(error)}`),
+        { component: 'GraphSearchService', operation: 'initialize' }
       );
       return false;
     }
   }
 
+  /**
+   * 通用搜索
+   */
   async search(query: string, options: GraphSearchOptions = {}): Promise<GraphSearchResult> {
     if (!this.isInitialized) {
       await this.initialize();
     }
 
     const startTime = Date.now();
-    const cacheKey = this.cacheManager.generateSearchCacheKey(query, options);
+    const cacheKey = this.generateSearchCacheKey(query, options);
 
     try {
-      this.logger.info(LOG_MESSAGES.EXECUTING_SEARCH, { query, options });
+      this.logger.info('Executing search', { query, options });
 
-      // 使用缓存管理器执行带缓存的搜索
-      return await this.cacheManager.executeWithCache(
-        cacheKey,
-        async () => {
-          const searchQuery = QueryBuilder.buildSearchQuery(query, options);
-          const result = await this.graphDatabase.executeReadQuery(searchQuery.nGQL, searchQuery.params);
+      // 构建搜索查询
+      const searchQuery = this.buildSearchQuery(query, options);
+      const result = await this.graphService.executeReadQuery(searchQuery.nGQL, searchQuery.parameters);
 
-          return this.cacheManager.createSearchResult(
-            PropertyFormatter.formatNodes(result?.nodes || []),
-            PropertyFormatter.formatRelationships(result?.relationships || []),
-            Date.now() - startTime
-          );
+      const formattedResult = this.formatSearchResult(result);
+
+      const executionTime = Date.now() - startTime;
+      this.performanceMonitor.recordQueryExecution?.(executionTime);
+
+      this.logger.info('Search completed', {
+        query,
+        nodeCount: formattedResult.nodes.length,
+        relationshipCount: formattedResult.relationships.length,
+        executionTime,
+      });
+
+      return {
+        ...formattedResult,
+        executionTime
+      };
+    } catch (error) {
+      const executionTime = Date.now() - startTime;
+      this.performanceMonitor.recordQueryExecution?.(executionTime);
+
+      this.errorHandler.handleError(
+        new Error(`Search failed: ${error instanceof Error ? error.message : String(error)}`),
+        {
+          component: 'GraphSearchService',
+          operation: 'search',
+          query,
+          options,
+          executionTime,
         }
       );
-    } catch (error) {
-      return this.handleSearchError(error, 'search', { query, options, startTime });
+      throw error;
     }
   }
 
+  /**
+   * 按节点类型搜索
+   */
   async searchByNodeType(nodeType: string, options: GraphSearchOptions = {}): Promise<GraphSearchResult> {
     const startTime = Date.now();
-    const cacheKey = this.cacheManager.generateNodeTypeCacheKey(nodeType, options);
 
     try {
-      this.logger.info(LOG_MESSAGES.SEARCHING_BY_NODE_TYPE, { nodeType, options });
+      this.logger.info('Searching by node type', { nodeType, options });
 
-      return await this.cacheManager.executeWithCache(
-        cacheKey,
-        async () => {
-          const searchQuery = QueryBuilder.buildNodeTypeQuery(nodeType, options);
-          const result = await this.graphDatabase.executeReadQuery(searchQuery.nGQL, searchQuery.params);
+      const searchQuery = this.buildNodeTypeQuery(nodeType, options);
+      const result = await this.graphService.executeReadQuery(searchQuery.nGQL, searchQuery.parameters);
 
-          return this.cacheManager.createSearchResult(
-            PropertyFormatter.formatNodes(result || []),
-            [],
-            Date.now() - startTime,
-            true,
-            false
-          );
+      const formattedResult = this.formatSearchResult(result, true, false);
+
+      const executionTime = Date.now() - startTime;
+      this.performanceMonitor.recordQueryExecution?.(executionTime);
+
+      return {
+        ...formattedResult,
+        executionTime
+      };
+    } catch (error) {
+      const executionTime = Date.now() - startTime;
+      this.performanceMonitor.recordQueryExecution?.(executionTime);
+
+      this.errorHandler.handleError(
+        new Error(`Node type search failed: ${error instanceof Error ? error.message : String(error)}`),
+        {
+          component: 'GraphSearchService',
+          operation: 'searchByNodeType',
+          nodeType,
+          options,
+          executionTime,
         }
       );
-    } catch (error) {
-      return this.handleSearchError(error, 'searchByNodeType', { nodeType, options, startTime });
+      throw error;
     }
   }
 
+  /**
+   * 按关系类型搜索
+   */
   async searchByRelationshipType(relationshipType: string, options: GraphSearchOptions = {}): Promise<GraphSearchResult> {
     const startTime = Date.now();
-    const cacheKey = this.cacheManager.generateRelationshipTypeCacheKey(relationshipType, options);
 
     try {
-      this.logger.info(LOG_MESSAGES.SEARCHING_BY_RELATIONSHIP_TYPE, { relationshipType, options });
+      this.logger.info('Searching by relationship type', { relationshipType, options });
 
-      return await this.cacheManager.executeWithCache(
-        cacheKey,
-        async () => {
-          const searchQuery = QueryBuilder.buildRelationshipTypeQuery(relationshipType, options);
-          const result = await this.graphDatabase.executeReadQuery(searchQuery.nGQL, searchQuery.params);
+      const searchQuery = this.buildRelationshipTypeQuery(relationshipType, options);
+      const result = await this.graphService.executeReadQuery(searchQuery.nGQL, searchQuery.parameters);
 
-          return this.cacheManager.createSearchResult(
-            [],
-            PropertyFormatter.formatRelationships(result || []),
-            Date.now() - startTime,
-            false,
-            true
-          );
+      const formattedResult = this.formatSearchResult(result, false, true);
+
+      const executionTime = Date.now() - startTime;
+      this.performanceMonitor.recordQueryExecution?.(executionTime);
+
+      return {
+        ...formattedResult,
+        executionTime
+      };
+    } catch (error) {
+      const executionTime = Date.now() - startTime;
+      this.performanceMonitor.recordQueryExecution?.(executionTime);
+
+      this.errorHandler.handleError(
+        new Error(`Relationship type search failed: ${error instanceof Error ? error.message : String(error)}`),
+        {
+          component: 'GraphSearchService',
+          operation: 'searchByRelationshipType',
+          relationshipType,
+          options,
+          executionTime,
         }
       );
-    } catch (error) {
-      return this.handleSearchError(error, 'searchByRelationshipType', { relationshipType, options, startTime });
+      throw error;
     }
   }
 
+  /**
+   * 按路径搜索
+   */
   async searchByPath(sourceId: string, targetId: string, options: GraphSearchOptions = {}): Promise<GraphSearchResult> {
     const startTime = Date.now();
-    const cacheKey = this.cacheManager.generatePathCacheKey(sourceId, targetId, options);
 
     try {
-      this.logger.info(LOG_MESSAGES.SEARCHING_BY_PATH, { sourceId, targetId, options });
+      this.logger.info('Searching by path', { sourceId, targetId, options });
 
-      return await this.cacheManager.executeWithCache(
-        cacheKey,
-        async () => {
-          const searchQuery = QueryBuilder.buildPathQuery(sourceId, targetId, options);
-          const result = await this.graphDatabase.executeReadQuery(searchQuery.nGQL, searchQuery.params);
+      const searchQuery = this.buildPathQuery(sourceId, targetId, options);
+      const result = await this.graphService.executeReadQuery(searchQuery.nGQL, searchQuery.parameters);
 
-          return this.cacheManager.createSearchResult(
-            PropertyFormatter.formatNodes(result?.path?.nodes || []),
-            PropertyFormatter.formatRelationships(result?.path?.relationships || []),
-            Date.now() - startTime
-          );
+      const formattedResult = this.formatSearchResult(result);
+
+      const executionTime = Date.now() - startTime;
+      this.performanceMonitor.recordQueryExecution?.(executionTime);
+
+      return {
+        ...formattedResult,
+        executionTime
+      };
+    } catch (error) {
+      const executionTime = Date.now() - startTime;
+      this.performanceMonitor.recordQueryExecution?.(executionTime);
+
+      this.errorHandler.handleError(
+        new Error(`Path search failed: ${error instanceof Error ? error.message : String(error)}`),
+        {
+          component: 'GraphSearchService',
+          operation: 'searchByPath',
+          sourceId,
+          targetId,
+          options,
+          executionTime,
         }
       );
-    } catch (error) {
-      return this.handleSearchError(error, 'searchByPath', { sourceId, targetId, options, startTime });
+      throw error;
     }
   }
 
+  /**
+   * 获取搜索建议
+   */
   async getSearchSuggestions(query: string): Promise<string[]> {
     try {
-      this.logger.debug(LOG_MESSAGES.GETTING_SEARCH_SUGGESTIONS, { query });
+      this.logger.debug('Getting search suggestions', { query });
 
-      // 在实际实现中，这将使用更复杂的建议算法
-      // 目前，我们将根据查询返回一些模拟建议
+      // 简单的建议逻辑
       const suggestions: string[] = [];
 
       if (query.toLowerCase().includes('function')) {
@@ -209,9 +261,9 @@ export class GraphSearchServiceFinal implements IGraphSearchService {
         suggestions.push('文件路径', '文件内容', '文件依赖');
       }
 
-      return suggestions.slice(0, 5); // 返回前5个建议
+      return suggestions.slice(0, 5);
     } catch (error) {
-      this.logger.error(ERROR_MESSAGES.SEARCH_SUGGESTIONS_FAILED, {
+      this.logger.error('Search suggestions failed', {
         query,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -220,12 +272,15 @@ export class GraphSearchServiceFinal implements IGraphSearchService {
     }
   }
 
+  /**
+   * 获取搜索统计信息
+   */
   async getSearchStats(): Promise<{
     totalSearches: number;
     avgExecutionTime: number;
     cacheHitRate: number;
   }> {
-    const metrics = this.performanceMonitor.getMetrics();
+    const metrics = this.performanceMonitor.getMetrics?.() || {};
     return {
       totalSearches: metrics.queryExecutionTimes?.length || 0,
       avgExecutionTime: metrics.averageQueryTime || 0,
@@ -233,151 +288,167 @@ export class GraphSearchServiceFinal implements IGraphSearchService {
     };
   }
 
+  /**
+   * 关闭服务
+   */
   async close(): Promise<void> {
     try {
-      this.logger.info(LOG_MESSAGES.CLOSING_SERVICE);
+      this.logger.info('Closing graph search service');
       this.isInitialized = false;
-      // 如需要，关闭任何资源
-      this.logger.info(LOG_MESSAGES.CLOSE_SERVICE_SUCCESS);
+      this.logger.info('Graph search service closed successfully');
     } catch (error) {
       this.errorHandler.handleError(
-        new Error(`${ERROR_MESSAGES.CLOSE_SERVICE_FAILED}: ${error instanceof Error ? error.message : String(error)}`),
-        { component: 'GraphSearchServiceFinal', operation: 'close' }
+        new Error(`Failed to close graph search service: ${error instanceof Error ? error.message : String(error)}`),
+        { component: 'GraphSearchService', operation: 'close' }
       );
+      throw error;
     }
   }
 
+  /**
+   * 检查服务是否已初始化
+   */
   isServiceInitialized(): boolean {
     return this.isInitialized;
   }
 
+  /**
+   * 健康检查
+   */
   async isHealthy(): Promise<boolean> {
     try {
-      // 检查服务是否已初始化
       if (!this.isInitialized) {
         return false;
       }
 
-      // 检查Nebula Graph是否已启用
-      const nebulaEnabled = process.env.NEBULA_ENABLED?.toLowerCase() !== 'false';
-      if (!nebulaEnabled) {
-        // 如果Nebula被禁用，则认为服务健康但性能降级
-        this.logger.info(LOG_MESSAGES.HEALTH_CHECK.NEBULA_DISABLED);
-        return true;
-      }
-
-      // 检查图数据库是否已连接
-      if (!this.graphDatabase.isDatabaseConnected()) {
-        return false;
-      }
-
-      // 尝试执行简单查询以验证连接
-      await this.graphDatabase.executeReadQuery('SHOW HOSTS', {});
-
-      return true;
+      // 检查图服务是否健康
+      return this.graphService.isDatabaseConnected();
     } catch (error) {
-      this.logger.error(ERROR_MESSAGES.HEALTH_CHECK_FAILED, {
+      this.logger.error('Health check failed', {
         error: error instanceof Error ? error.message : String(error),
       });
-
-      // 检查错误是否与Nebula Graph被禁用/未配置有关
-      const nebulaEnabled = process.env.NEBULA_ENABLED?.toLowerCase() !== 'false';
-      if (!nebulaEnabled) {
-        // 如果Nebula被禁用，则认为服务健康但性能降级
-        this.logger.info(LOG_MESSAGES.HEALTH_CHECK.NEBULA_DISABLED_DESPITE_ERROR);
-        return true;
-      }
-
       return false;
     }
   }
 
-  async getStatus(): Promise<any> {
-    try {
-      const isHealthy = await this.isHealthy();
-      const isInitialized = this.isServiceInitialized();
-      const isDbConnected = this.graphDatabase.isDatabaseConnected();
+  // 私有方法
 
-      return {
-        healthy: isHealthy,
-        initialized: isInitialized,
-        databaseConnected: isDbConnected,
-        serviceType: 'GraphSearchServiceFinal',
-        timestamp: new Date().toISOString()
-      };
-    } catch (error) {
-      this.logger.error(ERROR_MESSAGES.GET_STATUS_FAILED, {
-        error: error instanceof Error ? error.message : String(error),
-      });
-
-      return {
-        healthy: false,
-        initialized: false,
-        databaseConnected: false,
-        serviceType: 'GraphSearchServiceFinal',
-        error: error instanceof Error ? error.message : String(error),
-        timestamp: new Date().toISOString()
-      };
-    }
-  }
-
-  // 空间管理方法委托给数据库层
-  async createSpace(projectId: string, config?: any): Promise<boolean> {
-    return this.graphDatabase.createSpace(projectId, config);
-  }
-
-  async dropSpace(projectId: string): Promise<boolean> {
-    return this.graphDatabase.deleteSpace(projectId);
-  }
-
-  async clearSpace(projectId: string): Promise<boolean> {
-    return this.graphDatabase.clearSpace(projectId);
-  }
-
-  async getSpaceInfo(projectId: string): Promise<any> {
-    return this.graphDatabase.getSpaceInfo(projectId);
-  }
-
-  // 批处理方法委托给数据库层
-  async batchInsertNodes(nodes: any[], projectId: string): Promise<any> {
-    return this.graphDatabase.batchInsertNodes(nodes, projectId);
-  }
-
-  async batchInsertEdges(edges: any[], projectId: string): Promise<any> {
-    return this.graphDatabase.batchInsertEdges(edges, projectId);
-  }
-
-  async batchDeleteNodes(nodeIds: string[], projectId: string): Promise<boolean> {
-    return this.graphDatabase.batchDeleteNodes(nodeIds, projectId);
+  /**
+   * 生成搜索缓存键
+   */
+  private generateSearchCacheKey(query: string, options: GraphSearchOptions): string {
+    return `search_${query}_${JSON.stringify(options)}`.replace(/\s+/g, '_');
   }
 
   /**
-   * 处理搜索错误的通用方法
+   * 构建搜索查询
    */
-  private handleSearchError(
-    error: any,
-    operation: string,
-    context: any
-  ): GraphSearchResult {
-    const startTime = context.startTime || Date.now();
-    const errorContext = {
-      component: 'GraphSearchServiceFinal',
-      operation,
-      ...context,
-      duration: Date.now() - startTime,
+  private buildSearchQuery(query: string, options: GraphSearchOptions): { nGQL: string; parameters?: Record<string, any> } {
+    // 简化的查询构建逻辑
+    const limit = options.limit || 100;
+    const nGQL = `
+      MATCH (v)
+      WHERE v.name CONTAINS "${query}"
+      RETURN v AS node
+      LIMIT ${limit}
+    `;
+    
+    return { nGQL };
+  }
+
+  /**
+   * 构建节点类型查询
+   */
+  private buildNodeTypeQuery(nodeType: string, options: GraphSearchOptions): { nGQL: string; parameters?: Record<string, any> } {
+    const limit = options.limit || 100;
+    const nGQL = `
+      MATCH (v:${nodeType})
+      RETURN v AS node
+      LIMIT ${limit}
+    `;
+    
+    return { nGQL };
+  }
+
+  /**
+   * 构建关系类型查询
+   */
+  private buildRelationshipTypeQuery(relationshipType: string, options: GraphSearchOptions): { nGQL: string; parameters?: Record<string, any> } {
+    const limit = options.limit || 100;
+    const nGQL = `
+      MATCH ()-[r:${relationshipType}]->()
+      RETURN r AS relationship
+      LIMIT ${limit}
+    `;
+    
+    return { nGQL };
+  }
+
+  /**
+   * 构建路径查询
+   */
+  private buildPathQuery(sourceId: string, targetId: string, options: GraphSearchOptions): { nGQL: string; parameters?: Record<string, any> } {
+    const maxDepth = options.depth || 5;
+    const nGQL = `
+      FIND SHORTEST PATH FROM "${sourceId}" TO "${targetId}" OVER *
+      YIELD path AS p
+      RETURN p
+    `;
+    
+    return { nGQL };
+  }
+
+  /**
+   * 格式化搜索结果
+   */
+  private formatSearchResult(result: any, includeNodes: boolean = true, includeRelationships: boolean = true): {
+    nodes: CodeGraphNode[];
+    relationships: CodeGraphRelationship[];
+    total: number;
+  } {
+    const nodes: CodeGraphNode[] = [];
+    const relationships: CodeGraphRelationship[] = [];
+
+    if (result && result.data) {
+      for (const record of result.data) {
+        if (includeNodes && record.node) {
+          nodes.push(this.formatNode(record.node));
+        }
+        if (includeRelationships && record.relationship) {
+          relationships.push(this.formatRelationship(record.relationship));
+        }
+      }
+    }
+
+    return {
+      nodes,
+      relationships,
+      total: nodes.length + relationships.length
     };
+  }
 
-    this.errorHandler.handleError(
-      error instanceof Error ? error : new Error(String(error)),
-      errorContext
-    );
+  /**
+   * 格式化节点
+   */
+  private formatNode(nodeData: any): CodeGraphNode {
+    return {
+      id: nodeData.id || nodeData._id,
+      type: nodeData.type || nodeData.tag || 'Unknown',
+      name: nodeData.name || nodeData.properties?.name || 'Unknown',
+      properties: nodeData.properties || {},
+    };
+  }
 
-    this.logger.error(ERROR_MESSAGES.SEARCH_FAILED, {
-      ...context,
-      error: error instanceof Error ? error.message : String(error),
-    });
-
-    // 错误情况下返回空结果
-    return this.cacheManager.createEmptyResult(Date.now() - startTime);
+  /**
+   * 格式化关系
+   */
+  private formatRelationship(relationshipData: any): CodeGraphRelationship {
+    return {
+      id: relationshipData.id || relationshipData._id,
+      type: relationshipData.type || relationshipData.edge || 'Unknown',
+      sourceId: relationshipData.src || relationshipData.source,
+      targetId: relationshipData.dst || relationshipData.target,
+      properties: relationshipData.properties || {},
+    };
   }
 }

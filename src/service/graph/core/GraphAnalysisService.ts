@@ -3,28 +3,25 @@ import { TYPES } from '../../../types';
 import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../config/ConfigService';
-import { GraphDatabaseService } from '../../../database/graph/GraphDatabaseService';
-import { GraphQueryBuilder } from '../../../database/nebula/query/GraphQueryBuilder';
+import { IGraphService } from './IGraphService';
 import { ICacheService } from '../../../infrastructure/caching/types';
 import { IPerformanceMonitor } from '../../../infrastructure/monitoring/types';
 import {
   GraphAnalysisOptions,
   GraphAnalysisResult,
-  GraphNode,
-  GraphEdge,
-  CodeGraphNode,
   CodeGraphRelationship
 } from './types';
-import { IGraphAnalysisService } from './IGraphAnalysisService';
-import { NodeIdGenerator } from '../../../utils/deterministic-node-id';
 
+/**
+ * 图分析服务
+ * 职责：专注于分析逻辑，不包含缓存、查询执行等重复功能
+ */
 @injectable()
-export class GraphAnalysisService implements IGraphAnalysisService {
+export class GraphAnalysisService {
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
   private configService: ConfigService;
-  private graphDatabase: GraphDatabaseService;
-  private queryBuilder: GraphQueryBuilder;
+  private graphService: IGraphService;
   private cacheService: ICacheService;
   private performanceMonitor: IPerformanceMonitor;
   private isInitialized: boolean = false;
@@ -33,16 +30,14 @@ export class GraphAnalysisService implements IGraphAnalysisService {
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.ConfigService) configService: ConfigService,
-    @inject(TYPES.GraphDatabaseService) graphDatabase: GraphDatabaseService,
-    @inject(TYPES.GraphQueryBuilder) queryBuilder: GraphQueryBuilder,
+    @inject(TYPES.IGraphService) graphService: IGraphService,
     @inject(TYPES.GraphCacheService) cacheService: ICacheService,
     @inject(TYPES.GraphPerformanceMonitor) performanceMonitor: IPerformanceMonitor
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
     this.configService = configService;
-    this.graphDatabase = graphDatabase;
-    this.queryBuilder = queryBuilder;
+    this.graphService = graphService;
     this.cacheService = cacheService;
     this.performanceMonitor = performanceMonitor;
   }
@@ -51,11 +46,11 @@ export class GraphAnalysisService implements IGraphAnalysisService {
     try {
       this.logger.info('Initializing graph analysis service');
 
-      // Ensure the graph database is initialized
-      if (!this.graphDatabase.isDatabaseConnected()) {
-        const initialized = await this.graphDatabase.initialize();
+      // 确保图服务已初始化
+      if (!this.graphService.isDatabaseConnected()) {
+        const initialized = await this.graphService.initialize();
         if (!initialized) {
-          throw new Error('Failed to initialize graph database');
+          throw new Error('Failed to initialize graph service');
         }
       }
 
@@ -71,6 +66,9 @@ export class GraphAnalysisService implements IGraphAnalysisService {
     }
   }
 
+  /**
+   * 分析代码库
+   */
   async analyzeCodebase(
     projectPath: string,
     options: GraphAnalysisOptions = {}
@@ -85,13 +83,13 @@ export class GraphAnalysisService implements IGraphAnalysisService {
     const startTime = Date.now();
     const cacheKey = `analysis_${projectPath}_${JSON.stringify(options)}`;
 
-    // Check cache first
+    // 检查缓存
     const cachedResult = this.cacheService.getFromCache<{
       result: GraphAnalysisResult;
       formattedResult: any;
     }>(cacheKey);
     if (cachedResult) {
-      this.performanceMonitor.updateCacheHitRate(true);
+      this.performanceMonitor.updateCacheHitRate?.(true);
       this.logger.info('Returning cached codebase analysis result', { projectPath });
       return cachedResult;
     }
@@ -102,19 +100,19 @@ export class GraphAnalysisService implements IGraphAnalysisService {
         options,
       });
 
-      // Build the analysis query
-      const query = this.queryBuilder.buildCodeAnalysisQuery(projectPath, options);
-      const result = await this.graphDatabase.executeReadQuery(query.nGQL, query.parameters);
+      // 构建分析查询
+      const analysisQuery = this.buildCodeAnalysisQuery(projectPath, options);
+      const result = await this.graphService.executeReadQuery(analysisQuery.nGQL, analysisQuery.parameters);
 
-      const processedResult = await this.processAnalysisResult(result, options);
+      const processedResult = this.processAnalysisResult(result, options);
       const formattedResult = this.formatForLLM(processedResult);
 
-      // Cache the result
-      this.cacheService.setCache(cacheKey, { result: processedResult, formattedResult }, 300000); // 5 minutes
-      this.performanceMonitor.updateCacheHitRate(false);
+      // 缓存结果
+      this.cacheService.setCache(cacheKey, { result: processedResult, formattedResult }, 300000); // 5分钟
+      this.performanceMonitor.updateCacheHitRate?.(false);
 
       const executionTime = Date.now() - startTime;
-      this.performanceMonitor.recordQueryExecution(executionTime);
+      this.performanceMonitor.recordQueryExecution?.(executionTime);
 
       this.logger.info('Codebase analysis completed', {
         projectPath,
@@ -129,18 +127,19 @@ export class GraphAnalysisService implements IGraphAnalysisService {
       };
     } catch (error) {
       const executionTime = Date.now() - startTime;
-      this.performanceMonitor.recordQueryExecution(executionTime);
+      this.performanceMonitor.recordQueryExecution?.(executionTime);
 
       this.errorHandler.handleError(
-        new Error(
-          `Codebase analysis failed: ${error instanceof Error ? error.message : String(error)}`
-        ),
+        new Error(`Codebase analysis failed: ${error instanceof Error ? error.message : String(error)}`),
         { component: 'GraphAnalysisService', operation: 'analyzeCodebase' }
       );
       throw error;
     }
   }
 
+  /**
+   * 查找依赖关系
+   */
   async findDependencies(
     filePath: string,
     options: { direction?: 'incoming' | 'outgoing'; depth?: number } = {}
@@ -160,26 +159,26 @@ export class GraphAnalysisService implements IGraphAnalysisService {
     try {
       this.logger.info('Finding dependencies', { filePath, options });
 
-      const fileId = NodeIdGenerator.forFile(filePath);
       const direction = options.direction || 'outgoing';
       const depth = options.depth || 3;
 
-      // Build the dependency query
-      const query = this.queryBuilder.buildDependencyQuery(fileId, direction, depth);
-      const result = await this.graphDatabase.executeReadQuery(query.nGQL, query.parameters);
+      // 构建依赖查询
+      const dependencyQuery = this.buildDependencyQuery(filePath, direction, depth);
+      const result = await this.graphService.executeReadQuery(dependencyQuery.nGQL, dependencyQuery.parameters);
 
       return this.processDependencyResult(result, direction, depth);
     } catch (error) {
       this.errorHandler.handleError(
-        new Error(
-          `Dependency analysis failed: ${error instanceof Error ? error.message : String(error)}`
-        ),
+        new Error(`Dependency analysis failed: ${error instanceof Error ? error.message : String(error)}`),
         { component: 'GraphAnalysisService', operation: 'findDependencies' }
       );
       throw error;
     }
   }
 
+  /**
+   * 查找影响范围
+   */
   async findImpact(
     filePath: string,
     options: { maxDepth?: number; includeTests?: boolean } = {}
@@ -196,18 +195,11 @@ export class GraphAnalysisService implements IGraphAnalysisService {
     try {
       this.logger.info('Finding impact', { filePath, options });
 
-      const fileId = NodeIdGenerator.forFile(filePath);
       const maxDepth = options.maxDepth || 3;
 
-      // Build impact analysis query
-      const query = `
-        GO ${maxDepth} STEPS FROM "${fileId}" OVER IMPORTS, CALLS, CONTAINS REVERSE
-        YIELD dst(edge) AS affectedNodeId
-        | FETCH PROP ON * $-.affectedNodeId YIELD vertex AS affectedNode
-        LIMIT 100
-      `;
-
-      const result = await this.graphDatabase.executeReadQuery(query);
+      // 构建影响分析查询
+      const impactQuery = this.buildImpactQuery(filePath, maxDepth);
+      const result = await this.graphService.executeReadQuery(impactQuery.nGQL, impactQuery.parameters);
 
       if (result && result.data) {
         const affectedFiles = result.data
@@ -221,13 +213,13 @@ export class GraphAnalysisService implements IGraphAnalysisService {
           )
           .map((record: any) => record.affectedNode.properties.name);
 
-        // Calculate impact score based on number of affected items
+        // 计算影响分数
         const impactScore = Math.min(
           (affectedFiles.length * 2 + affectedComponents.length) / 10,
           10
         );
 
-        // Determine risk level
+        // 确定风险等级
         let riskLevel: 'low' | 'medium' | 'high' | 'critical' = 'low';
         if (impactScore > 7) riskLevel = 'critical';
         else if (impactScore > 5) riskLevel = 'high';
@@ -249,15 +241,16 @@ export class GraphAnalysisService implements IGraphAnalysisService {
       };
     } catch (error) {
       this.errorHandler.handleError(
-        new Error(
-          `Impact analysis failed: ${error instanceof Error ? error.message : String(error)}`
-        ),
+        new Error(`Impact analysis failed: ${error instanceof Error ? error.message : String(error)}`),
         { component: 'GraphAnalysisService', operation: 'findImpact' }
       );
       throw error;
     }
   }
 
+  /**
+   * 获取图统计信息
+   */
   async getGraphStats(projectPath: string): Promise<{
     totalFiles: number;
     totalFunctions: number;
@@ -274,43 +267,42 @@ export class GraphAnalysisService implements IGraphAnalysisService {
     try {
       this.logger.info('Getting graph statistics', { projectPath });
 
-      // Build queries for each node type
-      const fileCountQuery = this.queryBuilder.buildNodeCountQuery('File');
-      const functionCountQuery = this.queryBuilder.buildNodeCountQuery('Function');
-      const classCountQuery = this.queryBuilder.buildNodeCountQuery('Class');
-      const importCountQuery = this.queryBuilder.buildNodeCountQuery('Import');
+      // 构建统计查询
+      const statsQueries = [
+        this.buildNodeCountQuery('File'),
+        this.buildNodeCountQuery('Function'),
+        this.buildNodeCountQuery('Class'),
+        this.buildNodeCountQuery('Import')
+      ];
 
-      // Execute queries in parallel
+      // 并行执行查询
       const [
         fileResult,
         functionResult,
         classResult,
         importResult,
-      ] = await Promise.all([
-        this.graphDatabase.executeReadQuery(fileCountQuery.nGQL, fileCountQuery.parameters),
-        this.graphDatabase.executeReadQuery(functionCountQuery.nGQL, functionCountQuery.parameters),
-        this.graphDatabase.executeReadQuery(classCountQuery.nGQL, classCountQuery.parameters),
-        this.graphDatabase.executeReadQuery(importCountQuery.nGQL, importCountQuery.parameters),
-      ]);
+      ] = await Promise.all(
+        statsQueries.map(query => this.graphService.executeReadQuery(query.nGQL, query.parameters))
+      );
 
       const totalFiles = this.extractCount(fileResult);
       const totalFunctions = this.extractCount(functionResult);
       const totalClasses = this.extractCount(classResult);
       const totalImports = this.extractCount(importResult);
 
-      // Calculate complexity score (simplified)
+      // 计算复杂度分数（简化）
       const complexityScore = Math.min(
         (totalFunctions * 2 + totalClasses * 3 + totalImports) / 10,
         100
       );
 
-      // Calculate maintainability index (simplified)
+      // 计算可维护性指数（简化）
       const maintainabilityIndex = Math.max(
         100 - complexityScore - (totalImports * 0.5),
         0
       );
 
-      // Detect cyclic dependencies (simplified)
+      // 检测循环依赖（简化）
       const cyclicDependencies = await this.detectCyclicDependencies();
 
       return {
@@ -324,360 +316,105 @@ export class GraphAnalysisService implements IGraphAnalysisService {
       };
     } catch (error) {
       this.errorHandler.handleError(
-        new Error(
-          `Graph stats calculation failed: ${error instanceof Error ? error.message : String(error)}`
-        ),
+        new Error(`Graph stats calculation failed: ${error instanceof Error ? error.message : String(error)}`),
         { component: 'GraphAnalysisService', operation: 'getGraphStats' }
       );
       throw error;
     }
   }
 
-  async exportGraph(projectPath: string, format: 'json' | 'graphml' | 'dot'): Promise<string> {
-    if (!this.isInitialized) {
-      await this.initialize();
-    }
-
-    try {
-      this.logger.info('Exporting graph', { projectPath, format });
-
-      // Get all nodes and edges
-      const nodesQuery = 'MATCH (n) RETURN n LIMIT 1000';
-      const edgesQuery = 'MATCH ()-[e]->() RETURN e LIMIT 1000';
-
-      const [nodesResult, edgesResult] = await Promise.all([
-        this.graphDatabase.executeReadQuery(nodesQuery),
-        this.graphDatabase.executeReadQuery(edgesQuery),
-      ]);
-
-      const nodes = nodesResult?.data || [];
-      const edges = edgesResult?.data || [];
-
-      const exportData = {
-        nodes: nodes.map((record: any) => ({
-          id: record.n.id,
-          label: record.n.properties.name || record.n.id,
-          type: record.n.tag,
-          properties: record.n.properties,
-        })),
-        edges: edges.map((record: any) => ({
-          id: record.e.id,
-          source: record.e.src,
-          target: record.e.dst,
-          type: record.e.type,
-          properties: record.e.properties,
-        })),
-        metadata: {
-          projectPath,
-          exportedAt: new Date().toISOString(),
-          format,
-        },
-      };
-
-      if (format === 'json') {
-        return JSON.stringify(exportData, null, 2);
-      } else if (format === 'graphml') {
-        return this.convertToGraphML(exportData);
-      } else if (format === 'dot') {
-        return this.convertToDOT(exportData);
-      } else {
-        throw new Error(`Unsupported export format: ${format}`);
-      }
-    } catch (error) {
-      this.errorHandler.handleError(
-        new Error(
-          `Graph export failed: ${error instanceof Error ? error.message : String(error)}`
-        ),
-        { component: 'GraphAnalysisService', operation: 'exportGraph' }
-      );
-      throw error;
-    }
-  }
-
-  isServiceInitialized(): boolean {
-    return this.isInitialized;
-  }
-
+  /**
+   * 关闭服务
+   */
   async close(): Promise<void> {
     try {
       this.logger.info('Closing graph analysis service');
-
-      // Close the graph database service
-      await this.graphDatabase.close();
-
       this.isInitialized = false;
       this.logger.info('Graph analysis service closed successfully');
     } catch (error) {
       this.errorHandler.handleError(
-        new Error(
-          `Failed to close graph analysis service: ${error instanceof Error ? error.message : String(error)}`
-        ),
+        new Error(`Failed to close graph analysis service: ${error instanceof Error ? error.message : String(error)}`),
         { component: 'GraphAnalysisService', operation: 'close' }
       );
       throw error;
     }
   }
 
-  async analyzeDependencies(
-    filePath: string,
-    projectId: string,
-    options?: { includeTransitive?: boolean; includeCircular?: boolean }
-  ): Promise<any> {
-    if (!this.isInitialized) {
-      await this.initialize();
-    }
-
-    try {
-      this.logger.info('Analyzing dependencies', { filePath, projectId, options });
-
-      // For now, we'll implement a basic version that uses existing functionality
-      // In a full implementation, this would use more sophisticated analysis
-      const dependencies = await this.findDependencies(filePath, {
-        direction: 'outgoing',
-        depth: options?.includeTransitive ? 5 : 1
-      });
-
-      const result = {
-        directDependencies: dependencies.direct,
-        transitiveDependencies: options?.includeTransitive ? dependencies.transitive : [],
-        circularDependencies: [] as string[], // Would require more complex analysis
-        summary: {
-          directCount: dependencies.direct.length,
-          transitiveCount: options?.includeTransitive ? dependencies.transitive.length : 0,
-          circularCount: 0
-        }
-      };
-
-      // If circular dependency check is requested, perform a basic check
-      if (options?.includeCircular) {
-        result.circularDependencies = await this.detectCircularDependencies(projectId);
-      }
-
-      return result;
-    } catch (error) {
-      this.errorHandler.handleError(
-        new Error(
-          `Dependency analysis failed: ${error instanceof Error ? error.message : String(error)}`
-        ),
-        { component: 'GraphAnalysisService', operation: 'analyzeDependencies' }
-      );
-      throw error;
-    }
+  /**
+   * 检查服务是否已初始化
+   */
+  isServiceInitialized(): boolean {
+    return this.isInitialized;
   }
 
-  async analyzeCallGraph(
-    functionName: string,
-    projectId: string,
-    options?: { depth?: number; direction?: 'in' | 'out' | 'both' }
-  ): Promise<any> {
-    if (!this.isInitialized) {
-      await this.initialize();
-    }
+  // 私有方法
 
-    try {
-      this.logger.info('Analyzing call graph', { functionName, projectId, options });
-
-      // For now, we'll return a basic implementation
-      // In a full implementation, this would use call relationship data
-      return {
-        callers: [],
-        callees: [],
-        callGraph: [],
-        summary: {
-          callerCount: 0,
-          calleeCount: 0,
-          depth: options?.depth || 3
-        }
-      };
-    } catch (error) {
-      this.errorHandler.handleError(
-        new Error(
-          `Call graph analysis failed: ${error instanceof Error ? error.message : String(error)}`
-        ),
-        { component: 'GraphAnalysisService', operation: 'analyzeCallGraph' }
-      );
-      throw error;
-    }
+  /**
+   * 构建代码分析查询
+   */
+  private buildCodeAnalysisQuery(projectPath: string, options: GraphAnalysisOptions): { nGQL: string; parameters?: Record<string, any> } {
+    const depth = options.depth || 3;
+    const nGQL = `
+      MATCH (v)
+      WHERE v.projectPath = "${projectPath}"
+      RETURN v AS node
+      LIMIT ${options.maxResults || 1000}
+    `;
+    
+    return { nGQL };
   }
 
-  async analyzeImpact(
-    nodeIds: string[],
-    projectId: string,
-    options?: { depth?: number }
-  ): Promise<any> {
-    if (!this.isInitialized) {
-      await this.initialize();
-    }
-
-    try {
-      this.logger.info('Analyzing impact', { nodeIds, projectId, options });
-
-      // For now, we'll return a basic implementation
-      // In a full implementation, this would use graph traversal to find impacted nodes
-      return {
-        affectedNodes: [],
-        impactPaths: [],
-        summary: {
-          affectedCount: 0,
-          maxDepth: options?.depth || 3,
-          riskLevel: 'low'
-        }
-      };
-    } catch (error) {
-      this.errorHandler.handleError(
-        new Error(
-          `Impact analysis failed: ${error instanceof Error ? error.message : String(error)}`
-        ),
-        { component: 'GraphAnalysisService', operation: 'analyzeImpact' }
-      );
-      throw error;
-    }
+  /**
+   * 构建依赖查询
+   */
+  private buildDependencyQuery(filePath: string, direction: string, depth: number): { nGQL: string; parameters?: Record<string, any> } {
+    const directionKeyword = direction === 'incoming' ? 'REVERSE' : '';
+    const nGQL = `
+      GO ${depth} STEPS FROM "${filePath}" OVER IMPORTS ${directionKeyword}
+      YIELD dst(edge) AS dependentNode
+      | FETCH PROP ON * $-.dependentNode YIELD vertex AS dependentNode
+      LIMIT 100
+    `;
+    
+    return { nGQL };
   }
 
-  async getProjectOverview(projectId: string): Promise<any> {
-    if (!this.isInitialized) {
-      await this.initialize();
-    }
-
-    try {
-      this.logger.info('Getting project overview', { projectId });
-
-      // For now, we'll return a basic implementation
-      // In a full implementation, this would aggregate project data
-      return {
-        projectInfo: {
-          id: projectId,
-          name: projectId,
-          fileCount: 0,
-          directoryCount: 0
-        },
-        graphStats: {
-          nodeCount: 0,
-          edgeCount: 0,
-          componentCount: 0
-        },
-        analysisSummary: {
-          lastAnalyzed: new Date().toISOString(),
-          issues: 0,
-          warnings: 0
-        }
-      };
-    } catch (error) {
-      this.errorHandler.handleError(
-        new Error(
-          `Project overview failed: ${error instanceof Error ? error.message : String(error)}`
-        ),
-        { component: 'GraphAnalysisService', operation: 'getProjectOverview' }
-      );
-      throw error;
-    }
+  /**
+   * 构建影响查询
+   */
+  private buildImpactQuery(filePath: string, maxDepth: number): { nGQL: string; parameters?: Record<string, any> } {
+    const nGQL = `
+      GO ${maxDepth} STEPS FROM "${filePath}" OVER IMPORTS, CALLS, CONTAINS REVERSE
+      YIELD dst(edge) AS affectedNodeId
+      | FETCH PROP ON * $-.affectedNodeId YIELD vertex AS affectedNode
+      LIMIT 100
+    `;
+    
+    return { nGQL };
   }
 
-  async getStructureMetrics(projectId: string): Promise<any> {
-    if (!this.isInitialized) {
-      await this.initialize();
-    }
-
-    try {
-      this.logger.info('Getting structure metrics', { projectId });
-
-      // For now, we'll return a basic implementation
-      // In a full implementation, this would calculate detailed metrics
-      return {
-        fileMetrics: {
-          totalFiles: 0,
-          codeFiles: 0,
-          testFiles: 0,
-          configFiles: 0
-        },
-        codeMetrics: {
-          linesOfCode: 0,
-          functions: 0,
-          classes: 0,
-          modules: 0
-        },
-        dependencyMetrics: {
-          totalDependencies: 0,
-          externalDependencies: 0,
-          circularDependencies: 0
-        },
-        complexityMetrics: {
-          averageComplexity: 0,
-          maxComplexity: 0,
-          highlyComplexFiles: 0
-        }
-      };
-    } catch (error) {
-      this.errorHandler.handleError(
-        new Error(
-          `Structure metrics failed: ${error instanceof Error ? error.message : String(error)}`
-        ),
-        { component: 'GraphAnalysisService', operation: 'getStructureMetrics' }
-      );
-      throw error;
-    }
+  /**
+   * 构建节点计数查询
+   */
+  private buildNodeCountQuery(nodeType: string): { nGQL: string; parameters?: Record<string, any> } {
+    const nGQL = `
+      MATCH (v:${nodeType})
+      RETURN count(*) AS total
+    `;
+    
+    return { nGQL };
   }
 
-  async detectCircularDependencies(projectId: string): Promise<any> {
-    if (!this.isInitialized) {
-      await this.initialize();
-    }
-
-    try {
-      this.logger.info('Detecting circular dependencies', { projectId });
-
-      // For now, we'll return an empty array
-      // In a full implementation, this would use graph algorithms to detect cycles
-      return [];
-    } catch (error) {
-      this.errorHandler.handleError(
-        new Error(
-          `Circular dependency detection failed: ${error instanceof Error ? error.message : String(error)}`
-        ),
-        { component: 'GraphAnalysisService', operation: 'detectCircularDependencies' }
-      );
-      throw error;
-    }
-  }
-
-  async getGraphStatsByProject(projectId: string): Promise<any> {
-    if (!this.isInitialized) {
-      await this.initialize();
-    }
-
-    try {
-      this.logger.info('Getting graph stats by project', { projectId });
-
-      // For now, we'll return a basic implementation
-      return {
-        nodeCount: 0,
-        edgeCount: 0,
-        nodeTypes: {},
-        relationshipTypes: {},
-        projectSpecificMetrics: {
-          id: projectId,
-          name: projectId
-        }
-      };
-    } catch (error) {
-      this.errorHandler.handleError(
-        new Error(
-          `Graph stats by project failed: ${error instanceof Error ? error.message : String(error)}`
-        ),
-        { component: 'GraphAnalysisService', operation: 'getGraphStatsByProject' }
-      );
-      throw error;
-    }
-  }
-
-  private async processAnalysisResult(
+  /**
+   * 处理分析结果
+   */
+  private processAnalysisResult(
     result: any,
     options: GraphAnalysisOptions
-  ): Promise<GraphAnalysisResult> {
-    const nodes: GraphNode[] = [];
-    const edges: GraphEdge[] = [];
+  ): GraphAnalysisResult {
+    const nodes: any[] = [];
+    const edges: any[] = [];
 
-    // Process NebulaGraph result and convert to GraphNode/GraphEdge format
     if (result && result.data) {
       for (const row of result.data) {
         if (row.node) {
@@ -689,7 +426,7 @@ export class GraphAnalysisService implements IGraphAnalysisService {
       }
     }
 
-    // Calculate metrics
+    // 计算指标
     const metrics = {
       totalNodes: nodes.length,
       totalEdges: edges.length,
@@ -698,12 +435,15 @@ export class GraphAnalysisService implements IGraphAnalysisService {
       componentCount: this.calculateComponentCount(nodes, edges),
     };
 
-    // Calculate summary
+    // 计算摘要
     const summary = this.calculateSummary(nodes);
 
     return { nodes, edges, metrics, summary };
   }
 
+  /**
+   * 处理依赖结果
+   */
   private processDependencyResult(
     result: any,
     direction: string,
@@ -727,9 +467,9 @@ export class GraphAnalysisService implements IGraphAnalysisService {
       }
     }
 
-    // Split into direct and transitive dependencies
-    const direct = allEdges.slice(0, 5); // First 5 as direct
-    const transitive = allEdges.slice(0, 15); // First 15 as transitive
+    // 分离直接和传递依赖
+    const direct = allEdges.slice(0, 5);
+    const transitive = allEdges.slice(0, 15);
 
     return {
       direct,
@@ -737,12 +477,15 @@ export class GraphAnalysisService implements IGraphAnalysisService {
       summary: {
         directCount: direct.length,
         transitiveCount: transitive.length,
-        criticalPath: this.extractCriticalPathForCodeGraph(allEdges),
+        criticalPath: this.extractCriticalPath(allEdges),
       },
     };
   }
 
-  private convertToGraphNode(nodeData: any): GraphNode {
+  /**
+   * 转换为图节点
+   */
+  private convertToGraphNode(nodeData: any): any {
     return {
       id: nodeData.id || nodeData.name || '',
       label: nodeData.name || nodeData.label || '',
@@ -751,7 +494,10 @@ export class GraphAnalysisService implements IGraphAnalysisService {
     };
   }
 
-  private convertToGraphEdge(edgeData: any): GraphEdge {
+  /**
+   * 转换为图边
+   */
+  private convertToGraphEdge(edgeData: any): any {
     return {
       id: edgeData.id || `${edgeData.src}_${edgeData.dst}`,
       source: edgeData.src || '',
@@ -761,6 +507,9 @@ export class GraphAnalysisService implements IGraphAnalysisService {
     };
   }
 
+  /**
+   * 转换为代码图关系
+   */
   private convertToCodeGraphRelationship(edgeData: any): CodeGraphRelationship {
     return {
       id: edgeData.id || `${edgeData.src}_${edgeData.dst}`,
@@ -771,9 +520,10 @@ export class GraphAnalysisService implements IGraphAnalysisService {
     };
   }
 
-  private determineNodeType(
-    nodeData: any
-  ): 'file' | 'function' | 'class' | 'variable' | 'import' | 'project' {
+  /**
+   * 确定节点类型
+   */
+  private determineNodeType(nodeData: any): string {
     if (nodeData.label && nodeData.label.includes('.')) return 'file';
     if (nodeData.type === 'function') return 'function';
     if (nodeData.type === 'class') return 'class';
@@ -782,8 +532,10 @@ export class GraphAnalysisService implements IGraphAnalysisService {
     return 'project';
   }
 
-  private calculateComponentCount(nodes: GraphNode[], edges: GraphEdge[]): number {
-    // Simple connected component calculation
+  /**
+   * 计算组件数量
+   */
+  private calculateComponentCount(nodes: any[], edges: any[]): number {
     const visited = new Set<string>();
     let components = 0;
 
@@ -797,7 +549,10 @@ export class GraphAnalysisService implements IGraphAnalysisService {
     return components;
   }
 
-  private dfs(nodeId: string, nodes: GraphNode[], edges: GraphEdge[], visited: Set<string>): void {
+  /**
+   * 深度优先搜索
+   */
+  private dfs(nodeId: string, nodes: any[], edges: any[], visited: Set<string>): void {
     visited.add(nodeId);
 
     for (const edge of edges) {
@@ -810,7 +565,10 @@ export class GraphAnalysisService implements IGraphAnalysisService {
     }
   }
 
-  private calculateSummary(nodes: GraphNode[]): {
+  /**
+   * 计算摘要
+   */
+  private calculateSummary(nodes: any[]): {
     projectFiles: number;
     functions: number;
     classes: number;
@@ -848,27 +606,10 @@ export class GraphAnalysisService implements IGraphAnalysisService {
     return summary;
   }
 
-  private extractCriticalPath(edges: GraphEdge[]): string[] {
-    // Simple heuristic: find the path with most connections
-    const path: string[] = [];
-    const edgeCount = new Map<string, number>();
-
-    for (const edge of edges) {
-      edgeCount.set(edge.source, (edgeCount.get(edge.source) || 0) + 1);
-      edgeCount.set(edge.target, (edgeCount.get(edge.target) || 0) + 1);
-    }
-
-    // Sort by connection count and take top 3
-    const sortedNodes = Array.from(edgeCount.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([nodeId]) => nodeId);
-
-    return sortedNodes;
-  }
-
-  private extractCriticalPathForCodeGraph(relationships: CodeGraphRelationship[]): string[] {
-    // Simple heuristic: find the path with most connections
+  /**
+   * 提取关键路径
+   */
+  private extractCriticalPath(relationships: CodeGraphRelationship[]): string[] {
     const path: string[] = [];
     const edgeCount = new Map<string, number>();
 
@@ -877,7 +618,6 @@ export class GraphAnalysisService implements IGraphAnalysisService {
       edgeCount.set(relationship.targetId, (edgeCount.get(relationship.targetId) || 0) + 1);
     }
 
-    // Sort by connection count and take top 3
     const sortedNodes = Array.from(edgeCount.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3)
@@ -886,12 +626,10 @@ export class GraphAnalysisService implements IGraphAnalysisService {
     return sortedNodes;
   }
 
-  private generateFileId(filePath: string): string {
-    return NodeIdGenerator.forFile(filePath);
-  }
-
+  /**
+   * 格式化为LLM可读格式
+   */
   private formatForLLM(result: GraphAnalysisResult): any {
-    // Format the graph analysis result for LLM consumption
     return {
       nodes: result.nodes.map(node => ({
         id: node.id,
@@ -912,6 +650,9 @@ export class GraphAnalysisService implements IGraphAnalysisService {
     };
   }
 
+  /**
+   * 生成洞察
+   */
   private generateInsights(result: GraphAnalysisResult): string[] {
     const insights: string[] = [];
 
@@ -930,6 +671,9 @@ export class GraphAnalysisService implements IGraphAnalysisService {
     return insights;
   }
 
+  /**
+   * 提取计数
+   */
   private extractCount(result: any): number {
     if (result && result.data && result.data.length > 0) {
       return result.data[0].total || 0;
@@ -937,15 +681,17 @@ export class GraphAnalysisService implements IGraphAnalysisService {
     return 0;
   }
 
+  /**
+   * 检测循环依赖
+   */
   private async detectCyclicDependencies(): Promise<number> {
     try {
-      // Simplified cyclic dependency detection
       const query = `
         MATCH (f1:File)-[:IMPORTS]->(f2:File)-[:IMPORTS*]->(f1)
         RETURN count(*) AS cycles
       `;
 
-      const result = await this.graphDatabase.executeReadQuery(query);
+      const result = await this.graphService.executeReadQuery(query);
       return this.extractCount(result);
     } catch (error) {
       this.logger.warn('Failed to detect cyclic dependencies', {
@@ -953,55 +699,5 @@ export class GraphAnalysisService implements IGraphAnalysisService {
       });
       return 0;
     }
-  }
-
-  private convertToGraphML(data: any): string {
-    // Simplified GraphML conversion
-    let graphml = '<?xml version="1.0" encoding="UTF-8"?>\n';
-    graphml += '<graphml xmlns="http://graphml.graphdrawing.org/xmlns">\n';
-    graphml += '<key id="label" for="node" attr.name="label" attr.type="string"/>\n';
-    graphml += '<key id="type" for="node" attr.name="type" attr.type="string"/>\n';
-    graphml += '<graph id="G" edgedefault="directed">\n';
-
-    // Add nodes
-    for (const node of data.nodes) {
-      graphml += `  <node id="${node.id}">\n`;
-      graphml += `    <data key="label">${node.label}</data>\n`;
-      graphml += `    <data key="type">${node.type}</data>\n`;
-      graphml += '  </node>\n';
-    }
-
-    // Add edges
-    for (const edge of data.edges) {
-      graphml += `  <edge source="${edge.source}" target="${edge.target}">\n`;
-      graphml += `    <data key="type">${edge.type}</data>\n`;
-      graphml += '  </edge>\n';
-    }
-
-    graphml += '</graph>\n';
-    graphml += '</graphml>';
-
-    return graphml;
-  }
-
-  private convertToDOT(data: any): string {
-    // Simplified DOT conversion
-    let dot = 'digraph G {\n';
-    dot += '  rankdir=TB;\n';
-    dot += '  node [shape=box];\n';
-
-    // Add nodes
-    for (const node of data.nodes) {
-      dot += `  "${node.id}" [label="${node.label}"];\n`;
-    }
-
-    // Add edges
-    for (const edge of data.edges) {
-      dot += `  "${edge.source}" -> "${edge.target}";\n`;
-    }
-
-    dot += '}';
-
-    return dot;
   }
 }
