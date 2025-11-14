@@ -21,7 +21,7 @@ export class MarkdownChunker {
     this.headersToSplitOn = this.config.headersToSplitOn || [];
     this.separators = this.config.separators || [];
     this.compiledSeparators = [];
-    
+
     this.initializeSeparators();
   }
 
@@ -34,7 +34,7 @@ export class MarkdownChunker {
       this.compiledSeparators = this.separators.map(sep => new RegExp(sep, 'g'));
     } else {
       // 如果分隔符是普通字符串，创建正则表达式
-      this.compiledSeparators = this.separators.map(sep => 
+      this.compiledSeparators = this.separators.map(sep =>
         new RegExp(this.escapeRegExp(sep), 'g')
       );
     }
@@ -57,13 +57,13 @@ export class MarkdownChunker {
 
     // 按行分割内容
     const lines = content.split('\n');
-    
+
     // 使用标题层级进行分段
     const chunks = await this.chunkByHeaders(lines, filePath);
-    
+
     // 对过大的块进行进一步分割
     const processedChunks = await this.processLargeChunks(chunks);
-    
+
     return processedChunks;
   }
 
@@ -110,7 +110,7 @@ export class MarkdownChunker {
       // 检查是否需要分割（基于大小和行数）
       const currentSize = this.calculateLengthExcludingCode(currentChunk.join('\n'));
       const currentLines = currentChunk.length;
-      
+
       if (currentSize > this.config.maxChunkSize || currentLines > this.config.maxLinesPerChunk) {
         // 找到最佳分割点
         const splitPoint = this.findBestSplitPoint(currentChunk);
@@ -124,7 +124,7 @@ export class MarkdownChunker {
 
           currentChunk = secondPart;
           startLine = startLine + splitPoint;
-          
+
           // 重新检查分割后的块大小和行数，如果仍然过大，继续分割
           const newSize = this.calculateLengthExcludingCode(currentChunk.join('\n'));
           const newLines = currentChunk.length;
@@ -172,13 +172,13 @@ export class MarkdownChunker {
       const withoutCodeBlocks = text.replace(/```[\s\S]*?```/g, '');
       // 移除行内代码
       const withoutInlineCode = withoutCodeBlocks.replace(/`[^`]+`/g, '');
-      
+
       if (this.config.lengthFunction) {
         return this.config.lengthFunction(withoutInlineCode);
       }
       return withoutInlineCode.length;
     }
-    
+
     if (this.config.lengthFunction) {
       return this.config.lengthFunction(text);
     }
@@ -219,7 +219,7 @@ export class MarkdownChunker {
 
     for (const chunk of chunks) {
       const size = this.calculateLengthExcludingCode(chunk.content);
-      
+
       if (size > this.config.maxChunkSize) {
         // 分割大块
         const splitChunks = await this.splitLargeChunk(chunk);
@@ -262,9 +262,9 @@ export class MarkdownChunker {
         // 创建新块
         const content = currentLines.join('\n');
         const endLine = currentStartLine + currentLines.length - 1;
-        
+
         result.push(this.createChunk(content, currentStartLine, endLine, chunk.metadata?.filePath));
-        
+
         currentLines = [];
         currentStartLine = endLine + 1;
       }
@@ -346,7 +346,156 @@ export class MarkdownChunker {
     return undefined;
   }
 
-  
+  /**
+   * 评估分块质量
+   */
+  evaluateChunkQuality(chunks: CodeChunk[], originalContent: string): {
+    semanticCohesion: number;
+    structuralIntegrity: number;
+    sizeDistribution: number;
+    codeBlockPreservation: number;
+    overallScore: number;
+  } {
+    // 计算语义连贯性 - 基于标题层级的一致性
+    const semanticCohesion = this.calculateSemanticCohesion(chunks);
+
+    // 计算结构完整性 - 基于代码块和表格的完整性
+    const structuralIntegrity = this.calculateStructuralIntegrity(chunks, originalContent);
+
+    // 计算大小分布 - 基于块大小的均匀性
+    const sizeDistribution = this.calculateSizeDistribution(chunks);
+
+    // 计算代码块保持性 - 基于代码块是否被正确分割
+    const codeBlockPreservation = this.calculateCodeBlockPreservation(chunks, originalContent);
+
+    // 计算总体评分
+    const overallScore = (
+      semanticCohesion * 0.3 +
+      structuralIntegrity * 0.3 +
+      sizeDistribution * 0.2 +
+      codeBlockPreservation * 0.2
+    );
+
+    return {
+      semanticCohesion,
+      structuralIntegrity,
+      sizeDistribution,
+      codeBlockPreservation,
+      overallScore
+    };
+  }
+
+  /**
+   * 计算语义连贯性
+   */
+  private calculateSemanticCohesion(chunks: CodeChunk[]): number {
+    if (chunks.length === 0) return 0;
+
+    let totalCohesion = 0;
+    let validChunks = 0;
+
+    for (const chunk of chunks) {
+      const headingLevel = chunk.metadata.headingLevel;
+      if (headingLevel !== undefined) {
+        // 检查块内标题层级的一致性
+        const lines = chunk.content.split('\n');
+        const headingLevels: number[] = [];
+
+        for (const line of lines) {
+          const match = line.match(/^(#{1,6})\s/);
+          if (match) {
+            headingLevels.push(match[1].length);
+          }
+        }
+
+        if (headingLevels.length > 0) {
+          // 计算标题层级的标准差，标准差越小，连贯性越好
+          const mean = headingLevels.reduce((sum, level) => sum + level, 0) / headingLevels.length;
+          const variance = headingLevels.reduce((sum, level) => sum + Math.pow(level - mean, 2), 0) / headingLevels.length;
+          const stdDev = Math.sqrt(variance);
+
+          // 将标准差转换为0-1的连贯性分数
+          const cohesion = Math.max(0, 1 - (stdDev / 6)); // 6是最大可能的标题层级差
+          totalCohesion += cohesion;
+          validChunks++;
+        }
+      } else {
+        // 没有标题的块给予中等连贯性分数
+        totalCohesion += 0.5;
+        validChunks++;
+      }
+    }
+
+    return validChunks > 0 ? totalCohesion / validChunks : 0;
+  }
+
+  /**
+   * 计算结构完整性
+   */
+  private calculateStructuralIntegrity(chunks: CodeChunk[], originalContent: string): number {
+    // 检查原始内容中的代码块和表格数量
+    const originalCodeBlocks = (originalContent.match(/```[\s\S]*?```/g) || []).length;
+    const originalTables = (originalContent.match(/\|.*\|/g) || []).length;
+
+    // 检查分块后的代码块和表格数量
+    let chunkedCodeBlocks = 0;
+    let chunkedTables = 0;
+
+    for (const chunk of chunks) {
+      chunkedCodeBlocks += (chunk.content.match(/```[\s\S]*?```/g) || []).length;
+      chunkedTables += (chunk.content.match(/\|.*\|/g) || []).length;
+    }
+
+    // 计算完整性分数
+    const codeBlockIntegrity = originalCodeBlocks > 0 ? chunkedCodeBlocks / originalCodeBlocks : 1;
+    const tableIntegrity = originalTables > 0 ? chunkedTables / originalTables : 1;
+
+    return (codeBlockIntegrity + tableIntegrity) / 2;
+  }
+
+  /**
+   * 计算大小分布
+   */
+  private calculateSizeDistribution(chunks: CodeChunk[]): number {
+    if (chunks.length === 0) return 0;
+
+    const sizes = chunks.map(chunk => chunk.content.length);
+    const mean = sizes.reduce((sum, size) => sum + size, 0) / sizes.length;
+    const variance = sizes.reduce((sum, size) => sum + Math.pow(size - mean, 2), 0) / sizes.length;
+    const stdDev = Math.sqrt(variance);
+
+    // 计算变异系数 (CV = stdDev / mean)
+    const coefficientOfVariation = mean > 0 ? stdDev / mean : 0;
+
+    // 将变异系数转换为0-1的分布分数，CV越小，分布越均匀
+    const distributionScore = Math.max(0, 1 - Math.min(coefficientOfVariation, 1));
+
+    return distributionScore;
+  }
+
+  /**
+   * 计算代码块保持性
+   */
+  private calculateCodeBlockPreservation(chunks: CodeChunk[], originalContent: string): number {
+    // 提取原始内容中的所有代码块
+    const originalCodeBlocks = originalContent.match(/```[\s\S]*?```/g) || [];
+
+    if (originalCodeBlocks.length === 0) return 1; // 没有代码块，完美保持
+
+    let preservedBlocks = 0;
+
+    for (const originalBlock of originalCodeBlocks) {
+      // 检查每个原始代码块是否在某个分块中完整存在
+      for (const chunk of chunks) {
+        if (chunk.content.includes(originalBlock)) {
+          preservedBlocks++;
+          break;
+        }
+      }
+    }
+
+    return preservedBlocks / originalCodeBlocks.length;
+  }
 
   /**
    * 更新配置

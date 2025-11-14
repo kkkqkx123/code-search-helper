@@ -1,13 +1,9 @@
-import { GraphSearchServiceNew } from '../GraphSearchService';
-import { TYPES } from '../../../../types';
+import { GraphSearchService } from '../GraphSearchService';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
 import { ConfigService } from '../../../../config/ConfigService';
-import { GraphDatabaseService } from '../../../../database/graph/GraphDatabaseService';
-import { GraphQueryBuilder } from '../../../../database/nebula/query/GraphQueryBuilder';
-import { ICacheService } from '../../../../infrastructure/caching/types';
+import { IGraphService } from '../IGraphService';
 import { IPerformanceMonitor } from '../../../../infrastructure/monitoring/types';
-import { GraphSearchResult } from '../types';
 
 // Mock dependencies
 const mockLogger = {
@@ -25,7 +21,7 @@ const mockConfigService = {
   get: jest.fn().mockReturnValue({ defaultTTL: 300 }),
 };
 
-const mockGraphDatabase = {
+const mockGraphService = {
   isDatabaseConnected: jest.fn().mockReturnValue(true),
   initialize: jest.fn().mockResolvedValue(true),
   executeReadQuery: jest.fn().mockResolvedValue({ nodes: [], relationships: [] }),
@@ -39,12 +35,6 @@ const mockGraphDatabase = {
 
 const mockQueryBuilder = {};
 
-const mockCacheService = {
-  getFromCache: jest.fn(),
-  setCache: jest.fn(),
-  clearCache: jest.fn(),
-};
-
 const mockPerformanceMonitor = {
   updateCacheHitRate: jest.fn(),
   recordQueryExecution: jest.fn(),
@@ -56,27 +46,25 @@ const mockPerformanceMonitor = {
   }),
 };
 
-describe('GraphSearchServiceNew', () => {
-  let graphSearchService: GraphSearchServiceNew;
+describe('GraphSearchService', () => {
+  let graphSearchService: GraphSearchService;
 
   beforeEach(() => {
     // Reset mocks
     jest.clearAllMocks();
 
-    graphSearchService = new GraphSearchServiceNew(
+    graphSearchService = new GraphSearchService(
       mockLogger as unknown as LoggerService,
       mockErrorHandler as unknown as ErrorHandlerService,
       mockConfigService as unknown as ConfigService,
-      mockGraphDatabase as unknown as GraphDatabaseService,
-      mockQueryBuilder as unknown as GraphQueryBuilder,
-      mockCacheService as unknown as ICacheService,
+      mockGraphService as unknown as IGraphService,
       mockPerformanceMonitor as unknown as IPerformanceMonitor
     );
   });
 
   describe('initialize', () => {
     it('should initialize successfully when database is connected', async () => {
-      mockGraphDatabase.isDatabaseConnected.mockReturnValue(true);
+      mockGraphService.isDatabaseConnected.mockReturnValue(true);
 
       const result = await graphSearchService.initialize();
 
@@ -86,17 +74,17 @@ describe('GraphSearchServiceNew', () => {
     });
 
     it('should initialize successfully when database is not connected', async () => {
-      mockGraphDatabase.isDatabaseConnected.mockReturnValue(false);
+      mockGraphService.isDatabaseConnected.mockReturnValue(false);
 
       const result = await graphSearchService.initialize();
 
       expect(result).toBe(true);
-      expect(mockGraphDatabase.initialize).toHaveBeenCalled();
+      expect(mockGraphService.initialize).toHaveBeenCalled();
     });
 
     it('should handle initialization error', async () => {
-      mockGraphDatabase.isDatabaseConnected.mockReturnValue(false);
-      mockGraphDatabase.initialize.mockRejectedValue(new Error('Connection failed'));
+      mockGraphService.isDatabaseConnected.mockReturnValue(false);
+      mockGraphService.initialize.mockRejectedValue(new Error('Connection failed'));
 
       const result = await graphSearchService.initialize();
 
@@ -111,8 +99,7 @@ describe('GraphSearchServiceNew', () => {
         nodes: [{ id: 'node1', type: 'file', name: 'test.ts' }],
         relationships: [],
       };
-      mockGraphDatabase.executeReadQuery.mockResolvedValue(mockResult);
-      mockCacheService.getFromCache.mockReturnValue(null);
+      mockGraphService.executeReadQuery.mockResolvedValue(mockResult);
 
       const result = await graphSearchService.search('test query');
 
@@ -122,28 +109,10 @@ describe('GraphSearchServiceNew', () => {
         total: 1,
         executionTime: expect.any(Number),
       });
-      expect(mockCacheService.setCache).toHaveBeenCalled();
-    });
-
-    it('should return cached results if available', async () => {
-      const cachedResult: GraphSearchResult = {
-        nodes: [{ id: 'node1', type: 'file', name: 'test.ts', properties: {} }],
-        relationships: [],
-        total: 1,
-        executionTime: 0,
-      };
-      mockCacheService.getFromCache.mockReturnValue(cachedResult);
-
-      const result = await graphSearchService.search('test query');
-
-      expect(result).toEqual(cachedResult);
-      expect(mockPerformanceMonitor.updateCacheHitRate).toHaveBeenCalledWith(true);
-      expect(mockGraphDatabase.executeReadQuery).not.toHaveBeenCalled();
     });
 
     it('should handle search error', async () => {
-      mockCacheService.getFromCache.mockReturnValue(null);
-      mockGraphDatabase.executeReadQuery.mockRejectedValue(new Error('Query failed'));
+      mockGraphService.executeReadQuery.mockRejectedValue(new Error('Query failed'));
 
       const result = await graphSearchService.search('test query');
 
@@ -160,8 +129,7 @@ describe('GraphSearchServiceNew', () => {
   describe('searchByNodeType', () => {
     it('should search by node type', async () => {
       const mockResult = [{ id: 'node1', type: 'file', name: 'test.ts' }];
-      mockGraphDatabase.executeReadQuery.mockResolvedValue(mockResult);
-      mockCacheService.getFromCache.mockReturnValue(null);
+      mockGraphService.executeReadQuery.mockResolvedValue(mockResult);
 
       const result = await graphSearchService.searchByNodeType('File');
 
@@ -173,24 +141,8 @@ describe('GraphSearchServiceNew', () => {
       });
     });
 
-    it('should return cached results for node type search', async () => {
-      const cachedResult: GraphSearchResult = {
-        nodes: [{ id: 'node1', type: 'file', name: 'test.ts', properties: {} }],
-        relationships: [],
-        total: 1,
-        executionTime: 0,
-      };
-      mockCacheService.getFromCache.mockReturnValue(cachedResult);
-
-      const result = await graphSearchService.searchByNodeType('File');
-
-      expect(result).toEqual(cachedResult);
-      expect(mockPerformanceMonitor.updateCacheHitRate).toHaveBeenCalledWith(true);
-    });
-
     it('should handle node type search error', async () => {
-      mockCacheService.getFromCache.mockReturnValue(null);
-      mockGraphDatabase.executeReadQuery.mockRejectedValue(new Error('Query failed'));
+      mockGraphService.executeReadQuery.mockRejectedValue(new Error('Query failed'));
 
       const result = await graphSearchService.searchByNodeType('File');
 
@@ -206,8 +158,7 @@ describe('GraphSearchServiceNew', () => {
   describe('searchByRelationshipType', () => {
     it('should search by relationship type', async () => {
       const mockResult = [{ id: 'rel1', type: 'CALLS', src: 'node1', dst: 'node2', properties: {} }];
-      mockGraphDatabase.executeReadQuery.mockResolvedValue(mockResult);
-      mockCacheService.getFromCache.mockReturnValue(null);
+      mockGraphService.executeReadQuery.mockResolvedValue(mockResult);
 
       const result = await graphSearchService.searchByRelationshipType('CALLS');
 
@@ -220,8 +171,7 @@ describe('GraphSearchServiceNew', () => {
     });
 
     it('should handle relationship type search error', async () => {
-      mockCacheService.getFromCache.mockReturnValue(null);
-      mockGraphDatabase.executeReadQuery.mockRejectedValue(new Error('Query failed'));
+      mockGraphService.executeReadQuery.mockRejectedValue(new Error('Query failed'));
 
       const result = await graphSearchService.searchByRelationshipType('CALLS');
 
@@ -242,8 +192,7 @@ describe('GraphSearchServiceNew', () => {
           relationships: [{ id: 'rel1', type: 'CALLS', src: 'node1', dst: 'node2', properties: {} }],
         },
       };
-      mockGraphDatabase.executeReadQuery.mockResolvedValue(mockResult);
-      mockCacheService.getFromCache.mockReturnValue(null);
+      mockGraphService.executeReadQuery.mockResolvedValue(mockResult);
 
       const result = await graphSearchService.searchByPath('node1', 'node2');
 
@@ -256,8 +205,7 @@ describe('GraphSearchServiceNew', () => {
     });
 
     it('should handle path search error', async () => {
-      mockCacheService.getFromCache.mockReturnValue(null);
-      mockGraphDatabase.executeReadQuery.mockRejectedValue(new Error('Query failed'));
+      mockGraphService.executeReadQuery.mockRejectedValue(new Error('Query failed'));
 
       const result = await graphSearchService.searchByPath('node1', 'node2');
 
@@ -344,16 +292,6 @@ describe('GraphSearchServiceNew', () => {
   describe('isServiceInitialized', () => {
     it('should return initialization status', () => {
       expect(graphSearchService.isServiceInitialized()).toBe(false);
-    });
-  });
-
-  describe('private methods', () => {
-    it('should generate cache key correctly', () => {
-      // Access private method using any type
-      const generateCacheKey = (graphSearchService as any).generateCacheKey;
-      const key = generateCacheKey('test query', { limit: 10 });
-
-      expect(key).toBe('graph_search_test query_{"limit":10}');
     });
   });
 });

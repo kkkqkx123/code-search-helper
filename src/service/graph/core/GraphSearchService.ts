@@ -20,7 +20,6 @@ import {
 export class GraphSearchService {
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
-  private configService: ConfigService;
   private graphService: IGraphService;
   private performanceMonitor: IPerformanceMonitor;
   private isInitialized: boolean = false;
@@ -34,7 +33,6 @@ export class GraphSearchService {
   ) {
     this.logger = logger;
     this.errorHandler = errorHandler;
-    this.configService = configService;
     this.graphService = graphService;
     this.performanceMonitor = performanceMonitor;
   }
@@ -233,8 +231,8 @@ export class GraphSearchService {
   }
 
   /**
-   * 获取搜索建议
-   */
+    * 获取搜索建议
+    */
   async getSearchSuggestions(query: string): Promise<string[]> {
     try {
       this.logger.debug('Getting search suggestions', { query });
@@ -243,19 +241,19 @@ export class GraphSearchService {
       const suggestions: string[] = [];
 
       if (query.toLowerCase().includes('function')) {
-        suggestions.push('函数名', '函数调用', '函数定义');
+        suggestions.push('function name', 'function call', 'function definition');
       }
 
       if (query.toLowerCase().includes('class')) {
-        suggestions.push('类继承', '类方法', '类属性');
+        suggestions.push('class inheritance', 'class methods', 'class properties');
       }
 
       if (query.toLowerCase().includes('import')) {
-        suggestions.push('导入路径', '导入模块', '导入依赖');
+        suggestions.push('import path', 'import module', 'import dependency');
       }
 
       if (query.toLowerCase().includes('file')) {
-        suggestions.push('文件路径', '文件内容', '文件依赖');
+        suggestions.push('file path', 'file content', 'file dependency');
       }
 
       return suggestions.slice(0, 5);
@@ -330,7 +328,6 @@ export class GraphSearchService {
 
   // 私有方法
 
-
   /**
    * 构建搜索查询
    */
@@ -343,7 +340,7 @@ export class GraphSearchService {
       RETURN v AS node
       LIMIT ${limit}
     `;
-    
+
     return { nGQL };
   }
 
@@ -357,7 +354,7 @@ export class GraphSearchService {
       RETURN v AS node
       LIMIT ${limit}
     `;
-    
+
     return { nGQL };
   }
 
@@ -371,7 +368,7 @@ export class GraphSearchService {
       RETURN r AS relationship
       LIMIT ${limit}
     `;
-    
+
     return { nGQL };
   }
 
@@ -385,7 +382,7 @@ export class GraphSearchService {
       YIELD path AS p
       RETURN p
     `;
-    
+
     return { nGQL };
   }
 

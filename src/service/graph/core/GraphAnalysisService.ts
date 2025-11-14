@@ -309,6 +309,7 @@ export class GraphAnalysisService {
   async close(): Promise<void> {
     try {
       this.logger.info('Closing graph analysis service');
+      await this.graphService.close();
       this.isInitialized = false;
       this.logger.info('Graph analysis service closed successfully');
     } catch (error) {

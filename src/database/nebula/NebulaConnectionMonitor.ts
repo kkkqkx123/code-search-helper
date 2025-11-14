@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../utils/LoggerService';
 import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
-import { INebulaClient } from '../graph/interfaces/INebulaClient';
+import { INebulaClient } from './client/NebulaClient';
 import { TYPES } from '../../types';
 import { EventEmitter } from 'events';
 

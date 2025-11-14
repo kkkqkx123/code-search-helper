@@ -46,8 +46,23 @@ describe('GraphDataService', () => {
       batchDeleteNodes: jest.fn().mockResolvedValue(true),
       clearSpace: jest.fn().mockResolvedValue(true),
       getSpaceInfo: jest.fn().mockResolvedValue({}),
-      getDatabaseStats: jest.fn().mockResolvedValue({})
-    } as jest.Mocked<IGraphService>;
+      getDatabaseStats: jest.fn().mockResolvedValue({}),
+      analyzeDependencies: jest.fn().mockResolvedValue({}),
+      detectCircularDependencies: jest.fn().mockResolvedValue([]),
+      analyzeCallGraph: jest.fn().mockResolvedValue({}),
+      analyzeImpact: jest.fn().mockResolvedValue({}),
+      getProjectOverview: jest.fn().mockResolvedValue({}),
+      getStructureMetrics: jest.fn().mockResolvedValue({}),
+      getGraphStats: jest.fn().mockResolvedValue({}),
+      executeRawQuery: jest.fn().mockResolvedValue({}),
+      findRelatedNodes: jest.fn().mockResolvedValue([]),
+      findPath: jest.fn().mockResolvedValue([]),
+      search: jest.fn().mockResolvedValue([]),
+      getSearchSuggestions: jest.fn().mockResolvedValue([]),
+      isHealthy: jest.fn().mockResolvedValue(true),
+      getStatus: jest.fn().mockResolvedValue({}),
+      dropSpace: jest.fn().mockResolvedValue(true)
+    } as any;
 
     mockQueryBuilder = {
       buildPathQuery: jest.fn().mockReturnValue({ nGQL: 'QUERY', parameters: {} }),
@@ -76,9 +91,19 @@ describe('GraphDataService', () => {
     } as any;
 
     // 绑定依赖
+    container.bind<LoggerService>(TYPES.LoggerService).toConstantValue({
+      info: jest.fn(),
+      debug: jest.fn(),
+      error: jest.fn(),
+      warn: jest.fn(),
+    } as any);
+    container.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).toConstantValue({
+      handleError: jest.fn().mockReturnValue({ id: 'error-id' }),
+    } as any);
     container.bind<ConfigService>(TYPES.ConfigService).toConstantValue(mockConfigService);
     container.bind<IGraphService>(TYPES.IGraphService).toConstantValue(mockGraphService);
     container.bind<GraphQueryBuilder>(TYPES.GraphQueryBuilder).toConstantValue(mockQueryBuilder);
+    container.bind<GraphDataService>(GraphDataService).toSelf();
 
     graphDataService = container.get(GraphDataService);
   });
@@ -153,12 +178,52 @@ describe('GraphDataService', () => {
       const files = [{ id: 'file1', filePath: '/path/to/file1.js' }];
       const options = { projectId: 'project1' };
 
+      mockGraphService.spaceExists.mockResolvedValue(false);
       mockGraphService.createSpace.mockResolvedValue(false);
 
       const result = await graphDataService.storeParsedFiles(files, options);
 
       expect(result.success).toBe(false);
-      expect(result.errors).toContain('Storage failed:');
+      expect(result.errors[0]).toContain('Storage failed:');
+    });
+  });
+
+  describe('storeChunks', () => {
+    beforeEach(async () => {
+      await graphDataService.initialize();
+    });
+
+    it('should store chunks successfully', async () => {
+      const chunks = [
+        {
+          id: 'chunk1',
+          type: 'function',
+          functionName: 'testFunc',
+          content: 'function test() {}',
+          startLine: 1,
+          endLine: 3,
+          metadata: {
+            complexity: 1,
+            parameters: [],
+            returnType: 'void',
+            language: 'javascript'
+          }
+        }
+      ];
+
+      const options = { projectId: 'project1' };
+
+      mockGraphService.executeBatch.mockResolvedValue({ 
+        success: true, 
+        results: [{ success: true, data: { inserted: true } }] 
+      });
+
+      const result = await graphDataService.storeChunks(chunks, options);
+
+      expect(result.success).toBe(true);
+      expect(mockGraphService.spaceExists).toHaveBeenCalledWith('project1');
+      expect(mockGraphService.useSpace).toHaveBeenCalledWith('project1');
+      expect(mockGraphService.executeBatch).toHaveBeenCalled();
     });
   });
 
@@ -187,6 +252,35 @@ describe('GraphDataService', () => {
       mockGraphService.executeReadQuery.mockRejectedValue(new Error('Query failed'));
 
       const result = await graphDataService.findRelatedNodes('node1');
+
+      expect(result).toHaveLength(0);
+    });
+  });
+
+  describe('findPath', () => {
+    beforeEach(async () => {
+      await graphDataService.initialize();
+    });
+
+    it('should find path successfully', async () => {
+      const mockResult = {
+        data: [
+          { id: 'path1', type: 'CALLS', source: 'node1', target: 'node2' }
+        ]
+      };
+
+      mockGraphService.executeReadQuery.mockResolvedValue(mockResult);
+
+      const result = await graphDataService.findPath('node1', 'node2');
+
+      expect(result).toHaveLength(1);
+      expect(mockGraphService.executeReadQuery).toHaveBeenCalled();
+    });
+
+    it('should handle query failure', async () => {
+      mockGraphService.executeReadQuery.mockRejectedValue(new Error('Query failed'));
+
+      const result = await graphDataService.findPath('node1', 'node2');
 
       expect(result).toHaveLength(0);
     });
