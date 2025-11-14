@@ -76,6 +76,16 @@ export const TYPES = {
   EmbedderFactory: Symbol.for('EmbedderFactory'),
   EmbeddingCacheService: Symbol.for('EmbeddingCacheService'),
 
+  // 向量服务
+  IVectorRepository: Symbol.for('IVectorRepository'),
+  IVectorService: Symbol.for('IVectorService'),
+  IVectorCoordinationService: Symbol.for('IVectorCoordinationService'),
+  IVectorCacheManager: Symbol.for('IVectorCacheManager'),
+  VectorService: Symbol.for('VectorService'),
+  VectorRepository: Symbol.for('VectorRepository'),
+  VectorCoordinationService: Symbol.for('VectorCoordinationService'),
+  VectorCacheManager: Symbol.for('VectorCacheManager'),
+
   // 10. 忽略规则管理
   IgnoreRuleManager: Symbol.for('IgnoreRuleManager'),
 
@@ -160,7 +170,7 @@ export const TYPES = {
   GraphQueryValidator: Symbol.for('GraphQueryValidator'),
   GraphDatabaseService: Symbol.for('GraphDatabaseService'),
   GraphAnalysisService: Symbol.for('GraphAnalysisService'),
-  
+
   // 16. Repository层
   GraphRepository: Symbol.for('GraphRepository'),
   IGraphRepository: Symbol.for('IGraphRepository'),
@@ -180,7 +190,7 @@ export const TYPES = {
   HealthChecker: Symbol.for('HealthChecker'),
   InfrastructureManager: Symbol.for('InfrastructureManager'),
   DatabaseHealthChecker: Symbol.for('DatabaseHealthChecker'),
-  
+
 
   CacheConfig: Symbol.for('CacheConfig'),
   InfrastructureErrorHandler: Symbol.for('InfrastructureErrorHandler'),
@@ -323,7 +333,7 @@ export const TYPES = {
 
   // 38. 特殊格式文本分割器
   MarkdownProcessor: Symbol.for('MarkdownProcessor'),
-  
+
   LayeredHTMLStrategy: Symbol.for('LayeredHTMLStrategy'),
   HTMLContentExtractor: Symbol.for('HTMLContentExtractor'),
 

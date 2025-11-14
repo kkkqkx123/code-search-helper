@@ -107,7 +107,15 @@ import { IGraphIndexPerformanceMonitor, GraphIndexMetric, GraphIndexPerformanceS
 // 图构建服务
 import { GraphConstructionService } from '../../service/graph/construction/GraphConstructionService';
 
-
+// 向量服务
+import { VectorService } from '../../service/vector/core/VectorService';
+import { VectorRepository } from '../../service/vector/repository/VectorRepository';
+import { VectorCoordinationService } from '../../service/vector/coordination/VectorCoordinationService';
+import { VectorCacheManager } from '../../service/vector/caching/VectorCacheManager';
+import { IVectorService } from '../../service/vector/core/IVectorService';
+import { IVectorRepository } from '../../service/vector/repository/IVectorRepository';
+import { IVectorCoordinationService } from '../../service/vector/coordination/IVectorCoordinationService';
+import { IVectorCacheManager } from '../../service/vector/caching/IVectorCacheManager';
 
 export class BusinessServiceRegistrar {
   static register(container: Container): void {
@@ -141,6 +149,13 @@ export class BusinessServiceRegistrar {
       // 图构建服务
       container.bind<GraphConstructionService>(TYPES.GraphConstructionService).to(GraphConstructionService).inSingletonScope();
 
+      // 向量服务
+      container.bind<IVectorCacheManager>(TYPES.IVectorCacheManager).to(VectorCacheManager).inSingletonScope();
+      container.bind<IVectorRepository>(TYPES.IVectorRepository).to(VectorRepository).inSingletonScope();
+      container.bind<IVectorCoordinationService>(TYPES.IVectorCoordinationService).to(VectorCoordinationService).inSingletonScope();
+      container.bind<IVectorService>(TYPES.IVectorService).to(VectorService).inSingletonScope();
+      container.bind<VectorService>(TYPES.VectorService).to(VectorService).inSingletonScope();
+
       // 索引服务架构
       container.bind<VectorIndexService>(TYPES.VectorIndexService).to(VectorIndexService).inSingletonScope();
       container.bind<GraphIndexService>(TYPES.GraphIndexService).to(GraphIndexService).inSingletonScope();
@@ -165,6 +180,21 @@ export class BusinessServiceRegistrar {
       container.bind<TreeSitterCoreService>(TYPES.TreeSitterCoreService).to(TreeSitterCoreService).inSingletonScope();
       container.bind<TreeSitterService>(TYPES.TreeSitterService).to(TreeSitterService).inSingletonScope();
       container.bind<TreeSitterQueryEngine>(TYPES.TreeSitterQueryEngine).to(TreeSitterQueryEngine).inSingletonScope();
+      
+      // 向量服务模块
+      const { VectorService } = require('../../service/vector/core/VectorService');
+      const { VectorRepository } = require('../../service/vector/repository/VectorRepository');
+      const { VectorCacheManager } = require('../../service/vector/caching/VectorCacheManager');
+      const { VectorCoordinationService } = require('../../service/vector/coordination/VectorCoordinationService');
+      
+      container.bind(TYPES.IVectorRepository).to(VectorRepository).inSingletonScope();
+      container.bind(TYPES.VectorRepository).to(VectorRepository).inSingletonScope();
+      container.bind(TYPES.IVectorCacheManager).to(VectorCacheManager).inSingletonScope();
+      container.bind(TYPES.VectorCacheManager).to(VectorCacheManager).inSingletonScope();
+      container.bind(TYPES.IVectorCoordinationService).to(VectorCoordinationService).inSingletonScope();
+      container.bind(TYPES.VectorCoordinationService).to(VectorCoordinationService).inSingletonScope();
+      container.bind(TYPES.IVectorService).to(VectorService).inSingletonScope();
+      container.bind(TYPES.VectorService).to(VectorService).inSingletonScope();
       container.bind<ChunkToVectorCoordinationService>(TYPES.ChunkToVectorCoordinationService).to(ChunkToVectorCoordinationService).inSingletonScope();
 
       // 标准化服务
