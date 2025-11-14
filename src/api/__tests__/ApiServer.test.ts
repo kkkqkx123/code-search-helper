@@ -106,7 +106,7 @@ describe('ApiServer', () => {
   beforeAll(() => {
     // Set environment variable for mock mode
     process.env.SEARCH_MOCK_MODE = 'true';
-    
+
     // Mock fs.readFile to return mock data
     mockReadFile = jest.spyOn(fs, 'readFile').mockImplementation((filePath: any) => {
       if (typeof filePath === 'string' && filePath.includes('search-results.json')) {
@@ -129,7 +129,7 @@ describe('ApiServer', () => {
   beforeEach(() => {
     // 创建新的测试容器
     testContainer = new Container();
-    
+
     // 创建模拟的ConfigService
     const mockConfigService = {
       get: jest.fn().mockImplementation((key: string) => {
@@ -179,7 +179,7 @@ describe('ApiServer', () => {
       }),
       initialize: jest.fn().mockResolvedValue(undefined)
     };
-    
+
     // 创建其他必需的模拟服务
     const mockQdrantConfigService = {
       getQdrantConfig: jest.fn().mockReturnValue({
@@ -190,7 +190,7 @@ describe('ApiServer', () => {
       }),
       validateConfig: jest.fn().mockReturnValue(true),
     };
-    
+
     const mockNebulaConfigService = {
       getNebulaConfig: jest.fn().mockReturnValue({
         host: 'localhost',
@@ -201,27 +201,27 @@ describe('ApiServer', () => {
       }),
       validateConfig: jest.fn().mockReturnValue(true),
     };
-    
+
     const mockLoggerService = {
       info: jest.fn(),
       warn: jest.fn(),
       error: jest.fn(),
       debug: jest.fn(),
     };
-    
+
     const mockErrorHandlerService = {
       handleError: jest.fn(),
       createError: jest.fn(),
       wrapAsync: jest.fn(),
     };
-    
+
     // 绑定所有必需的服务到测试容器
     testContainer.bind<ConfigService>(TYPES.ConfigService).toConstantValue(mockConfigService as any);
     testContainer.bind<QdrantConfigService>(TYPES.QdrantConfigService).toConstantValue(mockQdrantConfigService as any);
     testContainer.bind<NebulaConfigService>(TYPES.NebulaConfigService).toConstantValue(mockNebulaConfigService as any);
     testContainer.bind<LoggerService>(TYPES.LoggerService).toConstantValue(mockLoggerService as any);
     testContainer.bind<ErrorHandlerService>(TYPES.ErrorHandlerService).toConstantValue(mockErrorHandlerService as any);
-    
+
     // 绑定ProjectIdManager（使用模拟版本）
     const { ProjectIdManager } = require('../../database/ProjectIdManager');
     testContainer.bind<ProjectIdManager>(TYPES.ProjectIdManager).toConstantValue(new ProjectIdManager(
@@ -231,11 +231,11 @@ describe('ApiServer', () => {
       mockLoggerService as any,
       mockErrorHandlerService as any
     ));
-    
+
     // 绑定ProjectStateManager（使用模拟版本）
     const { ProjectStateManager } = require('../../service/project/ProjectStateManager');
     testContainer.bind(TYPES.ProjectStateManager).toConstantValue(new ProjectStateManager());
-    
+
     // 绑定NebulaClient（使用模拟版本）
     const mockNebulaClient = {
       isConnected: jest.fn().mockReturnValue(false),
@@ -245,14 +245,14 @@ describe('ApiServer', () => {
     };
     testContainer.bind(TYPES.INebulaClient).toConstantValue(mockNebulaClient);
     testContainer.bind(TYPES.NebulaClient).toConstantValue(mockNebulaClient);
-    
+
     // 绑定文件搜索服务
     const mockFileSearchService = {
       search: jest.fn().mockResolvedValue([]),
       destroy: jest.fn(),
     };
     testContainer.bind(TYPES.FileSearchService).toConstantValue(mockFileSearchService);
-    
+
     // 绑定图服务
     const mockGraphSearchService = {
       search: jest.fn().mockResolvedValue([]),
@@ -270,18 +270,18 @@ describe('ApiServer', () => {
     const mockGraphQueryValidator = {
       validate: jest.fn().mockReturnValue(true),
     };
-    
+
     testContainer.bind(TYPES.GraphSearchServiceNew).toConstantValue(mockGraphSearchService);
-    testContainer.bind(TYPES.GraphCacheService).toConstantValue(mockGraphCacheService);
+    testContainer.bind(TYPES.GraphService).toConstantValue(mockGraphCacheService);
     testContainer.bind(TYPES.GraphPerformanceMonitor).toConstantValue(mockGraphPerformanceMonitor);
     testContainer.bind(TYPES.GraphQueryValidator).toConstantValue(mockGraphQueryValidator);
-    
+
     const logger = Logger.getInstance('ApiServerTest');
     mockIndexSyncService = createMockIndexSyncService();
-    
+
     // Use the mocked EmbedderFactory (jest.mock will handle the constructor)
     const mockEmbedderFactory = new (require('../../embedders/EmbedderFactory').EmbedderFactory)();
-    
+
     const mockQdrantService = {
       searchVectorsForProject: jest.fn().mockResolvedValue([]), // Mock the searchVectorsForProject method
       initialize: jest.fn().mockResolvedValue(undefined),
@@ -349,18 +349,18 @@ describe('ApiServer', () => {
       expect(response.body.success).toBe(false);
       expect(response.body.error).toBe('Query parameter is required');
     });
-it('should handle search errors gracefully', async () => {
-  // Mock fs.readFile to throw an error
-  mockReadFile.mockRejectedValueOnce(new Error('File read error'));
+    it('should handle search errors gracefully', async () => {
+      // Mock fs.readFile to throw an error
+      mockReadFile.mockRejectedValueOnce(new Error('File read error'));
 
-  const response = await request(app)
-    .post('/api/search')
-    .send({ query: 'test' });
+      const response = await request(app)
+        .post('/api/search')
+        .send({ query: 'test' });
 
-  expect(response.status).toBe(200); // Should still return 200 with mock results
-  expect(response.body.success).toBe(true);
-  expect(response.body.data.results).toHaveLength(1);
-});
+      expect(response.status).toBe(200); // Should still return 200 with mock results
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.results).toHaveLength(1);
+    });
 
   });
 
@@ -377,7 +377,7 @@ it('should handle search errors gracefully', async () => {
   afterAll(async () => {
     // 重置环境变量
     delete process.env.SEARCH_MOCK_MODE;
-    
+
     // 获取并销毁 FileSearchService 实例以清理定时器
     try {
       if (diContainer.isBound(TYPES.FileSearchService)) {
@@ -389,7 +389,7 @@ it('should handle search errors gracefully', async () => {
     } catch (error) {
       console.warn('Failed to destroy FileSearchService:', error);
     }
-    
+
     // 清理 DI 容器中的绑定
     if (diContainer.isBound(TYPES.ConfigService)) {
       diContainer.unbind(TYPES.ConfigService);
@@ -400,11 +400,11 @@ it('should handle search errors gracefully', async () => {
     if (diContainer.isBound(TYPES.FileSearchService)) {
       diContainer.unbind(TYPES.FileSearchService);
     }
-    
+
     // 清理所有定时器
     jest.useRealTimers();
     jest.clearAllTimers();
-    
+
     // 等待微任务队列清空
     await new Promise(resolve => setImmediate(resolve));
   });

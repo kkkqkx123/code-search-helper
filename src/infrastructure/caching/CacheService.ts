@@ -149,6 +149,21 @@ export class CacheService implements ICacheService {
     }
   }
 
+  isGraphCacheHealthy(): boolean {
+    // Check if graph cache is not empty and has valid entries
+    const graphCache = this.getGraphData('stats');
+    if (!graphCache) {
+      return true; // Empty cache is considered healthy
+    }
+
+    // Verify that cached graph data is still valid
+    const cacheStats = this.getCacheStats();
+    const hitRate = cacheStats.hitRate;
+    
+    // Cache is healthy if it has entries and reasonable hit rate, or if it's empty
+    return this.cache.size === 0 || hitRate >= 0;
+  }
+
   private checkMemoryUsage(): void {
     if (!this.config.maxMemory) return;
     

@@ -78,7 +78,7 @@ export class GraphStatsRoutes {
   private async getCacheStats(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const startTime = Date.now();
-      const result = this.graphCacheService.getGraphCacheStats();
+      const result = this.graphCacheService.getCacheStats();
       const executionTime = Date.now() - startTime;
 
       this.performanceMonitor.recordQueryExecution(executionTime);
@@ -158,7 +158,7 @@ export class GraphStatsRoutes {
 
       // 获取各种服务的状态
       const graphServiceStatus = await this.graphService.getStatus();
-      const cacheStatus = this.graphCacheService.getGraphCacheStats();
+      const cacheStatus = this.graphCacheService.getCacheStats();
       const performanceStatus = this.performanceMonitor.getStatus();
 
       const executionTime = Date.now() - startTime;

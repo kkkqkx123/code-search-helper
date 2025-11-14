@@ -100,24 +100,22 @@ export class ExponentialBackoffRetryStrategy implements IRetryStrategy {
     const errorName = error.name.toLowerCase();
 
     // 检查错误消息是否匹配可重试错误列表
-    const isRetryableError = this.config.retryableErrors.some(retryableError =>
+    const isRetryableByMessage = this.config.retryableErrors.some(retryableError =>
       errorMessage.includes(retryableError.toLowerCase()) ||
       errorName.includes(retryableError.toLowerCase())
     );
 
     // 检查错误代码
     const errorCode = (error as any).code;
+    let isRetryableByCode = false;
     if (errorCode && typeof errorCode === 'string') {
-      const isRetryableCode = this.config.retryableErrors.some(retryableError =>
+      isRetryableByCode = this.config.retryableErrors.some(retryableError =>
         errorCode.toLowerCase().includes(retryableError.toLowerCase())
       );
-      
-      if (isRetryableCode) {
-        return true;
-      }
     }
 
-    return isRetryableError;
+    // 只要消息或代码任一匹配就认为可重试
+    return isRetryableByMessage || isRetryableByCode;
   }
 
   /**
@@ -125,6 +123,7 @@ export class ExponentialBackoffRetryStrategy implements IRetryStrategy {
    */
   getDelay(context: RetryContext): number {
     // 计算基础延迟（指数退避）
+    // attempt 从 1 开始，所以使用 context.attempt - 1
     let delay = this.config.baseDelay * Math.pow(this.config.backoffFactor, context.attempt - 1);
 
     // 限制最大延迟
@@ -132,8 +131,9 @@ export class ExponentialBackoffRetryStrategy implements IRetryStrategy {
 
     // 添加随机抖动以避免雷群效应
     if (this.config.jitter) {
-      const jitter = Math.random() * 0.1; // 10%的抖动
-      delay = delay * (1 + jitter);
+      // 增加抖动范围到 25% 以更好地避免雷群效应
+      const jitter = Math.random() * 0.25; // 0-25%的抖动
+      delay = delay * (1 + jitter); // 应用抖动
     }
 
     return Math.floor(delay);
@@ -152,7 +152,7 @@ export class ExponentialBackoffRetryStrategy implements IRetryStrategy {
 
     let lastError: Error | null = null;
 
-    while (operationContext.attempt <= this.config.maxAttempts) {
+    while (true) {
       try {
         this.logger.debug('Executing operation with retry strategy', {
           operation: operationContext.operation,
@@ -195,6 +195,23 @@ export class ExponentialBackoffRetryStrategy implements IRetryStrategy {
           throw lastError;
         }
 
+        // 增加重试次数
+        operationContext.attempt++;
+
+        // 如果超过最大重试次数，抛出错误
+        if (operationContext.attempt > this.config.maxAttempts) {
+          this.errorHandler.handleError(
+            lastError,
+            { 
+              component: 'ExponentialBackoffRetryStrategy', 
+              operation: operationContext.operation, 
+              attempts: this.config.maxAttempts,
+              finalAttempt: true
+            }
+          );
+          throw lastError;
+        }
+
         // 计算延迟时间
         const delay = this.getDelay(operationContext);
 
@@ -206,27 +223,21 @@ export class ExponentialBackoffRetryStrategy implements IRetryStrategy {
 
         // 等待延迟时间
         await this.delay(delay);
-
-        // 增加重试次数
-        operationContext.attempt++;
       }
     }
 
-    // 如果所有重试都失败了，抛出最后一个错误
-    if (lastError) {
-      this.errorHandler.handleError(
-        lastError,
-        { 
-          component: 'ExponentialBackoffRetryStrategy', 
-          operation: operationContext.operation, 
-          attempts: this.config.maxAttempts,
-          finalAttempt: true
-        }
-      );
-      throw lastError;
-    } else {
-      throw new Error(`Operation failed after ${this.config.maxAttempts} attempts`);
-    }
+    // 理论上不会到达这里，但为了类型安全
+    const error = lastError || new Error(`Operation failed after ${this.config.maxAttempts} attempts`);
+    this.errorHandler.handleError(
+      error,
+      { 
+        component: 'ExponentialBackoffRetryStrategy', 
+        operation: operationContext.operation, 
+        attempts: this.config.maxAttempts,
+        finalAttempt: true
+      }
+    );
+    throw error;
   }
 
   /**

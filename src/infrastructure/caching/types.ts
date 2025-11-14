@@ -19,6 +19,7 @@ export interface ICacheService {
     hitRate: number;
   };
   cleanupExpiredEntries(): void;
+  isGraphCacheHealthy(): boolean;
 
   // 扩展接口以支持多数据库类型
   getDatabaseSpecificCache<T>(key: string, databaseType: DatabaseType): Promise<T | null>;

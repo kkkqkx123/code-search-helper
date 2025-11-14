@@ -33,7 +33,7 @@ describe('Service Integration Tests', () => {
     consistencyChecker = container.get<DataConsistencyChecker>(TYPES.DataConsistencyService);
     performanceOptimizer = container.get<PerformanceOptimizerService>(TYPES.PerformanceOptimizerService);
     healthChecker = container.get<DatabaseHealthChecker>(TYPES.HealthChecker);
-    graphCacheService = container.get<any>(TYPES.GraphCacheService);
+    graphCacheService = container.get<any>(TYPES.GraphService);
   });
 
   afterAll(async () => {

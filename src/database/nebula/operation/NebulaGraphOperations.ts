@@ -1,7 +1,6 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../../types';
 import { DatabaseLoggerService } from '../../common/DatabaseLoggerService';
-import { DatabaseEventType } from '../../common/DatabaseEventTypes';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { INebulaSpaceManager } from '../space/NebulaSpaceManager';
 import { INebulaQueryService } from '../query/NebulaQueryService';
@@ -11,14 +10,21 @@ import { INebulaClient } from '../client/NebulaClient';
 import { NebulaBaseOperations } from './NebulaBaseOperations';
 
 export interface INebulaGraphOperations {
+  // 单个节点操作
   insertVertex(tag: string, vertexId: string, properties: Record<string, any>): Promise<boolean>;
+  updateVertex(vertexId: string, tag: string, properties: Record<string, any>): Promise<boolean>;
+  deleteVertex(vertexId: string, tag?: string): Promise<boolean>;
+  
+  // 单个边操作
   insertEdge(edgeType: string, srcId: string, dstId: string, properties: Record<string, any>): Promise<boolean>;
+  updateEdge(srcId: string, dstId: string, edgeType: string, properties: Record<string, any>): Promise<boolean>;
+  deleteEdge(srcId: string, dstId: string, edgeType?: string): Promise<boolean>;
+  
+  // 批量操作
   batchInsertVertices(vertices: BatchVertex[]): Promise<boolean>;
   batchInsertEdges(edges: BatchEdge[]): Promise<boolean>;
-  updateVertex(vertexId: string, tag: string, properties: Record<string, any>): Promise<boolean>;
-  updateEdge(srcId: string, dstId: string, edgeType: string, properties: Record<string, any>): Promise<boolean>;
-  deleteVertex(vertexId: string, tag?: string): Promise<boolean>;
-  deleteEdge(srcId: string, dstId: string, edgeType?: string): Promise<boolean>;
+  
+  // 图统计
   getGraphStats(): Promise<{ nodeCount: number; relationshipCount: number }>;
 }
 
@@ -48,10 +54,12 @@ export class NebulaGraphOperations extends NebulaBaseOperations implements INebu
     try {
       const { query, params } = this.queryBuilder.insertVertex(tag, vertexId, properties);
       await this.nebulaClient.executeQuery(query, params);
+      
+      this.logSuccess('insertVertex', { tag, vertexId });
       return true;
     } catch (error) {
       this.logError('insertVertex', { tag, vertexId }, error);
-      throw error;
+      this.handleOperationError(error, 'NebulaGraphOperations', 'insertVertex', { tag, vertexId });
     }
   }
 
@@ -59,10 +67,12 @@ export class NebulaGraphOperations extends NebulaBaseOperations implements INebu
     try {
       const { query, params } = this.queryBuilder.insertEdge(edgeType, srcId, dstId, properties);
       await this.nebulaClient.executeQuery(query, params);
+      
+      this.logSuccess('insertEdge', { edgeType, srcId, dstId });
       return true;
     } catch (error) {
       this.logError('insertEdge', { edgeType, srcId, dstId }, error);
-      throw error;
+      this.handleOperationError(error, 'NebulaGraphOperations', 'insertEdge', { edgeType, srcId, dstId });
     }
   }
 
@@ -74,10 +84,12 @@ export class NebulaGraphOperations extends NebulaBaseOperations implements INebu
       if (query && query.length > 0) {
         await this.nebulaClient.executeQuery(query, params);
       }
+      
+      this.logSuccess('batchInsertVertices', { count: vertices.length });
       return true;
     } catch (error) {
       this.logError('batchInsertVertices', { count: vertices.length }, error);
-      throw error;
+      this.handleOperationError(error, 'NebulaGraphOperations', 'batchInsertVertices', { count: vertices.length });
     }
   }
 
@@ -89,10 +101,12 @@ export class NebulaGraphOperations extends NebulaBaseOperations implements INebu
       if (query && query.length > 0) {
         await this.nebulaClient.executeQuery(query, params);
       }
+      
+      this.logSuccess('batchInsertEdges', { count: edges.length });
       return true;
     } catch (error) {
       this.logError('batchInsertEdges', { count: edges.length }, error);
-      throw error;
+      this.handleOperationError(error, 'NebulaGraphOperations', 'batchInsertEdges', { count: edges.length });
     }
   }
 
@@ -107,7 +121,7 @@ export class NebulaGraphOperations extends NebulaBaseOperations implements INebu
       return true;
     } catch (error) {
       this.logError('updateVertex', { vertexId, tag }, error);
-      throw error;
+      this.handleOperationError(error, 'NebulaGraphOperations', 'updateVertex', { vertexId, tag });
     }
   }
 
@@ -122,7 +136,7 @@ export class NebulaGraphOperations extends NebulaBaseOperations implements INebu
       return true;
     } catch (error) {
       this.logError('updateEdge', { srcId, dstId, edgeType }, error);
-      throw error;
+      this.handleOperationError(error, 'NebulaGraphOperations', 'updateEdge', { srcId, dstId, edgeType });
     }
   }
 
@@ -138,7 +152,7 @@ export class NebulaGraphOperations extends NebulaBaseOperations implements INebu
       return true;
     } catch (error) {
       this.logError('deleteVertex', { vertexId, tag }, error);
-      throw error;
+      this.handleOperationError(error, 'NebulaGraphOperations', 'deleteVertex', { vertexId, tag });
     }
   }
 
@@ -154,7 +168,7 @@ export class NebulaGraphOperations extends NebulaBaseOperations implements INebu
       return true;
     } catch (error) {
       this.logError('deleteEdge', { srcId, dstId, edgeType }, error);
-      throw error;
+      this.handleOperationError(error, 'NebulaGraphOperations', 'deleteEdge', { srcId, dstId, edgeType });
     }
   }
 
@@ -196,28 +210,5 @@ export class NebulaGraphOperations extends NebulaBaseOperations implements INebu
       this.logError('getGraphStats', {}, error);
       return { nodeCount: 0, relationshipCount: 0 };
     }
-  }
-
-  private logSuccess(operation: string, data: Record<string, any>): void {
-    this.databaseLogger.logDatabaseEvent({
-      type: DatabaseEventType.QUERY_EXECUTED,
-      source: 'nebula',
-      timestamp: new Date(),
-      data: { operation, ...data }
-    }).catch(err => console.error('Failed to log success:', err));
-  }
-
-  private logError(operation: string, data: Record<string, any>, error: unknown): void {
-    this.databaseLogger.logDatabaseEvent({
-      type: DatabaseEventType.ERROR_OCCURRED,
-      source: 'nebula',
-      timestamp: new Date(),
-      data: {
-        operation,
-        ...data,
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
-      }
-    }).catch(err => console.error('Failed to log error:', err));
   }
 }

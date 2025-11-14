@@ -1,12 +1,6 @@
 import express from 'express';
 import request from 'supertest';
 import { GraphStatsRoutes } from '../GraphStatsRoutes';
-import { IGraphService } from '../../../service/graph/core/IGraphService';
-import { GraphCacheService } from '../../../service/caching/GraphCacheService';
-import { GraphPerformanceMonitor } from '../../../service/graph/performance/GraphPerformanceMonitor';
-import { LoggerService } from '../../../utils/LoggerService';
-import { Container } from 'inversify';
-import { TYPES } from '../../../types';
 
 // Mock implementations
 const createMockGraphService = () => ({

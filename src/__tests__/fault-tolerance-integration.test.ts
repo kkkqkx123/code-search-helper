@@ -75,7 +75,7 @@ describe('FaultTolerance Integration', () => {
     container.bind<DataMappingValidator>(TYPES.DataMappingValidator).toConstantValue(mockValidator);
     container.bind<BatchProcessingService>(TYPES.GraphBatchOptimizer).toConstantValue(mockBatchOptimizer);
     container.bind<ConfigService>(TYPES.ConfigService).toConstantValue(mockConfigService);
-    container.bind<any>(TYPES.GraphCacheService).toConstantValue(mockGraphCacheService);
+    container.bind<any>(TYPES.GraphService).toConstantValue(mockGraphCacheService);
 
     // Register FaultToleranceHandler with config
     container.bind<FaultToleranceHandler>(TYPES.FaultToleranceHandler).toDynamicValue(context => {
@@ -166,7 +166,7 @@ describe('FaultTolerance Integration', () => {
     const mockCache = container.get<GraphMappingCache>(TYPES.GraphMappingCache);
     (mockCache.getMappingResult as jest.Mock).mockResolvedValue(null);
 
-    const mockGraphCacheService = container.get<any>(TYPES.GraphCacheService);
+    const mockGraphCacheService = container.get<any>(TYPES.GraphService);
     (mockGraphCacheService.getGraphData as jest.Mock).mockResolvedValue(null);
     (mockGraphCacheService.setGraphData as jest.Mock).mockResolvedValue(undefined);
 

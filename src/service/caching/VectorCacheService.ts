@@ -179,6 +179,40 @@ export class VectorCacheService implements ICacheService {
     }
   }
 
+  deleteByPattern(pattern: RegExp): number {
+    let deletedCount = 0;
+
+    // 删除匹配模式的嵌入缓存
+    for (const [key] of this.embeddingCache.entries()) {
+      if (pattern.test(key)) {
+        this.embeddingCache.delete(key);
+        deletedCount++;
+      }
+    }
+
+    // 删除匹配模式的搜索缓存
+    for (const [key] of this.searchCache.entries()) {
+      if (pattern.test(key)) {
+        this.searchCache.delete(key);
+        deletedCount++;
+      }
+    }
+
+    if (deletedCount > 0) {
+      this.logger.debug('Deleted cache entries by pattern', { deletedCount, pattern: pattern.toString() });
+    }
+
+    return deletedCount;
+  }
+
+  isGraphCacheHealthy(): boolean {
+    const cacheStats = this.getCacheStats();
+    const maxSize = 10000;
+    
+    // 缓存健康检查条件：总条目数未超过最大限制
+    return cacheStats.totalEntries <= maxSize;
+  }
+
   private startCleanupInterval(): void {
     this.cleanupInterval = setInterval(() => {
       this.cleanupExpiredEntries();
