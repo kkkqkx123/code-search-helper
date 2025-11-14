@@ -27,7 +27,7 @@ export const TYPES = {
 
   // 服务层
   NebulaDataService: Symbol.for('NebulaDataService'),
-  NebulaSpaceService: Symbol.for('NebulaSpaceService'),
+  NebulaSpaceManager: Symbol.for('NebulaSpaceManager'),
 
   // 状态管理
   QdrantStateManager: Symbol.for('QdrantStateManager'),

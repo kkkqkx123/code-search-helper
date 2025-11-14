@@ -5,6 +5,7 @@ import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 import { INebulaDataOperations } from '../../../database/nebula/operation/NebulaDataOperations';
 import { INebulaGraphOperations } from '../../../database/nebula/operation/NebulaGraphOperations';
 import { INebulaQueryService } from '../../../database/nebula/query/NebulaQueryService';
+import { ICacheService } from '../../../infrastructure/caching/types';
 import { 
   IGraphRepository, 
   GraphNodeData, 
@@ -24,12 +25,18 @@ export class GraphRepository implements IGraphRepository {
     @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
     @inject(TYPES.INebulaDataOperations) private dataOps: INebulaDataOperations,
     @inject(TYPES.INebulaGraphOperations) private graphOps: INebulaGraphOperations,
-    @inject(TYPES.INebulaQueryService) private queryService: INebulaQueryService
+    @inject(TYPES.INebulaQueryService) private queryService: INebulaQueryService,
+    @inject(TYPES.CacheService) private cache: ICacheService
   ) {}
 
   async createNode(node: GraphNodeData): Promise<string> {
     try {
       await this.graphOps.insertVertex(node.label, node.id, node.properties);
+      
+      // 失效相关缓存
+      this.cache.deleteFromCache(`graph:node:${node.id}`);
+      this.invalidateRelatedCaches(node.id);
+      
       return node.id;
     } catch (error) {
       this.errorHandler.handleError(error as Error, { component: 'GraphRepository', operation: 'createNode', nodeId: node.id });
@@ -41,6 +48,13 @@ export class GraphRepository implements IGraphRepository {
     try {
       const vertices = nodes.map(n => ({ id: n.id, tag: n.label, properties: n.properties }));
       await this.graphOps.batchInsertVertices(vertices);
+      
+      // 失效所有新创建节点的缓存
+      nodes.forEach(node => {
+        this.cache.deleteFromCache(`graph:node:${node.id}`);
+        this.invalidateRelatedCaches(node.id);
+      });
+      
       return nodes.map(n => n.id);
     } catch (error) {
       this.errorHandler.handleError(error as Error, { component: 'GraphRepository', operation: 'createNodes', count: nodes.length });
@@ -49,11 +63,27 @@ export class GraphRepository implements IGraphRepository {
   }
 
   async getNodeById(nodeId: string): Promise<GraphNodeData | null> {
+    const cacheKey = `graph:node:${nodeId}`;
+    
+    // 尝试从缓存获取
+    const cached = this.cache.getFromCache<GraphNodeData>(cacheKey);
+    if (cached) {
+      this.logger.debug('Cache hit for node', { nodeId });
+      return cached;
+    }
+    
     try {
       const result = await this.queryService.executeQuery(
         `FETCH PROP ON * "${nodeId}" YIELD vertex AS node`
       );
-      return result?.data?.[0] || null;
+      const node = result?.data?.[0] || null;
+      
+      // 缓存结果（5分钟TTL）
+      if (node) {
+        this.cache.setCache(cacheKey, node, 300000);
+      }
+      
+      return node;
     } catch (error) {
       this.errorHandler.handleError(error as Error, { component: 'GraphRepository', operation: 'getNodeById', nodeId });
       return null;
@@ -82,7 +112,15 @@ export class GraphRepository implements IGraphRepository {
 
   async updateNode(nodeId: string, properties: Record<string, any>): Promise<boolean> {
     try {
-      return await this.graphOps.updateVertex(nodeId, '', properties);
+      const result = await this.graphOps.updateVertex(nodeId, '', properties);
+      
+      // 失效相关缓存
+      if (result) {
+        this.cache.deleteFromCache(`graph:node:${nodeId}`);
+        this.invalidateRelatedCaches(nodeId);
+      }
+      
+      return result;
     } catch (error) {
       this.errorHandler.handleError(error as Error, { component: 'GraphRepository', operation: 'updateNode', nodeId });
       return false;
@@ -91,7 +129,15 @@ export class GraphRepository implements IGraphRepository {
 
   async deleteNode(nodeId: string): Promise<boolean> {
     try {
-      return await this.graphOps.deleteVertex(nodeId);
+      const result = await this.graphOps.deleteVertex(nodeId);
+      
+      // 失效相关缓存
+      if (result) {
+        this.cache.deleteFromCache(`graph:node:${nodeId}`);
+        this.invalidateRelatedCaches(nodeId);
+      }
+      
+      return result;
     } catch (error) {
       this.errorHandler.handleError(error as Error, { component: 'GraphRepository', operation: 'deleteNode', nodeId });
       return false;
@@ -106,6 +152,10 @@ export class GraphRepository implements IGraphRepository {
         relationship.targetId,
         relationship.properties || {}
       );
+      
+      // 失效相关节点的缓存
+      this.invalidateRelatedCaches(relationship.sourceId);
+      this.invalidateRelatedCaches(relationship.targetId);
     } catch (error) {
       this.errorHandler.handleError(error as Error, { component: 'GraphRepository', operation: 'createRelationship', type: relationship.type });
       throw error;
@@ -121,6 +171,14 @@ export class GraphRepository implements IGraphRepository {
         properties: r.properties || {}
       }));
       await this.graphOps.batchInsertEdges(edges);
+      
+      // 失效所有相关节点的缓存
+      const affectedNodes = new Set<string>();
+      relationships.forEach(r => {
+        affectedNodes.add(r.sourceId);
+        affectedNodes.add(r.targetId);
+      });
+      affectedNodes.forEach(nodeId => this.invalidateRelatedCaches(nodeId));
     } catch (error) {
       this.errorHandler.handleError(error as Error, { component: 'GraphRepository', operation: 'createRelationships', count: relationships.length });
       throw error;
@@ -160,10 +218,37 @@ export class GraphRepository implements IGraphRepository {
   }
 
   async findRelatedNodes(nodeId: string, options?: GraphTraversalOptions): Promise<GraphNodeData[]> {
+    const cacheKey = `graph:related:${nodeId}:${JSON.stringify(options || {})}`;
+    
+    // 尝试从缓存获取
+    const cached = this.cache.getFromCache<GraphNodeData[]>(cacheKey);
+    if (cached) {
+      this.logger.debug('Cache hit for related nodes', { nodeId });
+      return cached;
+    }
+    
     try {
       const maxDepth = options?.maxDepth || 3;
-      const edgeTypes = options?.edgeTypes || [];
-      return await this.graphOps.findRelatedNodes(nodeId, edgeTypes, maxDepth);
+      const edgeTypes = options?.edgeTypes && options.edgeTypes.length > 0 
+        ? options.edgeTypes.join(',') 
+        : '*';
+      
+      const query = `
+        GO ${maxDepth} STEPS FROM "${nodeId}" OVER ${edgeTypes}
+        YIELD dst(edge) AS relatedNodeId
+        | FETCH PROP ON * $-.relatedNodeId YIELD vertex AS relatedNode
+        LIMIT 100
+      `;
+      
+      const result = await this.queryService.executeQuery(query);
+      const nodes = result?.data?.map((record: any) => record.relatedNode) || [];
+      
+      // 缓存结果（1分钟TTL，因为遍历结果可能变化较快）
+      if (nodes.length > 0) {
+        this.cache.setCache(cacheKey, nodes, 60000);
+      }
+      
+      return nodes;
     } catch (error) {
       this.errorHandler.handleError(error as Error, { component: 'GraphRepository', operation: 'findRelatedNodes', nodeId });
       return [];
@@ -172,8 +257,14 @@ export class GraphRepository implements IGraphRepository {
 
   async findPath(sourceId: string, targetId: string, maxDepth?: number): Promise<GraphNodeData[][]> {
     try {
-      const result = await this.graphOps.findPath(sourceId, targetId, maxDepth);
-      return [result];
+      const depth = maxDepth || 5;
+      const query = `
+        FIND ALL PATH FROM "${sourceId}" TO "${targetId}" OVER * UPTO ${depth} STEPS
+        YIELD path AS p
+      `;
+      
+      const result = await this.queryService.executeQuery(query);
+      return result?.data ? [result.data] : [];
     } catch (error) {
       this.errorHandler.handleError(error as Error, { component: 'GraphRepository', operation: 'findPath', sourceId, targetId });
       return [];
@@ -182,7 +273,18 @@ export class GraphRepository implements IGraphRepository {
 
   async findShortestPath(sourceId: string, targetId: string, edgeTypes?: string[], maxDepth?: number): Promise<GraphNodeData[]> {
     try {
-      return await this.graphOps.findShortestPath(sourceId, targetId, edgeTypes, maxDepth);
+      const depth = maxDepth || 10;
+      const edgeTypesClause = edgeTypes && edgeTypes.length > 0 
+        ? `OVER ${edgeTypes.join(',')}` 
+        : 'OVER *';
+      
+      const query = `
+        FIND SHORTEST PATH FROM "${sourceId}" TO "${targetId}" ${edgeTypesClause} UPTO ${depth} STEPS
+        YIELD path AS p
+      `;
+      
+      const result = await this.queryService.executeQuery(query);
+      return result?.data || [];
     } catch (error) {
       this.errorHandler.handleError(error as Error, { component: 'GraphRepository', operation: 'findShortestPath', sourceId, targetId });
       return [];
@@ -191,7 +293,19 @@ export class GraphRepository implements IGraphRepository {
 
   async executeTraversal(startId: string, options: GraphTraversalOptions): Promise<GraphNodeData[]> {
     try {
-      return await this.graphOps.executeComplexTraversal(startId, options.edgeTypes || [], options);
+      const maxDepth = options.maxDepth || 3;
+      const edgeTypes = options.edgeTypes && options.edgeTypes.length > 0 
+        ? options.edgeTypes.join(',') 
+        : '*';
+      
+      const query = `
+        GO ${maxDepth} STEPS FROM "${startId}" OVER ${edgeTypes}
+        YIELD dst(edge) AS nodeId
+        | FETCH PROP ON * $-.nodeId YIELD vertex AS node
+      `;
+      
+      const result = await this.queryService.executeQuery(query);
+      return result?.data?.map((record: any) => record.node) || [];
     } catch (error) {
       this.errorHandler.handleError(error as Error, { component: 'GraphRepository', operation: 'executeTraversal', startId });
       return [];
@@ -211,6 +325,15 @@ export class GraphRepository implements IGraphRepository {
     }
   }
 
+  /**
+   * 失效与节点相关的所有缓存
+   */
+  private invalidateRelatedCaches(nodeId: string): void {
+    // 失效相关节点缓存
+    this.cache.deleteByPattern(new RegExp(`graph:related:${nodeId}:`));
+    // 失效遍历缓存
+    this.cache.deleteByPattern(new RegExp(`graph:traversal:.*${nodeId}`));
+  }
   async getRelationshipCount(type?: string): Promise<number> {
     try {
       const query = type

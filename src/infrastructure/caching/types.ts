@@ -9,6 +9,7 @@ export interface CacheEntry<T> {
 export interface ICacheService {
   getFromCache<T>(key: string): T | undefined;
   setCache<T>(key: string, data: T, ttl: number): void;
+  deleteByPattern(pattern: RegExp): number;
   deleteFromCache(key: string): boolean;
   clearAllCache(): void;
   getCacheStats(): {

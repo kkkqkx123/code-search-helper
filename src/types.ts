@@ -104,8 +104,6 @@ export const TYPES = {
   INebulaProjectManager: Symbol.for('INebulaProjectManager'),
   NebulaDataService: Symbol.for('NebulaDataService'),
   INebulaDataService: Symbol.for('INebulaDataService'),
-  NebulaSpaceService: Symbol.for('NebulaSpaceService'),
-  INebulaSpaceService: Symbol.for('INebulaSpaceService'),
   NebulaQueryService: Symbol.for('NebulaQueryService'),
   INebulaQueryService: Symbol.for('INebulaQueryService'),
   IQueryRunner: Symbol.for('IQueryRunner'),

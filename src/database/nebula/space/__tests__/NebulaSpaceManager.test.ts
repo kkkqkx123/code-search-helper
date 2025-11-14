@@ -11,6 +11,8 @@ import { INebulaSchemaManager } from '../../NebulaSchemaManager';
 import { ISpaceNameUtils } from '../../SpaceNameUtils';
 import { DatabaseEventType } from '../../../common/DatabaseEventTypes';
 import { LoggerService } from '../../../../utils/LoggerService';
+import { CacheService } from '../../../../infrastructure/caching/CacheService';
+import { PerformanceMonitor } from '../../../../infrastructure/monitoring/PerformanceMonitor';
 
 // Mock services to avoid real instances with timers and event listeners
 jest.mock('../../../../utils/LoggerService');
@@ -27,6 +29,8 @@ describe('NebulaSpaceManager', () => {
   let mockDatabaseLogger: jest.Mocked<DatabaseLoggerService>;
   let mockErrorHandler: jest.Mocked<ErrorHandlerService>;
   let mockConfigService: jest.Mocked<ConfigService>;
+  let mockCacheService: jest.Mocked<CacheService>;
+  let mockPerformanceMonitor: jest.Mocked<PerformanceMonitor>;
 
   beforeEach(() => {
     container = new Container();
@@ -106,6 +110,24 @@ describe('NebulaSpaceManager', () => {
       getEmbeddingConfig: jest.fn()
     } as any;
 
+    mockCacheService = {
+      getDatabaseSpecificCache: jest.fn(),
+      setDatabaseSpecificCache: jest.fn(),
+      invalidateDatabaseCache: jest.fn(),
+      get: jest.fn(),
+      set: jest.fn(),
+      invalidate: jest.fn(),
+      clear: jest.fn()
+    } as any;
+
+    mockPerformanceMonitor = {
+      startOperation: jest.fn().mockReturnValue('op-123'),
+      endOperation: jest.fn(),
+      recordCacheHit: jest.fn(),
+      recordCacheMiss: jest.fn(),
+      getMetrics: jest.fn()
+    } as any;
+
     // Bind mocks to container
     container.bind<INebulaConnectionManager>(TYPES.INebulaConnectionManager).toConstantValue(mockNebulaConnection);
     container.bind<INebulaQueryBuilder>(TYPES.INebulaQueryBuilder).toConstantValue(mockNebulaQueryBuilder);
@@ -123,7 +145,9 @@ describe('NebulaSpaceManager', () => {
       mockSpaceNameUtils,
       mockDatabaseLogger,
       mockErrorHandler,
-      mockConfigService
+      mockConfigService,
+      mockCacheService,
+      mockPerformanceMonitor
     );
 
     // Clear mocks

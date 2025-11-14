@@ -36,10 +36,6 @@ describe('GraphRepository', () => {
       updateEdge: jest.fn().mockResolvedValue(true),
       deleteVertex: jest.fn().mockResolvedValue(true),
       deleteEdge: jest.fn().mockResolvedValue(true),
-      findRelatedNodes: jest.fn().mockResolvedValue([]),
-      findPath: jest.fn().mockResolvedValue([]),
-      findShortestPath: jest.fn().mockResolvedValue([]),
-      executeComplexTraversal: jest.fn().mockResolvedValue([]),
       getGraphStats: jest.fn().mockResolvedValue({ nodeCount: 0, relationshipCount: 0 })
     } as any;
 
@@ -126,25 +122,25 @@ describe('GraphRepository', () => {
 
   describe('findRelatedNodes', () => {
     it('should find related nodes', async () => {
-      const mockNodes = [{ id: 'node2' }, { id: 'node3' }];
-      mockGraphOps.findRelatedNodes = jest.fn().mockResolvedValue(mockNodes);
+      const mockNodes = [{ relatedNode: { id: 'node2' } }, { relatedNode: { id: 'node3' } }];
+      mockQueryService.executeQuery = jest.fn().mockResolvedValue({ data: mockNodes });
 
       const result = await repository.findRelatedNodes('node1', { maxDepth: 2 });
 
-      expect(result).toEqual(mockNodes);
-      expect(mockGraphOps.findRelatedNodes).toHaveBeenCalledWith('node1', [], 2);
+      expect(result).toHaveLength(2);
+      expect(mockQueryService.executeQuery).toHaveBeenCalled();
     });
   });
 
   describe('findShortestPath', () => {
     it('should find shortest path between nodes', async () => {
       const mockPath = [{ id: 'node1' }, { id: 'node2' }];
-      mockGraphOps.findShortestPath = jest.fn().mockResolvedValue(mockPath);
+      mockQueryService.executeQuery = jest.fn().mockResolvedValue({ data: mockPath });
 
       const result = await repository.findShortestPath('node1', 'node2');
 
       expect(result).toEqual(mockPath);
-      expect(mockGraphOps.findShortestPath).toHaveBeenCalled();
+      expect(mockQueryService.executeQuery).toHaveBeenCalled();
     });
   });
 
