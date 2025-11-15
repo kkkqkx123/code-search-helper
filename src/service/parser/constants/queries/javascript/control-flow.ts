@@ -3,69 +3,92 @@ JavaScript Control Flow and Expression-specific Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
 */
 export default `
-; Control flow statements
-(if_statement) @name.definition.if
-(for_statement) @name.definition.for
-(while_statement) @name.definition.while
-(do_statement) @name.definition.do_while
+; 统一的控制流语句查询 - 使用交替模式
+[
+  (if_statement
+    condition: (_) @if.condition
+    consequence: (_) @if.body
+    alternative: (_)? @if.else)
+  (for_statement
+    initializer: (_)? @for.init
+    condition: (_)? @for.condition
+    update: (_)? @for.update
+    body: (_) @for.body)
+  (while_statement
+    condition: (_) @while.condition
+    body: (_) @while.body)
+  (do_statement
+    body: (_) @do.body
+    condition: (_) @do.condition)
+] @definition.control_statement
 
-; Switch statements
-(switch_statement) @name.definition.switch
-(switch_case) @name.definition.switch_case
-(switch_default) @name.definition.switch_default
+; Switch语句查询 - 提供更多上下文信息
+(switch_statement
+  value: (_) @switch.value
+  body: (switch_body
+    (switch_case
+      value: (_) @case.value
+      body: (_)* @case.body)*
+    (switch_default
+      body: (_)* @default.body)?)) @definition.switch_statement
 
-; Try-catch statements
-(try_statement) @name.definition.try
-(catch_clause) @name.definition.catch
-(finally_clause) @name.definition.finally
+; Try-catch语句查询 - 提供更多上下文信息
+(try_statement
+  body: (_) @try.body
+  (catch_clause
+    parameter: (identifier)? @catch.param
+    body: (_) @catch.body)*
+  (finally_clause
+    body: (_) @finally.body)?) @definition.try_catch
 
-; Throw statements
-(throw_statement) @name.definition.throw
+; 单独的控制流语句
+[
+  (throw_statement
+    (expression)? @throw.expression)
+  (return_statement
+    (expression)? @return.expression)
+  (break_statement
+    label: (statement_identifier)? @break.label)
+  (continue_statement
+    label: (statement_identifier)? @continue.label)
+  (labeled_statement
+    label: (statement_identifier) @label.name
+    body: (_) @label.body)
+  (with_statement
+    object: (_) @with.object
+    body: (_) @with.body)
+  (debugger_statement)
+] @definition.control_flow_simple
 
-; Return statements
-(return_statement) @name.definition.return
-
-; Break and continue statements
-(break_statement) @name.definition.break
-(continue_statement) @name.definition.continue
-
-; Labeled statements
-(labeled_statement) @name.definition.labeled
-
-; With statements
-(with_statement) @name.definition.with
-
-; Debugger statements
-(debugger_statement) @name.definition.debugger
-
-; Expression statements
-(expression_statement) @name.definition.expression
-
-; Binary expressions
-(binary_expression) @name.definition.binary_expression
-
-; Unary expressions
-(unary_expression) @name.definition.unary_expression
-
-; Update expressions
-(update_expression) @name.definition.update_expression
-
-; Logical expressions
-(logical_expression) @name.definition.logical_expression
-
-; Conditional expressions
-(conditional_expression) @name.definition.conditional
-
-; Assignment expressions
-(assignment_expression) @name.definition.assignment
-(augmented_assignment_expression) @name.definition.augmented_assignment
-
-; Sequence expressions
-(sequence_expression) @name.definition.sequence
-
-; Yield expressions
-(yield_expression) @name.definition.yield
-
-; Await expressions
-(await_expression) @name.definition.await
+; 表达式语句
+[
+  (expression_statement
+    (expression) @expression.value)
+  (binary_expression
+    left: (_) @binary.left
+    right: (_) @binary.right)
+  (unary_expression
+    argument: (_) @unary.argument)
+  (update_expression
+    argument: (_) @update.argument)
+  (logical_expression
+    left: (_) @logical.left
+    right: (_) @logical.right)
+  (conditional_expression
+    condition: (_) @conditional.condition
+    consequence: (_) @conditional.consequence
+    alternative: (_) @conditional.alternative)
+  (assignment_expression
+    left: (_) @assignment.left
+    right: (_) @assignment.right)
+  (augmented_assignment_expression
+    left: (_) @augmented.left
+    right: (_) @augmented.right)
+  (sequence_expression
+    (expression)+ @sequence.expressions)
+  (yield_expression
+    (expression)? @yield.expression)
+  (await_expression
+    value: (_) @await.value)
+] @definition.expression
 `;

@@ -3,44 +3,48 @@ JavaScript Method-specific Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
 */
 export default `
-; Method definitions in classes
-(method_definition
-  name: (property_identifier) @name.definition.method) @definition.method
+; 统一的方法定义查询 - 使用交替模式合并重复查询
+[
+  (method_definition
+    name: (property_identifier) @method.name)
+  (generator_method_definition
+    name: (property_identifier) @generator.method.name)
+] @definition.method
 
-; Constructor methods
-(method_definition
-  name: (property_identifier) @name.definition.constructor
-  (#eq? @name.definition.constructor "constructor")) @definition.constructor
+; 特殊方法查询
+[
+  (method_definition
+    name: (property_identifier) @constructor.name
+    (#eq? @constructor.name "constructor"))
+  (method_definition
+    name: (property_identifier) @getter.name
+    (#match? @getter.name "^get"))
+  (method_definition
+    name: (property_identifier) @setter.name
+    (#match? @setter.name "^set"))
+  (method_definition
+    name: (property_identifier) @static.name
+    (#match? @static.name "^static"))
+  (method_definition
+    "async"
+    name: (property_identifier) @async.method.name)
+  (method_definition
+    "*"
+    name: (property_identifier) @generator.method.name)
+] @definition.special_method
 
-; Getter methods
-(method_definition
-  name: (property_identifier) @name.definition.getter
-  (#match? @name.definition.getter "^get")) @definition.getter
-
-; Setter methods
-(method_definition
-  name: (property_identifier) @name.definition.setter
-  (#match? @name.definition.setter "^set")) @definition.setter
-
-; Static methods
-(method_definition
-  name: (property_identifier) @name.definition.static
-  (#match? @name.definition.static "^static")) @definition.static
-
-; Async methods
-(method_definition
-  "async"
-  name: (property_identifier) @name.definition.async_method) @definition.async_method
-
-; Generator methods
-(method_definition
-  "*"
-  name: (property_identifier) @name.definition.generator_method) @definition.generator_method
-
-; Private methods
+; 私有方法查询
 (private_property_identifier) @name.definition.private_method
 
 ; Computed method names
 (method_definition
-  name: (computed_property_name) @name.definition.computed_method) @definition.computed_method
+  name: (computed_property_name) @computed.method.name) @definition.computed_method
+
+; 带参数的方法查询 - 提供更多上下文信息
+(method_definition
+  name: (property_identifier) @method.name
+  parameters: (formal_parameters
+    (required_parameter
+      name: (identifier) @param.name)*)?
+  body: (statement_block) @method.body) @definition.method.with_params
 `;

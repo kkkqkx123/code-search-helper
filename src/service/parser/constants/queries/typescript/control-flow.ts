@@ -4,78 +4,73 @@ Optimized for code chunking and vector embedding
 Based on tree-sitter-typescript grammar
 */
 export default `
-; Control flow statements
-(if_statement) @name.definition.if
+; 统一的控制流语句查询 - 使用交替模式
+[
+  (if_statement
+    condition: (_) @if.condition
+    consequence: (statement_block) @if.body
+    alternative: (_)? @if.else)
+  (for_statement
+    initializer: (_)? @for.init
+    condition: (_)? @for.condition
+    update: (_)? @for.update
+    body: (statement_block) @for.body)
+  (for_in_statement
+    left: (_) @for_in.left
+    right: (_) @for_in.right
+    body: (statement_block) @for_in.body)
+  (for_of_statement
+    left: (_) @for_of.left
+    right: (_) @for_of.right
+    body: (statement_block) @for_of.body)
+  (while_statement
+    condition: (_) @while.condition
+    body: (statement_block) @while.body)
+  (do_statement
+    body: (statement_block) @do.body
+    condition: (_) @do.condition)
+] @definition.control_statement
 
-; For statements
-(for_statement
-  body: (statement_block) @name.definition.for) @definition.for
-
-; For in statements
-(for_in_statement
-  body: (statement_block) @name.definition.for_in) @definition.for_in
-
-; For of statements
-(for_of_statement
-  body: (statement_block) @name.definition.for_of) @definition.for_of
-
-; While statements
-(while_statement
-  body: (statement_block) @name.definition.while) @definition.while
-
-; Do while statements
-(do_statement
-  body: (statement_block) @name.definition.do_while) @definition.do_while
-
-; Switch statements
+; Switch语句查询 - 提供更多上下文信息
 (switch_statement
-  body: (switch_body) @name.definition.switch) @definition.switch
+  value: (_) @switch.value
+  body: (switch_body
+    (switch_case
+      value: (_) @case.value
+      body: (_)* @case.body)*
+    (switch_default
+      body: (_)* @default.body)?)) @definition.switch_statement
 
-; Switch case
-(switch_case
-  value: (_) @name.definition.switch_case) @definition.switch_case
-
-; Switch default
-(switch_default) @name.definition.switch_default
-
-; Try-catch-finally statements
+; Try-catch-finally语句查询 - 提供更多上下文信息
 (try_statement
-  body: (statement_block) @name.definition.try) @definition.try
+  body: (statement_block) @try.body
+  (catch_clause
+    parameter: (required_parameter
+      name: (identifier) @catch.param)?
+    body: (statement_block) @catch.body)*
+  (finally_clause
+    body: (statement_block) @finally.body)?) @definition.try_catch_finally
 
-(catch_clause
-  body: (statement_block) @name.definition.catch) @definition.catch
+; 单独的控制流语句
+[
+  (throw_statement
+    (expression)? @throw.expression)
+  (return_statement
+    (expression)? @return.expression)
+  (break_statement
+    label: (statement_identifier)? @break.label)
+  (continue_statement
+    label: (statement_identifier)? @continue.label)
+  (debugger_statement)
+  (yield_expression
+    (expression)? @yield.expression)
+  (await_expression
+    value: (_) @await.value)
+] @definition.control_flow_simple
 
-(finally_clause
-  body: (statement_block) @name.definition.finally) @definition.finally
-
-; Throw statements
-(throw_statement) @name.definition.throw
-
-; Return statements
-(return_statement) @name.definition.return
-
-; Break statements
-(break_statement) @name.definition.break
-
-; Continue statements
-(continue_statement) @name.definition.continue
-
-; Labeled statements
-(labeled_statement
-  body: (_) @name.definition.labeled) @definition.labeled
-
-; Debugger statements
-(debugger_statement) @name.definition.debugger
-
-; Yield expressions
-(yield_expression) @name.definition.yield
-
-; Await expressions
-(await_expression) @name.definition.await
-
-; Ternary expressions
+; 三元表达式查询 - 提供更多上下文信息
 (ternary_expression
-  condition: (_) @name.definition.ternary_condition
-  consequence: (_) @name.definition.ternary_consequence
-  alternative: (_) @name.definition.ternary_alternative) @definition.ternary
+  condition: (_) @ternary.condition
+  consequence: (_) @ternary.consequence
+  alternative: (_) @ternary.alternative) @definition.ternary
 `;
