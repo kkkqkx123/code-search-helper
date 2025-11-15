@@ -1,78 +1,115 @@
 /*
 C Control Flow and Expression-specific Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
+Optimized based on tree-sitter best practices
 */
 export default `
-; Control statements - important for program flow
-(if_statement) @definition.control_statement
-(for_statement) @definition.control_statement
-(while_statement) @definition.control_statement
-(do_statement) @definition.control_statement
-(switch_statement) @definition.control_statement
-(case_statement) @definition.control_statement
-(break_statement) @definition.control_statement
-(continue_statement) @definition.control_statement
-(return_statement) @definition.control_statement
-(goto_statement) @definition.control_statement
+; 控制语句查询 - 使用交替模式和字段名
+[
+  (if_statement
+    condition: (_) @if.condition
+    consequence: (compound_statement) @if.body
+    alternative: (_)? @if.else)
+  (for_statement
+    initializer: (_)? @for.init
+    condition: (_)? @for.condition
+    update: (_)? @for.update
+    body: (_) @for.body)
+  (while_statement
+    condition: (_) @while.condition
+    body: (_) @while.body)
+  (do_statement
+    body: (_) @do.body
+    condition: (_) @do.condition)
+  (switch_statement
+    condition: (_) @switch.condition
+    body: (compound_statement) @switch.body)
+] @definition.control_statement
 
-; Labeled statements - important for jump targets
+; 跳转语句查询 - 使用交替模式
+[
+  (break_statement) @definition.break
+  (continue_statement) @definition.continue
+  (return_statement
+    (expression)? @return.expression) @definition.return
+  (goto_statement
+    label: (statement_identifier) @goto.label) @definition.goto
+] @definition.jump_statement
+
+; 标签语句查询 - 使用锚点确保精确匹配
 (labeled_statement
-  label: (statement_identifier) @name.definition.label) @definition.label
+  label: (statement_identifier) @label.name
+  statement: (_) @label.statement) @definition.labeled_statement
 
-; Compound statements - important for block structure
-(compound_statement) @definition.compound_statement
+; 表达式查询 - 使用交替模式合并相似表达式
+[
+  (binary_expression
+    left: (_) @binary.left
+    operator: _ @binary.operator
+    right: (_) @binary.right) @definition.binary_expression
+  (unary_expression
+    operator: _ @unary.operator
+    argument: (_) @unary.argument) @definition.unary_expression
+  (update_expression
+    argument: (_) @update.argument
+    operator: _ @update.operator) @definition.update_expression
+  (conditional_expression
+    condition: (_) @conditional.condition
+    consequence: (_) @conditional.consequence
+    alternative: (_) @conditional.alternative) @definition.conditional_expression
+] @definition.expression
 
-; Binary expressions - important for operations
-(binary_expression) @definition.binary_expression
+; 类型转换和大小查询 - 使用交替模式
+[
+  (cast_expression
+    type: (type_descriptor) @cast.type
+    value: (_) @cast.value) @definition.cast_expression
+  (sizeof_expression
+    argument: (_) @sizeof.argument) @definition.sizeof_expression
+  (alignof_expression
+    argument: (_) @alignof.argument) @definition.alignof_expression
+] @definition.type_expression
 
-; Unary expressions - important for operations
-(unary_expression) @definition.unary_expression
+; 复合表达式查询 - 简化模式
+[
+  (parenthesized_expression
+    expression: (_) @parenthesized.expression) @definition.parenthesized_expression
+  (comma_expression
+    left: (_) @comma.left
+    right: (_) @comma.right) @definition.comma_expression
+] @definition.compound_expression
 
-; Update expressions - important for increment/decrement
-(update_expression) @definition.update_expression
+; 字面量查询 - 使用交替模式
+[
+  (number_literal) @definition.number_literal
+  (string_literal) @definition.string_literal
+  (char_literal) @definition.char_literal
+  (true) @definition.boolean_literal
+  (false) @definition.boolean_literal
+  (null) @definition.null_literal
+] @definition.literal
 
-; Cast expressions - important for type conversion
-(cast_expression) @definition.cast_expression
+; 类型修饰符查询 - 使用交替模式
+[
+  (type_qualifier) @definition.type_qualifier
+  (storage_class_specifier) @definition.storage_class
+  (primitive_type) @definition.primitive_type
+] @definition.type_modifier
 
-; Sizeof expressions - important for size queries
-(sizeof_expression) @definition.sizeof_expression
+; 现代C特性查询 - 使用谓词过滤
+[
+  (generic_expression
+    selector: (_) @generic.selector
+    associations: (generic_association_list
+      (generic_association
+        pattern: (_) @association.pattern
+        result: (_) @association.result)*)) @definition.generic_expression
+  (alignas_qualifier
+    argument: (_) @alignas.argument) @definition.alignas_qualifier
+  (extension_expression
+    argument: (_) @extension.argument) @definition.extension_expression
+] @definition.modern_feature
 
-; Parenthesized expressions - important for grouping
-(parenthesized_expression) @definition.parenthesized_expression
-
-; Comma expressions - important for multiple expressions
-(comma_expression) @definition.comma_expression
-
-; Conditional expressions - important for ternary operations
-(conditional_expression) @definition.conditional_expression
-
-; Generic expressions (C11) - important for type-generic programming
-(generic_expression) @definition.generic_expression
-
-; Alignas and alignof (C11) - important for alignment
-(alignas_qualifier) @definition.alignas_qualifier
-(alignof_expression) @definition.alignof_expression
-
-; Extension expressions (GCC) - important for compiler extensions
-(extension_expression) @definition.extension_expression
-
-; Comments - important for documentation
+; 注释查询 - 简化模式
 (comment) @definition.comment
-
-; Literals - important for constant values
-(number_literal) @definition.number_literal
-(string_literal) @definition.string_literal
-(char_literal) @definition.char_literal
-(true) @definition.boolean_literal
-(false) @definition.boolean_literal
-(null) @definition.null_literal
-
-; Type qualifiers - important for type modifiers
-(type_qualifier) @definition.type_qualifier
-
-; Storage class specifiers - important for storage duration
-(storage_class_specifier) @definition.storage_class
-
-; Primitive types - important for basic types
-(primitive_type) @definition.primitive_type
 `;

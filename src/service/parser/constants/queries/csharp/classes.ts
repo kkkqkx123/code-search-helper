@@ -1,72 +1,143 @@
 /*
 C# Class and Struct-specific Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
+Optimized based on tree-sitter best practices
 */
 export default `
-; Namespace declarations (including file-scoped) - primary code organization
-; Support both simple names (TestNamespace) and qualified names (My.Company.Module)
-(namespace_declaration
-  name: (qualified_name) @name.definition.namespace) @definition.namespace
-(namespace_declaration
-  name: (identifier) @name.definition.namespace) @definition.namespace
-(file_scoped_namespace_declaration
-  name: (qualified_name) @name.definition.namespace) @definition.namespace
-(file_scoped_namespace_declaration
-  name: (identifier) @name.definition.namespace) @definition.namespace
+; 命名空间声明查询 - 使用交替模式
+[
+  (namespace_declaration
+    name: (qualified_name) @namespace.name) @definition.namespace
+  (namespace_declaration
+    name: (identifier) @namespace.name) @definition.namespace
+  (file_scoped_namespace_declaration
+    name: (qualified_name) @namespace.name) @definition.namespace
+  (file_scoped_namespace_declaration
+    name: (identifier) @namespace.name) @definition.namespace
+] @definition.namespace
 
-; Class declarations (including generic, static, abstract, partial, nested) - primary OOP structure
-(class_declaration
-  name: (identifier) @name.definition.class) @definition.class
+; 类型声明查询 - 使用交替模式
+[
+  (class_declaration
+    name: (identifier) @class.name
+    base_class_clause: (base_class_clause
+      (identifier) @base.class)?
+    body: (declaration_list) @class.body) @definition.class
+  (struct_declaration
+    name: (identifier) @struct.name
+    base_class_clause: (base_class_clause
+      (identifier) @base.interface)?
+    body: (declaration_list) @struct.body) @definition.struct
+  (interface_declaration
+    name: (identifier) @interface.name
+    base_class_clause: (base_class_clause
+      (identifier) @base.interface)?
+    body: (declaration_list) @interface.body) @definition.interface
+] @definition.type
 
-; Record class declarations - important for immutable types
-(record_class_declaration
-  name: (identifier) @name.definition.record_class) @definition.record_class
+; 记录类型查询 - 使用交替模式
+[
+  (record_class_declaration
+    name: (identifier) @record.class.name
+    body: (declaration_list) @record.class.body) @definition.record.class
+  (record_struct_declaration
+    name: (identifier) @record.struct.name
+    body: (declaration_list) @record.struct.body) @definition.record.struct
+] @definition.record
 
-; Record struct declarations - important for immutable value types
-(record_struct_declaration
-  name: (identifier) @name.definition.record_struct) @definition.record_struct
-
-; Struct declarations - important for value types
-(struct_declaration
-  name: (identifier) @name.definition.struct) @definition.struct
-
-; Interface declarations - important for contracts
-(interface_declaration
-  name: (identifier) @name.definition.interface) @definition.interface
-
-; Enum declarations - important for enumerated types
+; 枚举声明查询 - 简化模式
 (enum_declaration
-  name: (identifier) @name.definition.enum) @definition.enum
+  name: (identifier) @enum.name
+  body: (enum_member_declaration_list
+    (enum_member_declaration
+      name: (identifier) @enum.member)*)) @definition.enum
 
-; Record declarations - important for record types
-(record_declaration
-  name: (identifier) @name.definition.record) @definition.record
+; 构造函数和析构函数查询 - 使用交替模式
+[
+  (constructor_declaration
+    name: (identifier) @constructor.name
+    parameters: (parameter_list) @constructor.params
+    body: (block) @constructor.body) @definition.constructor
+  (destructor_declaration
+    name: (identifier) @destructor.name
+    body: (block) @destructor.body) @definition.destructor
+] @definition.constructor_or_destructor
 
-; Constructor declarations - important for object initialization
-(constructor_declaration
-  name: (identifier) @name.definition.constructor) @definition.constructor
-
-; Destructor declarations - important for resource cleanup
-(destructor_declaration
-  name: (identifier) @name.definition.destructor) @definition.destructor
-
-; Field declarations - important for class data
+; 字段声明查询 - 使用锚点和量词操作符
 (field_declaration
-  (variable_declarator
-    name: (identifier) @name.definition.field)) @definition.field
-
-; Event field declarations - important for event handling
-(event_field_declaration
-  (variable_declaration
+  type: (identifier) @field.type
+  declarators: (variable_declarator_list
     (variable_declarator
-      name: (identifier) @name.definition.event_field))) @definition.event_field
+      name: (identifier) @field.name))*) @definition.field
 
-; Attribute declarations - important for metadata
-(attribute
-  name: (identifier) @name.definition.attribute) @definition.attribute
-(attribute_list) @definition.attribute_list
+; 事件声明查询 - 使用交替模式
+[
+  (event_field_declaration
+    type: (identifier) @event.type
+    declarators: (variable_declarator_list
+      (variable_declarator
+        name: (identifier) @event.name))) @definition.event.field
+  (event_declaration
+    name: (identifier) @event.name
+    type: (identifier) @event.type
+    accessors: (accessor_list) @event.accessors) @definition.event.declaration
+] @definition.event
 
-; Generic type parameters - important for generic programming
-(type_parameter
-  name: (identifier) @name.definition.type_parameter) @definition.type_parameter
-`;
+; 属性声明查询 - 使用锚点确保精确匹配
+(property_declaration
+  name: (identifier) @property.name
+  type: (identifier) @property.type
+  accessors: (accessor_list
+    (accessor_declaration) @property.accessor)*) @definition.property
+
+; 索引器声明查询 - 简化模式
+(indexer_declaration
+  name: (identifier) @indexer.name
+  type: (identifier) @indexer.type
+  parameters: (bracketed_parameter_list
+    (parameter) @indexer.param)*
+  accessors: (accessor_list) @indexer.accessors) @definition.indexer
+
+; 特性声明查询 - 使用交替模式
+[
+  (attribute
+    name: (identifier) @attribute.name
+    arguments: (attribute_argument_list
+      (attribute_argument) @attribute.argument)*) @definition.attribute
+  (attribute_list
+    (attribute) @attribute.list*) @definition.attribute.list
+] @definition.attribute
+
+; 泛型类型参数查询 - 使用量词操作符
+(type_parameter_list
+  (type_parameter
+    name: (identifier) @type.parameter)*) @definition.type.parameter
+
+; 嵌套类型查询 - 使用锚点确保精确匹配
+(class_declaration
+  name: (identifier) @nested.class.name
+  body: (declaration_list
+    (class_declaration
+      name: (identifier) @inner.class.name))) @definition.nested.class
+
+; 静态类查询 - 使用谓词过滤
+(class_declaration
+  (modifier) @static.modifier
+  name: (identifier) @static.class.name
+  (#match? @static.modifier "static")) @definition.static.class
+
+; 抽象类和接口查询 - 使用谓词过滤
+[
+  (class_declaration
+    (modifier) @abstract.modifier
+    name: (identifier) @abstract.class.name
+    (#match? @abstract.modifier "abstract")) @definition.abstract.class
+  (interface_declaration
+    name: (identifier) @interface.name) @definition.interface
+] @definition.abstract.type
+
+; 分部类查询 - 使用谓词过滤
+(class_declaration
+  (modifier) @partial.modifier
+  name: (identifier) @partial.class.name
+  (#match? @partial.modifier "partial")) @definition.partial.class

@@ -1,30 +1,57 @@
 /*
 C Function-specific Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
+Optimized based on tree-sitter best practices
 */
 export default `
-; Function definitions and declarations - primary code structure
+; 统一的函数查询 - 使用交替模式合并重复查询
+[
+  (function_definition
+    declarator: (function_declarator
+      declarator: (identifier) @function.name)
+    body: (compound_statement) @function.body) @definition.function
+  (declaration
+    type: (_)
+    declarator: (function_declarator
+      declarator: (identifier) @function.name
+      parameters: (parameter_list))) @definition.function.prototype
+] @definition.function
+
+; 带参数的函数查询 - 使用量词操作符
 (function_definition
   declarator: (function_declarator
-    declarator: (identifier) @name.definition.function))
+    declarator: (identifier) @function.name
+    parameters: (parameter_list
+      (parameter_declaration
+        type: (_)
+        declarator: (identifier) @param.name)*))
+  body: (compound_statement) @function.body) @definition.function.with_params
 
-; Function declarations (prototypes) - important for interfaces
-(declaration
-  type: (_)
-  declarator: (function_declarator
-    declarator: (identifier) @name.definition.function
-    parameters: (parameter_list))) @definition.function
-
-; Function declarators - important for function signatures
-(function_declarator
-  declarator: (identifier) @name.definition.function
-  parameters: (parameter_list)) @definition.function
-
-; Parameters in function declarations - important for function interfaces
-(parameter_declaration
-  declarator: (identifier) @name.definition.parameter) @definition.parameter
-
-; Call expressions - important for function usage
+; 函数调用查询 - 使用锚点和谓词过滤
 (call_expression
-  function: (identifier) @name.definition.call) @definition.call
+  function: (identifier) @call.function
+  arguments: (argument_list
+    (identifier) @call.argument)*)
+  (#match? @call.function "^[a-z_][a-zA-Z0-9_]*$") @definition.function.call
+
+; 函数指针查询 - 简化模式
+(declaration
+  type: (pointer_type
+    (function_type
+      parameters: (parameter_list)))
+  declarator: (pointer_declarator
+    declarator: (identifier) @function.pointer.name)) @definition.function.pointer
+
+; 递归函数查询 - 使用谓词过滤
+(call_expression
+  function: (identifier) @recursive.call
+  arguments: (argument_list))
+  (#eq? @recursive.call @function.name) @definition.recursive.call
+
+; 内联函数查询 - 使用锚点确保精确匹配
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @inline.function)
+  body: (compound_statement) @inline.body)
+  (#match? @inline.function "^(inline|static_inline)$") @definition.inline.function
 `;

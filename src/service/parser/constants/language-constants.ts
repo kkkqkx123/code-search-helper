@@ -88,7 +88,7 @@ export const DEFAULT_SUPPORTED_EXTENSIONS = Object.keys(LANGUAGE_MAP);
 // 支持 Tree-sitter 解析的语言列表
 export const TREE_SITTER_SUPPORTED_LANGUAGES = [
   'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'csharp',
-  'go', 'rust', 'php', 'ruby', 'css', 'kotlin', 'tsx', 'vue'
+  'go', 'rust', 'css', 'kotlin', 'tsx', 'vue', 'html', 'vue',
 ];
 
 // 具有强特征的语言列表

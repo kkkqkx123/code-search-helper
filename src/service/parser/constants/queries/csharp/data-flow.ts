@@ -1,34 +1,56 @@
 /*
 C# Data Flow-specific Tree-Sitter Query Patterns
 用于追踪变量间的数据传递关系
+Optimized based on tree-sitter best practices
 */
 export default `
-; 变量赋值数据流
+; 统一的赋值数据流查询 - 使用交替模式
 (assignment_expression
-  left: (identifier) @source.variable
-  right: (identifier) @target.variable) @data.flow.assignment
+  left: [
+    (identifier) @target.variable
+    (member_access_expression
+      expression: (identifier) @target.object
+      name: (identifier) @target.field)
+    (element_access_expression
+      expression: (identifier) @target.array
+      subscript: (bracketed_argument_list
+        (argument
+          (identifier) @target.index)))
+  ]
+  right: [
+    (identifier) @source.variable
+    (call_expression
+      function: (identifier) @source.function)
+    (binary_expression
+      left: (_) @binary.left
+      right: (_) @binary.right)
+    (conditional_expression
+      condition: (_) @conditional.condition
+      consequence: (_) @conditional.consequence
+      alternative: (_) @conditional.alternative)
+  ]) @data.flow.assignment
 
-; 对象成员赋值数据流
-(assignment_expression
-  left: (member_access_expression
-    expression: (identifier) @source.object
-    name: (identifier) @source.field)
-  right: (identifier) @target.variable) @data.flow.member.assignment
+; 变量声明和初始化查询 - 使用交替模式
+[
+  (local_declaration_statement
+    (variable_declaration
+      type: (identifier) @variable.type
+      declarators: (variable_declarator_list
+        (variable_declarator
+          name: (identifier) @target.variable
+          value: (identifier) @source.variable)))) @data.flow.declaration.assignment
+  (local_declaration_statement
+    (variable_declaration
+      declarators: (variable_declarator_list
+        (variable_declarator
+          name: (identifier) @target.variable
+          value: (identifier) @source.variable)))) @data.flow.var.assignment
+] @data.flow.variable.declaration
 
-; 数组元素赋值数据流
-(assignment_expression
-  left: (element_access_expression
-    expression: (identifier) @source.array
-    subscript: (bracketed_argument_list
-      (argument
-        (identifier) @source.index)))
-  right: (identifier) @target.variable) @data.flow.array.assignment
-
-; 元组解构赋值数据流
+; 元组解构赋值查询 - 使用锚点和量词操作符
 (assignment_expression
   left: (tuple_pattern
-    (identifier) @target.variable1)
-  left: (tuple_pattern
+    (identifier) @target.variable1
     (identifier) @target.variable2)
   right: (tuple_expression
     (argument
@@ -36,158 +58,132 @@ export default `
     (argument
       (identifier) @source.value2))) @data.flow.tuple.assignment
 
-; 局部变量声明赋值数据流
-(local_declaration_statement
-  (variable_declaration
-    (variable_declarator
-      name: (identifier) @target.variable
-      value: (identifier) @source.variable))) @data.flow.declaration.assignment
-
-; 带类型的局部变量声明赋值数据流
-(local_declaration_statement
-  (variable_declaration
-    type: (identifier) @variable.type
-    (variable_declarator
-      name: (identifier) @target.variable
-      value: (identifier) @source.variable))) @data.flow.typed.declaration.assignment
-
-; 方法调用参数传递数据流
+; 方法调用数据流 - 参数化查询
 (invocation_expression
-  function: (identifier) @target.function
+  function: [
+    (identifier) @target.function
+    (member_access_expression
+      expression: (identifier) @target.object
+      name: (identifier) @target.method)
+    (generic_name
+      name: (identifier) @generic.function
+      type_arguments: (type_argument_list
+        (identifier) @type.argument)*)
+  ]
   arguments: (argument_list
     (argument
-      (identifier) @source.parameter))) @data.flow.parameter
+      name: (identifier)? @parameter.name
+      (identifier) @source.parameter)*)) @data.flow.method.call
 
-; 命名参数传递数据流
-(invocation_expression
-  function: (identifier) @target.function
-  arguments: (argument_list
-    (argument
-      name: (identifier) @parameter.name
-      (identifier) @source.parameter))) @data.flow.named.parameter
-
-; 对象创建参数传递数据流
+; 对象创建数据流 - 使用锚点确保精确匹配
 (object_creation_expression
   type: (identifier) @target.class
   arguments: (argument_list
     (argument
-      (identifier) @source.parameter))) @data.flow.constructor.parameter
+      (identifier) @source.parameter)*)?) @data.flow.constructor.call
 
-; 方法调用返回值数据流
-(invocation_expression
-  function: (member_access_expression
+; 属性访问数据流 - 使用交替模式
+[
+  (assignment_expression
+    left: (member_access_expression
+      expression: (identifier) @target.object
+      name: (identifier) @target.property)
+    right: (identifier) @source.value) @data.flow.property.set
+  (member_access_expression
     expression: (identifier) @source.object
-    name: (identifier) @source.method)
-  arguments: (argument_list
-    (argument
-      (identifier) @source.argument))) @data.flow.method.call
+    name: (identifier) @source.property) @data.flow.property.get
+] @data.flow.property.access
 
-; 属性设置数据流
-(assignment_expression
-  left: (member_access_expression
-    expression: (identifier) @target.object
-    name: (identifier) @target.property)
-  right: (identifier) @source.value) @data.flow.property.set
-
-; 属性获取数据流
-(member_access_expression
-  expression: (identifier) @source.object
-  name: (identifier) @source.property) @data.flow.property.get
-
-; 返回值数据流
-(return_statement
-  (identifier) @source.variable) @data.flow.return
-
-; 条件表达式数据流
-(conditional_expression
-  condition: (identifier) @source.condition
-  consequence: (identifier) @target.consequence
-  alternative: (identifier) @target.alternative) @data.flow.conditional
-
-; 空合并赋值数据流
-(assignment_expression
-  left: (identifier) @source.variable
-  right: (binary_expression
-    left: (identifier) @left.operand
-    right: (identifier) @right.operand
-    operator: "??")) @data.flow.null.coalescing
-
-; Lambda表达式数据流
-(lambda_expression
-  parameters: (parameter_list
-    (parameter
-      name: (identifier) @source.parameter))
-  body: (identifier) @target.result) @data.flow.lambda
-
-; 委托赋值数据流
-(assignment_expression
-  left: (identifier) @target.delegate
-  right: (identifier) @source.function) @data.flow.delegate.assignment
-
-; 事件订阅数据流
-(assignment_expression
-  left: (member_access_expression
-    expression: (identifier) @target.object
-    name: (identifier) @target.event)
-  right: (identifier) @source.handler) @data.flow.event.subscriber
-
-; 类型转换数据流
-(cast_expression
-  value: (identifier) @source.variable
-  type: (identifier) @target.type) @data.flow.cast
-
-; 显式类型转换数据流
-(invocation_expression
-  function: (member_access_expression
-    expression: (identifier) @source.object
-    name: (identifier) @cast.method)
-  arguments: (argument_list
-    (argument
-      (identifier) @source.argument))) @data.flow.explicit.cast
-
-; 泛型方法调用数据流
-(invocation_expression
-  function: (generic_name
-    (identifier) @target.method
-    (type_argument_list
-      (identifier) @type.argument))
-  arguments: (argument_list
-    (argument
-      (identifier) @source.argument))) @data.flow.generic.method
-
-; 索引器访问数据流
+; 索引器访问数据流 - 简化模式
 (element_access_expression
   expression: (identifier) @source.collection
   subscript: (bracketed_argument_list
     (argument
       (identifier) @source.index))) @data.flow.indexer.access
 
-; 三元运算符数据流
-(conditional_expression
-  condition: (identifier) @source.condition
-  consequence: (identifier) @source.consequence
-  alternative: (identifier) @source.alternative) @data.flow.ternary.operator
+; 事件处理数据流 - 使用交替模式
+[
+  (assignment_expression
+    left: (member_access_expression
+      expression: (identifier) @target.object
+      name: (identifier) @target.event)
+    right: (identifier) @source.handler) @data.flow.event.subscription
+  (add_expression
+    left: (member_access_expression
+      expression: (identifier) @target.object
+      name: (identifier) @target.event)
+    right: (identifier) @source.handler) @data.flow.event.add
+  (subtract_expression
+    left: (member_access_expression
+      expression: (identifier) @target.object
+      name: (identifier) @target.event)
+    right: (identifier) @source.handler) @data.flow.event.remove
+] @data.flow.event.handling
 
-; using声明数据流
-(local_declaration_statement
-  (variable_declaration
-    type: (identifier) @variable.type
-    (variable_declarator
-      name: (identifier) @target.resource
-      value: (invocation_expression
-        function: (identifier) @source.factory)))) @data.flow.using.declaration
+; 委托数据流 - 使用交替模式
+[
+  (assignment_expression
+    left: (identifier) @target.delegate
+    right: (identifier) @source.function) @data.flow.delegate.assignment
+  (assignment_expression
+    left: (identifier) @target.delegate
+    right: (lambda_expression) @source.lambda) @data.flow.delegate.lambda
+] @data.flow.delegate
 
-; 可空类型处理数据流
-(binary_expression
-  left: (member_access_expression
-    expression: (identifier) @source.nullable
-    name: "HasValue")
-  right: (identifier) @target.result
-  operator: "==") @data.flow.nullable.check
+; 异步数据流 - 使用谓词过滤
+[
+  (await_expression
+    expression: (identifier) @await.expression) @data.flow.async.await
+  (assignment_expression
+    left: (identifier) @target.variable
+    right: (await_expression
+      expression: (identifier) @source.await.expression))) @data.flow.async.assignment
+] @data.flow.async
 
-; null条件运算符数据流
-(member_access_expression
-  expression: (identifier) @source.object
-  name: (identifier) @target.property
-  operator: "?") @data.flow.null.conditional
-`;
+; LINQ数据流 - 使用锚点和字段名
+(query_expression
+  (from_clause
+    identifier: (identifier) @linq.variable
+    expression: (identifier) @linq.source)
+  (query_body
+    (select_clause
+      expression: (identifier) @linq.result))) @data.flow.linq.query
+
+; 类型转换数据流 - 使用交替模式
+[
+  (cast_expression
+    type: (identifier) @target.type
+    value: (identifier) @source.variable) @data.flow.cast
+  (as_expression
+    type: (identifier) @target.type
+    expression: (identifier) @source.expression) @data.flow.as.cast
+] @data.flow.type.conversion
+
+; 空值处理数据流 - 使用交替模式
+[
+  (binary_expression
+    left: (identifier) @left.operand
+    operator: "??"
+    right: (identifier) @right.operand) @data.flow.null.coalescing
+  (conditional_access_expression
+    expression: (identifier) @source.object
+    name: (identifier) @target.property) @data.flow.null.conditional
+] @data.flow.null.handling
+
+; 返回值数据流 - 使用锚点操作符
+(return_statement
+  expression: [
+    (identifier) @source.variable
+    (call_expression
+      function: (identifier) @source.function)
+    (member_access_expression
+      expression: (identifier) @source.object
+      name: (identifier) @source.property)
+  ]) @data.flow.return.value
+
+; yield数据流 - 使用交替模式
+[
+  (yield_statement
+    expression: (identifier) @yield.value) @data.flow.yield.return
+  (yield_statement) @data.flow.yield.break
+] @data.flow.yield

@@ -1,45 +1,106 @@
 /*
 C Struct and Type-specific Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
+Optimized based on tree-sitter best practices
 */
 export default `
-; Struct definitions - primary code structure
-(struct_specifier
-  name: (type_identifier) @name.definition.struct) @definition.struct
+; 统一的类型声明查询 - 使用交替模式
+[
+  (struct_specifier
+    name: (type_identifier) @type.name
+    body: (field_declaration_list
+      (field_declaration
+        declarator: (field_declarator
+          declarator: (field_identifier) @field.name)
+        type: (_) @field.type)*)) @definition.struct
+  (union_specifier
+    name: (type_identifier) @type.name
+    body: (field_declaration_list
+      (field_declaration
+        declarator: (field_declarator
+          declarator: (field_identifier) @field.name)
+        type: (_) @field.type)*)) @definition.union
+  (enum_specifier
+    name: (type_identifier) @type.name
+    body: (enumerator_list
+      (enumerator
+        name: (identifier) @enum.constant)*)) @definition.enum
+] @definition.type
 
-; Union definitions - important for variant types
-(union_specifier
-  name: (type_identifier) @name.definition.union) @definition.union
-
-; Enum definitions - important for enumerated types
-(enum_specifier
-  name: (type_identifier) @name.definition.enum) @definition.enum
-
-; Typedef declarations - important for type aliases
+; 类型别名查询 - 使用锚点确保精确匹配
 (type_definition
-  declarator: (type_identifier) @name.definition.type) @definition.type
+  type: (_) @original.type
+  declarator: (type_identifier) @alias.name) @definition.type.alias
 
-; Field declarations in structs/unions - important for data structure
-(field_declaration
-  declarator: (field_identifier) @name.definition.field) @definition.field
+; 复杂声明查询 - 使用交替模式
+[
+  (declaration
+    type: (_)
+    declarator: (array_declarator
+      declarator: (identifier) @array.name
+      size: (_)? @array.size)) @definition.array
+  (declaration
+    type: (_)
+    declarator: (pointer_declarator
+      declarator: (identifier) @pointer.name)) @definition.pointer
+  (declaration
+    type: (function_type
+      parameters: (parameter_list))
+    declarator: (pointer_declarator
+      declarator: (identifier) @function.pointer.name)) @definition.function.pointer
+] @definition.complex.declaration
 
-; Array declarations - important for data structures
-(declaration
-  type: (_)
-  declarator: (array_declarator
-    declarator: (identifier) @name.definition.array)) @definition.array
+; 成员访问查询 - 使用交替模式
+[
+  (field_expression
+    argument: (identifier) @object.name
+    field: (field_identifier) @field.name) @definition.member.access
+  (field_expression
+    argument: (pointer_expression
+      argument: (identifier) @pointer.name)
+    field: (field_identifier) @field.name) @definition.pointer.member.access
+] @definition.field.access
 
-; Pointer declarations - important for memory management
-(declaration
-  type: (_)
-  declarator: (pointer_declarator
-    declarator: (identifier) @name.definition.pointer)) @definition.pointer
-
-; Member access - important for struct/union field access
-(field_expression
-  field: (field_identifier) @name.definition.member) @definition.member
-
-; Subscript access - important for array element access
+; 数组访问查询 - 使用锚点和量词操作符
 (subscript_expression
-  argument: (identifier) @name.definition.subscript) @definition.subscript
-`;
+  argument: (identifier) @array.name
+  index: [
+    (identifier) @index.variable
+    (number_literal) @index.number
+    (binary_expression) @index.expression
+  ]) @definition.array.access
+
+; 嵌套结构体查询 - 使用谓词过滤
+(struct_specifier
+  name: (type_identifier) @nested.struct.name
+  body: (field_declaration_list
+    (field_declaration
+      type: (struct_specifier
+        name: (type_identifier) @inner.struct.name)
+      declarator: (field_declarator
+        declarator: (field_identifier) @nested.field.name)))) @definition.nested.struct
+
+; 位域查询 - 使用锚点确保精确匹配
+(field_declaration
+  type: (_)
+  declarator: (field_declarator
+    declarator: (field_identifier) @bitfield.name
+    size: (number_literal) @bitfield.size)) @definition.bitfield
+
+; 函数指针字段查询 - 简化模式
+(field_declaration
+  type: (pointer_type
+    (function_type
+      parameters: (parameter_list)))
+  declarator: (field_declarator
+    declarator: (field_identifier) @function.pointer.field)) @definition.function.pointer.field
+
+; 前向声明查询 - 使用谓词过滤
+[
+  (struct_specifier
+    name: (type_identifier) @forward.struct.name) @definition.forward.struct
+  (union_specifier
+    name: (type_identifier) @forward.union.name) @definition.forward.union
+  (enum_specifier
+    name: (type_identifier) @forward.enum.name) @definition.forward.enum
+] @definition.forward.declaration

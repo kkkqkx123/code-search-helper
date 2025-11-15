@@ -1,71 +1,106 @@
 /*
 C++ Function-specific Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
+Optimized based on tree-sitter best practices
 */
 export default `
-; Function declarations (prototypes) - primary code structure
-(declaration
-  type: (_)
-  declarator: (function_declarator
-    declarator: (identifier) @name.definition.function)) @definition.function
+; 统一的函数查询 - 使用交替模式合并重复查询
+[
+  (function_definition
+    type: (_)
+    declarator: (function_declarator
+      declarator: (identifier) @function.name)
+    body: (compound_statement) @function.body) @definition.function
+  (declaration
+    type: (_)
+    declarator: (function_declarator
+      declarator: (identifier) @function.name
+      parameters: (parameter_list))) @definition.function.prototype
+] @definition.function
 
-; Function definitions (with body) - primary code structure
+; 方法查询 - 使用锚点确保精确匹配
 (function_definition
-  type: (_)
   declarator: (function_declarator
-    declarator: (identifier) @name.definition.function)) @definition.function
+    declarator: (field_identifier) @method.name)
+  body: (compound_statement) @method.body) @definition.method
 
-; Method definitions - important class structure
+; 带参数的函数查询 - 使用量词操作符
 (function_definition
   declarator: (function_declarator
-    declarator: (field_identifier) @name.definition.method)) @definition.method
+    declarator: (identifier) @function.name
+    parameters: (parameter_list
+      (parameter_declaration
+        type: (_)
+        declarator: (identifier) @param.name)*))
+  body: (compound_statement) @function.body) @definition.function.with_params
 
-; Template function declarations - important for generic programming
+; 模板函数查询 - 使用谓词过滤
 (template_declaration
   parameters: (template_parameter_list)
   (function_definition
     declarator: (function_declarator
-      declarator: (identifier) @name.definition.template.function))) @definition.template
+      declarator: (identifier) @template.function.name))
+  (#match? @template.function.name "^[a-z][a-zA-Z0-9_]*$")) @definition.template.function
 
-; Lambda expressions - important for functional programming
-(lambda_expression) @definition.lambda
+; Lambda 表达式查询 - 简化模式
+(lambda_expression
+  parameters: (lambda_parameters)? @lambda.params
+  body: (_) @lambda.body) @definition.lambda
 
-; Operator overloads - important for custom operators
+; 运算符重载查询 - 使用交替模式
+[
+  (function_definition
+    declarator: (function_declarator
+      declarator: (operator_name) @operator.name)) @definition.operator.overload
+  (function_definition
+    declarator: (function_declarator
+      declarator: (operator_name) @operator.new.name))
+  (#match? @operator.new.name "^(new|delete)$") @definition.operator.new.delete
+] @definition.operator
+
+; 特殊函数修饰符查询 - 使用谓词过滤
+[
+  (function_definition
+    (storage_class_specifier) @constexpr.specifier
+    declarator: (function_declarator
+      declarator: (identifier) @constexpr.function)
+    (#match? @constexpr.specifier "^(constexpr|consteval)$")) @definition.constexpr.function
+  (function_definition
+    (explicit_specifier) @explicit.specifier
+    declarator: (function_declarator
+      declarator: (identifier) @explicit.function)) @definition.explicit.function
+  (function_definition
+    (virtual_specifier) @virtual.specifier
+    declarator: (function_declarator
+      declarator: (field_identifier) @virtual.method)) @definition.virtual.method
+] @definition.special.function
+
+; 协程查询 - 使用交替模式
+[
+  (co_await_expression
+    expression: (_) @await.expression) @definition.co_await
+  (co_yield_expression
+    expression: (_) @yield.expression) @definition.co_yield
+  (co_return_statement
+    expression: (_) @co_return.expression) @definition.co_return
+] @definition.coroutine
+
+; 构造函数和析构函数查询 - 使用交替模式
+[
+  (function_definition
+    declarator: (function_declarator
+      declarator: (identifier) @constructor.name)
+    (#eq? @constructor.name @class.name)) @definition.constructor
+  (function_definition
+    declarator: (function_declarator
+      declarator: (destructor_name) @destructor.name)
+    (#match? @destructor.name "^~.*")) @definition.destructor
+] @definition.constructor_or_destructor
+
+; 虚函数重写查询 - 使用谓词过滤
 (function_definition
   declarator: (function_declarator
-    declarator: (operator_name) @name.definition.operator)) @definition.operator
-
-; Operator declarations (new, delete, etc.) - important for memory management
-(function_definition
-  declarator: (function_declarator
-    declarator: (operator_name) @name.definition.operator.new)) @definition.operator.new
-(function_definition
-  declarator: (function_declarator
-    declarator: (operator_name) @name.definition.operator.delete)) @definition.operator.delete
-
-; Constexpr and consteval functions - important for compile-time computation
-(function_definition
-  (storage_class_specifier) @name.definition.const_function
-  declarator: (function_declarator
-    declarator: (identifier) @name.definition.function)) @definition.function
-
-; Explicit constructors and conversion operators - important for type safety
-(function_definition
-  (explicit_specifier) @name.definition.explicit_function
-  declarator: (function_declarator
-    declarator: (identifier) @name.definition.constructor)) @definition.constructor
-
-; Virtual functions - important for polymorphism
-(function_definition
-  (virtual_specifier) @name.definition.virtual_function
-  declarator: (function_declarator
-    declarator: (identifier) @name.definition.method)) @definition.method
-
-; Override and final specifiers - important for virtual function control
-(virtual_specifier) @definition.virtual_specifier
-
-; Co-routine expressions (C++20) - important for async programming
-(co_await_expression) @definition.co_await_expression
-(co_yield_expression) @definition.co_yield_expression
-(co_return_statement) @definition.co_return_statement
+    declarator: (field_identifier) @override.method)
+  (virtual_specifier) @virtual.specifier
+  (override_specifier) @override.specifier) @definition.virtual.override
 `;
