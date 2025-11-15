@@ -35,6 +35,7 @@ export const TYPES = {
 
   // 4. Qdrant 服务模块
   QdrantService: Symbol.for('QdrantService'),
+  IVectorStore: Symbol.for('IVectorStore'),
   IQdrantConnectionManager: Symbol.for('IQdrantConnectionManager'),
   IQdrantCollectionManager: Symbol.for('IQdrantCollectionManager'),
   IQdrantVectorOperations: Symbol.for('IQdrantVectorOperations'),
@@ -80,14 +81,11 @@ export const TYPES = {
   IVectorRepository: Symbol.for('IVectorRepository'),
   IVectorService: Symbol.for('IVectorService'),
   IVectorCoordinationService: Symbol.for('IVectorCoordinationService'),
-  IVectorCacheManager: Symbol.for('IVectorCacheManager'),
   VectorService: Symbol.for('VectorService'),
   VectorRepository: Symbol.for('VectorRepository'),
   VectorCoordinationService: Symbol.for('VectorCoordinationService'),
-  VectorCacheManager: Symbol.for('VectorCacheManager'),
   VectorEmbeddingService: Symbol.for('VectorEmbeddingService'),
   VectorConversionService: Symbol.for('VectorConversionService'),
-  VectorBatchProcessor: Symbol.for('VectorBatchProcessor'),
   VectorMetricsCollector: Symbol.for('VectorMetricsCollector'),
 
   // 10. 忽略规则管理

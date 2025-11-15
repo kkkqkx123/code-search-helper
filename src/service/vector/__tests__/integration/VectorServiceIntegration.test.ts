@@ -2,7 +2,6 @@ import { Container } from 'inversify';
 import { TYPES } from '../../../../types';
 import { VectorService } from '../../core/VectorService';
 import { VectorRepository } from '../../repository/VectorRepository';
-import { VectorCacheManager } from '../../caching/VectorCacheManager';
 import { VectorConversionService } from '../../conversion/VectorConversionService';
 import { VectorEmbeddingService } from '../../embedding/VectorEmbeddingService';
 import { ProcessingCoordinator } from '../../../parser/processing/coordinator/ProcessingCoordinator';
@@ -105,8 +104,6 @@ describe('VectorService Integration', () => {
     // 注册向量服务模块
     container.bind(TYPES.IVectorRepository).to(VectorRepository).inSingletonScope();
     container.bind(TYPES.VectorRepository).to(VectorRepository).inSingletonScope();
-    container.bind(TYPES.IVectorCacheManager).to(VectorCacheManager).inSingletonScope();
-    container.bind(TYPES.VectorCacheManager).to(VectorCacheManager).inSingletonScope();
     container.bind(TYPES.VectorConversionService).to(VectorConversionService).inSingletonScope();
     container.bind(TYPES.VectorEmbeddingService).to(VectorEmbeddingService).inSingletonScope();
     container.bind(TYPES.IVectorService).to(VectorService).inSingletonScope();

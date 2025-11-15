@@ -1,6 +1,5 @@
 import { VectorCoordinationService } from '../coordination/VectorCoordinationService';
 import { IVectorRepository } from '../repository/IVectorRepository';
-import { IVectorCacheManager } from '../caching/IVectorCacheManager';
 import { EmbedderFactory } from '../../../embedders/EmbedderFactory';
 import { BatchProcessingService } from '../../../infrastructure/batching/BatchProcessingService';
 import { ProjectIdManager } from '../../../database/ProjectIdManager';
@@ -22,7 +21,7 @@ describe('VectorCoordinationService', () => {
   let vectorCoordinationService: VectorCoordinationService;
   let mockEmbedderFactory: jest.Mocked<EmbedderFactory>;
   let mockRepository: jest.Mocked<IVectorRepository>;
-  let mockCacheManager: jest.Mocked<IVectorCacheManager>;
+  let mockCacheService: any;
   let mockBatchService: jest.Mocked<BatchProcessingService>;
   let mockProjectIdManager: jest.Mocked<ProjectIdManager>;
   let mockLoggerService: jest.Mocked<LoggerService>;
@@ -47,15 +46,13 @@ describe('VectorCoordinationService', () => {
       indexExists: jest.fn(),
     } as any;
 
-    mockCacheManager = {
-      getVector: jest.fn(),
-      setVector: jest.fn(),
-      getSearchResult: jest.fn(),
-      setSearchResult: jest.fn(),
-      delete: jest.fn(),
-      deleteByPattern: jest.fn(),
-      clear: jest.fn(),
-      getStats: jest.fn(),
+    mockCacheService = {
+      getFromCache: jest.fn(),
+      setCache: jest.fn(),
+      deleteFromCache: jest.fn(),
+      clearAllCache: jest.fn(),
+      getCacheStats: jest.fn(),
+      deleteByPattern: jest.fn()
     } as any;
 
     mockBatchService = {
@@ -88,7 +85,7 @@ describe('VectorCoordinationService', () => {
     vectorCoordinationService = new VectorCoordinationService(
       mockEmbedderFactory,
       mockRepository,
-      mockCacheManager,
+      mockCacheService,
       mockBatchService,
       mockProjectIdManager,
       mockLoggerService,
@@ -136,7 +133,7 @@ describe('VectorCoordinationService', () => {
       expect(result[0].vector).toEqual(embeddings[0]);
       expect(result[0].metadata.projectId).toBe(options.projectId);
       expect(mockRepository.createBatch).toHaveBeenCalled();
-      expect(mockCacheManager.setVector).toHaveBeenCalled();
+      expect(mockCacheService.setCache).toHaveBeenCalled();
     });
 
     it('should handle errors during vector creation', async () => {
@@ -173,7 +170,7 @@ describe('VectorCoordinationService', () => {
         }
       ];
 
-      mockCacheManager.getSearchResult.mockResolvedValue(null);
+      mockCacheService.getFromCache.mockReturnValue(null);
       mockRepository.searchByVector.mockResolvedValue(expectedResults);
 
       // Act
@@ -181,9 +178,9 @@ describe('VectorCoordinationService', () => {
 
       // Assert
       expect(result).toEqual(expectedResults);
-      expect(mockCacheManager.getSearchResult).toHaveBeenCalled();
+      expect(mockCacheService.getFromCache).toHaveBeenCalled();
       expect(mockRepository.searchByVector).toHaveBeenCalledWith(queryVector, options);
-      expect(mockCacheManager.setSearchResult).toHaveBeenCalled();
+      expect(mockCacheService.setCache).toHaveBeenCalled();
     });
 
     it('should return cached search results when available', async () => {
@@ -198,7 +195,7 @@ describe('VectorCoordinationService', () => {
         }
       ];
 
-      mockCacheManager.getSearchResult.mockResolvedValue(cachedResults);
+      mockCacheService.getFromCache.mockReturnValue(cachedResults);
 
       // Act
       const result = await vectorCoordinationService.coordinateVectorSearch(queryVector, options);
@@ -206,7 +203,7 @@ describe('VectorCoordinationService', () => {
       // Assert
       expect(result).toEqual(cachedResults);
       expect(mockRepository.searchByVector).not.toHaveBeenCalled();
-      expect(mockCacheManager.setSearchResult).not.toHaveBeenCalled();
+      expect(mockCacheService.setCache).not.toHaveBeenCalled();
     });
 
     it('should coordinate vector search with string query', async () => {
@@ -223,13 +220,13 @@ describe('VectorCoordinationService', () => {
       ];
 
       mockEmbedderFactory.getEmbedder.mockResolvedValue(mockEmbedder);
-      mockEmbedder.embed.mockResolvedValue({ 
+      mockEmbedder.embed.mockResolvedValue({
         vector: embeddings[0],
         dimensions: 4,
         model: 'test-model',
         processingTime: 100
       });
-      mockCacheManager.getSearchResult.mockResolvedValue(null);
+      mockCacheService.getFromCache.mockReturnValue(null);
       mockRepository.searchByVector.mockResolvedValue(expectedResults);
 
       // Act
@@ -246,7 +243,7 @@ describe('VectorCoordinationService', () => {
       const queryVector = [0.1, 0.2, 0.3, 0.4];
       const error = new Error('Search failed');
 
-      mockCacheManager.getSearchResult.mockResolvedValue(null);
+      mockCacheService.getFromCache.mockReturnValue(null);
       mockRepository.searchByVector.mockRejectedValue(error);
 
       // Act & Assert

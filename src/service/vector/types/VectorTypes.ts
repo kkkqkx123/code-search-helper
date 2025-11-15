@@ -27,7 +27,7 @@ export interface VectorMetadata {
   className?: string;
   snippetMetadata?: any;
   customFields?: Record<string, any>;
-  
+
   // 保留上游模块提供的丰富信息
   complexity?: number;
   complexityAnalysis?: any;
@@ -35,11 +35,11 @@ export interface VectorMetadata {
   strategy?: string;
   isSignatureOnly?: boolean;
   originalStructure?: string;
-  
+
   // AST和语义信息
   astNodes?: any;
   semanticBoundary?: any;
-  
+
   // 其他有价值的元数据
   size?: number;
   lineCount?: number;
@@ -330,4 +330,169 @@ export interface CacheClearResult {
    * 清理操作耗时（毫秒）
    */
   executionTime: number;
+}
+
+/**
+ * 统一的向量点接口 - 兼容 Qdrant 格式
+ */
+export interface VectorPoint {
+  id: string | number;
+  vector: number[];
+  payload: VectorPayload;
+}
+
+/**
+ * 统一的向量载荷 - 合并 VectorMetadata 和 VectorPoint.payload
+ */
+export interface VectorPayload {
+  content: string;
+  filePath: string;
+  language: string;
+  chunkType: string[];
+  startLine: number;
+  endLine: number;
+  functionName?: string;
+  className?: string;
+  snippetMetadata?: any;
+  metadata: Record<string, any>;
+  timestamp: Date;
+  projectId?: string;
+
+  // 保留上游模块提供的丰富信息
+  complexity?: number;
+  complexityAnalysis?: any;
+  nestingLevel?: number;
+  strategy?: string;
+  isSignatureOnly?: boolean;
+  originalStructure?: string;
+
+  // AST和语义信息
+  astNodes?: any;
+  semanticBoundary?: any;
+
+  // 其他有价值的元数据
+  size?: number;
+  lineCount?: number;
+  hash?: string;
+  overlapInfo?: any;
+  contextLines?: string[];
+}
+
+/**
+ * 类型转换工具函数
+ */
+export class VectorTypeConverter {
+  /**
+   * 将 Vector 转换为 UnifiedVectorPoint
+   */
+  static toUnifiedVectorPoint(vector: Vector): VectorPoint {
+    return {
+      id: vector.id,
+      vector: vector.vector,
+      payload: this.toUnifiedVectorPayload(vector.metadata, vector.content, vector.timestamp)
+    };
+  }
+
+  /**
+   * 将 VectorMetadata 转换为 UnifiedVectorPayload
+   */
+  static toUnifiedVectorPayload(metadata: VectorMetadata, content: string, timestamp: Date): VectorPayload {
+    return {
+      content,
+      filePath: metadata.filePath || '',
+      language: metadata.language || 'unknown',
+      chunkType: metadata.chunkType || ['code'],
+      startLine: metadata.startLine || 0,
+      endLine: metadata.endLine || 0,
+      functionName: metadata.functionName,
+      className: metadata.className,
+      snippetMetadata: metadata.snippetMetadata,
+      metadata: metadata.customFields || {},
+      timestamp,
+      projectId: metadata.projectId,
+
+      // 保留所有扩展字段
+      complexity: metadata.complexity,
+      complexityAnalysis: metadata.complexityAnalysis,
+      nestingLevel: metadata.nestingLevel,
+      strategy: metadata.strategy,
+      isSignatureOnly: metadata.isSignatureOnly,
+      originalStructure: metadata.originalStructure,
+      astNodes: metadata.astNodes,
+      semanticBoundary: metadata.semanticBoundary,
+      size: metadata.size,
+      lineCount: metadata.lineCount,
+      hash: metadata.hash,
+      overlapInfo: metadata.overlapInfo,
+      contextLines: metadata.contextLines
+    };
+  }
+
+  /**
+   * 将 UnifiedVectorPoint 转换为 Vector
+   */
+  static fromUnifiedVectorPoint(point: VectorPoint): Vector {
+    return {
+      id: point.id as string,
+      vector: point.vector,
+      content: point.payload.content,
+      metadata: this.fromUnifiedVectorPayload(point.payload),
+      timestamp: point.payload.timestamp
+    };
+  }
+
+  /**
+   * 将 UnifiedVectorPayload 转换为 VectorMetadata
+   */
+  static fromUnifiedVectorPayload(payload: VectorPayload): VectorMetadata {
+    return {
+      projectId: payload.projectId,
+      filePath: payload.filePath,
+      language: payload.language,
+      chunkType: payload.chunkType,
+      startLine: payload.startLine,
+      endLine: payload.endLine,
+      functionName: payload.functionName,
+      className: payload.className,
+      snippetMetadata: payload.snippetMetadata,
+      customFields: payload.metadata,
+
+      // 保留所有扩展字段
+      complexity: payload.complexity,
+      complexityAnalysis: payload.complexityAnalysis,
+      nestingLevel: payload.nestingLevel,
+      strategy: payload.strategy,
+      isSignatureOnly: payload.isSignatureOnly,
+      originalStructure: payload.originalStructure,
+      astNodes: payload.astNodes,
+      semanticBoundary: payload.semanticBoundary,
+      size: payload.size,
+      lineCount: payload.lineCount,
+      hash: payload.hash,
+      overlapInfo: payload.overlapInfo,
+      contextLines: payload.contextLines
+    };
+  }
+
+  /**
+   * 将 VectorPoint 转换为 UnifiedVectorPoint
+   */
+  static fromVectorPoint(point: any): VectorPoint {
+    return {
+      id: point.id,
+      vector: point.vector,
+      payload: point.payload as VectorPayload
+    };
+  }
+
+  /**
+   * 将 UnifiedVectorPoint 转换为 VectorPoint 格式（兼容现有接口）
+   */
+  static toVectorPoint(point: VectorPoint): any {
+    return {
+      id: point.id,
+      vector: point.vector,
+      payload: point.payload
+    };
+  }
 }

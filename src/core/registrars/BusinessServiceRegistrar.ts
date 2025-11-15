@@ -111,15 +111,14 @@ import { GraphConstructionService } from '../../service/graph/construction/Graph
 import { VectorService } from '../../service/vector/core/VectorService';
 import { VectorRepository } from '../../service/vector/repository/VectorRepository';
 import { VectorCoordinationService } from '../../service/vector/coordination/VectorCoordinationService';
-import { VectorCacheManager } from '../../service/vector/caching/VectorCacheManager';
 import { IVectorService } from '../../service/vector/core/IVectorService';
 import { IVectorRepository } from '../../service/vector/repository/IVectorRepository';
 import { IVectorCoordinationService } from '../../service/vector/coordination/IVectorCoordinationService';
 import { VectorEmbeddingService } from '../../service/vector/embedding/VectorEmbeddingService';
 import { VectorConversionService } from '../../service/vector/conversion/VectorConversionService';
-import { VectorBatchProcessor } from '../../service/vector/operations/VectorBatchProcessor';
 import { VectorMetricsCollector } from '../../service/vector/monitoring/VectorMetricsCollector';
-import { IVectorCacheManager } from '../../service/vector/caching/IVectorCacheManager';
+import { IVectorStore } from '../../database/qdrant/IVectorStore';
+import { QdrantService } from '../../database/qdrant/QdrantService';
 
 export class BusinessServiceRegistrar {
   static register(container: Container): void {
@@ -154,15 +153,14 @@ export class BusinessServiceRegistrar {
       container.bind<GraphConstructionService>(TYPES.GraphConstructionService).to(GraphConstructionService).inSingletonScope();
 
       // 向量服务
-      container.bind<IVectorCacheManager>(TYPES.IVectorCacheManager).to(VectorCacheManager).inSingletonScope();
       container.bind<IVectorRepository>(TYPES.IVectorRepository).to(VectorRepository).inSingletonScope();
       container.bind<IVectorCoordinationService>(TYPES.IVectorCoordinationService).to(VectorCoordinationService).inSingletonScope();
       container.bind<IVectorService>(TYPES.IVectorService).to(VectorService).inSingletonScope();
       container.bind<VectorEmbeddingService>(TYPES.VectorEmbeddingService).to(VectorEmbeddingService).inSingletonScope();
       container.bind<VectorConversionService>(TYPES.VectorConversionService).to(VectorConversionService).inSingletonScope();
-      container.bind<VectorBatchProcessor>(TYPES.VectorBatchProcessor).to(VectorBatchProcessor).inSingletonScope();
       container.bind<VectorMetricsCollector>(TYPES.VectorMetricsCollector).to(VectorMetricsCollector).inSingletonScope();
       container.bind<VectorService>(TYPES.VectorService).to(VectorService).inSingletonScope();
+      container.bind<IVectorStore>(TYPES.IVectorStore).to(QdrantService).inSingletonScope();
 
       // 索引服务架构
       container.bind<VectorIndexService>(TYPES.VectorIndexService).to(VectorIndexService).inSingletonScope();

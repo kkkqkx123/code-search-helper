@@ -1,7 +1,6 @@
 import { injectable, inject } from 'inversify';
 import { IVectorCoordinationService } from './IVectorCoordinationService';
 import { IVectorRepository } from '../repository/IVectorRepository';
-import { IVectorCacheManager } from '../caching/IVectorCacheManager';
 import { EmbedderFactory } from '../../../embedders/EmbedderFactory';
 import { BatchProcessingService } from '../../../infrastructure/batching/BatchProcessingService';
 import { ProjectIdManager } from '../../../database/ProjectIdManager';
@@ -17,8 +16,6 @@ import {
   BatchResult,
   EmbeddingOptions,
   BatchOptions,
-  VectorError,
-  VectorErrorCode
 } from '../types/VectorTypes';
 import { EmbeddingInput } from '../../../embedders/BaseEmbedder';
 
@@ -30,7 +27,7 @@ export class VectorCoordinationService implements IVectorCoordinationService {
   constructor(
     @inject(TYPES.EmbedderFactory) private embedderFactory: EmbedderFactory,
     @inject(TYPES.IVectorRepository) private repository: IVectorRepository,
-    @inject(TYPES.IVectorCacheManager) private cacheManager: IVectorCacheManager,
+    @inject(TYPES.CacheService) private cacheService: any,
     @inject(TYPES.BatchProcessingService) private batchService: BatchProcessingService,
     @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
     @inject(TYPES.LoggerService) private logger: LoggerService,
@@ -85,7 +82,7 @@ export class VectorCoordinationService implements IVectorCoordinationService {
       
       // 检查缓存
       const cacheKey = this.generateSearchCacheKey(queryVector, options);
-      const cached = await this.cacheManager.getSearchResult(cacheKey);
+      const cached = await this.cacheService.getFromCache(cacheKey);
       if (cached) {
         return cached;
       }
@@ -94,7 +91,7 @@ export class VectorCoordinationService implements IVectorCoordinationService {
       const results = await this.repository.searchByVector(queryVector, options);
       
       // 缓存结果
-      await this.cacheManager.setSearchResult(cacheKey, results);
+      await this.cacheService.setCache(cacheKey, results);
       
       return results;
     } catch (error) {
@@ -204,7 +201,7 @@ export class VectorCoordinationService implements IVectorCoordinationService {
 
   private async cacheVectors(vectors: Vector[]): Promise<void> {
     for (const vector of vectors) {
-      await this.cacheManager.setVector(vector.id, vector);
+      await this.cacheService.setCache(vector.id, vector);
     }
   }
 }

@@ -1,6 +1,5 @@
 import { VectorService } from '../../core/VectorService';
 import { IVectorRepository } from '../../repository/IVectorRepository';
-import { IVectorCacheManager } from '../../caching/IVectorCacheManager';
 import { VectorConversionService } from '../../conversion/VectorConversionService';
 import { VectorEmbeddingService } from '../../embedding/VectorEmbeddingService';
 import { ProcessingCoordinator } from '../../../parser/processing/coordinator/ProcessingCoordinator';
@@ -12,7 +11,7 @@ describe('VectorService', () => {
   let vectorService: VectorService;
   let mockRepository: jest.Mocked<IVectorRepository>;
   let mockCoordinator: jest.Mocked<ProcessingCoordinator>;
-  let mockCacheManager: jest.Mocked<IVectorCacheManager>;
+  let mockCacheService: any;
   let mockConversionService: jest.Mocked<VectorConversionService>;
   let mockEmbeddingService: jest.Mocked<VectorEmbeddingService>;
   let mockLogger: jest.Mocked<LoggerService>;
@@ -41,15 +40,13 @@ describe('VectorService', () => {
       optimizeBatchProcessing: jest.fn()
     } as any;
 
-    mockCacheManager = {
-      getVector: jest.fn(),
-      setVector: jest.fn(),
-      getSearchResult: jest.fn(),
-      setSearchResult: jest.fn(),
-      delete: jest.fn(),
-      deleteByPattern: jest.fn(),
-      clear: jest.fn(),
-      getStats: jest.fn()
+    mockCacheService = {
+      getFromCache: jest.fn(),
+      setCache: jest.fn(),
+      deleteFromCache: jest.fn(),
+      clearAllCache: jest.fn(),
+      getCacheStats: jest.fn(),
+      deleteByPattern: jest.fn()
     } as any;
 
     mockConversionService = {
@@ -83,7 +80,7 @@ describe('VectorService', () => {
     // 创建服务实例
     vectorService = new VectorService(
       mockRepository,
-      mockCacheManager,
+      mockCacheService,
       mockConversionService,
       mockEmbeddingService,
       mockCoordinator,
@@ -227,7 +224,7 @@ describe('VectorService', () => {
       };
 
       mockRepository.getStats.mockResolvedValue(mockStats);
-      mockCacheManager.getStats.mockResolvedValue(mockCacheStats);
+      mockCacheService.getCacheStats.mockReturnValue(mockCacheStats);
 
       await vectorService.initialize();
       const status = await vectorService.getStatus();

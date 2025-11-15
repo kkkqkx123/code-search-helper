@@ -1,6 +1,6 @@
 import { injectable, inject } from 'inversify';
 import { IVectorRepository } from './IVectorRepository';
-import { QdrantService } from '../../../database/qdrant/QdrantService';
+import { IVectorStore } from '../../../database/qdrant/IVectorStore';
 import { ProjectIdManager } from '../../../database/ProjectIdManager';
 import { TYPES } from '../../../types';
 import { LoggerService } from '../../../utils/LoggerService';
@@ -13,9 +13,9 @@ import {
   VectorStats,
   IndexOptions,
   VectorError,
-  VectorErrorCode
+  VectorErrorCode,
+  VectorTypeConverter
 } from '../types/VectorTypes';
-import { VectorPoint } from '../../../database/qdrant/IVectorStore';
 
 /**
  * 向量仓库实现
@@ -24,11 +24,11 @@ import { VectorPoint } from '../../../database/qdrant/IVectorStore';
 @injectable()
 export class VectorRepository implements IVectorRepository {
   constructor(
-    @inject(TYPES.QdrantService) private qdrantService: QdrantService,
+    @inject(TYPES.IVectorStore) private vectorStore: IVectorStore,
     @inject(TYPES.ProjectIdManager) private projectIdManager: ProjectIdManager,
     @inject(TYPES.LoggerService) private logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService
-  ) {}
+  ) { }
 
   async create(vector: Vector): Promise<string> {
     try {
@@ -36,17 +36,17 @@ export class VectorRepository implements IVectorRepository {
       if (!projectId) {
         throw new VectorError('Project ID is required', VectorErrorCode.VALIDATION_ERROR);
       }
-      
+
       const vectorPoint = this.convertToVectorPoint(vector);
-      const success = await this.qdrantService.upsertVectorsForProject(
+      const success = await this.vectorStore.upsertVectors(
         projectId,
         [vectorPoint]
       );
-      
+
       if (!success) {
         throw new VectorError('Failed to create vector', VectorErrorCode.DATABASE_ERROR);
       }
-      
+
       return vector.id;
     } catch (error) {
       this.errorHandler.handleError(error as Error, {
@@ -60,20 +60,20 @@ export class VectorRepository implements IVectorRepository {
   async createBatch(vectors: Vector[]): Promise<string[]> {
     try {
       if (vectors.length === 0) return [];
-      
+
       const projectId = vectors[0].metadata.projectId;
       if (!projectId) {
         throw new VectorError('Project ID is required', VectorErrorCode.VALIDATION_ERROR);
       }
-      
+
       const vectorPoints = vectors.map(v => this.convertToVectorPoint(v));
-      
-      const success = await this.qdrantService.upsertVectorsForProject(projectId, vectorPoints);
-      
+
+      const success = await this.vectorStore.upsertVectors(projectId, vectorPoints);
+
       if (!success) {
         throw new VectorError('Failed to create vectors batch', VectorErrorCode.DATABASE_ERROR);
       }
-      
+
       return vectors.map(v => v.id);
     } catch (error) {
       this.errorHandler.handleError(error as Error, {
@@ -102,7 +102,7 @@ export class VectorRepository implements IVectorRepository {
   async deleteBatch(ids: string[]): Promise<boolean> {
     try {
       if (ids.length === 0) return true;
-      
+
       // Qdrant不支持直接按ID批量删除
       throw new VectorError('Batch delete by IDs is not supported by Qdrant', VectorErrorCode.OPERATION_NOT_SUPPORTED);
     } catch (error) {
@@ -121,16 +121,16 @@ export class VectorRepository implements IVectorRepository {
         throw new VectorError('Project ID is required for search', VectorErrorCode.VALIDATION_ERROR);
       }
 
-      const results = await this.qdrantService.searchVectors(projectId, query, {
+      const results = await this.vectorStore.searchVectors(projectId, query, {
         limit: options?.limit || 10,
         scoreThreshold: options?.scoreThreshold,
         filter: this.convertFilter(options?.filter)
       });
 
-      return results.map(r => ({
+      return results.map((r: any) => ({
         id: r.id,
         score: r.score,
-        metadata: r.payload as any
+        metadata: r.payload
       }));
     } catch (error) {
       this.errorHandler.handleError(error as Error, {
@@ -141,12 +141,10 @@ export class VectorRepository implements IVectorRepository {
     }
   }
 
-  
-
   async count(filter?: VectorFilter): Promise<number> {
     try {
       if (!filter?.projectId) return 0;
-      const info = await this.qdrantService.getCollectionInfo(filter.projectId);
+      const info = await this.vectorStore.getCollectionInfo(filter.projectId);
       return info?.pointsCount || 0;
     } catch (error) {
       return 0;
@@ -166,8 +164,8 @@ export class VectorRepository implements IVectorRepository {
         };
       }
 
-      const info = await this.qdrantService.getCollectionInfo(projectId);
-      
+      const info = await this.vectorStore.getCollectionInfo(projectId);
+
       return {
         totalCount: info?.pointsCount || 0,
         projectCount: 1,
@@ -187,7 +185,7 @@ export class VectorRepository implements IVectorRepository {
 
   async createIndex(projectId: string, options?: IndexOptions): Promise<boolean> {
     try {
-      await this.qdrantService.createCollection(
+      await this.vectorStore.createCollection(
         projectId,
         options?.vectorSize || 1536,
         options?.distance || 'Cosine'
@@ -204,7 +202,7 @@ export class VectorRepository implements IVectorRepository {
 
   async deleteIndex(projectId: string): Promise<boolean> {
     try {
-      await this.qdrantService.deleteCollection(projectId);
+      await this.vectorStore.deleteCollection(projectId);
       return true;
     } catch (error) {
       this.errorHandler.handleError(error as Error, {
@@ -217,52 +215,38 @@ export class VectorRepository implements IVectorRepository {
 
   async indexExists(projectId: string): Promise<boolean> {
     try {
-      return await this.qdrantService.collectionExists(projectId);
+      return await this.vectorStore.collectionExists(projectId);
     } catch (error) {
       return false;
     }
   }
 
-  private convertToVectorPoint(vector: Vector): VectorPoint {
-    return {
-      id: vector.id,
-      vector: vector.vector,
-      payload: {
-        content: vector.content,
-        filePath: vector.metadata.filePath || '',
-        language: vector.metadata.language || 'unknown',
-        chunkType: vector.metadata.chunkType || ['code'],
-        startLine: vector.metadata.startLine || 0,
-        endLine: vector.metadata.endLine || 0,
-        functionName: vector.metadata.functionName,
-        className: vector.metadata.className,
-        snippetMetadata: vector.metadata.snippetMetadata,
-        metadata: vector.metadata.customFields || {},
-        timestamp: vector.timestamp,
-        projectId: vector.metadata.projectId
-      }
-    };
+  private convertToVectorPoint(vector: Vector): any {
+    // 使用统一的类型转换器，简化转换逻辑
+    return VectorTypeConverter.toVectorPoint(
+      VectorTypeConverter.toUnifiedVectorPoint(vector)
+    );
   }
 
   private convertFilter(filter?: VectorFilter): any {
     if (!filter) return undefined;
-    
+
     const conditions: any[] = [];
-    
+
     if (filter.language && filter.language.length > 0) {
       conditions.push({
         key: 'language',
         match: { any: filter.language }
       });
     }
-    
+
     if (filter.chunkType && filter.chunkType.length > 0) {
       conditions.push({
         key: 'chunkType',
         match: { any: filter.chunkType }
       });
     }
-    
+
     return conditions.length > 0 ? { must: conditions } : undefined;
   }
 }

@@ -1,14 +1,14 @@
 import { injectable, inject } from 'inversify';
 import { IVectorService } from './IVectorService';
 import { IVectorRepository } from '../repository/IVectorRepository';
-import { IVectorCacheManager } from '../caching/IVectorCacheManager';
 import { VectorConversionService } from '../conversion/VectorConversionService';
 import { VectorEmbeddingService } from '../embedding/VectorEmbeddingService';
 import { ProcessingCoordinator } from '../../parser/processing/coordinator/ProcessingCoordinator';
 import { TYPES } from '../../../types';
 import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
-import { VectorPoint } from '../../../database/qdrant/IVectorStore';
+import { VectorPoint, VectorTypeConverter } from '../types/VectorTypes';
+import { ICacheService } from '../../../infrastructure/caching/types';
 import {
   Vector,
   VectorOptions,
@@ -20,8 +20,6 @@ import {
   VectorStats,
   PerformanceMetrics,
   ServiceStatus,
-  VectorError,
-  VectorErrorCode
 } from '../types/VectorTypes';
 import * as fs from 'fs/promises';
 
@@ -35,13 +33,13 @@ export class VectorService implements IVectorService {
 
   constructor(
     @inject(TYPES.IVectorRepository) private repository: IVectorRepository,
-    @inject(TYPES.IVectorCacheManager) private cacheManager: IVectorCacheManager,
+    @inject(TYPES.CacheService) private cacheService: ICacheService,
     @inject(TYPES.VectorConversionService) private conversionService: VectorConversionService,
     @inject(TYPES.VectorEmbeddingService) private embeddingService: VectorEmbeddingService,
     @inject(TYPES.UnifiedProcessingCoordinator) private processingCoordinator: ProcessingCoordinator,
     @inject(TYPES.LoggerService) private logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService
-  ) {}
+  ) { }
 
   async initialize(): Promise<boolean> {
     try {
@@ -68,8 +66,8 @@ export class VectorService implements IVectorService {
 
   async getStatus(): Promise<ServiceStatus> {
     const stats = await this.getVectorStats();
-    const cacheStats = await this.cacheManager.getStats();
-    
+    const cacheStats = this.cacheService.getCacheStats();
+
     return {
       healthy: this.initialized,
       connected: this.initialized,
@@ -89,37 +87,37 @@ export class VectorService implements IVectorService {
   async processFileForEmbedding(filePath: string, projectPath: string): Promise<VectorPoint[]> {
     try {
       this.logger.info(`Processing file for embedding: ${filePath}`);
-      
+
       // 1. 读取文件内容
       const content = await fs.readFile(filePath, 'utf-8');
-      
+
       // 2. 直接使用 ProcessingCoordinator 处理代码
       const processingResult = await this.processingCoordinator.process(content, 'unknown', filePath);
-      
+
       if (!processingResult.success) {
         throw new Error(`Processing failed: ${processingResult.error}`);
       }
-      
+
       // 3. 生成嵌入向量
       const contents = processingResult.chunks.map(chunk => chunk.content);
       const embeddings = await this.embeddingService.generateBatchEmbeddings(contents, {
         provider: 'default',
         batchSize: 100
       });
-      
+
       // 4. 使用增强的 VectorConversionService 转换为向量
       const vectors = await this.conversionService.convertChunksToVectors(
         processingResult.chunks,
         embeddings,
         projectPath
       );
-      
+
       // 5. 转换为向量点
-      const vectorPoints = vectors.map(vector => this.conversionService.convertVectorToPoint(vector));
-      
+      const vectorPoints = vectors.map(vector => VectorTypeConverter.toUnifiedVectorPoint(vector));
+
       // 6. 批量存储向量
       await this.repository.createBatch(vectors);
-      
+
       this.logger.info(`Successfully processed file ${filePath}, created ${vectorPoints.length} vectors`);
       return vectorPoints;
     } catch (error) {
@@ -136,13 +134,13 @@ export class VectorService implements IVectorService {
   async createVectors(content: string[], options?: VectorOptions): Promise<Vector[]> {
     try {
       this.logger.info(`Creating vectors for ${content.length} contents`);
-      
+
       // 1. 生成嵌入向量
       const embeddings = await this.embeddingService.generateBatchEmbeddings(content, {
         provider: options?.embedderProvider,
         batchSize: options?.batchSize || 100
       });
-      
+
       // 2. 创建向量对象
       const vectors: Vector[] = content.map((text, index) => ({
         id: this.generateVectorId(text, options),
@@ -154,10 +152,10 @@ export class VectorService implements IVectorService {
         },
         timestamp: new Date()
       }));
-      
+
       // 3. 存储向量
       await this.repository.createBatch(vectors);
-      
+
       this.logger.info(`Successfully created ${vectors.length} vectors`);
       return vectors;
     } catch (error) {
@@ -188,17 +186,17 @@ export class VectorService implements IVectorService {
     try {
       // 检查缓存
       const cacheKey = this.generateSearchCacheKey(query, options);
-      const cached = await this.cacheManager.getSearchResult(cacheKey);
+      const cached = await this.cacheService.getFromCache<SearchResult[]>(cacheKey);
       if (cached) {
         return cached;
       }
-      
+
       // 执行搜索
       const results = await this.repository.searchByVector(query, options);
-      
+
       // 缓存结果
-      await this.cacheManager.setSearchResult(cacheKey, results);
-      
+      await this.cacheService.setCache(cacheKey, results, 300000); // 5分钟TTL
+
       return results;
     } catch (error) {
       this.errorHandler.handleError(error as Error, {
