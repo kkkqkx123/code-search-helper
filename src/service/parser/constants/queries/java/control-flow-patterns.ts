@@ -3,164 +3,152 @@ Java Control Flow and Pattern-specific Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
 */
 export default `
-; Switch expressions
-(switch_expression) @name.definition.switch_expression
+; Switch表达式和语句查询 - 使用交替模式
+[
+  (switch_expression) @control.switch.expr
+  (switch_statement) @control.switch.stmt
+] @definition.switch
 
-; Switch blocks
-(switch_block) @name.definition.switch_block
+; Switch块和分支查询 - 使用量词操作符
+(switch_block
+  (switch_block_statement_group
+    (switch_label
+      [
+        (expression_list
+          (identifier) @case.value)*
+        (default_case) @default.case
+      ]
+    (block_statement_list
+      (statement) @case.stmt)*)*) @definition.switch.block
 
-; Switch rules
-(switch_rule) @name.definition.switch_rule
+; 模式匹配查询 - 使用交替模式
+[
+  (record_pattern) @pattern.record
+  (type_pattern) @pattern.type
+  (underscore_pattern) @pattern.underscore
+] @definition.pattern
 
-; Switch labels
-(switch_label) @name.definition.switch_label
-
-; Switch block statement groups
-(switch_block_statement_group) @name.definition.switch_block_statement_group
-
-; Guard clauses in switch
-(guard) @name.definition.guard
-
-; Record patterns
-(record_pattern) @name.definition.record_pattern
-
-; Record pattern bodies
-(record_pattern_body) @name.definition.record_pattern_body
-
-; Record pattern components
-(record_pattern_component
-  (identifier) @name.definition.record_pattern_component) @name.definition.record_pattern_component
-
-; Type patterns
-(type_pattern) @name.definition.type_pattern
-
-; Underscore patterns
-(underscore_pattern) @name.definition.underscore_pattern
-
-; Pattern variables in type patterns
-(type_pattern
-  (identifier) @name.definition.pattern_variable) @name.definition.type_pattern_with_variable
-
-; Instanceof expressions with patterns
-(instanceof_expression) @name.definition.instanceof_with_pattern
-
-; Try statements
-(try_statement) @name.definition.try_statement
-
-; Try blocks
+; Try语句查询 - 使用锚点确保精确匹配
 (try_statement
-  (block) @name.definition.try_block) @name.definition.try_with_block
+  body: (block) @try.body
+  (catch_clause
+    parameter: (catch_formal_parameter
+      name: (identifier) @catch.param)
+    body: (block) @catch.body)*
+  (finally_block
+    (block) @finally.body)?) @definition.try.statement
 
-; Catch clauses
-(catch_clause) @name.definition.catch_clause
+; Try-with-resources查询
+(try_with_resources_statement
+  resources: (resource_list
+    (resource
+      name: (identifier) @resource.name
+      value: (_) @resource.value)*)
+  body: (block) @try.body
+  (catch_clause
+    parameter: (catch_formal_parameter
+      name: (identifier) @catch.param)
+    body: (block) @catch.body)*
+  (finally_block
+    (block) @finally.body)?) @definition.try.with.resources
 
-; Catch formal parameters
-(catch_formal_parameter
-  name: (identifier) @name.definition.exception_variable) @name.definition.catch_parameter
+; 循环语句查询 - 使用交替模式
+[
+  (for_statement
+    initializer: (_) @for.init
+    condition: (_) @for.condition
+    update: (_) @for.update
+    body: (statement) @for.body)
+  (enhanced_for_statement
+    name: (identifier) @for.var
+    value: (_) @for.iterable
+    body: (statement) @for.body)
+  (while_statement
+    condition: (_) @while.condition
+    body: (statement) @while.body)
+  (do_statement
+    body: (statement) @do.body
+    condition: (_) @do.condition)
+] @definition.loop
 
-; Try with resources
-(try_with_resources_statement) @name.definition.try_with_resources
-
-; For statements
-(for_statement) @name.definition.for_statement
-
-; Enhanced for statements
-(enhanced_for_statement) @name.definition.enhanced_for_statement
-
-; For loop variables
-(enhanced_for_statement
-  name: (identifier) @name.definition.for_variable) @name.definition.enhanced_for_variable
-
-; For loop iterables
-(enhanced_for_statement
-  value: (expression) @name.definition.for_iterable) @name.definition.enhanced_for_with_iterable
-
-; While statements
-(while_statement) @name.definition.while_statement
-
-; Do statements
-(do_statement) @name.definition.do_statement
-
-; If statements
-(if_statement) @name.definition.if_statement
-
-; If conditions
+; 条件语句查询
 (if_statement
-  condition: (parenthesized_expression) @name.definition.if_condition) @name.definition.if_with_condition
+  condition: (parenthesized_expression
+    (_) @if.condition)
+  consequence: (statement) @if.then
+  alternative: (statement)? @if.else) @definition.if.statement
 
-; Return statements
-(return_statement) @name.definition.return_statement
+; 跳转语句查询 - 使用交替模式
+[
+  (return_statement
+    (expression)? @return.value)
+  (break_statement
+    (identifier)? @break.label)
+  (continue_statement
+    (identifier)? @continue.label)
+  (yield_statement
+    (expression) @yield.value)
+] @definition.jump
 
-; Yield statements
-(yield_statement) @name.definition.yield_statement
+; 异常处理查询 - 使用交替模式
+[
+  (throw_statement
+    (expression) @throw.expr)
+  (assert_statement
+    condition: (_) @assert.condition
+    message: (_)? @assert.message)
+] @definition.exception
 
-; Break statements
-(break_statement) @name.definition.break_statement
+; 同步语句查询
+(synchronized_statement
+  (parenthesized_expression
+    (identifier) @sync.lock)
+  (block) @sync.body) @definition.synchronized
 
-; Continue statements
-(continue_statement) @name.definition.continue_statement
+; 标签语句查询
+(labeled_statement
+  label: (identifier) @label.name
+  statement: (_) @labeled.stmt) @definition.labeled
 
-; Throw statements
-(throw_statement) @name.definition.throw_statement
+; 块和表达式语句查询 - 使用交替模式
+[
+  (block) @structure.block
+  (expression_statement) @statement.expression
+] @definition.structure
 
-; Assert statements
-(assert_statement) @name.definition.assert_statement
+; 注释查询 - 使用交替模式
+[
+  (line_comment) @comment.line
+  (block_comment) @comment.block
+] @definition.comment
 
-; Synchronized statements
-(synchronized_statement) @name.definition.synchronized_statement
+; 字符串相关查询 - 使用交替模式
+[
+  (string_literal) @literal.string
+  (string_fragment) @string.fragment
+  (escape_sequence) @string.escape
+] @definition.string.literal
 
-; Labeled statements
-(labeled_statement) @name.definition.labeled_statement
+; 数值字面量查询 - 使用交替模式
+[
+  (decimal_integer_literal) @literal.decimal.int
+  (hex_integer_literal) @literal.hex.int
+  (octal_integer_literal) @literal.octal.int
+  (binary_integer_literal) @literal.binary.int
+  (decimal_floating_point_literal) @literal.decimal.float
+  (hex_floating_point_literal) @literal.hex.float
+] @definition.numeric.literal
 
-; Block statements
-(block) @name.definition.block
+; 布尔和空值字面量查询 - 使用交替模式
+[
+  (true) @literal.true
+  (false) @literal.false
+  (null_literal) @literal.null
+] @definition.boolean.literal
 
-; Expression statements
-(expression_statement) @name.definition.expression_statement
+; 字符字面量查询
+(character_literal) @literal.character
 
-; Line comments
-(line_comment) @name.definition.line_comment
-
-; Block comments
-(block_comment) @name.definition.block_comment
-
-; String literals
-(string_literal) @name.definition.string_literal
-
-; String fragments
-(string_fragment) @name.definition.string_fragment
-
-; Escape sequences
-(escape_sequence) @name.definition.escape_sequence
-
-; Character literals
-(character_literal) @name.definition.character_literal
-
-; Decimal integer literals
-(decimal_integer_literal) @name.definition.decimal_integer_literal
-
-; Hex integer literals
-(hex_integer_literal) @name.definition.hex_integer_literal
-
-; Octal integer literals
-(octal_integer_literal) @name.definition.octal_integer_literal
-
-; Binary integer literals
-(binary_integer_literal) @name.definition.binary_integer_literal
-
-; Decimal floating point literals
-(decimal_floating_point_literal) @name.definition.decimal_floating_point_literal
-
-; Hex floating point literals
-(hex_floating_point_literal) @name.definition.hex_floating_point_literal
-
-; Boolean literals
-(true) @name.definition.true_literal
-(false) @name.definition.false_literal
-
-; Null literal
-(null_literal) @name.definition.null_literal
-
-; Identifiers
-(identifier) @name.definition.identifier
+; 标识符查询
+(identifier) @definition.identifier
 `;

@@ -3,170 +3,119 @@ Go Control Flow Relationships-specific Tree-Sitter Query Patterns
 用于识别条件、循环、异常处理等控制流模式
 */
 export default `
-; If语句控制流关系
-(if_statement
-  condition: (identifier) @source.condition
-  consequence: (block) @target.then.block) @control.flow.if
+; 统一的条件控制流查询 - 使用交替模式
+[
+  (if_statement
+    condition: (_) @if.condition
+    consequence: (block) @if.body
+    alternative: (block)? @if.else)
+  (if_statement
+    initializer: (short_var_declaration
+      left: (expression_list
+        (identifier) @init.var))
+    condition: (_) @if.condition
+    consequence: (block) @if.body)
+] @control.flow.conditional
 
-; If-Else语句控制流关系
-(if_statement
-  condition: (identifier) @source.condition
-  consequence: (block) @target.then.block
-  alternative: (block) @target.else.block) @control.flow.if.else
+; 循环控制流查询 - 使用交替模式和锚点
+[
+  (for_statement
+    condition: (_) @for.condition
+    body: (block) @for.body)
+  (for_statement
+    range: (range_clause
+      left: (expression_list
+        (identifier) @range.var)
+      right: (_) @range.expr)
+    body: (block) @for.body)
+  (for_statement
+    initializer: (_) @for.init
+    condition: (_) @for.condition
+    update: (_) @for.update
+    body: (block) @for.body)
+] @control.flow.loop
 
-; For循环控制流关系
-(for_statement
-  condition: (identifier) @source.condition
-  body: (block) @target.loop.body) @control.flow.for
+; Switch和Select控制流查询 - 使用交替模式
+[
+  (switch_statement
+    value: (_) @switch.value
+    body: (block
+      (expression_case
+        (expression_list
+          (identifier) @case.value)*
+        (block) @case.body)*))
+  (select_statement
+    body: (block
+      (comm_case
+        (send_statement
+          channel: (identifier) @channel
+          value: (identifier) @value)
+        (block) @case.body)*
+      (comm_case
+        (expression_statement
+          (unary_expression
+            ["<-"] @receive.op
+            operand: (identifier) @channel))
+        (block) @case.body)*))
+] @control.flow.multi_branch
 
-; 范围For循环控制流关系
-(for_statement
-  range: (range_clause
-    right: (expression_list
-      (identifier) @source.range))
-  body: (block) @target.range.body) @control.flow.range.for
+; 跳转控制流查询 - 使用交替模式
+[
+  (break_statement
+    label: (label_name)? @break.label)
+  (continue_statement
+    label: (label_name)? @continue.label)
+  (return_statement
+    (expression_list
+      (identifier) @return.value)*)
+  (go_to_statement
+    label: (label_name) @goto.label)
+] @control.flow.jump
 
-; Select语句控制流关系
-(select_statement
-  body: (block
-    (expression_statement
-      (call_expression
-        function: (identifier) @target.case.function))
-    (expression_statement
-      (identifier) @source.case.variable))) @control.flow.select
+; 异常处理控制流查询
+(call_expression
+  function: (identifier) @panic.func
+  (#match? @panic.func "panic")
+  arguments: (argument_list
+    (identifier) @panic.value)) @control.flow.panic
 
-; Switch语句控制流关系
-(switch_statement
-  value: (identifier) @source.switch.variable
-  body: (block
-    (expression_case
-      (expression_list
-        (identifier) @case.value)
-      (block) @target.case.block))) @control.flow.switch
+(call_expression
+  function: (identifier) @recover.func
+  (#match? @recover.func "recover")) @control.flow.recover
 
-; Defer语句控制流关系
+; 延迟执行控制流查询
 (defer_statement
-  (call_expression
-    function: (identifier) @target.deferred.function
-    arguments: (argument_list
-      (identifier) @source.deferred.parameter))) @control.flow.defer
+    (call_expression
+      function: (identifier) @deferred.func
+      arguments: (argument_list
+        (identifier) @deferred.arg)*)) @control.flow.defer
 
-; Go协程控制流关系
+; 协程控制流查询
 (go_statement
   (call_expression
-    function: (identifier) @target.goroutine.function
+    function: (identifier) @goroutine.func
     arguments: (argument_list
-      (identifier) @source.goroutine.parameter))) @control.flow.goroutine
+      (identifier) @goroutine.arg)*)) @control.flow.goroutine
 
-; Panic语句控制流关系
-(call_expression
-  function: (identifier) @panic.function
-  (#match? @panic.function "panic")
-  arguments: (argument_list
-    (identifier) @source.panic.value)) @control.flow.panic
-
-; Recover语句控制流关系
-(call_expression
-  function: (identifier) @recover.function
-  (#match? @recover.function "recover")
-  arguments: (argument_list)) @control.flow.recover
-
-; 嵌套If语句控制流关系
-(if_statement
-  condition: (identifier) @source.outer.condition
-  consequence: (block
-    (if_statement
-      condition: (identifier) @source.inner.condition
-      consequence: (block) @target.nested.block))) @control.flow.nested.if
-
-; 嵌套For循环控制流关系
-(for_statement
-  condition: (identifier) @source.outer.condition
-  body: (block
-    (for_statement
-      condition: (identifier) @source.inner.condition
-      body: (block) @target.nested.block))) @control.flow.nested.for
-
-; Break语句控制流关系
-(for_statement
-  body: (block
-    (break_statement) @control.flow.break)) @control.flow.loop.break
-
-; Continue语句控制流关系
-(for_statement
-  body: (block
-    (continue_statement) @control.flow.continue)) @control.flow.loop.continue
-
-; Fallthrough语句控制流关系
-(switch_statement
-  body: (block
-    (fallthrough_statement) @control.flow.fallthrough)) @control.flow.switch.fallthrough
-
-; Label标签控制流关系
+; 标签控制流查询
 (labeled_statement
-  label: (label_name) @control.label
-  statement: (for_statement) @target.labeled.loop) @control.flow.labeled.statement
+  label: (label_name) @label.name
+  statement: (_) @labeled.stmt) @control.flow.labeled
 
-; Goto语句控制流关系
-(go_to_statement
-  label: (label_name) @target.goto.label) @control.flow.goto
-
-; 带初始化的If语句控制流关系
+; 嵌套控制流查询 - 使用锚点确保精确匹配
 (if_statement
-  initializer: (short_var_declaration
-    left: (expression_list
-      (identifier) @source.initializer.variable))
-  condition: (identifier) @source.condition.variable
-  consequence: (block) @target.then.block) @control.flow.if.with.initializer
+  condition: (_) @outer.condition
+  consequence: (block
+    .
+    (if_statement
+      condition: (_) @inner.condition
+      consequence: (block) @inner.body))) @control.flow.nested.conditional
 
-; 带初始化的For语句控制流关系
 (for_statement
-  initializer: (short_var_declaration
-    left: (expression_list
-      (identifier) @source.initializer.variable))
-  condition: (identifier) @source.condition.variable
-  update: (inc_statement
-    operand: (identifier) @source.update.variable)
-  body: (block) @target.loop.body) @control.flow.for.with.initializer
-
-; 带Case条件的Select语句控制流关系
-(select_statement
+  condition: (_) @outer.condition
   body: (block
-    (comm_case
-      (send_statement
-        channel: (identifier) @target.channel
-        value: (identifier) @source.value)
-      (block) @target.case.block))) @control.flow.select.send.case
-
-; 带Case条件的Select接收控制流关系
-(select_statement
-  body: (block
-    (comm_case
-      (expression_statement
-        (unary_expression
-          ["<-"] @receive.operator
-          operand: (identifier) @source.channel))
-      (block) @target.case.block))) @control.flow.select.receive.case
-
-; 默认Case的Select语句控制流关系
-(select_statement
-  body: (block
-    (default_case
-      (block) @target.default.block))) @control.flow.select.default.case
-
-; 默认Case的Switch语句控制流关系
-(switch_statement
-  body: (block
-    (default_case
-      (block) @target.default.block))) @control.flow.switch.default.case
-
-; Type Switch语句控制流关系
-(type_switch_statement
-  initializer: (short_var_declaration
-    left: (expression_list
-      (identifier) @source.type.variable))
-  body: (block
-    (type_case
-      (type_identifier) @case.type
-      (block) @target.case.block))) @control.flow.type.switch
+    .
+    (for_statement
+      condition: (_) @inner.condition
+      body: (block) @inner.body))) @control.flow.nested.loop
 `;

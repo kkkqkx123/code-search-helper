@@ -3,68 +3,91 @@ Go Variable and Import-specific Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
 */
 export default `
-; Package clause
-(package_clause) @name.definition.package
+; 统一的变量声明查询 - 使用交替模式
+[
+  (var_declaration
+    (var_spec
+      name: (identifier) @var.name
+      type: (_)? @var.type
+      value: (_)? @var.value))
+  (short_var_declaration
+    left: (expression_list
+      (identifier) @short_var.name)
+    right: (expression_list
+      (identifier) @short_var.value))
+] @definition.variable
 
-; Import declarations - capture the entire import block
-(import_declaration) @name.definition.import
+; 常量声明查询
+(const_declaration
+  (const_spec
+    name: (identifier) @const.name
+    type: (_)? @const.type
+    value: (_)? @const.value)) @definition.constant
 
-; Import specifications - individual imports
-(import_spec) @name.definition.import_spec
+; 包声明查询 - 使用锚点确保精确匹配
+(package_clause
+  name: (package_identifier) @package.name) @definition.package
 
-; Variable declarations - capture the entire declaration
-(var_declaration) @name.definition.var
+; 导入声明查询 - 使用量词操作符
+(import_declaration
+  (import_spec
+    path: (interpreted_string_literal) @import.path
+    name: (_)? @import.name)*) @definition.import
 
-; Variable specifications
-(var_spec) @name.definition.var_spec
+; 字段声明查询 - 使用交替模式
+[
+  (field_declaration
+    name: (field_identifier) @field.name
+    type: (_) @field.type)
+  (field_declaration
+    type: (type_identifier) @embedded.field)
+] @definition.field
 
-; Constant declarations - capture the entire declaration  
-(const_declaration) @name.definition.const
+; 参数声明查询 - 使用量词操作符
+(parameter_declaration
+  name: (identifier) @param.name
+  type: (_) @param.type) @definition.parameter
 
-; Constant specifications
-(const_spec) @name.definition.const_spec
+; 可变参数声明查询
+(variadic_parameter_declaration
+  name: (identifier) @variadic.name
+  type: (_) @variadic.type) @definition.variadic
 
-; Assignment statements
-(assignment_statement) @name.definition.assignment
+; 类型标识符查询 - 使用交替模式
+[
+  (type_identifier) @type.identifier
+  (package_identifier) @package.identifier
+  (field_identifier) @field.identifier
+] @definition.identifier
 
-; Short variable declarations
-(short_var_declaration) @name.definition.short_var
+; 表达式查询 - 使用交替模式
+[
+  (identifier) @expression.identifier
+  (selector_expression
+    operand: (identifier) @selector.object
+    field: (field_identifier) @selector.field)
+  (index_expression
+    operand: (identifier) @index.array
+    index: (identifier) @index.value)
+] @definition.expression
 
-; Field declarations in structs
-(field_declaration) @name.definition.field
+; 字面量查询 - 使用交替模式
+[
+  (interpreted_string_literal) @literal.string
+  (int_literal) @literal.int
+  (float_literal) @literal.float
+  (true) @literal.true
+  (false) @literal.false
+  (nil) @literal.nil
+] @definition.literal
 
-; Embedded fields in structs
-(field_declaration
-  (type_identifier) @name.definition.embedded_field)
+; 注释查询
+(comment) @definition.comment
 
-; Qualified types in embedded fields
-(field_declaration
-  (qualified_type) @name.definition.qualified_embedded_field)
+; 特殊标识符查询 - 使用谓词过滤
+(identifier) @blank.identifier
+  (#eq? @blank.identifier "_")
 
-; Variadic parameters
-(variadic_parameter_declaration) @name.definition.variadic
-
-; Blank identifier
-(blank_identifier) @name.definition.blank_identifier
-
-; Identifiers
-(identifier) @name.definition.identifier
-
-; Type identifiers
-(type_identifier) @name.definition.type_identifier
-
-; Package identifiers
-(package_identifier) @name.definition.package_identifier
-
-; Field identifiers
-(field_identifier) @name.definition.field_identifier
-
-; Iota constant identifier
-(iota) @name.definition.iota
-
-; Dot import identifier
-(dot) @name.definition.dot_import
-
-; String literals for import paths
-(interpreted_string_literal) @name.definition.import_path
+(identifier) @iota.identifier
+  (#eq? @iota.identifier "iota")
 `;

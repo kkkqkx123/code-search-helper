@@ -3,86 +3,140 @@ Java Class and Interface-specific Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
 */
 export default `
-; Module declarations
-(module_declaration
-  name: (scoped_identifier) @name.definition.module) @name.definition.module
+; 统一的类型声明查询 - 使用交替模式
+[
+  (class_declaration
+    name: (identifier) @class.name)
+  (interface_declaration
+    name: (identifier) @interface.name)
+  (enum_declaration
+    name: (identifier) @enum.name)
+  (record_declaration
+    name: (identifier) @record.name)
+  (annotation_type_declaration
+    name: (identifier) @annotation.name)
+] @definition.type
 
-; Package declarations
-(package_declaration
-  (scoped_identifier) @name.definition.package) @name.definition.package
+; 模块和包声明查询 - 使用交替模式
+[
+  (module_declaration
+    name: (scoped_identifier) @module.name)
+  (package_declaration
+    name: (scoped_identifier) @package.name)
+] @definition.namespace
 
-; Class declarations
-(class_declaration
-  name: (identifier) @name.definition.class) @name.definition.class
-
-; Interface declarations
-(interface_declaration
-  name: (identifier) @name.definition.interface) @name.definition.interface
-
-; Enum declarations
-(enum_declaration
-  name: (identifier) @name.definition.enum) @name.definition.enum
-
-; Record declarations
-(record_declaration
-  name: (identifier) @name.definition.record) @name.definition.record
-
-; Annotation type declarations
-(annotation_type_declaration
-  name: (identifier) @name.definition.annotation) @name.definition.annotation
-
-; Field declarations
+; 字段声明查询 - 使用量词操作符
 (field_declaration
   declarator: (variable_declarator
-    name: (identifier) @name.definition.field)) @name.definition.field
+    name: (identifier) @field.name)
+  type: (_) @field.type) @definition.field
 
-; Enum constants
-(enum_constant
-  name: (identifier) @name.definition.enum_constant) @name.definition.enum_constant
+; 枚举常量查询
+(enum_declaration
+  body: (enum_body
+    (enum_constant
+      name: (identifier) @enum.constant))) @definition.enum.constant
 
-; Class bodies
-(class_body) @name.definition.class_body
+; 继承关系查询 - 使用锚点和谓词过滤
+(class_declaration
+  name: (identifier) @derived.class
+  superclass: (superclass
+    (type_identifier) @base.class)
+  (#not-eq? @derived.class @base.class)) @inheritance.relationship
 
-; Interface bodies
-(interface_body) @name.definition.interface_body
+; 接口实现关系查询 - 使用量词操作符
+(class_declaration
+  name: (identifier) @implementing.class
+  super_interfaces: (super_interfaces
+    (type_list
+      (type_identifier) @implemented.interface)+)) @interface.implementation
 
-; Enum bodies
-(enum_body) @name.definition.enum_body
+; 接口继承关系查询
+(interface_declaration
+  name: (identifier) @subinterface.interface
+  super_interfaces: (super_interfaces
+    (type_list
+      (type_identifier) @superinterface.interface)+)) @interface.inheritance
 
-; Record bodies - use class_body instead
-(record_declaration
-  (class_body) @name.definition.record_body) @name.definition.record_with_body
+; 泛型类型参数查询 - 使用量词操作符
+(class_declaration
+  name: (identifier) @generic.class
+  type_parameters: (type_parameters
+    (type_parameter
+      name: (identifier) @type.param)+)) @generic.type.parameter
 
-; Annotation type bodies
-(annotation_type_body) @name.definition.annotation_body
+; 方法声明查询 - 使用量词操作符
+(class_declaration
+  body: (class_body
+    (method_declaration
+      name: (identifier) @method.name
+      parameters: (formal_parameters
+        (formal_parameter
+          name: (identifier) @method.param)*)*))) @class.method
 
-; Modifiers
-(modifiers) @name.definition.modifiers
+; 构造函数声明查询
+(class_declaration
+  body: (class_body
+    (constructor_declaration
+      name: (identifier) @constructor.name
+      parameters: (formal_parameters
+        (formal_parameter
+          name: (identifier) @constructor.param)*)*))) @class.constructor
 
-; Type identifiers
-(type_identifier) @name.definition.type_identifier
+; 静态成员查询 - 使用谓词过滤
+(class_declaration
+  body: (class_body
+    [
+      (field_declaration
+        (modifiers
+          (modifier) @static.modifier)
+        declarator: (variable_declarator
+          name: (identifier) @static.field))
+      (method_declaration
+        (modifiers
+          (modifier) @static.modifier)
+        name: (identifier) @static.method))
+    ]
+    (#match? @static.modifier "static"))) @class.static.member
 
-; Scoped identifiers
-(scoped_identifier) @name.definition.scoped_identifier
+; 注解成员查询 - 使用谓词过滤
+(class_declaration
+  body: (class_body
+    [
+      (field_declaration
+        (modifiers
+          (annotation) @field.annotation)
+        declarator: (variable_declarator
+          name: (identifier) @annotated.field))
+      (method_declaration
+        (modifiers
+          (annotation) @method.annotation)
+        name: (identifier) @annotated.method))
+    ])) @class.annotated.member
 
-; Generic types
-(generic_type
-  (type_identifier) @name.definition.generic_type) @name.definition.generic_type
+; 内部类查询 - 使用锚点确保精确匹配
+(class_declaration
+  body: (class_body
+    .
+    (class_declaration
+      name: (identifier) @inner.class)))) @class.inner.type
 
-; Type parameters
-(type_parameters
-  (type_parameter) @name.definition.type_parameter) @name.definition.type_parameter
+; 类型体查询 - 使用交替模式
+[
+  (class_body) @body.class
+  (interface_body) @body.interface
+  (enum_body) @body.enum
+  (annotation_type_body) @body.annotation
+] @definition.type.body
 
-; Type arguments
-(type_arguments
-  (type_identifier) @name.definition.type_argument) @name.definition.type_argument
+; 修饰符查询
+(modifiers
+  (modifier) @modifier.name) @definition.modifiers
 
-; Superclass
-(superclass
-  (type_identifier) @name.definition.superclass) @name.definition.superclass
-
-; Super interfaces
-(super_interfaces
-  (type_list
-    (type_identifier) @name.definition.super_interface)) @name.definition.super_interfaces
+; 类型标识符查询 - 使用交替模式
+[
+  (type_identifier) @type.simple
+  (scoped_identifier) @type.qualified
+  (generic_type) @type.generic
+] @definition.type.identifier
 `;

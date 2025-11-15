@@ -3,321 +3,167 @@ Go Lifecycle Relationships-specific Tree-Sitter Query Patterns
 用于识别对象实例化、初始化、销毁、生命周期管理等关系
 */
 export default `
-; 对象实例化关系
+; 对象实例化关系 - 使用参数化查询
 (composite_literal
-  type: (type_identifier) @instantiated.type) @lifecycle.relationship.instantiation
+  type: [
+    (type_identifier) @instantiated.type
+    (struct_type) @instantiated.struct
+    (slice_type) @instantiated.slice
+    (map_type) @instantiated.map
+    (array_type) @instantiated.array
+  ]
+  body: (literal_value
+    (literal_element
+      (identifier) @constructor.param)*)) @lifecycle.instantiation
 
-; 结构体字面量实例化关系
-(composite_literal
-  type: (struct_type) @instantiated.struct) @lifecycle.relationship.struct.instantiation
-
-; 映射字面量实例化关系
-(composite_literal
-  type: (map_type) @instantiated.map) @lifecycle.relationship.map.instantiation
-
-; 切片字面量实例化关系
-(composite_literal
-  type: (slice_type) @instantiated.slice) @lifecycle.relationship.slice.instantiation
-
-; 数组字面量实例化关系
-(composite_literal
-  type: (array_type) @instantiated.array) @lifecycle.relationship.array.instantiation
-
-; 函数调用实例化关系
+; 函数调用实例化关系 - 使用谓词过滤
 (call_expression
   function: (identifier) @constructor.function
   arguments: (argument_list
-    (identifier) @constructor.parameter)) @lifecycle.relationship.function.call
+    (identifier) @constructor.param)*)
+  (#match? @constructor.function "^(New|Create|Make|Open|Connect|Start)$")) @lifecycle.function.instantiation
 
-; 方法调用实例化关系
-(call_expression
-  function: (selector_expression
-    operand: (identifier) @receiver.object
-    field: (field_identifier) @constructor.method)
-  arguments: (argument_list
-    (identifier) @constructor.parameter)) @lifecycle.relationship.method.call
-
-; New函数实例化关系
-(call_expression
-  function: (identifier) @new.function
-  (#match? @new.function "new")
-  arguments: (argument_list
-    (type_identifier) @allocated.type)) @lifecycle.relationship.new.allocation
-
-; Make函数实例化关系
-(call_expression
-  function: (identifier) @make.function
-  (#match? @make.function "make")
-  arguments: (argument_list
-    (type_identifier) @constructed.type)) @lifecycle.relationship.make.construction
-
-; 初始化关系
-(var_declaration
-  (var_spec
-    name: (identifier_list
-      (identifier) @initialized.variable)
-    (expression_list
-      (identifier) @initial.value))) @lifecycle.relationship.variable.initialization
+; 初始化关系查询 - 使用交替模式
+[
+  (var_declaration
+    (var_spec
+      name: (identifier) @initialized.var
+      value: (identifier) @initial.value))
+  (short_var_declaration
+    left: (expression_list
+      (identifier) @initialized.var)
+    right: (expression_list
+      (identifier) @initial.value))
+] @lifecycle.variable.initialization
 
 ; 常量初始化关系
 (const_declaration
   (const_spec
-    name: (identifier_list
-      (identifier) @initialized.constant)
-    (expression_list
-      (identifier) @initial.value))) @lifecycle.relationship.constant.initialization
+    name: (identifier) @initialized.const
+    value: (identifier) @initial.value)) @lifecycle.constant.initialization
 
-; 短变量声明初始化关系
-(short_var_declaration
-  left: (expression_list
-    (identifier) @initialized.variable)
-  right: (expression_list
-    (identifier) @initial.value)) @lifecycle.relationship.short.declaration.initialization
-
-; 结构体初始化关系
-(composite_literal
-  type: (type_identifier) @struct.type
-  body: (literal_value
-    (keyed_element
-      key: (literal_element
-        (identifier) @field.name)
-      value: (literal_element
-        (identifier) @field.value)))) @lifecycle.relationship.struct.initialization
-
-; 映射初始化关系
-(composite_literal
-  type: (map_type) @map.type
-  body: (literal_value
-    (keyed_element
-      key: (literal_element
-        (identifier) @key.value)
-      value: (literal_element
-        (identifier) @map.value)))) @lifecycle.relationship.map.initialization
-
-; 切片初始化关系
-(composite_literal
-  type: (slice_type) @slice.type
-  body: (literal_value
-    (literal_element
-      (identifier) @element.value))) @lifecycle.relationship.slice.initialization
-
-; 数组初始化关系
-(composite_literal
-  type: (array_type) @array.type
-  body: (literal_value
-    (literal_element
-      (identifier) @element.value))) @lifecycle.relationship.array.initialization
-
-; 延迟初始化关系
-(defer_statement
-  (call_expression
-    function: (identifier) @cleanup.function)) @lifecycle.relationship.deferred.initialization
-
-; 资源获取关系
+; 资源获取关系 - 使用谓词过滤
 (call_expression
-  function: (identifier) @resource.acquire.function
+  function: [
+    (identifier) @acquire.function
+    (selector_expression
+      operand: (identifier) @acquire.object
+      field: (field_identifier) @acquire.method)
+  ]
   arguments: (argument_list
-    (identifier) @resource.parameter)) @lifecycle.relationship.resource.acquisition
+    (identifier) @acquire.param)*)
+  (#match? @acquire.function "^(Open|Connect|Start|Acquire|Lock|Dial|Listen)$")) @lifecycle.resource.acquisition
 
-; 资源释放关系
+; 资源释放关系 - 使用谓词过滤
 (call_expression
-  function: (identifier) @resource.release.function
+  function: [
+    (identifier) @release.function
+    (selector_expression
+      operand: (identifier) @release.object
+      field: (field_identifier) @release.method)
+  ]
   arguments: (argument_list
-    (identifier) @resource.parameter)) @lifecycle.relationship.resource.release
+    (identifier) @release.param)*)
+  (#match? @release.function "^(Close|Stop|Release|Unlock|Disconnect|Shutdown)$")) @lifecycle.resource.release
 
-; 文件打开关系
-(call_expression
-  function: (selector_expression
-    operand: (identifier) @file.package
-    field: (field_identifier) @open.function)
-  (#match? @open.function "Open")
-  arguments: (argument_list
-    (identifier) @file.path)) @lifecycle.relationship.file.open
-
-; 文件关闭关系
+; 文件操作生命周期 - 使用谓词过滤
 (call_expression
   function: (selector_expression
     operand: (identifier) @file.object
-    field: (field_identifier) @close.function)
-  (#match? @close.function "Close")
-  arguments: (argument_list)) @lifecycle.relationship.file.close
-
-; 网络连接建立关系
-(call_expression
-  function: (selector_expression
-    operand: (identifier) @network.package
-    field: (field_identifier) @connect.function)
-  (#match? @connect.function "Connect|Dial")
+    field: (field_identifier) @file.method)
   arguments: (argument_list
-    (identifier) @connection.parameter)) @lifecycle.relationship.network.connect
+    (identifier) @file.param)*)
+  (#match? @file.method "^(Open|Close|Read|Write|Seek|Sync)$")) @lifecycle.file.operation
 
-; 网络连接关闭关系
+; 网络连接生命周期 - 使用谓词过滤
 (call_expression
   function: (selector_expression
-    operand: (identifier) @connection.object
-    field: (field_identifier) @close.function)
-  (#match? @close.function "Close")
-  arguments: (argument_list)) @lifecycle.relationship.network.close
-
-; 数据库连接建立关系
-(call_expression
-  function: (selector_expression
-    operand: (identifier) @database.package
-    field: (field_identifier) @open.function)
-  (#match? @open.function "Open")
+    operand: (identifier) @network.object
+    field: (field_identifier) @network.method)
   arguments: (argument_list
-    (identifier) @database.parameter)) @lifecycle.relationship.database.connect
+    (identifier) @network.param)*)
+  (#match? @network.method "^(Dial|Listen|Accept|Close|Read|Write)$")) @lifecycle.network.operation
 
-; 数据库连接关闭关系
+; 数据库连接生命周期 - 使用谓词过滤
 (call_expression
   function: (selector_expression
     operand: (identifier) @database.object
-    field: (field_identifier) @close.function)
-  (#match? @close.function "Close")
-  arguments: (argument_list)) @lifecycle.relationship.database.close
-
-; HTTP服务器启动关系
-(call_expression
-  function: (selector_expression
-    operand: (identifier) @http.server
-    field: (field_identifier) @listen.function)
-  (#match? @listen.function "ListenAndServe")
-  arguments: (argument_list)) @lifecycle.relationship.http.server.start
-
-; HTTP服务器关闭关系
-(call_expression
-  function: (selector_expression
-    operand: (identifier) @http.server
-    field: (field_identifier) @shutdown.function)
-  (#match? @shutdown.function "Shutdown|Close")
-  arguments: (argument_list)) @lifecycle.relationship.http.server.shutdown
-
-; 定时器创建关系
-(call_expression
-  function: (identifier) @timer.function
-  (#match? @timer.function "NewTimer|AfterFunc")
+    field: (field_identifier) @database.method)
   arguments: (argument_list
-    (identifier) @timer.duration)) @lifecycle.relationship.timer.creation
+    (identifier) @database.param)*)
+  (#match? @database.method "^(Open|Close|Exec|Query|Begin|Commit|Rollback)$")) @lifecycle.database.operation
 
-; 定时器停止关系
+; HTTP服务器生命周期 - 使用谓词过滤
 (call_expression
   function: (selector_expression
-    operand: (identifier) @timer.object
-    field: (field_identifier) @stop.function)
-  (#match? @stop.function "Stop")
-  arguments: (argument_list)) @lifecycle.relationship.timer.stop
-
-; 上下文创建关系
-(call_expression
-  function: (selector_expression
-    operand: (identifier) @context.package
-    field: (field_identifier) @context.function)
-  (#match? @context.function "WithCancel|WithTimeout|WithDeadline")
+    operand: (identifier) @http.object
+    field: (field_identifier) @http.method)
   arguments: (argument_list
-    (identifier) @parent.context)) @lifecycle.relationship.context.creation
+    (identifier) @http.param)*)
+  (#match? @http.method "^(ListenAndServe|Serve|Shutdown|Close)$")) @lifecycle.http.operation
 
-; 上下文取消关系
+; 定时器生命周期 - 使用谓词过滤
 (call_expression
-  function: (selector_expression
-    operand: (identifier) @cancel.function
-    field: (field_identifier) @cancel.method)
-  (#match? @cancel.method "Cancel")
-  arguments: (argument_list)) @lifecycle.relationship.context.cancel
-
-; 通道创建关系
-(call_expression
-  function: (identifier) @make.function
-  (#match? @make.function "make")
+  function: [
+    (identifier) @timer.function
+    (selector_expression
+      operand: (identifier) @timer.object
+      field: (field_identifier) @timer.method)
+  ]
   arguments: (argument_list
-    (channel_type) @channel.type)) @lifecycle.relationship.channel.creation
+    (identifier) @timer.param)*)
+  (#match? @timer.function "^(NewTimer|AfterFunc|NewTicker|Stop|Reset)$")) @lifecycle.timer.operation
 
-; 通道关闭关系
+; 通道生命周期 - 使用谓词过滤
 (call_expression
-  function: (identifier) @close.function
-  (#match? @close.function "close")
+  function: [
+    (identifier) @channel.function
+    (selector_expression
+      operand: (identifier) @channel.object
+      field: (field_identifier) @channel.method)
+  ]
   arguments: (argument_list
-    (identifier) @channel.object)) @lifecycle.relationship.channel.close
+    (identifier) @channel.param)*)
+  (#match? @channel.function "^(make|close|send|receive)$")) @lifecycle.channel.operation
 
-; Mutex锁获取关系
+; 锁生命周期 - 使用谓词过滤
 (call_expression
   function: (selector_expression
-    operand: (identifier) @mutex.object
-    field: (field_identifier) @lock.function)
-  (#match? @lock.function "Lock")
-  arguments: (argument_list)) @lifecycle.relationship.mutex.lock
+    operand: (identifier) @lock.object
+    field: (field_identifier) @lock.method)
+  arguments: (argument_list
+    (identifier) @lock.param)*)
+  (#match? @lock.method "^(Lock|Unlock|RLock|RUnlock)$")) @lifecycle.lock.operation
 
-; Mutex锁释放关系
-(call_expression
-  function: (selector_expression
-    operand: (identifier) @mutex.object
-    field: (field_identifier) @unlock.function)
-  (#match? @unlock.function "Unlock")
-  arguments: (argument_list)) @lifecycle.relationship.mutex.unlock
-
-; RWMutex读锁获取关系
-(call_expression
-  function: (selector_expression
-    operand: (identifier) @rwmutex.object
-    field: (field_identifier) @read.lock.function)
-  (#match? @read.lock.function "RLock")
-  arguments: (argument_list)) @lifecycle.relationship.rwmutex.read.lock
-
-; RWMutex读锁释放关系
-(call_expression
-  function: (selector_expression
-    operand: (identifier) @rwmutex.object
-    field: (field_identifier) @read.unlock.function)
-  (#match? @read.unlock.function "RUnlock")
-  arguments: (argument_list)) @lifecycle.relationship.rwmutex.read.unlock
-
-; WaitGroup添加关系
+; WaitGroup生命周期 - 使用谓词过滤
 (call_expression
   function: (selector_expression
     operand: (identifier) @waitgroup.object
-    field: (field_identifier) @add.function)
-  (#match? @add.function "Add")
+    field: (field_identifier) @waitgroup.method)
   arguments: (argument_list
-    (identifier) @counter.value)) @lifecycle.relationship.waitgroup.add
+    (identifier) @waitgroup.param)*)
+  (#match? @waitgroup.method "^(Add|Done|Wait)$")) @lifecycle.waitgroup.operation
 
-; WaitGroup完成关系
+; Context生命周期 - 使用谓词过滤
 (call_expression
   function: (selector_expression
-    operand: (identifier) @waitgroup.object
-    field: (field_identifier) @done.function)
-  (#match? @done.function "Done")
-  arguments: (argument_list)) @lifecycle.relationship.waitgroup.done
-
-; WaitGroup等待关系
-(call_expression
-  function: (selector_expression
-    operand: (identifier) @waitgroup.object
-    field: (field_identifier) @wait.function)
-  (#match? @wait.function "Wait")
-  arguments: (argument_list)) @lifecycle.relationship.waitgroup.wait
-
-; Once执行关系
-(call_expression
-  function: (selector_expression
-    operand: (identifier) @once.object
-    field: (field_identifier) @do.function)
-  (#match? @do.function "Do")
+    operand: (identifier) @context.object
+    field: (field_identifier) @context.method)
   arguments: (argument_list
-    (identifier) @once.function)) @lifecycle.relationship.once.execution
+    (identifier) @context.param)*)
+  (#match? @context.method "^(WithCancel|WithTimeout|WithDeadline|Cancel)$")) @lifecycle.context.operation
 
-; Pool获取关系
-(call_expression
-  function: (selector_expression
-    operand: (identifier) @pool.object
-    field: (field_identifier) @get.function)
-  (#match? @get.function "Get")
-  arguments: (argument_list)) @lifecycle.relationship.pool.get
+; 协程生命周期 - 使用谓词过滤
+(go_statement
+  (call_expression
+    function: (identifier) @goroutine.function
+    arguments: (argument_list
+      (identifier) @goroutine.param)*)) @lifecycle.goroutine.creation
 
-; Pool放回关系
-(call_expression
-  function: (selector_expression
-    operand: (identifier) @pool.object
-    field: (field_identifier) @put.function)
-  (#match? @put.function "Put")
-  arguments: (argument_list
-    (identifier) @pool.object)) @lifecycle.relationship.pool.put
+; 延迟执行生命周期
+(defer_statement
+  (call_expression
+    function: (identifier) @deferred.function
+    arguments: (argument_list
+      (identifier) @deferred.param)*)) @lifecycle.deferred.operation
 `;

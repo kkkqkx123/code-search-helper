@@ -3,66 +3,84 @@ Go Function and Type-specific Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
 */
 export default `
-; Function declarations - capture the entire declaration
-(function_declaration) @name.definition.function
+; 统一的函数和方法查询 - 使用交替模式
+[
+  (function_declaration
+    name: (identifier) @function.name)
+  (method_declaration
+    name: (field_identifier) @method.name)
+] @definition.function
 
-; Method declarations - capture the entire declaration
-(method_declaration) @name.definition.method
-
-; Type declarations (interfaces, structs, type aliases) - capture the entire declaration
-(type_declaration) @name.definition.type
-
-; Type aliases - specific capture
-(type_alias) @name.definition.type_alias
-
-; Interface declarations - specific capture
-(interface_type) @name.definition.interface
-
-; Struct declarations - specific capture
-(struct_type) @name.definition.struct
-
-; Function literals (anonymous functions)
-(func_literal) @name.definition.func_literal
-
-; Function types
-(function_type) @name.definition.function_type
-
-; Type parameters in generic declarations
-(type_parameter_list) @name.definition.type_parameter_list
-
-; Generic type declarations with type arguments
-(type_identifier) @name.definition.generic_type
-
-; Field declarations in structs
-(field_declaration) @name.definition.field_declaration
-
-; Field identifiers
-(field_identifier) @name.definition.field_identifier
-
-; Type identifiers
-(type_identifier) @name.definition.type_identifier
-
-; Package identifiers
-(package_identifier) @name.definition.package_identifier
-
-; Parameter declarations
-(parameter_declaration) @name.definition.parameter
-
-; Variadic parameter declarations
-(variadic_parameter_declaration) @name.definition.variadic_parameter
-
-; Return statements
-(return_statement) @name.definition.return
-
-; Test functions - simplified pattern
+; 带参数的函数查询 - 使用量词操作符
 (function_declaration
-  (identifier) @name.definition.test)
+  name: (identifier) @function.name
+  parameters: (parameter_list
+    (parameter_declaration
+      name: (identifier) @param.name)*)
+  body: (block) @function.body) @definition.function.with_params
 
-; Benchmark functions - simplified pattern
-(function_declaration
-  (identifier) @name.definition.benchmark)
+; 类型声明查询 - 使用交替模式
+[
+  (type_declaration
+    (type_spec
+      name: (type_identifier) @type.name))
+  (type_alias
+    name: (type_identifier) @alias.name)
+] @definition.type
 
-; Example functions - simplified pattern
+; 接口和结构体查询 - 使用交替模式
+[
+  (type_declaration
+    (type_spec
+      name: (type_identifier) @interface.name
+      type: (interface_type)))
+  (type_declaration
+    (type_spec
+      name: (type_identifier) @struct.name
+      type: (struct_type)))
+] @definition.composite_type
+
+; 泛型类型查询 - 使用谓词过滤
+(type_declaration
+  (type_spec
+    name: (type_identifier) @generic.name
+    type_parameters: (type_parameter_list
+      (type_parameter
+        name: (identifier) @type.param))))
+  (#match? @generic.name "^[A-Z][a-zA-Z0-9]*$") @definition.generic_type
+
+; 函数字面量查询
+(func_literal
+  body: (block) @lambda.body) @definition.lambda
+
+; 测试函数查询 - 使用谓词过滤
 (function_declaration
-  (identifier) @name.definition.example)
+  name: (identifier) @test.name
+  (#match? @test.name "^(Test|Benchmark|Example)"))
+  body: (block) @test.body) @definition.test_function
+
+; 字段声明查询 - 使用量词操作符
+(field_declaration
+  name: (field_identifier) @field.name
+  type: (_) @field.type) @definition.field
+
+; 变量声明查询 - 使用交替模式
+[
+  (var_declaration
+    (var_spec
+      name: (identifier) @var.name
+      type: (_) @var.type))
+  (short_var_declaration
+    left: (expression_list
+      (identifier) @short_var.name))
+] @definition.variable
+
+; 包声明查询
+(package_clause
+  name: (package_identifier) @package.name) @definition.package
+
+; 导入声明查询
+(import_declaration
+  (import_spec
+    path: (interpreted_string_literal) @import.path)) @definition.import
 `;

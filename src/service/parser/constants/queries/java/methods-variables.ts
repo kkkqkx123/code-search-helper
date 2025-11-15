@@ -3,133 +3,156 @@ Java Method and Variable-specific Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
 */
 export default `
-; Constructor declarations
-(constructor_declaration
-  name: (identifier) @name.definition.constructor) @name.definition.constructor
+; 统一的方法声明查询 - 使用交替模式
+[
+  (method_declaration
+    name: (identifier) @method.name)
+  (constructor_declaration
+    name: (identifier) @constructor.name)
+] @definition.method
 
-; Method declarations
+; 带参数的方法查询 - 使用量词操作符
 (method_declaration
-  name: (identifier) @name.definition.method) @name.definition.method
-
-; Lambda expressions
-(lambda_expression) @name.definition.lambda
-
-; Lambda parameters
-(lambda_expression
-  (formal_parameters
+  name: (identifier) @method.name
+  parameters: (formal_parameters
     (formal_parameter
-      name: (identifier) @name.definition.lambda_parameter))) @name.definition.lambda_with_params
+      name: (identifier) @param.name
+      type: (_) @param.type)*)
+  body: (block) @method.body) @definition.method.with_params
 
-; Lambda body
+; Lambda表达式查询 - 使用锚点确保精确匹配
 (lambda_expression
-  (_) @name.definition.lambda_body) @name.definition.lambda_with_body
+  parameters: (lambda_parameters
+    (identifier) @lambda.param)*
+  body: (_) @lambda.body) @definition.lambda
 
-; Field declarations
-(field_declaration
-  declarator: (variable_declarator
-    name: (identifier) @name.definition.field)) @name.definition.field
+; 变量声明查询 - 使用交替模式
+[
+  (local_variable_declaration
+    declarator: (variable_declarator
+      name: (identifier) @local.var.name)
+    type: (_) @local.var.type)
+  (field_declaration
+    declarator: (variable_declarator
+      name: (identifier) @field.name)
+    type: (_) @field.type)
+] @definition.variable
 
-; Local variable declarations
+; 带初始化的变量声明
 (local_variable_declaration
   declarator: (variable_declarator
-    name: (identifier) @name.definition.local_variable)) @name.definition.local_variable
+    name: (identifier) @var.name
+    value: (_) @var.value)
+  type: (_) @var.type) @definition.variable.with.initializer
 
-; Import declarations
-(import_declaration
-  (scoped_identifier) @name.definition.import) @name.definition.import
+; 导入声明查询 - 使用交替模式
+[
+  (import_declaration
+    (scoped_identifier) @import.name)
+  (import_declaration
+    (identifier) @import.static
+    (asterisk) @import.wildcard)
+] @definition.import
 
-; Static import declarations
-(import_declaration
-  (identifier) @name.definition.static_import) @name.definition.static_import
-
-; Type parameters
+; 类型参数查询 - 使用量词操作符
 (type_parameters
-  (type_parameter) @name.definition.type_parameter) @name.definition.type_parameter
+  (type_parameter
+    name: (identifier) @type.param)*) @definition.type.parameters
 
-; Annotations
-(annotation
-  name: (identifier) @name.definition.annotation_name) @name.definition.annotation
+; 注解查询 - 使用交替模式
+[
+  (annotation
+    name: (identifier) @annotation.name)
+  (marker_annotation
+    name: (identifier) @marker.annotation)
+] @definition.annotation
 
-; Marker annotations
-(marker_annotation
-  name: (identifier) @name.definition.marker_annotation) @name.definition.marker_annotation
-
-; Method invocations
+; 方法调用查询 - 使用参数化模式
 (method_invocation
-  name: (identifier) @name.definition.method_call) @name.definition.method_invocation
+  name: [
+    (identifier) @method.name
+    (field_access
+      field: (identifier) @method.field)
+  ]
+  arguments: (argument_list
+    (identifier) @method.arg)*
+  type_arguments: (type_arguments
+    (type_identifier) @type.arg)*) @definition.method.call
 
-; Object creation expressions
+; 对象创建查询 - 使用参数化模式
 (object_creation_expression
-  type: (type_identifier) @name.definition.constructor_call) @name.definition.object_creation
+  type: (type_identifier) @created.type
+  arguments: (argument_list
+    (identifier) @constructor.arg)*
+  type_arguments: (type_arguments
+    (type_identifier) @type.arg)*) @definition.object.creation
 
-; Generic types
+; 泛型类型查询 - 使用量词操作符
 (generic_type
-  (type_identifier) @name.definition.generic_type) @name.definition.generic_type
+  (type_arguments
+    (type_identifier) @generic.arg)+) @definition.generic.type
 
-; Array types
+; 数组类型查询 - 使用量词操作符
 (array_type
-  (type_identifier) @name.definition.array_type) @name.definition.array_type
+  (type_identifier) @array.element
+  (dimensions) @array.dims) @definition.array.type
 
-; Array dimensions
-(dimensions) @name.definition.dimensions
-
-; Formal parameters
+; 形式参数查询 - 使用量词操作符
 (formal_parameters
   (formal_parameter
-    name: (identifier) @name.definition.parameter)) @name.definition.formal_parameters
+    name: (identifier) @param.name
+    type: (_) @param.type)*) @definition.parameters
 
-; Variable declarators
+; 变量声明器查询
 (variable_declarator
-  name: (identifier) @name.definition.variable_declarator) @name.definition.variable_declarator
+  name: (identifier) @var.name
+  value: (_) @var.value?) @definition.variable.declarator
 
-; Type identifiers
-(type_identifier) @name.definition.type_identifier
+; 类型标识符查询 - 使用交替模式
+[
+  (type_identifier) @type.simple
+  (scoped_type_identifier) @type.qualified
+  (integral_type) @type.integral
+  (floating_point_type) @type.float
+  (boolean_type) @type.boolean
+  (void_type) @type.void
+] @definition.type.identifier
 
-; Scoped type identifiers
-(scoped_type_identifier) @name.definition.scoped_type_identifier
+; 表达式查询 - 使用交替模式
+[
+  (assignment_expression
+    left: (identifier) @assign.target
+    right: (identifier) @assign.source)
+  (binary_expression
+    left: (_) @binary.left
+    operator: (_) @binary.op
+    right: (_) @binary.right)
+  (unary_expression
+    operator: (_) @unary.op
+    operand: (_) @unary.operand)
+  (instanceof_expression
+    expression: (identifier) @instanceof.expr
+    type: (type_identifier) @instanceof.type)
+] @definition.expression
 
-; Integral types
-(integral_type) @name.definition.integral_type
+; 字面量查询 - 使用交替模式
+[
+  (string_literal) @literal.string
+  (character_literal) @literal.char
+  (decimal_integer_literal) @literal.int
+  (hex_integer_literal) @literal.hex
+  (decimal_floating_point_literal) @literal.float
+  (hex_floating_point_literal) @literal.hex.float
+  (true) @literal.true
+  (false) @literal.false
+  (null_literal) @literal.null
+] @definition.literal
 
-; Floating point types
-(floating_point_type) @name.definition.floating_point_type
-
-; Void type
-(void_type) @name.definition.void_type
-
-; Boolean type
-(boolean_type) @name.definition.boolean_type
-
-; Class literals
-(class_literal
-  (type_identifier) @name.definition.class_literal) @name.definition.class_literal
-
-; This expressions
-(this) @name.definition.this_expression
-
-; Super expressions
-(super) @name.definition.super_expression
-
-; Cast expressions
-(cast_expression
-  value: (_) @name.definition.cast_value) @name.definition.cast_expression
-
-; Instanceof expressions
-(instanceof_expression) @name.definition.instanceof_expression
-
-; Assignment expressions
-(assignment_expression
-  left: (identifier) @name.definition.assignment_target) @name.definition.assignment_expression
-
-; Binary expressions
-(binary_expression) @name.definition.binary_expression
-
-; Unary expressions
-(unary_expression) @name.definition.unary_expression
-
-; Update expressions
-(update_expression) @name.definition.update_expression
-
-; Parenthesized expressions
-(parenthesized_expression) @name.definition.parenthesized_expression
+; 特殊表达式查询 - 使用交替模式
+[
+  (this) @expr.this
+  (super) @expr.super
+  (class_literal
+    type: (type_identifier) @class.literal.type)
+] @definition.special.expression
 `;

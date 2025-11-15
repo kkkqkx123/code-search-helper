@@ -3,259 +3,180 @@ Kotlin Control Flow and Pattern-specific Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
 */
 export default `
-; When expressions
-(when_expression) @name.definition.when_expression
+; When表达式查询 - 使用锚点确保精确匹配
+(when_expression
+  value: (_) @when.value
+  body: (when_block
+    (when_entry
+      [
+        (expression_list
+          (expression) @case.value)*
+        (range_expression) @case.range
+      ]
+      (expression) @case.body)*)) @definition.when.expression
 
-; When entry
-(when_entry) @name.definition.when_entry
-
-; Try expressions
-(try_expression) @name.definition.try_expression
-
-; Try block
+; Try表达式查询 - 使用锚点确保精确匹配
 (try_expression
-  (block) @name.definition.try_block) @name.definition.try_with_block
+  body: (block) @try.body
+  (catch_block
+    (simple_identifier) @catch.param
+    (block) @catch.body)*
+  (finally_block
+    (block) @finally.body)?) @definition.try.expression
 
-; Catch blocks
-(catch_block) @name.definition.catch_block
-
-; Finally block
-(finally_block) @name.definition.finally_block
-
-; For statements
-(for_statement) @name.definition.for_statement
-
-; For variable declarations
-(for_statement
-  (variable_declaration
-    (simple_identifier) @name.definition.for_variable)) @name.definition.for_with_variable
-
-; While statements
-(while_statement) @name.definition.while_statement
-
-; Do while statements
-(do_while_statement) @name.definition.do_while_statement
-
-; If expressions
-(if_expression) @name.definition.if_expression
-
-; If conditions
-(if_expression
-  (expression) @name.definition.if_condition) @name.definition.if_with_condition
-
-; Jump expressions (return, break, continue)
-(jump_expression) @name.definition.jump_expression
-
-; Return expressions
-(return_expression) @name.definition.return_expression
-
-; Break expressions
-(break_expression) @name.definition.break_expression
-
-; Continue expressions
-(continue_expression) @name.definition.continue_expression
-
-; Throw expressions
-(throw_expression) @name.definition.throw_expression
-
-; Labeled expressions
-(labeled_expression) @name.definition.labeled_expression
-
-; Block expressions
-(block) @name.definition.block
-
-; Lambda literals
-(lambda_literal) @name.definition.lambda_literal
-
-; Lambda parameters
-(lambda_literal
-  (lambda_parameters
+; 循环语句查询 - 使用交替模式
+[
+  (for_statement
     (variable_declaration
-      (simple_identifier) @name.definition.lambda_parameter))) @name.definition.lambda_with_parameters
+      name: (simple_identifier) @for.var)
+    (expression) @for.iterable
+    (block) @for.body)
+  (while_statement
+    (expression) @while.condition
+    (block) @while.body)
+  (do_while_statement
+    (block) @do.body
+    (expression) @do.condition)
+] @definition.loop.statement
 
-; Lambda body
+; 条件表达式查询
+(if_expression
+  condition: (expression) @if.condition
+  consequence: (expression) @if.then
+  alternative: (expression)? @if.else) @definition.if.expression
+
+; 跳转表达式查询 - 使用交替模式
+[
+  (return_expression
+    (expression)? @return.value)
+  (break_expression
+    (simple_identifier)? @break.label)
+  (continue_expression
+    (simple_identifier)? @continue.label)
+  (throw_expression
+    (expression) @throw.expr)
+] @definition.jump.expression
+
+; Lambda表达式查询 - 使用锚点确保精确匹配
 (lambda_literal
-  (_) @name.definition.lambda_body) @name.definition.lambda_with_body
+  parameters: (lambda_parameters
+    (variable_declaration
+      name: (simple_identifier) @lambda.param)*)?
+  body: (_) @lambda.body) @definition.lambda.expression
 
-; Safe call expressions
-(safe_call_expression) @name.definition.safe_call_expression
+; 安全调用和Elvis表达式查询 - 使用交替模式
+[
+  (safe_call_expression
+    receiver: (_) @safe.receiver
+    (navigation_suffix
+      (simple_identifier) @safe.method))
+  (elvis_expression
+    left: (expression) @elvis.condition
+    right: (expression) @elvis.value))
+] @definition.null.safety
 
-; Elvis expressions
-(elvis_expression) @name.definition.elvis_expression
+; 调用表达式查询 - 使用参数化模式
+(call_expression
+  function: [
+    (simple_identifier) @call.function
+    (navigation_expression
+      left: (_) @call.receiver
+      right: (simple_identifier) @call.method)
+  ]
+  type_arguments: (type_arguments
+    (type) @type.arg)*
+  value_arguments: (value_arguments
+    (expression) @call.arg)*) @definition.call.expression
 
-; Call expressions
-(call_expression) @name.definition.call_expression
+; 二元和一元表达式查询 - 使用交替模式
+[
+  (binary_expression
+    left: (_) @binary.left
+    operator: (_) @binary.op
+    right: (_) @binary.right)
+  (prefix_unary_expression
+    operator: (_) @unary.op
+    operand: (_) @unary.operand)
+  (postfix_unary_expression
+    operand: (_) @unary.operand
+    operator: (_) @unary.op)
+] @definition.operation.expression
 
-; Call suffix
-(call_suffix) @name.definition.call_suffix
+; 类型操作表达式查询 - 使用交替模式
+[
+  (as_expression
+    value: (_) @cast.value
+    type: (type) @cast.type)
+  (is_expression
+    value: (_) @is.value
+    type: (type) @is.type)
+] @definition.type.operation
 
-; Value arguments
-(value_arguments) @name.definition.value_arguments
+; 集合字面量查询 - 使用交替模式
+[
+  (collection_literal
+    (expression) @element.value)*
+  (list_literal
+    (expression) @element.value)*
+] @definition.collection.literal
 
-; Type arguments
-(type_arguments) @name.definition.type_arguments
+; 字面量查询 - 使用交替模式
+[
+  (string_literal) @literal.string
+  (character_literal) @literal.char
+  (integer_literal) @literal.int
+  (float_literal) @literal.float
+  (true) @literal.true
+  (false) @literal.false
+  (null_literal) @literal.null
+] @definition.literal
 
-; Indexing suffix
-(indexing_suffix) @name.definition.indexing_suffix
+; 模式匹配查询 - 使用交替模式
+[
+  (type_pattern
+    (type) @pattern.type
+    (simple_identifier)? @pattern.variable)
+  (tuple_pattern
+    (pattern) @pattern.element)*
+  (list_pattern
+    (pattern) @pattern.element)*
+] @definition.pattern
 
-; Navigation suffix
-(navigation_suffix) @name.definition.navigation_suffix
+; 标签表达式查询
+(labeled_expression
+  label: (simple_identifier) @label.name
+  value: (expression) @labeled.value) @definition.labeled.expression
 
-; Postfix unary expressions
-(postfix_unary_expression) @name.definition.postfix_unary_expression
+; 块和语句查询 - 使用交替模式
+[
+  (block) @structure.block
+  (statement) @structure.statement
+  (expression_statement) @structure.expression.stmt
+] @definition.structure
 
-; Prefix unary expressions
-(prefix_unary_expression) @name.definition.prefix_unary_expression
+; 注释查询 - 使用交替模式
+[
+  (line_comment) @comment.line
+  (block_comment) @comment.block
+] @definition.comment
 
-; As expressions
-(as_expression) @name.definition.as_expression
+; 包和导入查询 - 使用交替模式
+[
+  (package_header
+    (identifier) @package.name)
+  (import_header
+    (identifier) @import.name)
+] @definition.namespace
 
-; Is expressions
-(is_expression) @name.definition.is_expression
+; 类型查询 - 使用交替模式
+[
+  (type) @type.simple
+  (nullable_type) @type.nullable
+  (function_type) @type.function
+  (generic_type) @type.generic
+  (user_type) @type.user
+] @definition.type
 
-; Binary expressions
-(binary_expression) @name.definition.binary_expression
-
-; Range expressions
-(range_expression) @name.definition.range_expression
-
-; Collection literals
-(collection_literal) @name.definition.collection_literal
-
-; Parenthesized expressions
-(parenthesized_expression) @name.definition.parenthesized_expression
-
-; String literals
-(string_literal) @name.definition.string_literal
-
-; Character literals
-(character_literal) @name.definition.character_literal
-
-; Literal constants
-(literal_constant) @name.definition.literal_constant
-
-; Boolean literals
-(true) @name.definition.true_literal
-(false) @name.definition.false_literal
-
-; Null literals
-(null_literal) @name.definition.null_literal
-
-; This expressions
-(this_expression) @name.definition.this_expression
-
-; Super expressions
-(super_expression) @name.definition.super_expression
-
-; Callable references
-(callable_reference) @name.definition.callable_reference
-
-; Object literals
-(object_literal) @name.definition.object_literal
-
-; Function types
-(function_type) @name.definition.function_type
-
-; Parenthesized types
-(parenthesized_type) @name.definition.parenthesized_type
-
-; Nullable types
-(nullable_type) @name.definition.nullable_type
-
-; User types
-(user_type) @name.definition.user_type
-
-; Simple user types
-(simple_user_type) @name.definition.simple_user_type
-
-; Type projections
-(type_projection) @name.definition.type_projection
-
-; Type parameters
-(type_parameters) @name.definition.type_parameters
-
-; Type parameter
-(type_parameter
-  (simple_identifier) @name.definition.type_parameter) @name.definition.type_parameter_with_identifier
-
-; Type constraints
-(type_constraints) @name.definition.type_constraints
-
-; Type constraint
-(type_constraint
-  (simple_identifier) @name.definition.type_constraint) @name.definition.type_constraint_with_identifier
-
-; Annotations
-(annotation) @name.definition.annotation
-
-; Modifiers
-(modifiers) @name.definition.modifiers
-
-; Class modifier
-(class_modifier) @name.definition.class_modifier
-
-; Function modifier
-(function_modifier) @name.definition.function_modifier
-
-; Property modifier
-(property_modifier) @name.definition.property_modifier
-
-; Inheritance modifier
-(inheritance_modifier) @name.definition.inheritance_modifier
-
-; Parameter modifier
-(parameter_modifier) @name.definition.parameter_modifier
-
-; Type modifier
-(type_modifier) @name.definition.type_modifier
-
-; Visibility modifier
-(visibility_modifier) @name.definition.visibility_modifier
-
-; Simple identifiers
-(simple_identifier) @name.definition.simple_identifier
-
-; Type identifiers
-(type_identifier) @name.definition.type_identifier
-
-; Comments
-(line_comment) @name.definition.line_comment
-(block_comment) @name.definition.block_comment
-
-; Shebang line
-(shebang_line) @name.definition.shebang_line
-
-; File annotations
-(file_annotation) @name.definition.file_annotation
-
-; Package header
-(package_header) @name.definition.package_header
-
-; Import header
-(import_header) @name.definition.import_header
-
-; Import lists
-(import_list) @name.definition.import_list
-
-; Source file
-(source_file) @name.definition.source_file
-
-; Script
-(script) @name.definition.script
-
-; Statements
-(statements) @name.definition.statements
-
-; Statement
-(statement) @name.definition.statement
-
-; Expression
-(expression) @name.definition.expression
-
-; Assignment
-(assignment) @name.definition.assignment
-
-; Semicolons
-(semi) @name.definition.semi
-(semis) @name.definition.semis
+; 标识符查询
+(simple_identifier) @definition.identifier
 `;

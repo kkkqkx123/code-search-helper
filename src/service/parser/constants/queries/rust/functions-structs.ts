@@ -3,52 +3,149 @@ Rust Function and Struct-specific Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
 */
 export default `
-; Function definitions (all types)
-(function_item
-    name: (identifier) @name.definition.function) @definition.function
-(function_signature_item
-    name: (identifier) @name.definition.function) @definition.function
+; 统一的函数声明查询 - 使用交替模式
+[
+  (function_item
+    name: (identifier) @function.name)
+  (function_signature_item
+    name: (identifier) @function.name)
+] @definition.function
 
-; Struct definitions (all types - standard, tuple, unit)
+; 带参数的函数查询 - 使用量词操作符
+(function_item
+  name: (identifier) @function.name
+  parameters: (parameters
+    (parameter
+      name: (identifier) @param.name
+      type: (_) @param.type)*)
+  body: (block) @function.body) @definition.function.with_params
+
+; 异步函数查询 - 使用谓词过滤
+(function_item
+  (async_modifier) @async.modifier
+  name: (identifier) @async.function)
+  body: (block) @async.body) @definition.async.function
+
+; 统一的结构体声明查询 - 使用交替模式
+[
+  (struct_item
+    name: (type_identifier) @struct.name)
+  (unit_struct_item
+    name: (type_identifier) @unit_struct.name)
+  (tuple_struct_item
+    name: (type_identifier) @tuple_struct.name)
+] @definition.struct
+
+; 带字段的结构体查询 - 使用量词操作符
 (struct_item
-    name: (type_identifier) @name.definition.struct) @definition.struct
-(unit_struct_item
-    name: (type_identifier) @name.definition.unit_struct) @definition.unit_struct
+  name: (type_identifier) @struct.name
+  body: (field_declaration_list
+    (field_declaration
+      name: (field_identifier) @field.name
+      type: (_) @field.type)*)) @definition.struct.with_fields
+
+; 元组结构体查询 - 使用量词操作符
 (tuple_struct_item
-    name: (type_identifier) @name.definition.tuple_struct) @definition.tuple_struct
+  name: (type_identifier) @tuple_struct.name
+  body: (field_declaration_list
+    (field_declaration
+      type: (_) @field.type)*)) @definition.tuple_struct
 
-; Enum definitions with variants
+; 枚举声明查询
 (enum_item
-    name: (type_identifier) @name.definition.enum) @definition.enum
+  name: (type_identifier) @enum.name
+  body: (enum_variant_list
+    (enum_variant
+      name: (identifier) @enum.variant)*)) @definition.enum
 
-; Trait definitions
+; Trait声明查询
 (trait_item
-    name: (type_identifier) @name.definition.trait) @definition.trait
+  name: (type_identifier) @trait.name
+  body: (declaration_list
+    (function_item
+      name: (identifier) @trait.method)*)) @definition.trait
 
-; Impl blocks (inherent implementation)
+; Impl块查询 - 使用交替模式
+[
+  (impl_item
+    type: (type_identifier) @impl.type)
+  (impl_item
+    trait: (type_identifier) @impl.trait
+    type: (type_identifier) @impl.for)
+] @definition.impl
+
+; Impl块中的方法查询 - 使用锚点确保精确匹配
 (impl_item
-    type: (type_identifier) @name.definition.impl) @definition.impl
+  body: (declaration_list
+    .
+    (function_item
+      name: (identifier) @impl.method))) @definition.impl.method
 
-; Trait implementations
-(impl_item
-    trait: (type_identifier) @name.definition.impl_trait
-    type: (type_identifier) @name.definition.impl_for) @definition.impl_trait
-
-; Methods inside impl blocks
-(impl_item
-    body: (declaration_list
-        (function_item
-            name: (identifier) @name.definition.method))) @definition.method_container
-
-; Union definitions
+; 联合体声明查询
 (union_item
-    name: (type_identifier) @name.definition.union) @definition.union
+  name: (type_identifier) @union.name
+  body: (field_declaration_list
+    (field_declaration
+      type: (_) @union.field)*)) @definition.union
 
-; Async functions and blocks
-(async_block) @definition.async_block
+; 闭包表达式查询
+(closure_expression
+  parameters: (closure_parameters
+    (parameter
+      name: (identifier) @closure.param)*)
+  body: (_) @closure.body) @definition.closure
+
+; 异步块查询
+(async_block
+  body: (block) @async.body) @definition.async.block
+
+; 泛型参数查询 - 使用量词操作符
 (function_item
-  (async_modifier) @name.definition.async_function) @definition.async_function
+  name: (identifier) @generic.function
+  type_parameters: (type_parameters
+    (type_parameter
+      name: (type_identifier) @type.param)*)
+  body: (block) @generic.body) @definition.generic.function
 
-; Closure expressions
-(closure_expression) @definition.closure
+; 生命周期参数查询 - 使用量词操作符
+(function_item
+  name: (identifier) @lifetime.function
+  parameters: (parameters
+    (parameter
+      name: (identifier) @param.name
+      type: (reference_type
+        lifetime: (lifetime) @param.lifetime)*)*)
+  body: (block) @lifetime.body) @definition.lifetime.function
+
+; 可见性修饰符查询 - 使用量词操作符
+(function_item
+  (visibility_modifier) @visibility.modifier
+  name: (identifier) @visible.function) @definition.visible.function
+
+; 属性查询 - 使用量词操作符
+(function_item
+  (attribute_item
+    (attribute) @attribute)*
+  name: (identifier) @attributed.function) @definition.attributed.function
+
+; 模块声明查询
+(mod_item
+  name: (identifier) @module.name) @definition.module
+
+; 类型别名查询
+(type_item
+  name: (type_identifier) @type.alias.name
+  type: (_) @type.alias.type) @definition.type.alias
+
+; 常量声明查询
+(const_item
+  name: (identifier) @const.name
+  type: (_) @const.type
+  value: (_) @const.value) @definition.constant
+
+; 静态项声明查询
+(static_item
+  name: (identifier) @static.name
+  type: (_) @static.type
+  value: (_) @static.value?) @definition.static
 `;

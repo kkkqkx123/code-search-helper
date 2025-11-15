@@ -3,190 +3,120 @@ Kotlin Constructor and Property-specific Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
 */
 export default `
-; Primary constructor declarations
-(primary_constructor) @definition.primary_constructor
+; 统一的构造函数查询 - 使用交替模式
+[
+  (primary_constructor
+    (class_parameters
+      (class_parameter
+        name: (simple_identifier) @param.name
+        type: (_) @param.type)*)?)
+  (secondary_constructor
+    (function_value_parameters
+      (function_value_parameter
+        name: (simple_identifier) @param.name
+        type: (_) @param.type)*)*)
+] @definition.constructor
 
-; Constructor parameters (properties in primary constructor)
+; 构造函数参数查询 - 使用谓词过滤
 (class_parameter
-  (simple_identifier) @name.definition.property) @definition.constructor_property
-
-; Val constructor parameter (immutable property)
-(class_parameter
+  name: (simple_identifier) @param.name
   (modifiers
-    (parameter_modifier) @_modifier (#eq? @_modifier "val"))
-  (simple_identifier) @name.definition.val_constructor_property) @definition.val_constructor_property
+    (parameter_modifier) @param.modifier)?
+  type: (_) @param.type
+  value: (_) @param.value?) @definition.constructor.parameter
 
-; Var constructor parameter (mutable property)
-(class_parameter
-  (modifiers
-    (parameter_modifier) @_modifier (#eq? @_modifier "var"))
-  (simple_identifier) @name.definition.var_constructor_property) @definition.var_constructor_property
-
-; Secondary constructor declarations
-(secondary_constructor) @definition.secondary_constructor
-
-; Constructor delegation calls
-(constructor_delegation_call) @definition.constructor_delegation_call
-
-; Constructor invocations
-(constructor_invocation) @definition.constructor_invocation
-
-; Property declarations
+; 属性声明查询 - 使用参数化模式
 (property_declaration
   (variable_declaration
-    (simple_identifier) @name.definition.property)) @definition.property
+    name: (simple_identifier) @property.name)
+  type: (_) @property.type?
+  (expression) @property.initializer?
+  (getter) @property.getter?
+  (setter) @property.setter?
+  (property_delegate) @property.delegate?) @definition.property
 
-; Val property (immutable)
+; 属性修饰符查询 - 使用谓词过滤
 (property_declaration
   (modifiers
-    (property_modifier) @_modifier (#eq? @_modifier "val"))
+    (property_modifier) @property.modifier)
   (variable_declaration
-    (simple_identifier) @name.definition.val_property)) @definition.val_property
+    name: (simple_identifier) @property.name))
+  (#match? @property.modifier "^(val|var|lateinit|const)$")) @definition.property.with.modifier
 
-; Var property (mutable)
-(property_declaration
-  (modifiers
-    (property_modifier) @_modifier (#eq? @_modifier "var"))
+; 变量声明查询 - 使用交替模式
+[
   (variable_declaration
-    (simple_identifier) @name.definition.var_property)) @definition.var_property
+    name: (simple_identifier) @var.name
+    type: (_) @var.type?
+    value: (_) @var.value?)
+  (multi_variable_declaration
+    (variable_declaration
+      name: (simple_identifier) @multi.var.name)+)
+] @definition.variable
 
-; Lateinit property
-(property_declaration
-  (modifiers
-    (property_modifier) @_modifier (#eq? @_modifier "lateinit"))
-  (variable_declaration
-    (simple_identifier) @name.definition.lateinit_property)) @definition.lateinit_property
-
-; Const property
-(property_declaration
-  (modifiers
-    (property_modifier) @_modifier (#eq? @_modifier "const"))
-  (variable_declaration
-    (simple_identifier) @name.definition.const_property)) @definition.const_property
-
-; Override property
-(property_declaration
-  (modifiers
-    (inheritance_modifier) @_modifier (#eq? @_modifier "override"))
-  (variable_declaration
-    (simple_identifier) @name.definition.override_property)) @definition.override_property
-
-; Property with getter
-(property_declaration
-  (getter) @name.definition.property_getter
-  (variable_declaration
-    (simple_identifier) @name.definition.property_with_getter)) @definition.property_with_getter
-
-; Property with setter
-(property_declaration
-  (setter) @name.definition.property_setter
-  (variable_declaration
-    (simple_identifier) @name.definition.property_with_setter)) @definition.property_with_setter
-
-; Property with delegate
-(property_declaration
-  (property_delegate) @name.definition.property_delegate
-  (variable_declaration
-    (simple_identifier) @name.definition.delegated_property)) @definition.delegated_property
-
-; Property with initializer
-(property_declaration
-  (expression) @name.definition.property_initializer
-  (variable_declaration
-    (simple_identifier) @name.definition.property_with_initializer)) @definition.property_with_initializer
-
-; Variable declarations (local variables)
-(variable_declaration
-  (simple_identifier) @name.definition.variable) @definition.variable
-
-; Val variable (immutable local)
-(variable_declaration
-  (modifiers
-    (property_modifier) @_modifier (#eq? @_modifier "val"))
-  (simple_identifier) @name.definition.val_variable)) @definition.val_variable
-
-; Var variable (mutable local)
-(variable_declaration
-  (modifiers
-    (property_modifier) @_modifier (#eq? @_modifier "var"))
-  (simple_identifier) @name.definition.var_variable)) @definition.var_variable
-
-; Multi-variable declarations
-(multi_variable_declaration
-  (variable_declaration
-    (simple_identifier) @name.definition.multi_variable)) @definition.multi_variable_declaration
-
-; Getter declarations
-(getter) @definition.getter
-
-; Setter declarations
-(setter) @definition.setter
-
-; Property delegate
-(property_delegate) @definition.property_delegate
-
-; Class parameters
-(class_parameters) @definition.class_parameters
-
-; Function value parameters
-(function_value_parameters) @definition.function_value_parameters
-
-; Function value parameter
-(function_value_parameter
-  (simple_identifier) @name.definition.parameter) @definition.parameter
-
-; Lambda parameters
+; Lambda参数查询
 (lambda_parameter
-  (simple_identifier) @name.definition.lambda_parameter) @definition.lambda_parameter
+  name: (simple_identifier) @lambda.param) @definition.lambda.parameter
 
-; Modifiers
-(modifiers) @definition.modifiers
+; 函数值参数查询 - 使用量词操作符
+(function_value_parameters
+  (function_value_parameter
+    name: (simple_identifier) @param.name
+    type: (_) @param.type
+    value: (_) @param.value?)*) @definition.function.parameters
 
-; Property modifiers
-(property_modifier) @definition.property_modifier
+; Getter和Setter查询 - 使用交替模式
+[
+  (getter
+    (function_body) @getter.body)
+  (setter
+    (function_body) @setter.body)
+] @definition.property.accessor
 
-; Parameter modifiers
-(parameter_modifiers) @definition.parameter_modifiers
+; 属性委托查询
+(property_delegate
+  (expression) @delegate.expression) @definition.property.delegate
 
-; Visibility modifiers
-(visibility_modifier) @definition.visibility_modifier
+; 修饰符查询 - 使用量词操作符
+(modifiers
+  [
+    (property_modifier) @property.modifier
+    (parameter_modifier) @parameter.modifier
+    (visibility_modifier) @visibility.modifier
+    (inheritance_modifier) @inheritance.modifier
+  ]+) @definition.modifiers
 
-; Inheritance modifiers
-(inheritance_modifier) @definition.inheritance_modifier
+; 注解查询
+(annotation
+  (user_type
+    (simple_identifier) @annotation.name)
+  (arguments
+    (argument
+      (simple_identifier) @annotation.arg
+      (_)? @annotation.value)*)?) @definition.annotation
 
-; Annotations
-(annotation) @definition.annotation
+; 类型查询 - 使用交替模式
+[
+  (type) @type.simple
+  (nullable_type) @type.nullable
+  (function_type) @type.function
+  (user_type) @type.user
+] @definition.type
 
-; Simple identifiers
-(simple_identifier) @name.definition.simple_identifier
+; 表达式查询 - 使用交替模式
+[
+  (expression) @expression.general
+  (call_expression) @expression.call
+  (lambda_literal) @expression.lambda
+] @definition.expression
 
-; Types
-(type) @name.definition.type
+; 块和语句查询 - 使用交替模式
+[
+  (block) @structure.block
+  (function_body) @structure.function.body
+  (class_body) @structure.class.body
+] @definition.structure
 
-; Expressions
-(expression) @name.definition.expression
-
-; Blocks
-(block) @name.definition.block
-
-; Function bodies
-(function_body) @name.definition.function_body
-
-; Value arguments
-(value_arguments) @name.definition.value_arguments
-
-; Type arguments
-(type_arguments) @name.definition.type_arguments
-
-; Declarations
-(declaration) @name.definition.declaration
-
-; Class member declarations
-(class_member_declaration) @name.definition.class_member_declaration
-
-; Statements
-(statement) @name.definition.statement
-
-; Statements
-(statements) @name.definition.statements
+; 标识符查询
+(simple_identifier) @definition.identifier
 `;

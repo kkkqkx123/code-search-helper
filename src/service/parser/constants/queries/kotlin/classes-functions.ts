@@ -3,158 +3,143 @@ Kotlin Class and Function-specific Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
 */
 export default `
-; Type alias declarations
+; 统一的类声明查询 - 使用交替模式和谓词过滤
+(class_declaration
+  name: (simple_identifier) @class.name
+  (modifiers
+    (class_modifier) @class.modifier)?
+  (type_parameters
+    (type_parameter
+      name: (simple_identifier) @type.param)*)?
+  (primary_constructor
+    (class_parameters
+      (class_parameter
+        name: (simple_identifier) @constructor.param)*)?)?
+  body: (class_body) @class.body) @definition.class
+
+; 接口和对象声明查询 - 使用交替模式
+[
+  (class_declaration
+    (modifiers
+      (class_modifier) @_modifier (#eq? @_modifier "interface"))
+    name: (simple_identifier) @interface.name)
+  (object_declaration
+    name: (simple_identifier) @object.name)
+  (companion_object
+    name: (simple_identifier)? @companion.name)
+] @definition.interface.or.object
+
+; 枚举和注解类查询 - 使用交替模式
+[
+  (class_declaration
+    (modifiers
+      (class_modifier) @_modifier (#eq? @_modifier "enum"))
+    name: (simple_identifier) @enum.name)
+  (class_declaration
+    (modifiers
+      (class_modifier) @_modifier (#eq? @_modifier "annotation"))
+    name: (simple_identifier) @annotation.name)
+] @definition.enum.or.annotation
+
+; 统一的函数声明查询 - 使用交替模式
+[
+  (function_declaration
+    name: (simple_identifier) @function.name
+    (modifiers
+      (function_modifier) @function.modifier)*
+    (type_parameters
+      (type_parameter
+        name: (simple_identifier) @type.param)*)?
+    (function_value_parameters
+      (function_value_parameter
+        name: (simple_identifier) @param.name)*)?
+    (type) @return.type?
+    (function_body) @function.body?)
+  (function_declaration
+    (type) @receiver.type
+    name: (simple_identifier) @extension.function)
+] @definition.function
+
+; 类型别名查询
 (type_alias
-  (simple_identifier) @name.definition.type_alias) @definition.type_alias
+  name: (simple_identifier) @type.alias.name
+  type: (type) @type.alias.type) @definition.type.alias
 
-; Regular class declarations
-(class_declaration
-  (simple_identifier) @name.definition.class) @definition.class
+; 泛型约束查询 - 使用量词操作符
+(type_constraints
+  (type_constraint
+    (simple_identifier) @constrained.type
+    (type) @constraint.type)*) @definition.type.constraints
 
-; Data class declarations
-(class_declaration
-  (modifiers
-    (class_modifier) @_modifier (#eq? @_modifier "data"))
-  (simple_identifier) @name.definition.data_class) @definition.data_class
+; 委托说明符查询
+(delegation_specifiers
+  (user_type
+    (simple_identifier) @delegate.type)
+  (delegation_specifier
+    (simple_identifier) @delegate.by)?) @definition.delegation
 
-; Abstract class declarations
-(class_declaration
-  (modifiers
-    (inheritance_modifier) @_modifier (#eq? @_modifier "abstract"))
-  (simple_identifier) @name.definition.abstract_class) @definition.abstract_class
+; 修饰符查询 - 使用量词操作符
+(modifiers
+  [
+    (class_modifier) @class.modifier
+    (function_modifier) @function.modifier
+    (property_modifier) @property.modifier
+    (inheritance_modifier) @inheritance.modifier
+    (parameter_modifier) @parameter.modifier
+    (type_modifier) @type.modifier
+    (visibility_modifier) @visibility.modifier
+  ]+) @definition.modifiers
 
-; Sealed class declarations
-(class_declaration
-  (modifiers
-    (class_modifier) @_modifier (#eq? @_modifier "sealed"))
-  (simple_identifier) @name.definition.sealed_class) @definition.sealed_class
+; 注解查询 - 使用量词操作符
+(annotation
+  (user_type
+    (simple_identifier) @annotation.name)
+  (arguments
+    (argument
+      (simple_identifier) @annotation.arg
+      (_)? @annotation.value)*)?) @definition.annotation
 
-; Enum class declarations
-(class_declaration
-  (simple_identifier) @name.definition.enum_class
-  (enum_class_body)) @definition.enum_class
+; 类型标识符查询 - 使用交替模式
+[
+  (simple_identifier) @identifier.simple
+  (type_identifier) @identifier.type
+  (user_type) @identifier.user
+] @definition.identifier
 
-; Interface declarations
-(class_declaration
-  (modifiers
-    (class_modifier) @_modifier (#eq? @_modifier "interface"))
-  (simple_identifier) @name.definition.interface) @definition.interface
+; 类型查询 - 使用交替模式
+[
+  (type) @type.simple
+  (nullable_type) @type.nullable
+  (function_type) @type.function
+  (generic_type) @type.generic
+] @definition.type
 
-; Annotation class declarations
-(class_declaration
-  (modifiers
-    (class_modifier) @_modifier (#eq? @_modifier "annotation"))
-  (simple_identifier) @name.definition.annotation_class) @definition.annotation_class
+; 块和语句查询 - 使用交替模式
+[
+  (block) @structure.block
+  (statements) @structure.statements
+  (statement) @structure.statement
+] @definition.structure
 
-; Regular function declarations
-(function_declaration
-  (simple_identifier) @name.definition.function) @definition.function
+; 表达式查询 - 使用交替模式
+[
+  (expression) @expression.general
+  (call_expression) @expression.call
+  (lambda_literal) @expression.lambda
+] @definition.expression
 
-; Suspend function declarations
-(function_declaration
-  (modifiers
-    (function_modifier) @_modifier (#eq? @_modifier "suspend"))
-  (simple_identifier) @name.definition.suspend_function) @definition.suspend_function
+; 包和导入查询 - 使用交替模式
+[
+  (package_header
+    (identifier) @package.name)
+  (import_header
+    (identifier) @import.name)
+] @definition.namespace
 
-; Extension function declarations
-(function_declaration
-  (type) @name.definition.function_receiver_type
-  (simple_identifier) @name.definition.extension_function) @definition.extension_function
-
-; Object declarations
-(object_declaration
-  (simple_identifier) @name.definition.object) @definition.object
-
-; Companion object declarations
-(companion_object) @definition.companion_object
-
-; Primary constructors
-(primary_constructor) @definition.primary_constructor
-
-; Secondary constructors
-(secondary_constructor) @definition.secondary_constructor
-
-; Class bodies
-(class_body) @definition.class_body
-
-; Enum class bodies
-(enum_class_body) @definition.enum_class_body
-
-; Function bodies
-(function_body) @definition.function_body
-
-; Type parameters
-(type_parameters) @name.definition.type_parameters) @definition.type_parameters
-
-; Type constraints
-(type_constraints) @name.definition.type_constraints) @definition.type_constraints
-
-; Delegation specifiers
-(delegation_specifiers) @name.definition.delegation_specifiers) @definition.delegation_specifiers
-
-; Modifiers
-(modifiers) @name.definition.modifiers) @definition.modifiers
-
-; Annotations
-(annotation) @name.definition.annotation) @definition.annotation
-
-; Simple identifiers
-(simple_identifier) @name.definition.simple_identifier) @definition.simple_identifier
-
-; Type identifiers
-(type_identifier) @name.definition.type_identifier) @name.definition.type_identifier
-
-; User types
-(user_type) @name.definition.user_type) @name.definition.user_type
-
-; Types
-(type) @name.definition.type) @name.definition.type
-
-; Function types
-(function_type) @name.definition.function_type) @name.definition.function_type
-
-; Declarations
-(declaration) @name.definition.declaration) @name.definition.declaration
-
-; Class member declarations
-(class_member_declaration) @name.definition.class_member_declaration) @name.definition.class_member_declaration
-
-; Top level objects
-(top_level_object) @name.definition.top_level_object) @name.definition.top_level_object
-
-; Kotlin files
-(kotlinFile) @name.definition.kotlin_file) @name.definition.kotlin_file
-
-; Source files
-(source_file) @name.definition.source_file) @name.definition.source_file
-
-; Scripts
-(script) @name.definition.script) @name.definition.script
-
-; Statements
-(statements) @name.definition.statements) @name.definition.statements
-
-; Statement
-(statement) @name.definition.statement) @name.definition.statement
-
-; Expressions
-(expression) @name.definition.expression) @name.definition.expression
-
-; Blocks
-(block) @name.definition.block) @name.definition.block
-
-; Package headers
-(package_header) @name.definition.package_header) @name.definition.package_header
-
-; Import headers
-(import_header) @name.definition.import_header) @name.definition.import_header
-
-; Import lists
-(import_list) @name.definition.import_list) @name.definition.import_list
-
-; File annotations
-(file_annotation) @name.definition.file_annotation) @name.definition.file_annotation
-
-; Shebang lines
-(shebang_line) @name.definition.shebang_line) @name.definition.shebang_line
+; 文件结构查询 - 使用交替模式
+[
+  (kotlinFile) @file.kotlin
+  (script) @file.script
+  (source_file) @file.source
+] @definition.file
 `;

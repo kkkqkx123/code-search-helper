@@ -3,252 +3,163 @@ Kotlin Method and Variable-specific Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
 */
 export default `
-; Function declarations
+; 统一的函数声明查询 - 使用交替模式和谓词过滤
 (function_declaration
-  (simple_identifier) @name.definition.function) @name.definition.function
-
-; Function with type parameters
-(function_declaration
-  (type_parameters) @name.definition.type_parameters
-  (simple_identifier) @name.definition.generic_function) @name.definition.generic_function
-
-; Function with receiver type
-(function_declaration
-  (type) @name.definition.receiver_type
-  (simple_identifier) @name.definition.extension_function) @name.definition.extension_function
-
-; Function with parameters
-(function_declaration
+  name: (simple_identifier) @function.name
+  (modifiers
+    (function_modifier) @function.modifier)*
+  (type_parameters
+    (type_parameter
+      name: (simple_identifier) @type.param)*)?
   (function_value_parameters
     (function_value_parameter
-      (simple_identifier) @name.definition.parameter)) @name.definition.function_with_parameters) @name.definition.function_with_params
+      name: (simple_identifier) @param.name
+      type: (_) @param.type)*)?
+  (type) @return.type?
+  (function_body) @function.body?) @definition.function
 
-; Function with return type
+; 扩展函数查询 - 使用锚点确保精确匹配
 (function_declaration
-  (type) @name.definition.return_type
-  (simple_identifier) @name.definition.function_with_return_type) @name.definition.function_with_return
+  (type) @receiver.type
+  name: (simple_identifier) @extension.function) @definition.extension.function
 
-; Function with body
-(function_declaration
-  (function_body) @name.definition.function_body) @name.definition.function_with_body
-
-; Suspend function declarations
-(function_declaration
-  (modifiers
-    (function_modifier) @_modifier (#eq? @_modifier "suspend"))
-  (simple_identifier) @name.definition.suspend_function) @name.definition.suspend_function
-
-; Inline function declarations
-(function_declaration
-  (modifiers
-    (function_modifier) @_modifier (#eq? @_modifier "inline"))
-  (simple_identifier) @name.definition.inline_function) @name.definition.inline_function
-
-; Property declarations
+; 属性声明查询 - 使用参数化模式
 (property_declaration
   (variable_declaration
-    (simple_identifier) @name.definition.property)) @name.definition.property
+    name: (simple_identifier) @property.name)
+  type: (_) @property.type?
+  (expression) @property.initializer?
+  (getter) @property.getter?
+  (setter) @property.setter?) @definition.property
 
-; Property with type
-(property_declaration
-  (type) @name.definition.property_type
+; 变量声明查询 - 使用交替模式
+[
   (variable_declaration
-    (simple_identifier) @name.definition.typed_property)) @name.definition.property_with_type
+    name: (simple_identifier) @var.name
+    type: (_) @var.type?
+    value: (_) @var.value?)
+  (multi_variable_declaration
+    (variable_declaration
+      name: (simple_identifier) @multi.var.name)+)
+] @definition.variable
 
-; Property with getter
-(property_declaration
-  (getter) @name.definition.property_getter) @name.definition.property_with_getter
+; 函数调用查询 - 使用参数化模式
+(call_expression
+  function: [
+    (simple_identifier) @call.function
+    (navigation_expression
+      left: (_) @call.receiver
+      right: (simple_identifier) @call.method)
+  ]
+  type_arguments: (type_arguments
+    (type) @type.arg)*
+  value_arguments: (value_arguments
+    (expression) @call.arg)*) @definition.function.call
 
-; Property with setter
-(property_declaration
-  (setter) @name.definition.property_setter) @name.definition.property_with_setter
+; 安全调用查询
+(safe_call_expression
+  receiver: (_) @safe.receiver
+  (navigation_suffix
+    (simple_identifier) @safe.method)
+  arguments: (value_arguments
+    (expression) @safe.arg)*) @definition.safe.call
 
-; Property with delegate
-(property_declaration
-  (property_delegate) @name.definition.property_delegate) @name.definition.property_with_delegate
+; Elvis表达式查询
+(elvis_expression
+  left: (expression) @elvis.condition
+  right: (expression) @elvis.value)) @definition.elvis.expression
 
-; Property with initializer
-(property_declaration
-  (expression) @name.definition.property_initializer) @name.definition.property_with_initializer
+; 类型转换查询 - 使用交替模式
+[
+  (as_expression
+    value: (_) @cast.value
+    type: (type) @cast.type)
+  (is_expression
+    value: (_) @is.value
+    type: (type) @is.type)
+] @definition.type.operation
 
-; Val property (immutable)
-(property_declaration
-  (modifiers
-    (property_modifier) @_modifier (#eq? @_modifier "val"))
-  (variable_declaration
-    (simple_identifier) @name.definition.val_property)) @name.definition.val_property
+; 类型参数查询 - 使用量词操作符
+(type_parameters
+  (type_parameter
+    name: (simple_identifier) @type.param)*) @definition.type.parameters
 
-; Var property (mutable)
-(property_declaration
-  (modifiers
-    (property_modifier) @_modifier (#eq? @_modifier "var"))
-  (variable_declaration
-    (simple_identifier) @name.definition.var_property)) @name.definition.var_property
+; 类型约束查询 - 使用量词操作符
+(type_constraints
+  (type_constraint
+    (simple_identifier) @constrained.type
+    (type) @constraint.type)*) @definition.type.constraints
 
-; Lateinit property
-(property_declaration
-  (modifiers
-    (property_modifier) @_modifier (#eq? @_modifier "lateinit"))
-  (variable_declaration
-    (simple_identifier) @name.definition.lateinit_property)) @name.definition.lateinit_property
+; 注解查询 - 使用量词操作符
+(annotation
+  (user_type
+    (simple_identifier) @annotation.name)
+  (arguments
+    (argument
+      (simple_identifier) @annotation.arg
+      (_)? @annotation.value)*)?) @definition.annotation
 
-; Variable declarations (local variables)
-(variable_declaration
-  (simple_identifier) @name.definition.variable) @name.definition.variable
+; 修饰符查询 - 使用量词操作符
+(modifiers
+  [
+    (function_modifier) @function.modifier
+    (property_modifier) @property.modifier
+    (visibility_modifier) @visibility.modifier
+    (inheritance_modifier) @inheritance.modifier
+    (parameter_modifier) @parameter.modifier
+    (type_modifier) @type.modifier
+  ]+) @definition.modifiers
 
-; Variable with type
-(variable_declaration
-  (type) @name.definition.variable_type
-  (simple_identifier) @name.definition.typed_variable)) @name.definition.variable_with_type
+; 导入查询 - 使用交替模式
+[
+  (import_header
+    (identifier) @import.name)
+  (import_header
+    (identifier) @import.alias
+    (identifier) @import.name)
+] @definition.import
 
-; Variable with initializer
-(variable_declaration
-  (expression) @name.definition.variable_initializer) @name.definition.variable_with_initializer
-
-; Multi-variable declarations
-(multi_variable_declaration
-  (variable_declaration
-    (simple_identifier) @name.definition.multi_variable)) @name.definition.multi_variable_declaration
-
-; Function value parameters
-(function_value_parameter
-  (simple_identifier) @name.definition.parameter) @name.definition.parameter
-
-; Parameter with type
-(function_value_parameter
-  (type) @name.definition.parameter_type
-  (simple_identifier) @name.definition.typed_parameter)) @name.definition.parameter_with_type
-
-; Class parameters
-(class_parameter
-  (simple_identifier) @name.definition.class_parameter) @name.definition.class_parameter
-
-; Lambda parameters
-(lambda_parameter
-  (simple_identifier) @name.definition.lambda_parameter) @name.definition.lambda_parameter
-
-; Anonymous function
-(anonymous_function
-  (function_body) @name.definition.anonymous_function) @name.definition.anonymous_function_with_body
-
-; Getter declarations
-(getter
-  (function_body) @name.definition.getter_body) @name.definition.getter_with_body
-
-; Setter declarations
-(setter
-  (function_body) @name.definition.setter_body) @name.definition.setter_with_body
-
-; Function calls
-(call_expression) @name.definition.function_call
-
-; Safe call expressions
-(safe_call_expression) @name.definition.safe_call
-
-; Elvis expressions
-(elvis_expression) @name.definition.elvis_expression
-
-; Assignment expressions
-(assignment_expression) @name.definition.assignment_expression
-
-; Type aliases
-(type_alias
-  (simple_identifier) @name.definition.type_alias) @name.definition.type_alias_declaration
-
-; Generic types
-(generic_type) @name.definition.generic_type
-
-; Type references
-(type_reference) @name.definition.type_reference
-
-; User types
-(user_type) @name.definition.user_type
-
-; Type parameters
-(type_parameters) @name.definition.type_parameters
-
-; Type parameter
-(type_parameter
-  (simple_identifier) @name.definition.type_parameter) @name.definition.type_parameter_declaration
-
-; Type constraints
-(type_constraints) @name.definition.type_constraints
-
-; Type constraint
-(type_constraint
-  (simple_identifier) @name.definition.type_constraint) @name.definition.type_constraint_declaration
-
-; Function types
-(function_type) @name.definition.function_type
-
-; Nullable types
-(nullable_type) @name.definition.nullable_type
-
-; Receiver types
-(receiver_type) @name.definition.receiver_type
-
-; Annotations
-(annotation) @name.definition.annotation
-
-; Modifiers
-(modifiers) @name.definition.modifiers
-
-; Function modifier
-(function_modifier) @name.definition.function_modifier
-
-; Property modifier
-(property_modifier) @name.definition.property_modifier
-
-; Visibility modifier
-(visibility_modifier) @name.definition.visibility_modifier
-
-; Simple identifiers
-(simple_identifier) @name.definition.simple_identifier
-
-; Type identifiers
-(type_identifier) @name.definition.type_identifier
-
-; Import headers
-(import_header
-  (identifier) @name.definition.import) @name.definition.import_declaration
-
-; Package headers
+; 包声明查询
 (package_header
-  (identifier) @name.definition.package) @name.definition.package_declaration
+  (identifier) @package.name) @definition.package
 
-; Source files
-(source_file) @name.definition.source_file
+; 类型查询 - 使用交替模式
+[
+  (type) @type.simple
+  (nullable_type) @type.nullable
+  (function_type) @type.function
+  (user_type) @type.user
+  (generic_type) @type.generic
+] @definition.type
 
-; Scripts
-(script) @name.definition.script
+; 表达式查询 - 使用交替模式
+[
+  (expression) @expression.general
+  (binary_expression) @expression.binary
+  (unary_expression) @expression.unary
+  (parenthesized_expression) @expression.parenthesized
+] @definition.expression
 
-; Statements
-(statements) @name.definition.statements
+; 字面量查询 - 使用交替模式
+[
+  (string_literal) @literal.string
+  (character_literal) @literal.char
+  (integer_literal) @literal.int
+  (float_literal) @literal.float
+  (true) @literal.true
+  (false) @literal.false
+  (null_literal) @literal.null
+] @definition.literal
 
-; Statement
-(statement) @name.definition.statement
+; 块和语句查询 - 使用交替模式
+[
+  (block) @structure.block
+  (function_body) @structure.function.body
+  (class_body) @structure.class.body
+  (statements) @structure.statements
+  (statement) @structure.statement
+] @definition.structure
 
-; Expressions
-(expression) @name.definition.expression
-
-; Blocks
-(block) @name.definition.block
-
-; Function bodies
-(function_body) @name.definition.function_body
-
-; Class bodies
-(class_body) @name.definition.class_body
-
-; Declarations
-(declaration) @name.definition.declaration
-
-; Class member declarations
-(class_member_declaration) @name.definition.class_member_declaration
-
-; Top level objects
-(top_level_object) @name.definition.top_level_object
-
-; Kotlin files
-(kotlinFile) @name.definition.kotlin_file
+; 标识符查询
+(simple_identifier) @definition.identifier
 `;
