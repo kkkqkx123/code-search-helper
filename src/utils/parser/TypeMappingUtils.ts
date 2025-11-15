@@ -1,11 +1,13 @@
-import { 
-  HierarchicalStructure, 
-  StructureType, 
-  NestingInfo, 
-  StructureMetadata 
-} from './types/HierarchicalTypes';
+import {
+  HierarchicalStructure,
+  StructureType,
+  NestingInfo,
+  StructureMetadata
+} from '../../service/parser/processing/types/HierarchicalTypes';
 import { StandardizedQueryResult } from '../../service/parser/core/normalization/types';
 import { TopLevelStructure, NestedStructure, InternalStructure } from '../types/ContentTypes';
+import { ChunkType } from '../../service/parser/processing/types/CodeChunk';
+import { ChunkTypeMapper } from './ChunkTypeMapper';
 
 // 重新导出类型以便其他文件使用
 export { HierarchicalStructure, StructureType, NestingInfo, StructureMetadata };
@@ -15,7 +17,7 @@ export { HierarchicalStructure, StructureType, NestingInfo, StructureMetadata };
  * 负责在不同结构类型之间进行转换
  */
 export class TypeMappingUtils {
-  
+
   /**
    * 将TopLevelStructure转换为HierarchicalStructure
    */
@@ -260,7 +262,7 @@ export class TypeMappingUtils {
     structures: HierarchicalStructure[],
     name: string
   ): HierarchicalStructure[] {
-    return structures.filter(structure => 
+    return structures.filter(structure =>
       structure.name.toLowerCase().includes(name.toLowerCase())
     );
   }
@@ -273,8 +275,8 @@ export class TypeMappingUtils {
     startLine: number,
     endLine: number
   ): HierarchicalStructure[] {
-    return structures.filter(structure => 
-      structure.location.startLine >= startLine && 
+    return structures.filter(structure =>
+      structure.location.startLine >= startLine &&
       structure.location.endLine <= endLine
     );
   }
@@ -286,7 +288,7 @@ export class TypeMappingUtils {
     structures: HierarchicalStructure[],
     level: number
   ): HierarchicalStructure[] {
-    return structures.filter(structure => 
+    return structures.filter(structure =>
       structure.nestingInfo && structure.nestingInfo.level === level
     );
   }
@@ -298,7 +300,7 @@ export class TypeMappingUtils {
     structures: HierarchicalStructure[],
     minConfidence: number
   ): HierarchicalStructure[] {
-    return structures.filter(structure => 
+    return structures.filter(structure =>
       structure.metadata.confidence >= minConfidence
     );
   }
@@ -310,7 +312,7 @@ export class TypeMappingUtils {
     structures: HierarchicalStructure[],
     importance: 'low' | 'medium' | 'high'
   ): HierarchicalStructure[] {
-    return structures.filter(structure => 
+    return structures.filter(structure =>
       structure.metadata.importance === importance
     );
   }
@@ -322,7 +324,7 @@ export class TypeMappingUtils {
     structures: HierarchicalStructure[],
     language: string
   ): HierarchicalStructure[] {
-    return structures.filter(structure => 
+    return structures.filter(structure =>
       structure.metadata.language === language
     );
   }
@@ -410,5 +412,89 @@ export class TypeMappingUtils {
         confidence: Math.max(0, Math.min(1, structure.metadata.confidence || 0))
       }
     };
+  }
+
+  /**
+   * 将StructureType直接映射为ChunkType枚举
+   * @param structureType 结构类型
+   * @returns 对应的ChunkType枚举
+   */
+  static mapStructureTypeToChunkTypeDirect(structureType: StructureType): ChunkType {
+    return ChunkTypeMapper.mapStructureToChunk(structureType);
+  }
+
+  /**
+   * 批量转换StructureType数组为ChunkType数组
+   * @param structureTypes 结构类型数组
+   * @returns ChunkType数组
+   */
+  static mapStructureTypesToChunkTypes(structureTypes: StructureType[]): ChunkType[] {
+    return ChunkTypeMapper.batchMapStructureToChunk(structureTypes);
+  }
+
+  /**
+   * 将ChunkType直接映射为StructureType枚举
+   * @param chunkType 代码块类型
+   * @returns 对应的StructureType枚举
+   */
+  static mapChunkTypeToStructureTypeDirect(chunkType: ChunkType): StructureType {
+    return ChunkTypeMapper.mapChunkToStructure(chunkType);
+  }
+
+  /**
+   * 批量转换ChunkType数组为StructureType数组
+   * @param chunkTypes 代码块类型数组
+   * @returns StructureType数组
+   */
+  static mapChunkTypesToStructureTypes(chunkTypes: ChunkType[]): StructureType[] {
+    return ChunkTypeMapper.batchMapChunkToStructure(chunkTypes);
+  }
+
+  /**
+   * 验证ChunkType是否有效
+   * @param chunkType 代码块类型
+   * @returns 是否有效
+   */
+  static isValidChunkType(chunkType: string): chunkType is ChunkType {
+    return ChunkTypeMapper.isValidChunkType(chunkType);
+  }
+
+  /**
+   * 验证StructureType是否有效
+   * @param structureType 结构类型
+   * @returns 是否有效
+   */
+  static isValidStructureType(structureType: string): structureType is StructureType {
+    return ChunkTypeMapper.isValidStructureType(structureType);
+  }
+
+  /**
+   * 检查两个类型是否兼容
+   * @param structureType 结构类型
+   * @param chunkType 代码块类型
+   * @returns 是否兼容
+   */
+  static areTypesCompatible(structureType: StructureType, chunkType: ChunkType): boolean {
+    return ChunkTypeMapper.areTypesCompatible(structureType, chunkType);
+  }
+
+  /**
+   * 获取指定ChunkType的复杂度阈值
+   * @param chunkType 代码块类型
+   * @returns 复杂度阈值对象
+   */
+  static getComplexityThresholds(chunkType: ChunkType): { min: number; max: number } {
+    return ChunkTypeMapper.getComplexityThresholds(chunkType);
+  }
+
+  /**
+   * 获取所有复杂度阈值配置
+   * @returns 复杂度阈值配置对象
+   */
+  static getAllComplexityThresholds(): {
+    typeSpecific: Record<ChunkType, { min: number; max: number }>;
+    default: { minComplexity: number; maxComplexity: number };
+  } {
+    return ChunkTypeMapper.getAllComplexityThresholds();
   }
 }

@@ -1,11 +1,11 @@
 import { BaseStrategy } from '../base/BaseStrategy';
 import { IProcessingContext } from '../../core/interfaces/IProcessingContext';
-import { ProcessingResult, ChunkType } from '../../core/types/ResultTypes';
+import { ProcessingResult } from '../../core/types/ResultTypes';
 import { CodeChunk } from '../../types/CodeChunk';
 import { StrategyConfig } from '../../types/Strategy';
 import { Logger } from '../../../../../utils/logger';
 import { MarkdownChunker } from '../../utils/md/MarkdownChunker';
-import { DEFAULT_MARKDOWN_CONFIG, MarkdownChunkingConfig } from '../../utils/md/markdown-rules';
+import { MarkdownChunkingConfig } from '../../utils/md/markdown-rules';
 
 /**
  * Markdown分段策略配置
@@ -51,7 +51,7 @@ export class MarkdownSegmentationStrategy extends BaseStrategy {
       ...config
     };
     this.logger = Logger.getInstance();
-    
+
     // 初始化MarkdownChunker，使用策略配置转换为MarkdownChunkingConfig
     const chunkerConfig: Partial<MarkdownChunkingConfig> = {
       maxChunkSize: this.config.maxChunkSize,
@@ -70,7 +70,7 @@ export class MarkdownSegmentationStrategy extends BaseStrategy {
       overlapSize: 200,
       enableOverlap: false // 默认不启用重叠，由策略控制
     };
-    
+
     this.markdownChunker = new MarkdownChunker(chunkerConfig);
   }
 
@@ -191,7 +191,7 @@ export class MarkdownSegmentationStrategy extends BaseStrategy {
    */
   updateConfig(config: Partial<MarkdownStrategyConfig>): void {
     this.config = { ...this.config, ...config };
-    
+
     // 更新MarkdownChunker的配置
     const chunkerConfig: Partial<MarkdownChunkingConfig> = {
       maxChunkSize: this.config.maxChunkSize,
@@ -200,7 +200,7 @@ export class MarkdownSegmentationStrategy extends BaseStrategy {
       minChunkSize: this.config.minChunkSize || 100,
       excludeCodeFromChunkSize: this.config.excludeCodeFromChunkSize
     };
-    
+
     this.markdownChunker.updateConfig(chunkerConfig);
   }
 }

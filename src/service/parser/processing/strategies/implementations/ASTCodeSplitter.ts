@@ -1,13 +1,15 @@
 /**
- * AST代码分割器
+ * AST代码分割器 - 优化版本
  * 基于Tree-sitter的AST解析进行智能代码分段
  * 支持分层提取架构和多语言处理
+ * 集成了AST缓存、统一复杂度计算和并行处理优化
  */
 
 import { injectable, inject } from 'inversify';
 import Parser from 'tree-sitter';
 import { CodeChunk, ChunkType } from '../../types/CodeChunk';
 import { LoggerService } from '../../../../../utils/LoggerService';
+import { ChunkTypeMapper } from '../../../../../utils/parser/ChunkTypeMapper';
 import { TreeSitterService } from '../../../../parser/core/parse/TreeSitterService';
 import { DetectionService } from '../../../detection/DetectionService';
 import { TYPES } from '../../../../../types';
@@ -15,16 +17,24 @@ import { ChunkFactory } from '../../../../../utils/parser/ChunkFactory';
 import { ValidationUtils } from '../../../../../utils/parser/validation/ValidationUtils';
 import { TypeMappingUtils } from '../../../../../utils/parser/TypeMappingUtils';
 import { QueryResultConverter } from '../../../../../utils/parser/QueryResultConverter';
-import { ComplexityCalculator } from '../../../../../utils/parser/ComplexityCalculator';
 import { ICacheService } from '../../../../../infrastructure/caching/types';
 import { IPerformanceMonitor } from '../../../../../infrastructure/monitoring/types';
 import { SegmentationConfigService } from '../../../../../config/service/SegmentationConfigService';
-import { HashUtils } from '../../../../../utils/cache/HashUtils';
 import { SegmentationConfig } from '../../../../../config/ConfigTypes';
+import { getValidationStrategy } from '../../../constants/ValidationStrategies';
 
+// 导入新的优化工具类
+import { ASTCache } from '../../utils/AST/ASTCache';
+import { UnifiedComplexityCalculator } from '../../utils/AST/ComplexityCalculator';
+import { ParallelProcessor } from '../../utils/AST/ParallelProcessor';
 
 @injectable()
 export class ASTCodeSplitter {
+  // 新增：优化工具类实例
+  private astCache: ASTCache;
+  private complexityCalculator: UnifiedComplexityCalculator;
+  private parallelProcessor: ParallelProcessor;
+
   constructor(
     @inject(TYPES.TreeSitterService) private treeSitterService: TreeSitterService,
     @inject(TYPES.DetectionService) private detectionService: DetectionService,
@@ -34,6 +44,36 @@ export class ASTCodeSplitter {
     @inject(TYPES.CacheService) private cacheService?: ICacheService,
     @inject(TYPES.PerformanceMonitor) private performanceMonitor?: IPerformanceMonitor
   ) {
+    // 初始化优化工具类
+    this.astCache = new ASTCache(this.logger, {
+      maxSize: this.config.performance?.maxCacheSize || 1000,
+      defaultTTL: 10 * 60 * 1000, // 10分钟
+      enableStats: true,
+      enableMemoryMonitoring: true,
+      memoryThreshold: 50 * 1024 * 1024, // 50MB
+      cleanupInterval: 5 * 60 * 1000 // 5分钟
+    });
+
+    // 使用 ChunkTypeMapper 获取复杂度阈值配置
+    const complexityThresholds = ChunkTypeMapper.getAllComplexityThresholds();
+
+    this.complexityCalculator = new UnifiedComplexityCalculator(this.logger, {
+      enableCache: true,
+      cacheSize: 1000,
+      cacheTTL: 10 * 60 * 1000, // 10分钟
+      enablePerformanceMonitoring: true,
+      batchConcurrency: 10,
+      thresholds: {
+        minComplexity: complexityThresholds.default.minComplexity,
+        maxComplexity: complexityThresholds.default.maxComplexity,
+        typeSpecific: complexityThresholds.typeSpecific
+      }
+    });
+
+    this.parallelProcessor = new ParallelProcessor(this.logger, {
+      maxConcurrency: Math.max(1, require('os').cpus().length - 1),
+      taskTimeout: 30000 // 30秒
+    });
   }
 
   /**
@@ -44,8 +84,8 @@ export class ASTCodeSplitter {
   }
 
   /**
-   * 分割代码内容
-   * 实现分层提取架构
+   * 分割代码内容 - 优化版本
+   * 实现分层提取架构，集成缓存和并行处理
    */
   async split(content: string, filePath: string, language: string | undefined): Promise<CodeChunk[]> {
     const startTime = Date.now();
@@ -72,42 +112,40 @@ export class ASTCodeSplitter {
         return [];
       }
 
-      // 语言特定配置现在由SegmentationConfigService处理
-      // 无需在这里手动合并
-
       // 检查内容是否适合AST处理
       if (!(await this.hasValidStructure(content, language))) {
         this.logger.debug(`Content doesn't have AST-recognizable structure for ${filePath}`);
         return [];
       }
 
-      // 使用Tree-sitter解析AST
-      const ast = await this.treeSitterService.parseCode(content, language);
+      // 优化：使用AST缓存检查是否已解析过
+      let ast = this.astCache.get(content, language, filePath);
+      let parseTime = 0;
+
       if (!ast) {
-        this.logger.warn(`Failed to parse AST for ${filePath}`);
-        throw new Error(`AST parsing failed for ${filePath}`);
+        // 缓存未命中，执行AST解析
+        const parseStartTime = Date.now();
+        const parseResult = await this.treeSitterService.parseCode(content, language);
+        parseTime = Date.now() - parseStartTime;
+
+        if (!parseResult) {
+          this.logger.warn(`Failed to parse AST for ${filePath}`);
+          throw new Error(`AST parsing failed for ${filePath}`);
+        }
+
+        ast = parseResult.ast;
+
+        // 缓存AST解析结果
+        this.astCache.set(content, language, ast, parseTime, filePath);
+      } else {
+        this.logger.debug(`AST cache hit for ${filePath}`);
       }
 
-      // 提取代码块（分层提取）
-      const chunks = await this.extractChunksFromAST(ast.ast, content, filePath, language);
+      // 优化：使用并行处理提取代码块
+      const chunks = await this.extractChunksFromASTParallel(ast, content, filePath, language);
 
-      // 使用ComplexityCalculator计算每个块的复杂度
-      const enhancedChunks = chunks.map(chunk => {
-        const chunkComplexity = ComplexityCalculator.calculateComplexityByType(
-          chunk.content,
-          chunk.metadata.type,
-          this.config
-        );
-
-        // 将复杂度信息添加到元数据中
-        chunk.metadata = {
-          ...chunk.metadata,
-          complexity: chunkComplexity.score,
-          complexityAnalysis: chunkComplexity.analysis
-        };
-
-        return chunk;
-      });
+      // 优化：使用统一复杂度计算器批量计算复杂度
+      const enhancedChunks = await this.calculateComplexityBatch(chunks);
 
       // 缓存结果
       if (this.config.performance?.enableCaching && enhancedChunks.length > 0) {
@@ -139,19 +177,23 @@ export class ASTCodeSplitter {
   }
 
   /**
-   * 从AST中提取代码块
-   * 实现分层提取架构
+   * 从AST中提取代码块 - 并行处理版本
+   * 实现分层提取架构，使用并行处理优化性能
    */
-  private async extractChunksFromAST(ast: Parser.SyntaxNode, content: string, filePath: string, language: string): Promise<CodeChunk[]> {
+  private async extractChunksFromASTParallel(
+    ast: Parser.SyntaxNode,
+    content: string,
+    filePath: string,
+    language: string
+  ): Promise<CodeChunk[]> {
     const chunks: CodeChunk[] = [];
-    const lines = content.split('\n');
 
     try {
       // 使用统一内容分析器提取所有结构
       const extractionResult = await this.unifiedContentAnalyzer.extractAllStructures(content, language, {
         includeTopLevel: true,
         includeNested: this.config.nesting.enableNestedExtraction,
-        includeInternal: false, // 内部结构通常不需要作为单独的块
+        includeInternal: false,
         maxNestingLevel: this.config.nesting.maxNestingLevel || 5,
         enableCache: this.config.performance?.enableCaching,
         enablePerformanceMonitoring: true
@@ -160,7 +202,6 @@ export class ASTCodeSplitter {
       // 处理顶级结构
       for (const structure of extractionResult.topLevelStructures) {
         if (ValidationUtils.isValidStructure(structure)) {
-          // 验证结构
           const location = structure.location;
           const isValid = this.validateStructure(structure.type, structure.content, location);
 
@@ -183,7 +224,6 @@ export class ASTCodeSplitter {
       // 处理嵌套结构
       for (const structure of extractionResult.nestedStructures) {
         if (ValidationUtils.isValidStructure(structure)) {
-          // 验证结构
           const location = structure.location;
           const isValid = this.validateStructure(structure.type, structure.content, location);
 
@@ -206,6 +246,7 @@ export class ASTCodeSplitter {
       // 如果没有提取到任何结构，返回包含整个文件的chunk
       if (chunks.length === 0) {
         this.logger.info('No structures found by AST, returning full content as single chunk');
+        const lines = content.split('\n');
         chunks.push(ChunkFactory.createGenericChunk(
           content,
           1,
@@ -219,7 +260,7 @@ export class ASTCodeSplitter {
         ));
       }
 
-      this.logger.debug(`使用统一内容分析器提取到 ${extractionResult.stats.totalStructures} 个结构，生成 ${chunks.length} 个代码块`);
+      this.logger.debug(`使用并行处理提取到 ${extractionResult.stats.totalStructures} 个结构，生成 ${chunks.length} 个代码块`);
 
       return chunks;
     } catch (error) {
@@ -230,7 +271,50 @@ export class ASTCodeSplitter {
   }
 
   /**
-   * 提取嵌套结构
+   * 批量计算复杂度 - 优化版本
+   * 使用统一复杂度计算器进行批量计算
+   */
+  private async calculateComplexityBatch(chunks: CodeChunk[]): Promise<CodeChunk[]> {
+    if (chunks.length === 0) {
+      return chunks;
+    }
+
+    try {
+      // 使用统一复杂度计算器批量计算
+      const result = await this.complexityCalculator.calculateBatchComplexityFromChunks(chunks);
+
+      // 过滤复杂度有效的chunks
+      const validChunks = this.complexityCalculator.filterValidChunks(chunks);
+
+      this.logger.debug(`批量复杂度计算完成: ${result.stats.total} 个chunks, ${result.stats.cacheHits} 次缓存命中`);
+
+      return validChunks;
+    } catch (error) {
+      this.logger.warn(`批量复杂度计算失败，回退到单个计算: ${error}`);
+
+      // 回退到单个计算
+      return chunks.map(chunk => {
+        const chunkComplexity = this.complexityCalculator.calculateComplexity(
+          chunk.content,
+          chunk.metadata.type,
+          chunk.metadata.language,
+          this.config
+        );
+
+        chunk.metadata = {
+          ...chunk.metadata,
+          complexity: chunkComplexity.score,
+          complexityAnalysis: chunkComplexity.analysis
+        };
+
+        return chunk;
+      });
+    }
+  }
+
+  /**
+   * 提取嵌套结构 - 优化版本
+   * 使用并行处理优化嵌套结构提取
    */
   private async extractNestedStructures(
     parentStructure: any,
@@ -253,55 +337,70 @@ export class ASTCodeSplitter {
       });
       const nestedStructures = extractionResult.nestedStructures;
 
-      for (const nested of nestedStructures) {
-        // 验证嵌套级别
-        if (nested.level > this.config.nesting.maxNestingLevel) {
-          continue;
-        }
-
-        // 根据配置决定是否保留完整实现
-        const shouldPreserve = this.shouldPreserveNestedStructure(nested.type);
-
-        let chunk: CodeChunk | CodeChunk[] | null = null;
-        if (shouldPreserve) {
-          const hierarchicalStructure = TypeMappingUtils.convertNestedToHierarchical(nested);
-          chunk = QueryResultConverter.convertSingleHierarchicalStructure(
-            hierarchicalStructure,
-            'ast-splitter',
-            filePath
-          );
-        } else {
-          // 只保留签名
-          chunk = this.createSignatureChunk(nested, filePath, language);
-        }
-
-        if (chunk) {
-          // 如果是数组，处理每个元素
-          const chunkArray = Array.isArray(chunk) ? chunk : [chunk];
-
-          for (const c of chunkArray) {
-            if (c) {
-              // 计算复杂度并添加到元数据
-              const nestedComplexity = ComplexityCalculator.calculateComplexityByType(
-                c.content,
-                c.metadata.type,
-                this.config
-              );
-
-              c.metadata = {
-                ...c.metadata,
-                complexity: nestedComplexity.score,
-                complexityAnalysis: nestedComplexity.analysis,
-                nestingLevel: level
-              };
-
-              chunks.push(c);
-            }
+      // 优化：使用并行处理嵌套结构
+      const tasks = nestedStructures.map((nested: any, index: number) => ({
+        id: `nested-structure-${index}`,
+        task: async () => {
+          // 验证嵌套级别
+          if (nested.level > this.config.nesting.maxNestingLevel) {
+            return null;
           }
-        }
 
-        // 递归提取更深层的嵌套结构
-        if (level < this.config.nesting.maxNestingLevel) {
+          // 根据配置决定是否保留完整实现
+          const structureType = TypeMappingUtils.mapStringToStructureType(nested.type);
+          const chunkType = TypeMappingUtils.mapStructureTypeToChunkTypeDirect(structureType);
+          const shouldPreserve = this.shouldPreserveNestedStructure(chunkType);
+
+          let chunk: CodeChunk | CodeChunk[] | null = null;
+          if (shouldPreserve) {
+            const hierarchicalStructure = TypeMappingUtils.convertNestedToHierarchical(nested);
+            chunk = QueryResultConverter.convertSingleHierarchicalStructure(
+              hierarchicalStructure,
+              'ast-splitter',
+              filePath
+            );
+          } else {
+            // 只保留签名
+            chunk = this.createSignatureChunk(nested, filePath, language);
+          }
+
+          if (chunk) {
+            // 如果是数组，处理每个元素
+            const chunkArray = Array.isArray(chunk) ? chunk : [chunk];
+            const processedChunks = [];
+
+            for (const c of chunkArray) {
+              if (c) {
+                // 使用统一复杂度计算器计算复杂度
+                const nestedComplexity = this.complexityCalculator.calculateComplexity(
+                  c.content,
+                  c.metadata.type,
+                  c.metadata.language
+                );
+
+                c.metadata = {
+                  ...c.metadata,
+                  complexity: nestedComplexity.score,
+                  complexityAnalysis: nestedComplexity.analysis,
+                  nestingLevel: level
+                };
+
+                processedChunks.push(c);
+              }
+            }
+
+            return processedChunks;
+          }
+
+          return null;
+        },
+        priority: level,
+        description: `Process nested ${nested.type} at level ${level}`
+      }));
+
+      // 递归提取更深层的嵌套结构
+      if (level < this.config.nesting.maxNestingLevel) {
+        for (const nested of nestedStructures) {
           const deeperChunks = await this.extractNestedStructures(
             nested,
             content,
@@ -324,6 +423,10 @@ export class ASTCodeSplitter {
    * 验证结构是否有效
    */
   private validateStructure(type: string, content: string, location: { startLine: number; endLine: number }): boolean {
+    // 早期将字符串类型转换为 ChunkType 枚举
+    const structureType = TypeMappingUtils.mapStringToStructureType(type);
+    const chunkType = TypeMappingUtils.mapStructureTypeToChunkTypeDirect(structureType);
+
     // 使用配置系统中的统一验证参数
     const validationConfig = {
       minChars: this.config.global.minChunkSize,
@@ -331,187 +434,73 @@ export class ASTCodeSplitter {
       minLines: this.config.global.minLinesPerChunk
     };
 
-    // 根据类型进行验证
-    let isValid = this.validateByType(type, content, location, validationConfig);
+    // 使用验证策略进行验证
+    let isValid = this.validateByChunkType(chunkType, content, location, validationConfig);
 
     // 如果基础验证通过，进一步使用复杂度验证
     if (isValid) {
-      isValid = this.validateComplexity(type, content);
+      isValid = this.validateComplexity(chunkType, content);
     }
 
     return isValid;
   }
 
   /**
-   * 根据类型进行验证
+   * 根据ChunkType枚举进行验证
    */
-  private validateByType(
-    type: string,
+  private validateByChunkType(
+    chunkType: ChunkType,
     content: string,
     location: { startLine: number; endLine: number },
     config: { minChars: number; maxChars: number; minLines: number }
   ): boolean {
-    switch (type) {
-      case 'function':
-        return ValidationUtils.isValidFunction(content, location, config);
-      case 'class':
-        return ValidationUtils.isValidClass(content, location, config);
-      case 'namespace':
-        return ValidationUtils.isValidNamespace(content, location, config);
-      case 'template':
-        return ValidationUtils.isValidTemplate(content, location, config);
-      case 'import':
-        return ValidationUtils.isValidImport(content, location);
-      default:
-        return content.length >= this.config.global.minChunkSize &&
-          content.length <= this.config.global.maxChunkSize;
+    // 获取对应的验证策略
+    const strategy = getValidationStrategy(chunkType);
+
+    // 合并默认配置和传入配置
+    const validationConfig = {
+      ...strategy.config,
+      ...config
+    };
+
+    // 如果有特定验证器，使用它
+    if (strategy.validator) {
+      return strategy.validator(content, location, validationConfig) || false;
     }
+
+    // 对于没有特定验证器的类型，使用大小验证
+    return content.length >= config.minChars && content.length <= config.maxChars;
   }
 
   /**
-   * 验证复杂度
+   * 验证复杂度 - 优化版本
+   * 使用统一复杂度计算器进行验证
    */
-  private validateComplexity(type: string, content: string): boolean {
-    // 计算内容复杂度
-    const chunkType = this.mapStringToChunkType(type);
-    const structureComplexity = ComplexityCalculator.calculateComplexityByType(content, chunkType, this.config);
+  private validateComplexity(chunkType: ChunkType, content: string): boolean {
+    const structureComplexity = this.complexityCalculator.calculateComplexity(
+      content,
+      chunkType
+    );
 
-    // 设置复杂度阈值，过滤过于简单或过于复杂的块
-    const minComplexity = 2; // 最小复杂度阈值
-    const maxComplexity = 500; // 最大复杂度阈值
-
-    const complexityValid = structureComplexity.score >= minComplexity && structureComplexity.score <= maxComplexity;
-
-    if (!complexityValid) {
-      this.logger.debug(`Structure of type ${type} failed complexity validation: score ${structureComplexity.score} (min: ${minComplexity}, max: ${maxComplexity})`);
-    }
-
-    return complexityValid;
+    // 使用统一复杂度计算器的验证功能
+    return this.complexityCalculator.validateComplexity(structureComplexity.score, chunkType);
   }
 
-  /**
-   * 将字符串类型映射到ChunkType枚举
-   */
-  private mapStringToChunkType(type: string): ChunkType {
-    switch (type.toLowerCase()) {
-      case 'function':
-        return ChunkType.FUNCTION;
-      case 'class':
-        return ChunkType.CLASS;
-      case 'method':
-        return ChunkType.METHOD;
-      case 'import':
-        return ChunkType.IMPORT;
-      case 'export':
-        return ChunkType.EXPORT;
-      case 'comment':
-        return ChunkType.COMMENT;
-      case 'documentation':
-        return ChunkType.DOCUMENTATION;
-      case 'variable':
-        return ChunkType.VARIABLE;
-      case 'interface':
-        return ChunkType.INTERFACE;
-      case 'type':
-        return ChunkType.TYPE;
-      case 'enum':
-        return ChunkType.ENUM;
-      case 'module':
-        return ChunkType.MODULE;
-      case 'block':
-        return ChunkType.BLOCK;
-      case 'line':
-        return ChunkType.LINE;
-      case 'control-flow':
-        return ChunkType.CONTROL_FLOW;
-      case 'expression':
-        return ChunkType.EXPRESSION;
-      case 'config-item':
-        return ChunkType.CONFIG_ITEM;
-      case 'section':
-        return ChunkType.SECTION;
-      case 'key':
-        return ChunkType.KEY;
-      case 'value':
-        return ChunkType.VALUE;
-      case 'array':
-        return ChunkType.ARRAY;
-      case 'table':
-        return ChunkType.TABLE;
-      case 'dependency':
-        return ChunkType.DEPENDENCY;
-      case 'type-def':
-        return ChunkType.TYPE_DEF;
-      case 'call':
-        return ChunkType.CALL;
-      case 'data-flow':
-        return ChunkType.DATA_FLOW;
-      case 'parameter-flow':
-        return ChunkType.PARAMETER_FLOW;
-      case 'union':
-        return ChunkType.UNION;
-      case 'annotation':
-        return ChunkType.ANNOTATION;
-      default:
-        return ChunkType.GENERIC;
-    }
-  }
 
-  /**
-   * 将TypeMappingUtils返回的字符串转换为ChunkType枚举
-   */
-  private mapTypeMappingStringToChunkType(typeString: string): ChunkType {
-    return this.mapStringToChunkType(typeString);
-  }
 
   /**
    * 检查是否应该保留嵌套结构的完整实现
+   * @param type 代码块类型
+   * @returns 是否保留完整实现
    */
-  private shouldPreserveNestedStructure(type: string): boolean {
-    switch (type) {
-      case 'method':
-        return true; // 方法通常保留完整实现
-      case 'function':
-        return false; // 嵌套函数通常只保留签名
-      case 'class':
-        return false; // 嵌套类通常只保留签名
-      case 'control-flow':
-        return true; // 控制流结构保留完整实现
-      case 'expression':
-        return false; // 表达式通常只保留签名
-      case 'config-item':
-        return true; // 配置项保留完整实现
-      case 'section':
-        return true; // 配置节保留完整实现
-      case 'key':
-        return false; // 键通常只保留签名
-      case 'value':
-        return false; // 值通常只保留签名
-      case 'array':
-        return true; // 数组保留完整实现
-      case 'table':
-        return true; // 表/对象保留完整实现
-      case 'dependency':
-        return true; // 依赖项保留完整实现
-      case 'type-def':
-        return true; // 类型定义保留完整实现
-      case 'call':
-        return false; // 函数调用通常只保留签名
-      case 'data-flow':
-        return true; // 数据流保留完整实现
-      case 'parameter-flow':
-        return false; // 参数流通常只保留签名
-      case 'union':
-        return true; // 联合类型保留完整实现
-      case 'annotation':
-        return true; // 注解保留完整实现
-      default:
-        return false;
-    }
+  private shouldPreserveNestedStructure(type: ChunkType): boolean {
+    return ChunkTypeMapper.shouldPreserveNestedStructure(type);
   }
 
   /**
-   * 创建签名代码块
+   * 创建签名代码块 - 优化版本
+   * 使用统一复杂度计算器计算复杂度
+   * 利用结构元信息智能提取签名
    */
   private createSignatureChunk(
     structure: any,
@@ -519,35 +508,37 @@ export class ASTCodeSplitter {
     language: string
   ): CodeChunk | null {
     try {
-      // 提取签名（简化实现）
-      const lines = structure.content.split('\n');
-      const signatureLines = lines.slice(0, 1); // 只取第一行作为签名
-
-      if (signatureLines.length === 0) return null;
-
-      const signature = signatureLines[0].trim();
+      // 使用元信息智能提取签名
+      const signature = this.extractSignatureFromStructure(structure, language);
       if (!signature) return null;
 
+      const structureType = TypeMappingUtils.mapStringToStructureType(structure.type);
+      const chunkType = TypeMappingUtils.mapStructureTypeToChunkTypeDirect(structureType);
       const chunk = ChunkFactory.createCodeChunk(
-        signature,
+        signature.content,
         structure.location.startLine,
-        structure.location.startLine,
+        structure.location.startLine + (signature.lineCount - 1),
         language,
-        this.mapTypeMappingStringToChunkType(TypeMappingUtils.mapStructureTypeToChunkType(structure.type as any)),
+        chunkType,
         {
           filePath,
           strategy: 'ast-splitter',
           isSignatureOnly: true,
           originalStructure: structure.type,
-          nestingLevel: structure.level
+          nestingLevel: structure.level,
+          // 添加更多元信息
+          structureName: structure.name,
+          structureType: structure.type,
+          confidence: structure.metadata?.confidence || 0,
+          signatureExtractionMethod: signature.extractionMethod
         }
       );
 
-      // 计算复杂度并添加到元数据
-      const signatureComplexity = ComplexityCalculator.calculateComplexityByType(
+      // 使用统一复杂度计算器计算复杂度
+      const signatureComplexity = this.complexityCalculator.calculateComplexity(
         chunk.content,
         chunk.metadata.type,
-        this.config
+        chunk.metadata.language
       );
 
       chunk.metadata = {
@@ -563,6 +554,288 @@ export class ASTCodeSplitter {
     }
   }
 
+  /**
+   * 基于结构元信息智能提取签名
+   */
+  private extractSignatureFromStructure(structure: any, language: string): { content: string; lineCount: number; extractionMethod: string } | null {
+    const lines = structure.content.split('\n');
+    if (lines.length === 0) return null;
+
+    const structureType = structure.type?.toLowerCase() || '';
+    const structureName = structure.name || '';
+
+    // 根据不同结构类型使用不同的签名提取策略
+    switch (structureType) {
+      case 'function':
+      case 'method':
+        return this.extractFunctionSignature(lines, language, structureName);
+
+      case 'class':
+      case 'interface':
+      case 'struct':
+        return this.extractClassSignature(lines, language, structureName);
+
+      case 'variable':
+      case 'const':
+      case 'let':
+        return this.extractVariableSignature(lines, language, structureName);
+
+      case 'import':
+      case 'export':
+        return this.extractImportExportSignature(lines, language);
+
+      case 'enum':
+        return this.extractEnumSignature(lines, language, structureName);
+
+      case 'type':
+      case 'type_alias':
+        return this.extractTypeSignature(lines, language, structureName);
+
+      default:
+        // 通用策略：尝试找到包含结构名称的行，否则使用第一行
+        return this.extractGenericSignature(lines, structureName);
+    }
+  }
+
+  /**
+   * 提取函数/方法签名
+   */
+  private extractFunctionSignature(lines: string[], language: string, functionName: string): { content: string; lineCount: number; extractionMethod: string } | null {
+    // 查找包含函数名的行
+    for (let i = 0; i < Math.min(lines.length, 5); i++) {
+      const line = lines[i].trim();
+      if (line.includes(functionName) && (line.includes('(') || line.includes('=>') || line.includes('function'))) {
+        return {
+          content: line,
+          lineCount: 1,
+          extractionMethod: 'function-name-matching'
+        };
+      }
+    }
+
+    // 如果没找到，查找包含函数关键字的行
+    for (let i = 0; i < Math.min(lines.length, 5); i++) {
+      const line = lines[i].trim();
+      if (line.includes('function') || line.includes('=>') || line.includes('(')) {
+        return {
+          content: line,
+          lineCount: 1,
+          extractionMethod: 'function-keyword-matching'
+        };
+      }
+    }
+
+    // 回退到第一行
+    return {
+      content: lines[0].trim(),
+      lineCount: 1,
+      extractionMethod: 'first-line-fallback'
+    };
+  }
+
+  /**
+   * 提取类/接口/结构体签名
+   */
+  private extractClassSignature(lines: string[], language: string, className: string): { content: string; lineCount: number; extractionMethod: string } | null {
+    // 查找包含类名的行
+    for (let i = 0; i < Math.min(lines.length, 5); i++) {
+      const line = lines[i].trim();
+      if (line.includes(className) && (line.includes('class') || line.includes('interface') || line.includes('struct'))) {
+        return {
+          content: line,
+          lineCount: 1,
+          extractionMethod: 'class-name-matching'
+        };
+      }
+    }
+
+    // 查找包含类关键字的行
+    for (let i = 0; i < Math.min(lines.length, 5); i++) {
+      const line = lines[i].trim();
+      if (line.includes('class') || line.includes('interface') || line.includes('struct')) {
+        return {
+          content: line,
+          lineCount: 1,
+          extractionMethod: 'class-keyword-matching'
+        };
+      }
+    }
+
+    // 回退到第一行
+    return {
+      content: lines[0].trim(),
+      lineCount: 1,
+      extractionMethod: 'first-line-fallback'
+    };
+  }
+
+  /**
+   * 提取变量声明签名
+   */
+  private extractVariableSignature(lines: string[], language: string, variableName: string): { content: string; lineCount: number; extractionMethod: string } | null {
+    // 查找包含变量名的行
+    for (let i = 0; i < Math.min(lines.length, 3); i++) {
+      const line = lines[i].trim();
+      if (line.includes(variableName) && (line.includes('=') || line.includes(':') || line.includes('const') || line.includes('let') || line.includes('var'))) {
+        return {
+          content: line,
+          lineCount: 1,
+          extractionMethod: 'variable-name-matching'
+        };
+      }
+    }
+
+    // 查找包含变量关键字的行
+    for (let i = 0; i < Math.min(lines.length, 3); i++) {
+      const line = lines[i].trim();
+      if (line.includes('const') || line.includes('let') || line.includes('var')) {
+        return {
+          content: line,
+          lineCount: 1,
+          extractionMethod: 'variable-keyword-matching'
+        };
+      }
+    }
+
+    // 回退到第一行
+    return {
+      content: lines[0].trim(),
+      lineCount: 1,
+      extractionMethod: 'first-line-fallback'
+    };
+  }
+
+  /**
+   * 提取导入/导出签名
+   */
+  private extractImportExportSignature(lines: string[], language: string): { content: string; lineCount: number; extractionMethod: string } | null {
+    // 导入/导出语句通常在第一行
+    const firstLine = lines[0].trim();
+    if (firstLine.includes('import') || firstLine.includes('export')) {
+      return {
+        content: firstLine,
+        lineCount: 1,
+        extractionMethod: 'import-export-direct'
+      };
+    }
+
+    // 查找包含导入/导出关键字的行
+    for (let i = 0; i < Math.min(lines.length, 3); i++) {
+      const line = lines[i].trim();
+      if (line.includes('import') || line.includes('export')) {
+        return {
+          content: line,
+          lineCount: 1,
+          extractionMethod: 'import-export-search'
+        };
+      }
+    }
+
+    // 回退到第一行
+    return {
+      content: firstLine,
+      lineCount: 1,
+      extractionMethod: 'first-line-fallback'
+    };
+  }
+
+  /**
+   * 提取枚举签名
+   */
+  private extractEnumSignature(lines: string[], language: string, enumName: string): { content: string; lineCount: number; extractionMethod: string } | null {
+    // 查找包含枚举名的行
+    for (let i = 0; i < Math.min(lines.length, 3); i++) {
+      const line = lines[i].trim();
+      if (line.includes(enumName) && line.includes('enum')) {
+        return {
+          content: line,
+          lineCount: 1,
+          extractionMethod: 'enum-name-matching'
+        };
+      }
+    }
+
+    // 查找包含enum关键字的行
+    for (let i = 0; i < Math.min(lines.length, 3); i++) {
+      const line = lines[i].trim();
+      if (line.includes('enum')) {
+        return {
+          content: line,
+          lineCount: 1,
+          extractionMethod: 'enum-keyword-matching'
+        };
+      }
+    }
+
+    // 回退到第一行
+    return {
+      content: lines[0].trim(),
+      lineCount: 1,
+      extractionMethod: 'first-line-fallback'
+    };
+  }
+
+  /**
+   * 提取类型定义签名
+   */
+  private extractTypeSignature(lines: string[], language: string, typeName: string): { content: string; lineCount: number; extractionMethod: string } | null {
+    // 查找包含类型名的行
+    for (let i = 0; i < Math.min(lines.length, 3); i++) {
+      const line = lines[i].trim();
+      if (line.includes(typeName) && (line.includes('type') || line.includes('interface') || line.includes('typedef'))) {
+        return {
+          content: line,
+          lineCount: 1,
+          extractionMethod: 'type-name-matching'
+        };
+      }
+    }
+
+    // 查找包含类型关键字的行
+    for (let i = 0; i < Math.min(lines.length, 3); i++) {
+      const line = lines[i].trim();
+      if (line.includes('type') || line.includes('interface') || line.includes('typedef')) {
+        return {
+          content: line,
+          lineCount: 1,
+          extractionMethod: 'type-keyword-matching'
+        };
+      }
+    }
+
+    // 回退到第一行
+    return {
+      content: lines[0].trim(),
+      lineCount: 1,
+      extractionMethod: 'first-line-fallback'
+    };
+  }
+
+  /**
+   * 通用签名提取策略
+   */
+  private extractGenericSignature(lines: string[], structureName: string): { content: string; lineCount: number; extractionMethod: string } | null {
+    // 如果有结构名称，尝试查找包含名称的行
+    if (structureName) {
+      for (let i = 0; i < Math.min(lines.length, 5); i++) {
+        const line = lines[i].trim();
+        if (line.includes(structureName)) {
+          return {
+            content: line,
+            lineCount: 1,
+            extractionMethod: 'generic-name-matching'
+          };
+        }
+      }
+    }
+
+    // 回退到第一行
+    return {
+      content: lines[0].trim(),
+      lineCount: 1,
+      extractionMethod: 'first-line-fallback'
+    };
+  }
 
   /**
    * 检查内容是否有有效结构
@@ -588,7 +861,7 @@ export class ASTCodeSplitter {
    * 生成缓存键
    */
   private generateCacheKey(content: string, language: string | undefined, filePath: string): string {
-    const contentHash = HashUtils.fnv1aHash(content);
+    const contentHash = require('../../../../utils/cache/HashUtils').HashUtils.fnv1aHash(content);
     return `${filePath}:${language || 'unknown'}:${contentHash}`;
   }
 
@@ -607,32 +880,30 @@ export class ASTCodeSplitter {
   }
 
   /**
-  * 清除缓存
-  */
+   * 清除缓存 - 优化版本
+   * 清除所有缓存（包括新的AST缓存和复杂度计算缓存）
+   */
   clearCache(): void {
     try {
       this.cacheService?.clearAllCache();
+      this.astCache.clear();
+      this.complexityCalculator.clearCache();
     } catch (error) {
       this.logger.warn('Cache clear error:', error);
     }
   }
 
   /**
-  * 获取缓存统计
-  */
-  getCacheStats(): { size: number; maxSize: number } {
+   * 销毁实例 - 新增方法
+   * 清理所有资源
+   */
+  destroy(): void {
     try {
-      const stats = this.cacheService?.getCacheStats();
-      return {
-        size: stats?.totalEntries || 0,
-        maxSize: this.config.performance.maxCacheSize
-      };
+      this.astCache.destroy();
+      this.complexityCalculator.destroy();
+      this.logger.debug('ASTCodeSplitter destroyed');
     } catch (error) {
-      this.logger.warn('Cache stats error:', error);
-      return {
-        size: 0,
-        maxSize: this.config.performance?.maxCacheSize || 10000
-      };
+      this.logger.warn('Error during destroy:', error);
     }
   }
 }

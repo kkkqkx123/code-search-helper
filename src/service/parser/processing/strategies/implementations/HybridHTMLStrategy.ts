@@ -7,7 +7,6 @@ import { HtmlLanguageAdapter } from '../../../core/normalization/adapters/HtmlLa
 import { HtmlRelationshipExtractor } from '../../../core/normalization/adapters/html-utils/HtmlRelationshipExtractor';
 import { HtmlRelationship } from '../../../core/normalization/adapters/html-utils/HtmlRelationshipTypes';
 import {
-    HTMLContentExtractor,
     HTMLProcessingUtils,
     ScriptBlock,
     StyleBlock,

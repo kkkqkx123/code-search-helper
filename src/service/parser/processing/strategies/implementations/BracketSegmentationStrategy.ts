@@ -1,12 +1,11 @@
 import { BaseStrategy } from '../base/BaseStrategy';
 import { IProcessingContext } from '../../core/interfaces/IProcessingContext';
 import { ProcessingResult } from '../../core/types/ResultTypes';
-import { CodeChunk, ChunkType } from '../../types/CodeChunk';
+import { CodeChunk } from '../../types/CodeChunk';
 import { StrategyConfig } from '../../types/Strategy';
 import { Logger } from '../../../../../utils/logger';
 import { BRACKET_SEGMENTATION_SUPPORTED_LANGUAGES } from '../../../constants/StrategyPriorities';
 import { CODE_LANGUAGES } from '../../../constants/language-constants';
-import { ComplexityCalculator } from '../../../../../utils/parser/ComplexityCalculator';
 import { ChunkFactory } from '../../../../../utils/parser/ChunkFactory';
 
 /**
