@@ -120,7 +120,4 @@ export default `
   (false) @definition.literal.false
   (null) @definition.literal.null
 ] @definition.literal
-
-; 注释查询 - 简化模式
-(comment) @definition.comment
 `;

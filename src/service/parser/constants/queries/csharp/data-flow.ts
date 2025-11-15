@@ -183,7 +183,8 @@ export default `
 
 ; yield数据流 - 使用交替模式
 [
-  (yield_statement
-    expression: (identifier) @yield.value) @data.flow.yield.return
-  (yield_statement) @data.flow.yield.break
+   (yield_statement
+     expression: (identifier) @yield.value) @data.flow.yield.return
+   (yield_statement) @data.flow.yield.break
 ] @data.flow.yield
+`;

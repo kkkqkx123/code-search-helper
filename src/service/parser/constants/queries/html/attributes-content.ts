@@ -13,9 +13,6 @@ export default `
   (quoted_attribute_value
     (attribute_value) @definition.attribute_value))
 
-; Comments
-(comment) @definition.comment
-
 ; Text content
 (text) @definition.text
 

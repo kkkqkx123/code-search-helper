@@ -76,12 +76,6 @@ export default `
       (identifier) @cfg.condition)*)
   (#match? @cfg.name "^cfg$")) @definition.conditional.compilation
 
-; 文档注释查询 - 使用交替模式
-[
-  (line_comment) @comment.line
-  (block_comment) @comment.block
-] @definition.comment
-
 ; 循环标签查询
 (loop_label
   (lifetime

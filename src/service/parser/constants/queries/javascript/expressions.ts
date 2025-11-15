@@ -82,13 +82,6 @@ export default `
   name: (identifier) @name.definition.component
   (#match? @name.definition.component "^[A-Z][a-zA-Z]*$"))
 
-; Comments for documentation
-(comment) @name.definition.comment
-
-; String literals that might be JSDoc
-(comment
-  (#match? @name.definition.comment "^/\\*\\*")) @name.definition.jsdoc
-
 ; Module-level exports that might be public API
 (export_statement
   declaration: (function_declaration

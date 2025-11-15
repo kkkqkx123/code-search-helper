@@ -27,7 +27,4 @@ export default `
 ; At-rules - important for special CSS features
 (at_rule
   (at_keyword) @name.definition.at_rule) @definition.at_rule
-
-; Comments - important for documentation
-(comment) @definition.comment
 `;

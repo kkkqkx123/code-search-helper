@@ -8,6 +8,7 @@ import controlFlowPatterns from './control-flow-patterns';
 import dataFlow from './data-flow';
 import semanticRelationships from './semantic-relationships';
 import lifecycleRelationships from './lifecycle-relationships';
+import comments from './comments';
 
 export default `
 ${classesInterfaces}
@@ -20,5 +21,6 @@ ${dataFlow}
 
 ${semanticRelationships}
 
+${comments}
 ${lifecycleRelationships}
 `;

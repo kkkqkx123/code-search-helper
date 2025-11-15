@@ -12,6 +12,7 @@ import typesDecorators from './types-decorators';
 import dataFlow from './data-flow';
 import semanticRelationships from './semantic-relationships';
 import lifecycleRelationships from './lifecycle-relationships';
+import comments from './comments';
 
 export default `
 ${classes}
@@ -32,5 +33,6 @@ ${dataFlow}
 
 ${semanticRelationships}
 
+${comments}
 ${lifecycleRelationships}
 `;

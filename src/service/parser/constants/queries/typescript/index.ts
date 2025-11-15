@@ -14,6 +14,7 @@ import variables from './variables';
 import controlFlow from './control-flow';
 import dataFlow from './data-flow';
 import expressions from './expressions';
+import comments from './comments';
 
 export default `
 ${classes}
@@ -38,4 +39,5 @@ ${controlFlow}
 
 ${dataFlow}
 ${expressions}
+${comments}
 `;

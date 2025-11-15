@@ -12,6 +12,7 @@ import controlFlowRelationships from './control-flow-relationships';
 import semanticRelationships from './semantic-relationships';
 import lifecycleRelationships from './lifecycle-relationships';
 import concurrencyRelationships from './concurrency-relationships';
+import comments from './comments';
 
 export default `
 ${functionsStructs}
@@ -32,5 +33,6 @@ ${semanticRelationships}
 
 ${lifecycleRelationships}
 
+${comments}
 ${concurrencyRelationships}
 `;

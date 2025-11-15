@@ -116,12 +116,6 @@ export default `
   (expression_statement) @statement.expression
 ] @definition.structure
 
-; 注释查询 - 使用交替模式
-[
-  (line_comment) @comment.line
-  (block_comment) @comment.block
-] @definition.comment
-
 ; 字符串相关查询 - 使用交替模式
 [
   (string_literal) @literal.string

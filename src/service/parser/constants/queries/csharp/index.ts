@@ -13,6 +13,7 @@ import controlFlow from './control-flow';
 import semanticRelationships from './semantic-relationships';
 import lifecycleRelationships from './lifecycle-relationships';
 import concurrencyRelationships from './concurrency-relationships';
+import comments from './comments';
 
 export default `
 ${classes}
@@ -35,5 +36,6 @@ ${semanticRelationships}
 
 ${lifecycleRelationships}
 
+${comments}
 ${concurrencyRelationships}
 `;

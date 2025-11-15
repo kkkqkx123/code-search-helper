@@ -154,12 +154,6 @@ export default `
   (expression_statement) @structure.expression.stmt
 ] @definition.structure
 
-; 注释查询 - 使用交替模式
-[
-  (line_comment) @comment.line
-  (block_comment) @comment.block
-] @definition.comment
-
 ; 包和导入查询 - 使用交替模式
 [
   (package_header
