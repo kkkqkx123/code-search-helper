@@ -2,45 +2,56 @@
 Python Class-specific Tree-Sitter Query Patterns
 */
 export default `
-; Class definitions
+; Unified class definitions - using alternation to reduce redundancy
+[
+  (class_definition
+    name: (identifier) @class.name)
+  (decorated_definition
+    definition: (class_definition
+      name: (identifier) @class.name))
+] @definition.class
+
+; Class inheritance with anchor operator for precise matching
 (class_definition
-  name: (identifier) @name.definition.class) @definition.class
+  name: (identifier) @class.name
+  superclasses: .
+    (argument_list
+      (identifier) @base.class)) @definition.class.with_inheritance
 
-; Decorated class definitions
-(decorated_definition
-  definition: (class_definition
-    name: (identifier) @name.definition.class)) @definition.class
-
-; Method definitions within classes
-(class_definition
-  body: (block
-    (function_definition
-      name: (identifier) @name.definition.method))) @definition.method
-
-; Decorated method definitions
-(class_definition
-  body: (block
-    (decorated_definition
-      definition: (function_definition
-        name: (identifier) @name.definition.method)))) @definition.method
-
-; Async method definitions
+; Methods within classes - using alternation to combine similar patterns
 (class_definition
   body: (block
-    (function_definition
-      "async"
-      name: (identifier) @name.definition.async_method))) @definition.async_method
+    [
+      (function_definition
+        name: (identifier) @method.name)
+      (decorated_definition
+        definition: (function_definition
+          name: (identifier) @method.name))
+      (function_definition
+        "async"
+        name: (identifier) @async.method.name)
+    ])) @definition.method
 
-; Class inheritance
-(class_definition
-  name: (identifier) @name.definition.class
-  superclasses: (argument_list
-    (identifier) @name.superclass)) @definition.class
-
-; Property decorators
+; Property decorators with predicate filtering
 (class_definition
   body: (block
     (decorated_definition
       definition: (function_definition
-        name: (identifier) @name.definition.property)))) @definition.property
+        name: (identifier) @property.name)
+      (decorator
+        (identifier) @property.decorator
+        (#match? @property.decorator "^(property|setter|getter)$"))))) @definition.property
+
+; Constructor and destructor methods with precise matching
+(class_definition
+  body: (block
+    (function_definition
+      name: (identifier) @constructor.name
+      (#match? @constructor.name "^__init__$")))) @definition.constructor
+
+(class_definition
+  body: (block
+    (function_definition
+      name: (identifier) @destructor.name
+      (#match? @destructor.name "^__del__$")))) @definition.destructor
 `;

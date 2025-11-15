@@ -3,69 +3,63 @@ Python Type and Decorator-specific Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
 */
 export default `
-; Type annotations
-(typed_parameter
-  type: (type)) @name.definition.type_annotation
+; Type annotations with field names for better context
+[
+  (typed_parameter
+    name: (identifier)? @parameter.name
+    type: (type) @parameter.type)
+  (typed_default_parameter
+    name: (identifier)? @parameter.name
+    type: (type) @parameter.type)
+  (type) @type.hint
+  (type_alias_statement
+    name: (identifier) @type.alias.name
+    value: (type) @type.alias.value)
+] @definition.type
 
-; Type hints and annotations
-(type) @name.definition.type_hint
+; Generic and union types with anchor for precise matching
+[
+  (generic_type
+    (identifier) @generic.type.name)
+  (union_type
+    (type) @union.type.element)
+] @definition.complex.type
 
-; Type alias statements (Python 3.12+)
-(type_alias_statement) @name.definition.type_alias
+; Decorators with predicate filtering for specific types
+[
+  (decorator
+    (identifier) @decorator.name)
+  (decorator
+    (call
+      function: (identifier) @decorator.function))
+] @definition.decorator
 
-; Parameter declarations
-(parameters) @name.definition.parameters
-(default_parameter) @name.definition.default_parameter
-(typed_parameter) @name.definition.typed_parameter
-(typed_default_parameter) @name.definition.typed_default_parameter
+; Method types using alternation for similar patterns
+[
+  (function_definition
+    name: (identifier) @method.name
+    (#match? @method.name "^__(.*)__$")) @definition.dunder.method
+  (function_definition
+    name: (identifier) @method.name
+    (#match? @method.name "^_")) @definition.private.method
+  (function_definition
+    name: (identifier) @test.name
+    (#match? @test.name "^(test_|.*_test$)")) @definition.test.function
+] @definition.special.method
 
-; Decorators
-(decorator) @name.definition.decorator
+; Documentation elements
+[
+  (comment) @documentation.comment
+  (expression_statement
+    (string) @docstring.content) @definition.docstring
+] @definition.documentation
 
-; Property definitions
-(class_definition
-  body: (block
-    (decorated_definition
-      definition: (function_definition
-        name: (identifier) @name.definition.property)))) @definition.property
-
-; Static methods
-(class_definition
-  body: (block
-    (decorated_definition
-      definition: (function_definition
-        name: (identifier) @name.definition.static_method)))) @definition.static_method
-
-; Class methods
-(class_definition
-  body: (block
-    (decorated_definition
-      definition: (function_definition
-        name: (identifier) @name.definition.class_method)))) @definition.class_method
-
-; Test functions
-(function_definition
-  name: (identifier) @name.definition.test) @definition.test_function
-
-; Dunder methods (magic methods)
-(function_definition
-  name: (identifier) @name.definition.dunder_method) @definition.dunder_method
-
-; Private methods (name mangling)
-(function_definition
-  name: (identifier) @name.definition.private_method) @definition.private_method
-
-; Comments for documentation
-(comment) @name.definition.comment
-
-; String literals that might be docstrings
-(expression_statement
-  (string) @name.definition.docstring) @definition.docstring
-
-; Generic types
-(generic_type
-  (identifier) @name.definition.generic_type_name) @definition.generic_type
-
-; Union types
-(union_type) @name.definition.union_type
+; Parameter types with field names
+[
+  (parameters
+    (identifier) @parameter.name)
+  (default_parameter
+    name: (identifier) @parameter.name
+    value: (expression) @parameter.default)
+] @definition.parameter
 `;

@@ -3,93 +3,91 @@ Python Data Flow-specific Tree-Sitter Query Patterns
 用于追踪变量间的数据传递关系
 */
 export default `
-; 变量赋值数据流
+; Unified assignment data flow using alternation for different assignment types
 (assignment
-  left: (identifier) @source.variable
-  right: (identifier) @target.variable) @data.flow.assignment
+  left: [
+    (identifier) @target.variable
+    (attribute
+      object: (identifier) @target.object
+      attribute: (identifier) @target.property)
+    (subscript
+      object: (identifier) @target.object
+      index: (identifier) @target.index)
+  ]
+  right: [
+    (identifier) @source.variable
+    (call
+      function: (identifier) @source.function)
+    (attribute
+      object: (identifier) @source.object
+      attribute: (identifier) @source.property)
+    (subscript
+      object: (identifier) @source.object
+      index: (identifier) @source.index)
+    (lambda) @source.lambda
+  ]) @data.flow.assignment
 
-; 类型注解赋值数据流
-(annotated_assignment
-  left: (identifier) @source.variable
-  right: (identifier) @target.variable) @data.flow.annotated.assignment
+; Annotated and augmented assignments with anchor
+[
+  (annotated_assignment
+    left: (identifier) @target.variable
+    right: (identifier) @source.variable)
+  (augmented_assignment
+    left: (identifier) @target.variable
+    right: (identifier) @source.variable)
+] @data.flow.special.assignment
 
-; 增强赋值数据流
-(augmented_assignment
-  left: (identifier) @source.variable
-  right: (identifier) @target.variable) @data.flow.augmented.assignment
+; Comprehension-based assignments with anchor for precise matching
+[
+  (assignment
+    left: (identifier) @target.variable
+    right: (list_comprehension
+      (identifier) @source.variable))) @data.flow.list.comprehension
+  (assignment
+    left: (identifier) @target.variable
+    right: (dictionary_comprehension
+      (identifier) @source.variable))) @data.flow.dict.comprehension
+  (assignment
+    left: (identifier) @target.variable
+    right: (generator_expression
+      (identifier) @source.variable))) @data.flow.generator.expression
+] @data.flow.comprehension.assignment
 
-; 属性赋值数据流
-(assignment
-  left: (attribute
-    object: (identifier) @source.object
-    attribute: (identifier) @source.property)
-  right: (identifier) @target.variable) @data.flow.property.assignment
-
-; 下标赋值数据流
-(assignment
-  left: (subscript
-    object: (identifier) @source.object
-    index: (identifier) @source.index)
-  right: (identifier) @target.variable) @data.flow.subscript.assignment
-
-; 函数调用参数传递数据流
+; Parameter passing data flow using alternation
 (call
-  function: (identifier) @target.function
+  function: [
+    (identifier) @target.function
+    (attribute
+      object: (identifier) @target.object
+      attribute: (identifier) @target.method)
+  ]
   arguments: (argument_list
-    (identifier) @source.parameter)) @data.flow.parameter
+    (identifier) @source.parameter)) @data.flow.parameter.passing
 
-; 方法调用参数传递数据流
-(call
-  function: (attribute
-    object: (identifier) @target.object
-    attribute: (identifier) @target.method)
-  arguments: (argument_list
-    (identifier) @source.parameter)) @data.flow.method.parameter
-
-; 返回值数据流
+; Return value data flow with anchor for precise matching
 (return_statement
-  (identifier) @source.variable) @data.flow.return
+  .
+  [
+    (identifier) @source.variable
+    (call
+      function: (identifier) @source.function)
+    (attribute
+      object: (identifier) @source.object
+      attribute: (identifier) @source.property)
+    (subscript
+      object: (identifier) @source.object
+      index: (identifier) @source.index)
+  ]) @data.flow.return.value
 
-; 属性返回数据流
-(return_statement
-  (attribute
-    object: (identifier) @source.object
-    attribute: (identifier) @source.property)) @data.flow.property.return
-
-; Lambda赋值数据流
+; Pattern matching assignments
 (assignment
-  left: (identifier) @source.variable
-  right: (lambda) @target.lambda) @data.flow.lambda.assignment
-
-; 列表推导式数据流
-(assignment
-  left: (identifier) @target.variable
-  right: (list_comprehension
-    (identifier) @source.variable)) @data.flow.list.comprehension
-
-; 字典推导式数据流
-(assignment
-  left: (identifier) @target.variable
-  right: (dictionary_comprehension
-    (identifier) @source.variable)) @data.flow.dict.comprehension
-
-; 生成器表达式数据流
-(assignment
-  left: (identifier) @target.variable
-  right: (generator_expression
-    (identifier) @source.variable)) @data.flow.generator.expression
-
-; 多重赋值数据流
-(assignment
-  left: (pattern_list
-    (identifier) @target.variable1)
-  (pattern_list
-    (identifier) @target.variable2)
-  right: (identifier) @source.variable) @data.flow.multiple.assignment
-
-; 解包赋值数据流
-(assignment
-  left: (pattern_list
-    (identifier) @target.variable)
-  right: (identifier) @source.variable) @data.flow.unpack.assignment
+  left: [
+    (pattern_list
+      (identifier) @target.variable))
+    (tuple_pattern
+      (identifier) @target.variable))
+    (list_pattern
+      (identifier) @target.variable))
+  ]
+  right: (identifier) @source.variable) @data.flow.pattern.assignment
 `;

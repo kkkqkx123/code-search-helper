@@ -3,51 +3,60 @@ Python Data Structure and Pattern Matching-specific Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
 */
 export default `
-; Comprehensions
-(list_comprehension) @name.definition.list_comprehension
-(dictionary_comprehension) @name.definition.dict_comprehension
-(set_comprehension) @name.definition.set_comprehension
-(generator_expression) @name.definition.generator_expression
+; Comprehensions with field names for better context
+[
+  (list_comprehension
+    (identifier) @comprehension.variable)
+  (dictionary_comprehension
+    (identifier) @comprehension.variable)
+  (set_comprehension
+    (identifier) @comprehension.variable)
+  (generator_expression
+    (identifier) @comprehension.variable)
+] @definition.comprehension
 
-; List, tuple, set, dictionary literals
-(list) @name.definition.list
-(tuple) @name.definition.tuple
-(set) @name.definition.set
-(dictionary) @name.definition.dictionary
+; Literal collections with anchor for precise matching
+[
+  (list
+    (expression) @list.element)
+  (tuple
+    (expression) @tuple.element)
+  (set
+    (expression) @set.element)
+  (dictionary
+    (pair
+      key: (expression) @dict.key
+      value: (expression) @dict.value))
+] @definition.collection
 
-; Pattern matching constructs (Python 3.10+)
-(class_pattern) @name.definition.class_pattern
-(tuple_pattern) @name.definition.tuple_pattern
-(list_pattern) @name.definition.list_pattern
-(dict_pattern) @name.definition.dict_pattern
+; Literal values with predicate filtering
+[
+  (string) @literal.string
+  (integer) @literal.integer
+  (float) @literal.float
+  (true) @literal.boolean.true
+ (false) @literal.boolean.false
+ (none) @literal.none
+  (ellipsis) @literal.ellipsis
+] @definition.literal
 
-; String literals
-(string) @name.definition.string
+; Pattern matching constructs (Python 3.10+) using alternation
+[
+  (class_pattern
+    (identifier) @pattern.class)
+  (tuple_pattern
+    (identifier) @pattern.tuple.element)
+  (list_pattern
+    (identifier) @pattern.list.element)
+ (dict_pattern
+    (identifier) @pattern.dict.key)
+] @definition.pattern.matching
 
-; Numeric literals
-(integer) @name.definition.integer
-(float) @name.definition.float
-
-; Boolean literals
-(true) @name.definition.true
-(false) @name.definition.false
-
-; None literal
-(none) @name.definition.none
-
-; Ellipsis
-(ellipsis) @name.definition.ellipsis
-
-; Slices
-(slice) @name.definition.slice
-
-; Parenthesized expressions
-(parenthesized_expression) @name.definition.parenthesized_expression
-
-; Expression lists
-(expression_list) @name.definition.expression_list
-
-; Generic types
-(generic_type
-  (identifier) @name.definition.generic_type_name) @definition.generic_type
+; Expressions and special constructs
+[
+  (slice) @expression.slice
+  (parenthesized_expression) @expression.parenthesized
+  (expression_list) @expression.list
+  (generator_expression) @expression.generator
+] @definition.expression
 `;

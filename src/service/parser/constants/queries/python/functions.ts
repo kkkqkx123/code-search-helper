@@ -3,57 +3,68 @@ Python Function-specific Tree-Sitter Query Patterns
 Extracted from the main python.ts file for better maintainability and performance
 */
 export default `
-; Function and method definitions (including async and decorated)
-(function_definition
-  name: (identifier) @name.definition.function) @definition.function
+; Unified function definitions using alternation to reduce redundancy
+[
+  (function_definition
+    name: (identifier) @function.name)
+  (decorated_definition
+    definition: (function_definition
+      name: (identifier) @function.name))
+] @definition.function
 
-(decorated_definition
-  definition: (function_definition
-    name: (identifier) @name.definition.function)) @definition.function
-
-; Async function definitions
-(function_definition
-  "async"
-  name: (identifier) @name.definition.async_function) @definition.async_function
-
-; Decorated async functions
-(decorated_definition
-  definition: (function_definition
+; Async functions with alternation
+[
+  (function_definition
     "async"
-    name: (identifier) @name.definition.async_function)) @definition.async_function
+    name: (identifier) @async.function.name)
+  (decorated_definition
+    definition: (function_definition
+      "async"
+      name: (identifier) @async.function.name))
+] @definition.async_function
 
-; Lambda expressions
-(lambda) @name.definition.lambda
-
-; Generator functions (functions containing yield)
+; Generator functions with yield detection using anchor
 (function_definition
-  name: (identifier) @name.definition.generator
+  name: (identifier) @generator.name
   body: (block
     (expression_statement
-      (yield)))) @definition.generator
+      (yield) .))) @definition.generator
 
-; Async generator functions
+; Async generator functions with yield detection
 (function_definition
   "async"
-  name: (identifier) @name.definition.async_generator
+  name: (identifier) @async.generator.name
   body: (block
     (expression_statement
-      (yield)))) @definition.async_generator
+      (yield) .))) @definition.async_generator
 
-; Method definitions within classes
+; Functions with type annotations
+[
+  (function_definition
+    name: (identifier) @typed.function.name
+    return_type: (type))
+  (function_definition
+    "async"
+    name: (identifier) @typed.async.function.name
+    return_type: (type))
+] @definition.typed_function
+
+; Lambda expressions with anchor for precise matching
+(lambda
+  parameters: (parameters)? @lambda.params
+  body: (_) @lambda.body) @definition.lambda
+
+; Method definitions within classes using alternation
 (class_definition
   body: (block
-    (function_definition
-      name: (identifier) @name.definition.method))) @definition.method
-
-; Functions with return type annotations
-(function_definition
-  name: (identifier) @name.definition.typed_function
-  return_type: (type)) @definition.typed_function
-
-; Async functions with return type annotations
-(function_definition
-  "async"
-  name: (identifier) @name.definition.typed_async_function
-  return_type: (type)) @definition.typed_async_function
+    [
+      (function_definition
+        name: (identifier) @method.name)
+      (decorated_definition
+        definition: (function_definition
+          name: (identifier) @method.name))
+      (function_definition
+        "async"
+        name: (identifier) @async.method.name)
+    ])) @definition.method
 `;

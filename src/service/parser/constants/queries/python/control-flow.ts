@@ -3,36 +3,56 @@ Python Control Flow and Expression-specific Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
 */
 export default `
-; Control flow statements
-(if_statement) @name.definition.if
-(for_statement) @name.definition.for
-(while_statement) @name.definition.while
+; Control flow statements using alternation to reduce redundancy
+[
+  (if_statement
+    condition: (_) @if.condition
+    consequence: (_) @if.body
+    alternative: (_) @if.else)
+  (for_statement
+    left: (_) @for.target
+    right: (_) @for.iterable
+    body: (_) @for.body)
+  (while_statement
+    condition: (_) @while.condition
+    body: (_) @while.body)
+] @definition.control_statement
 
-; Loop control
-(break_statement) @name.definition.break
-(continue_statement) @name.definition.continue
+; Loop control statements
+[
+  (break_statement) @loop.break
+  (continue_statement) @loop.continue
+] @definition.loop.control
 
-; Return statements
-(return_statement) @name.definition.return
+; Return, raise, and assert statements with context
+[
+  (return_statement
+    (expression)? @return.expression) @definition.return
+  (raise_statement
+    (expression)? @raise.exception) @definition.raise
+  (assert_statement
+    condition: (_) @assert.condition
+    message: (_) @assert.message) @definition.assert
+] @definition.flow.control
 
-; Raise statements
-(raise_statement) @name.definition.raise
+; Expression statements with anchor for precise matching
+(expression_statement
+  (expression) @expression.content) @definition.expression
 
-; Assert statements
-(assert_statement) @name.definition.assert
-
-; Expression statements
-(expression_statement) @name.definition.expression
-
-; Binary operations
-(binary_operator) @name.definition.binary_operator
-
-; Function calls
-(call) @name.definition.call
-
-; Attribute access
-(attribute) @name.definition.attribute
-
-; Subscript expressions
-(subscript) @name.definition.subscript
+; Operations with field names for better context
+[
+  (binary_operator
+    left: (_) @binary.left
+    right: (_) @binary.right
+    operator: (_) @binary.operator)
+  (call
+    function: (_) @call.function
+    arguments: (_) @call.arguments)
+  (attribute
+    object: (_) @attribute.object
+    attribute: (_) @attribute.name)
+  (subscript
+    object: (_) @subscript.object
+    index: (_) @subscript.index)
+] @definition.operation
 `;
