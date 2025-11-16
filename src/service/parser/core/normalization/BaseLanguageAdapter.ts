@@ -4,7 +4,6 @@
  */
 
 import { ILanguageAdapter, StandardizedQueryResult } from './types';
-import { ExtensibleMetadata } from './types/ExtensibleMetadata';
 type StandardType = StandardizedQueryResult['type'];
 import { LoggerService } from '../../../../utils/LoggerService';
 import { LRUCache } from '../../../../utils/cache/LRUCache';
@@ -13,6 +12,8 @@ import { InfrastructureConfigService } from '../../../../infrastructure/config/I
 import { MetadataBuilder } from './utils/MetadataBuilder';
 import { ContentHashUtils } from '../../../../utils/cache/ContentHashUtils';
 import { NodeIdGenerator } from '../../../../utils/deterministic-node-id';
+import { CommentAdapterFactory } from './comments/adapters/AdapterFactory';
+import { QueryResult as CommentQueryResult } from './comments/types';
 
 /**
  * 适配器选项接口
@@ -145,8 +146,8 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
   }
 
   /**
-   * 转换为标准化结果
-   */
+    * 转换为标准化结果
+    */
   protected convertToStandardizedResults(
     preprocessedResults: any[],
     queryType: string,
@@ -174,6 +175,23 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
       // 这里我们不能直接调用fallbackNormalization，因为它需要原始queryResults
       // 所以我们抛出一个特殊错误，让上层处理
       throw new Error('All conversion attempts failed, fallback needed');
+    }
+
+    // 处理注释 - 只有当查询类型为注释相关时才处理
+    if (queryType.includes('comment')) {
+      try {
+        const commentAdapter = CommentAdapterFactory.getAdapter(language);
+        // 将原始的preprocessedResults转换为CommentQueryResult格式以供注释处理器使用
+        const queryResults: CommentQueryResult[] = preprocessedResults.map(result => ({
+          captures: result.captures || []
+        }));
+        const commentResults = commentAdapter.processComments(results, queryResults, language);
+        return commentResults;
+      } catch (commentError) {
+        this.logger.warn(`Comment processing failed for ${language}:`, commentError);
+        // 如果注释处理失败，返回原有的结果
+        return results;
+      }
     }
 
     return results;
