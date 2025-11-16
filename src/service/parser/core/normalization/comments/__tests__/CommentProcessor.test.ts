@@ -28,7 +28,7 @@ describe('CommentProcessor', () => {
         }
       ];
 
-      const results = processor.processComments(mockQueryResults, 'javascript');
+      const results = processor.processComments(mockQueryResults, 'javascript', 'test.js');
 
       expect(results).toHaveLength(1);
       expect(results[0].semanticType).toBe('comment.jsdoc');
@@ -55,7 +55,7 @@ describe('CommentProcessor', () => {
         }
       ];
 
-      const results = processor.processComments(mockQueryResults, 'javascript');
+      const results = processor.processComments(mockQueryResults, 'javascript', 'test.js');
 
       expect(results).toHaveLength(0);
     });

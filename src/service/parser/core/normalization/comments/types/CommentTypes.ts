@@ -43,7 +43,6 @@ export interface CommentMetadata {
   captureName: string;
   confidence: number;
   attributes: Record<string, any>;
-  relatedNodeId?: string;
 }
 
 /**
@@ -62,4 +61,5 @@ export interface QueryCapture {
  */
 export interface QueryResult {
   captures: QueryCapture[];
+  filePath?: string;
 }

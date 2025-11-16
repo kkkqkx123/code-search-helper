@@ -50,7 +50,7 @@ async function testCommentProcessor() {
   console.log('Testing CommentProcessor integration...');
   
   const processor = new CommentProcessor();
-  const results = processor.processComments(mockQueryResults, 'javascript');
+  const results = processor.processComments(mockQueryResults, 'javascript', 'test.js');
   
   console.log(`Processed ${results.length} comments:`);
   results.forEach((comment, index) => {

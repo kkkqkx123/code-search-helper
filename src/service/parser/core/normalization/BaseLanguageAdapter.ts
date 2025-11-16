@@ -183,9 +183,12 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
         const commentAdapter = CommentAdapterFactory.getAdapter(language);
         // 将原始的preprocessedResults转换为CommentQueryResult格式以供注释处理器使用
         const queryResults: CommentQueryResult[] = preprocessedResults.map(result => ({
-          captures: result.captures || []
+          captures: result.captures || [],
+          filePath: result.filePath // 保留文件路径信息
         }));
-        const commentResults = commentAdapter.processComments(results, queryResults, language);
+        // 从第一个查询结果中获取文件路径
+        const filePath = queryResults[0]?.filePath || '';
+        const commentResults = commentAdapter.processComments(results, queryResults, language, filePath);
         return commentResults;
       } catch (commentError) {
         this.logger.warn(`Comment processing failed for ${language}:`, commentError);

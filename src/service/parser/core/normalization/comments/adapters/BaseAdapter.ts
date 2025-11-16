@@ -20,10 +20,11 @@ export abstract class BaseCommentAdapter {
   processComments(
     standardResults: StandardizedQueryResult[],
     allQueryResults: QueryResult[],
-    language: string
+    language: string,
+    filePath?: string
   ): StandardizedQueryResult[] {
     // 使用新的处理器处理注释
-    const processedComments = this.processor.processComments(allQueryResults, language);
+    const processedComments = this.processor.processComments(allQueryResults, language, filePath);
     
     // 转换为StandardizedQueryResult格式
     const commentResults = processedComments.map(comment =>

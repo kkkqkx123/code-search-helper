@@ -2,7 +2,7 @@ import { ProcessedComment, QueryResult, QueryCapture, CommentCategory } from '..
 import { QueryAnalyzer } from './QueryAnalyzer';
 import { CommentClassifier } from './CommentClassifier';
 import { getLanguageConfig } from '../config/LanguageConfigs';
-import { PositionUtils } from '../utils/PositionUtils';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 
 /**
  * 注释处理器
@@ -22,7 +22,8 @@ export class CommentProcessor {
    */
   processComments(
     queryResults: QueryResult[],
-    language: string
+    language: string,
+    filePath?: string
   ): ProcessedComment[] {
     const languageConfig = getLanguageConfig(language);
     const captures = this.queryAnalyzer.extractCommentCapturesBatch(queryResults);
@@ -34,21 +35,18 @@ export class CommentProcessor {
 
     // 处理每个捕获
     return supportedCaptures.map(capture =>
-      this.processCapture(capture, language)
+      this.processCapture(capture, language, filePath)
     );
   }
 
   /**
    * 处理单个捕获
    */
-  private processCapture(capture: QueryCapture, language: string): ProcessedComment {
+ private processCapture(capture: QueryCapture, language: string, filePath?: string): ProcessedComment {
     // 基础信息
-    const id = this.generateCommentId(capture);
+    const id = this.generateCommentId(capture, filePath);
     const category = this.classifier.classifyByCapture(capture);
     const semanticInfo = this.queryAnalyzer.extractSemanticInfo(capture);
-
-    // 查找相关节点
-    const relatedNodeId = this.findRelatedNodeId(capture);
 
     return {
       id,
@@ -61,8 +59,7 @@ export class CommentProcessor {
       metadata: {
         captureName: capture.name,
         confidence: semanticInfo.confidence,
-        attributes: semanticInfo.attributes,
-        relatedNodeId
+        attributes: semanticInfo.attributes
       }
     };
   }
@@ -70,18 +67,14 @@ export class CommentProcessor {
   /**
    * 生成注释ID
    */
-  private generateCommentId(capture: QueryCapture): string {
-    return `comment_${capture.startPosition.row}_${capture.startPosition.column}_${capture.name}`;
-  }
-
-  /**
-   * 查找相关节点
-   * 简化版本：基于位置查找最近的代码节点
-   */
-  private findRelatedNodeId(capture: QueryCapture): string | undefined {
-    // 这里可以添加更复杂的关联逻辑
-    // 目前返回undefined，表示未找到关联节点
-    return undefined;
+  private generateCommentId(capture: QueryCapture, filePath?: string): string {
+    // 使用NodeIdGenerator为注释生成统一格式的ID
+    return NodeIdGenerator.forSymbol(
+      `comment_${capture.name}`, // name
+      'comment',                // type
+      filePath || 'unknown_file', // filePath - 如果没有提供则使用默认值
+      capture.startPosition.row + 1  // line (1-indexed)
+    );
   }
 
   /**
