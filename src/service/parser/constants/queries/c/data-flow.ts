@@ -79,12 +79,12 @@ export default `
   (init_declarator
     declarator: (identifier) @target.variable
     value: (initializer_list
-      (identifier) @source.variable)) @data.flow.struct.initialization
+      (identifier) @source.variable)+)) @data.flow.struct.initialization
   (init_declarator
     declarator: (array_declarator
       declarator: (identifier) @target.array)
     value: (initializer_list
-      (identifier) @source.variable)) @data.flow.array.initialization
+      (identifier) @source.variable)+)) @data.flow.array.initialization
 ] @data.flow.initialization
 
 ; 指针操作数据流 - 使用谓词过滤
@@ -117,7 +117,7 @@ export default `
   function: (identifier) @memory.function
   arguments: (argument_list
     (identifier) @memory.argument)+)
-  (#match? @memory.function "^(malloc|calloc|realloc|free|memcpy|memmove|memset)$") @data.flow.memory.operation
+  (#match? @memory.function "^(malloc|calloc|realloc|free|memcpy|memmove|memset)$")) @data.flow.memory.operation
 
 ; 链式访问数据流 - 使用量词操作符
 (assignment_expression
@@ -140,7 +140,7 @@ export default `
   function: (identifier) @macro.function
   arguments: (argument_list
     (identifier) @macro.parameter)+)
-  (#not-match? @macro.function "^(malloc|calloc|realloc|free|memcpy|memmove|memset)$") @data.flow.macro.call
+  (#not-match? @macro.function "^(malloc|calloc|realloc|free|memcpy|memmove|memset)$")) @data.flow.macro.call
 
 ; sizeof表达式数据流 - 简化模式
 (assignment_expression

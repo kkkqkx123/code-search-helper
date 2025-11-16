@@ -10,7 +10,7 @@ export class CoordinationTester {
 
   constructor() {
     this.parser = new Parser();
-    this.language = new C();
+    this.language = C as any;
     this.parser.setLanguage(this.language);
     this.adapter = new CLanguageAdapter();
   }

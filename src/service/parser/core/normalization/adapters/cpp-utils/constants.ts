@@ -130,6 +130,7 @@ export const CPP_QUERY_TYPE_MAPPING: Record<string, string> = {
   'preprocessor': 'expression',  // 预处理器映射为表达式
   'control-flow': 'control-flow',
   'modern-features': 'expression',  // 现代特性映射为表达式
+  'comments': 'comment',
   
   // 关系类型
   'calls': 'call',
@@ -149,6 +150,7 @@ export const CPP_SUPPORTED_QUERY_TYPES = [
   'types',
   'namespaces',
   'preprocessor',
+  'comments',
   'control-flow',
   'modern-features',
   // Relationship types

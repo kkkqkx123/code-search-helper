@@ -94,6 +94,7 @@ export const PYTHON_QUERY_TYPE_MAPPING: Record<string, string> = {
   'imports': 'import',
   'control-flow': 'control-flow',
   'data-structures': 'class', // Python的数据结构通常映射为类
+  'comments': 'comment',
   'types-decorators': 'type',
   
   // 关系类型
@@ -114,6 +115,7 @@ export const PYTHON_SUPPORTED_QUERY_TYPES = [
   'variables',
   'imports',
   'control-flow',
+  'comments',
   'data-structures',
   'types-decorators',
   // Relationship types

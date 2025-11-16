@@ -504,6 +504,42 @@ export class QueryLoader {
         }
       }
       
+      // 动态加载语言目录中的所有查询文件
+      try {
+        const fs = await import('fs');
+        const path = await import('path');
+        
+        const queryDirPath = path.join(__dirname, `../../constants/queries/${queryFileName}`);
+        
+        if (fs.existsSync(queryDirPath)) {
+          const files = fs.readdirSync(queryDirPath);
+          
+          for (const file of files) {
+            if (file.endsWith('.ts') && file !== 'index.ts') {
+              const queryType = file.replace('.ts', '');
+              
+              // 如果该查询类型尚未加载，则尝试加载
+              if (!languageQueriesMap.has(queryType)) {
+                try {
+                  const importPath = `../../constants/queries/${queryFileName}/${queryType}`;
+                  const queryModule = await import(importPath);
+                  const query = queryModule.default;
+                  
+                  if (query) {
+                    languageQueriesMap.set(queryType, query);
+                  }
+                } catch (error) {
+                  // 某些查询文件可能无法直接导入，这是正常的
+                  this.logger.debug(`无法加载查询文件 ${queryType}:`, error);
+                }
+              }
+            }
+          }
+        }
+      } catch (error) {
+        this.logger.warn(`动态加载${language}语言查询文件失败:`, error);
+      }
+      
     } catch (error) {
       this.logger.error(`加载${language}语言的结构化查询失败:`, error);
     }

@@ -11,7 +11,7 @@ export default `
       declarator: (identifier) @function.name)
     body: (compound_statement) @function.body) @definition.function
   (declaration
-    type: (_)
+    type: (primitive_type)
     declarator: (function_declarator
       declarator: (identifier) @function.name
       parameters: (parameter_list))) @definition.function.prototype
@@ -23,21 +23,21 @@ export default `
     declarator: (identifier) @function.name
     parameters: (parameter_list
       (parameter_declaration
-        type: (_)
-        declarator: (identifier) @param.name)*))
+        type: (primitive_type)
+        declarator: (identifier) @param.name)+))
   body: (compound_statement) @function.body) @definition.function.with_params
 
 ; 函数调用查询 - 使用锚点和谓词过滤
 (call_expression
   function: (identifier) @call.function
   arguments: (argument_list
-    (identifier) @call.argument)*)
-  (#match? @call.function "^[a-z_][a-zA-Z0-9_]*$") @definition.function.call
+    (identifier) @call.argument)+)
+  (#match? @call.function "^[a-z_][a-zA-Z0-9_]*$")) @definition.function.call
 
 ; 函数指针查询 - 简化模式
 (declaration
   type: (pointer_type
-    (function_type
+    (function_declarator
       parameters: (parameter_list)))
   declarator: (pointer_declarator
     declarator: (identifier) @function.pointer.name)) @definition.function.pointer
@@ -45,13 +45,13 @@ export default `
 ; 递归函数查询 - 使用谓词过滤
 (call_expression
   function: (identifier) @recursive.call
-  arguments: (argument_list))
-  (#eq? @recursive.call @function.name) @definition.recursive.call
+  arguments: (argument_list)
+  (#eq? @recursive.call @function.name)) @definition.recursive.call
 
 ; 内联函数查询 - 使用锚点确保精确匹配
 (function_definition
   declarator: (function_declarator
     declarator: (identifier) @inline.function)
-  body: (compound_statement) @inline.body)
-  (#match? @inline.function "^(inline|static_inline)$") @definition.inline.function
+  body: (compound_statement) @inline.body
+  (#match? @inline.function "^(inline|static_inline)$")) @definition.inline.function
 `;

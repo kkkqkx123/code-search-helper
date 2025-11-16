@@ -93,7 +93,8 @@ export const C_QUERY_TYPE_MAPPING: Record<string, string> = {
   'control-flow': 'control-flow',
   'calls': 'call',
   'data-flows': 'data-flow',
-  'inheritance': 'inheritance'
+  'inheritance': 'inheritance',
+  'comments': 'comment'
 };
 
 export const C_SUPPORTED_QUERY_TYPES = [
@@ -103,6 +104,7 @@ export const C_SUPPORTED_QUERY_TYPES = [
   'variables',
   'preprocessor',
   'control-flow',
+  'comments',
   // Relationship types
   'calls',
   'data-flows',

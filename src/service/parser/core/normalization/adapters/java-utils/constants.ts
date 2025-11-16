@@ -144,12 +144,14 @@ export const JAVA_QUERY_TYPE_MAPPING: Record<string, string> = {
   'semantic-relationships': 'semantic',
   'lifecycle-relationships': 'lifecycle',
   'concurrency-relationships': 'concurrency',
+  'comments': 'comment',
   'control-flow-relationships': 'control-flow'
 };
 
 export const JAVA_SUPPORTED_QUERY_TYPES = [
   // Entity types
   'classes-interfaces',
+  'comments',
   'methods-variables',
   'control-flow-patterns',
   // Relationship types

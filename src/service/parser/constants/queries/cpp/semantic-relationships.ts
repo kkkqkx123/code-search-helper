@@ -135,3 +135,4 @@ export default `
         parameter: (parameter_declaration
           declarator: (identifier) @catch.param)
         body: (compound_statement) @catch.body)))) @semantic.exception.safety
+`;
