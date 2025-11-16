@@ -151,3 +151,4 @@ export default `
     (parameter_declaration
       type: (pointer_type)
       declarator: (identifier) @resource.parameter))) @semantic.relationship.cleanup.pattern
+`;

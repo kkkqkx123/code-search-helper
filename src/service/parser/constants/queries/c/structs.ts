@@ -104,3 +104,4 @@ export default `
   (enum_specifier
     name: (type_identifier) @forward.enum.name) @definition.forward.enum
 ] @definition.forward.declaration
+ `;

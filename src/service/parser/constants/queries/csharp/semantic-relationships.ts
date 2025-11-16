@@ -180,3 +180,4 @@ export default `
     type: (identifier) @overridden.indexer.type
     (#match? @override.modifier "override")) @semantic.override.indexer
 ] @semantic.override.member
+`;
