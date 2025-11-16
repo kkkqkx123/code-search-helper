@@ -1,689 +1,450 @@
-# C语言查询规则与适配器测试执行指南
+# C语言查询规则与适配器协调测试执行指南
 
 ## 概述
 
-本文档提供C语言查询规则与语言适配器协调关系测试的详细执行指南，包括测试环境准备、测试执行步骤、结果分析和问题排查。
+本指南提供简化的测试方案，用于验证C语言查询规则与语言适配器的协调关系是否正确。测试重点在于通过实际代码解析来验证当前工作流的正确性。
 
-## 1. 测试环境准备
+## 测试目标
 
-### 1.1 环境要求
+1. 验证查询规则能否正确解析C代码
+2. 验证语言适配器能否正确标准化查询结果
+3. 验证查询规则与适配器之间的协调关系
+4. 识别潜在的协调问题
 
-- **Node.js版本**: 18.0+ 
-- **npm版本**: 8.0+
-- **TypeScript版本**: 4.5+
-- **Jest版本**: 28.0+
-- **Tree-sitter**: 最新版本
-- **操作系统**: Windows 10+, macOS 10.15+, Ubuntu 18.04+
+## 测试方法
 
-### 1.2 依赖安装
+### 1. 直接测试法
 
-```bash
-# 安装项目依赖
-npm install
+使用现有的Tree-sitter解析器和查询规则，直接测试C代码片段的解析和适配过程。
 
-# 安装Tree-sitter C语言解析器
-npm install tree-sitter tree-sitter-c
+### 2. 测试流程
 
-# 安装测试相关依赖
-npm install --save-dev jest @types/jest ts-jest
+```
+C代码片段 → Tree-sitter解析 → 查询规则匹配 → 适配器标准化 → 结果验证
 ```
 
-### 1.3 测试配置
+## 测试实现
 
-#### 1.3.1 Jest配置
+### 1. 创建测试文件
 
-创建或更新 `jest.config.js`:
-
-```javascript
-module.exports = {
-  preset: 'ts-jest',
-  testEnvironment: 'node',
-  roots: ['<rootDir>/src'],
-  testMatch: [
-    '**/src/service/parser/__tests__/c-language/**/*.test.ts'
-  ],
-  transform: {
-    '^.+\\.ts$': 'ts-jest',
-  },
-  collectCoverageFrom: [
-    'src/service/parser/core/normalization/adapters/CLanguageAdapter.ts',
-    'src/service/parser/core/normalization/adapters/c-utils/*.ts',
-    'src/service/parser/constants/queries/c/*.ts',
-    '!src/**/*.d.ts',
-  ],
-  coverageDirectory: 'coverage',
-  coverageReporters: ['text', 'lcov', 'html'],
-  setupFilesAfterEnv: [
-    '<rootDir>/src/service/parser/__tests__/setup/c-parser-test-setup.ts'
-  ],
-  testTimeout: 30000,
-  verbose: true
-};
-```
-
-#### 1.3.2 测试环境设置
-
-创建 `src/service/parser/__tests__/setup/c-parser-test-setup.ts`:
+创建简单的测试文件来验证协调关系：
 
 ```typescript
+// src/service/parser/__tests__/c-language-coordination.test.ts
 import Parser from 'tree-sitter';
 import C from 'tree-sitter-c';
+import { CLanguageAdapter } from '../core/normalization/adapters/CLanguageAdapter';
+import { QueryLoader } from '../core/query/QueryLoader';
 
-// 全局测试设置
-beforeAll(() => {
-  // 初始化Tree-sitter
-  const parser = new Parser();
-  const language = new C();
-  parser.setLanguage(language);
+// 初始化解析器
+const parser = new Parser();
+const language = new C();
+parser.setLanguage(language);
+
+// 创建适配器实例
+const adapter = new CLanguageAdapter();
+
+describe('C语言查询规则与适配器协调测试', () => {
+  test('函数定义查询与适配器协调', async () => {
+    const code = `
+      int add(int a, int b) {
+        return a + b;
+      }
+    `;
+    
+    // 1. 解析代码
+    const tree = parser.parse(code);
+    
+    // 2. 获取查询规则
+    const queryPattern = await QueryLoader.getQuery('c', 'functions');
+    const query = new Parser.Query(language, queryPattern);
+    
+    // 3. 执行查询
+    const captures = query.captures(tree.rootNode);
+    
+    // 4. 转换为查询结果格式
+    const queryResults = captures.map(capture => ({
+      captures: [{
+        name: capture.name,
+        node: capture.node
+      }]
+    }));
+    
+    // 5. 适配器标准化
+    const results = await adapter.normalize(queryResults, 'functions', 'c');
+    
+    // 6. 验证结果
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].type).toBe('function');
+    expect(results[0].name).toBe('add');
+    expect(results[0].nodeId).toBeDefined();
+    
+    console.log('函数定义测试通过:', results[0]);
+  });
+
+  test('结构体定义查询与适配器协调', async () => {
+    const code = `
+      struct Point {
+        int x;
+        int y;
+      };
+    `;
+    
+    const tree = parser.parse(code);
+    const queryPattern = await QueryLoader.getQuery('c', 'structs');
+    const query = new Parser.Query(language, queryPattern);
+    const captures = query.captures(tree.rootNode);
+    
+    const queryResults = captures.map(capture => ({
+      captures: [{
+        name: capture.name,
+        node: capture.node
+      }]
+    }));
+    
+    const results = await adapter.normalize(queryResults, 'structs', 'c');
+    
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].type).toBe('class'); // 结构体映射为类
+    expect(results[0].name).toBe('Point');
+    
+    console.log('结构体定义测试通过:', results[0]);
+  });
+
+  test('数据流查询与适配器协调', async () => {
+    const code = `
+      int x = y;
+      result = calculate(x);
+    `;
+    
+    const tree = parser.parse(code);
+    const queryPattern = await QueryLoader.getQuery('c', 'data-flow');
+    const query = new Parser.Query(language, queryPattern);
+    const captures = query.captures(tree.rootNode);
+    
+    const queryResults = captures.map(capture => ({
+      captures: [{
+        name: capture.name,
+        node: capture.node
+      }]
+    }));
+    
+    const results = await adapter.normalize(queryResults, 'data-flow', 'c');
+    
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].type).toBe('data-flow');
+    
+    console.log('数据流测试通过:', results[0]);
+  });
+});
+```
+
+### 2. 简化的测试工具函数
+
+```typescript
+// src/service/parser/__tests__/utils/test-coordination.ts
+import Parser from 'tree-sitter';
+import C from 'tree-sitter-c';
+import { CLanguageAdapter } from '../../core/normalization/adapters/CLanguageAdapter';
+import { QueryLoader } from '../../core/query/QueryLoader';
+
+export class CoordinationTester {
+  private parser: Parser;
+  private language: Parser.Language;
+  private adapter: CLanguageAdapter;
+
+  constructor() {
+    this.parser = new Parser();
+    this.language = new C();
+    this.parser.setLanguage(this.language);
+    this.adapter = new CLanguageAdapter();
+  }
+
+  async testCoordination(
+    code: string, 
+    queryType: string,
+    expectedType: string,
+    expectedName?: string
+  ) {
+    try {
+      // 解析代码
+      const tree = this.parser.parse(code);
+      
+      // 获取查询规则
+      const queryPattern = await QueryLoader.getQuery('c', queryType);
+      const query = new Parser.Query(this.language, queryPattern);
+      
+      // 执行查询
+      const captures = query.captures(tree.rootNode);
+      
+      if (captures.length === 0) {
+        console.warn(`警告: 查询类型 ${queryType} 未找到匹配项`);
+        return null;
+      }
+      
+      // 转换为查询结果格式
+      const queryResults = captures.map(capture => ({
+        captures: [{
+          name: capture.name,
+          node: capture.node
+        }]
+      }));
+      
+      // 适配器标准化
+      const results = await this.adapter.normalize(queryResults, queryType, 'c');
+      
+      // 验证结果
+      if (results.length > 0) {
+        const result = results[0];
+        console.log(`✓ ${queryType} 测试通过:`, {
+          type: result.type,
+          name: result.name,
+          nodeId: result.nodeId,
+          expectedType,
+          expectedName,
+          typeMatch: result.type === expectedType,
+          nameMatch: expectedName ? result.name === expectedName : true
+        });
+        
+        return result;
+      } else {
+        console.warn(`警告: ${queryType} 适配器返回空结果`);
+        return null;
+      }
+    } catch (error) {
+      console.error(`✗ ${queryType} 测试失败:`, error);
+      return null;
+    }
+  }
+
+  async runBasicTests() {
+    console.log('开始基础协调测试...\n');
+    
+    // 测试用例
+    const testCases = [
+      {
+        name: '简单函数',
+        code: 'int add(int a, int b) { return a + b; }',
+        queryType: 'functions',
+        expectedType: 'function',
+        expectedName: 'add'
+      },
+      {
+        name: '结构体定义',
+        code: 'struct Point { int x; int y; };',
+        queryType: 'structs',
+        expectedType: 'class',
+        expectedName: 'Point'
+      },
+      {
+        name: '变量声明',
+        code: 'int x = 10;',
+        queryType: 'variables',
+        expectedType: 'variable',
+        expectedName: 'x'
+      },
+      {
+        name: '数据流赋值',
+        code: 'x = y;',
+        queryType: 'data-flow',
+        expectedType: 'data-flow'
+      },
+      {
+        name: '函数调用',
+        code: 'result = calculate(x, y);',
+        queryType: 'functions',
+        expectedType: 'call'
+      }
+    ];
+    
+    const results = [];
+    
+    for (const testCase of testCases) {
+      console.log(`测试: ${testCase.name}`);
+      const result = await this.testCoordination(
+        testCase.code,
+        testCase.queryType,
+        testCase.expectedType,
+        testCase.expectedName
+      );
+      results.push({
+        ...testCase,
+        result,
+        success: result !== null
+      });
+      console.log('');
+    }
+    
+    // 汇总结果
+    const successCount = results.filter(r => r.success).length;
+    const totalCount = results.length;
+    
+    console.log(`\n测试完成: ${successCount}/${totalCount} 通过`);
+    
+    if (successCount < totalCount) {
+      console.log('\n失败的测试:');
+      results.filter(r => !r.success).forEach(r => {
+        console.log(`- ${r.name}: ${r.queryType}`);
+      });
+    }
+    
+    return results;
+  }
+}
+```
+
+### 3. 快速验证脚本
+
+```typescript
+// src/service/parser/__tests__/quick-verification.ts
+import { CoordinationTester } from './utils/test-coordination';
+
+async function quickVerification() {
+  console.log('C语言查询规则与适配器协调关系快速验证\n');
   
-  // 设置全局变量
-  (global as any).testParser = parser;
-  (global as any).testLanguage = language;
-});
-
-afterAll(() => {
-  // 清理资源
-  (global as any).testParser = null;
-  (global as any).testLanguage = null;
-});
-```
-
-### 1.4 测试数据准备
-
-#### 1.4.1 创建测试代码库
-
-在 `src/service/parser/__tests__/fixtures/c-code-samples/` 目录下创建测试代码文件：
-
-```
-fixtures/c-code-samples/
-├── basic/
-│   ├── simple_functions.c
-│   ├── basic_structs.c
-│   └── control_flow.c
-├── intermediate/
-│   ├── pointers.c
-│   ├── complex_structs.c
-│   └── preprocessor.c
-├── advanced/
-│   ├── function_pointers.c
-│   ├── memory_management.c
-│   └── concurrency.c
-└── edge_cases/
-    ├── malformed_code.c
-    ├── deep_nesting.c
-    └── large_file.c
-```
-
-#### 1.4.2 示例测试代码
-
-**simple_functions.c**:
-```c
-#include <stdio.h>
-
-int add(int a, int b) {
-    return a + b;
-}
-
-void print_message(const char* message) {
-    printf("%s\n", message);
-}
-
-int main() {
-    int result = add(5, 3);
-    print_message("Result calculated");
-    return 0;
-}
-```
-
-**basic_structs.c**:
-```c
-#include <stdlib.h>
-
-typedef struct {
-    int x;
-    int y;
-} Point;
-
-typedef struct {
-    Point top_left;
-    Point bottom_right;
-} Rectangle;
-
-Point* create_point(int x, int y) {
-    Point* p = (Point*)malloc(sizeof(Point));
-    p->x = x;
-    p->y = y;
-    return p;
-}
-```
-
-## 2. 测试执行步骤
-
-### 2.1 单元测试执行
-
-#### 2.1.1 查询规则测试
-
-```bash
-# 执行所有查询规则测试
-npm test -- src/service/parser/__tests__/c-language/queries
-
-# 执行特定查询规则测试
-npm test -- src/service/parser/__tests__/c-language/queries/functions.test.ts
-npm test -- src/service/parser/__tests__/c-language/queries/structs.test.ts
-npm test -- src/service/parser/__tests__/c-language/queries/data-flow.test.ts
-```
-
-#### 2.1.2 适配器测试
-
-```bash
-# 执行适配器测试
-npm test -- src/service/parser/__tests__/c-language/adapters/CLanguageAdapter.test.ts
-```
-
-#### 2.1.3 关系提取器测试
-
-```bash
-# 执行所有关系提取器测试
-npm test -- src/service/parser/__tests__/c-language/extractors
-
-# 执行特定关系提取器测试
-npm test -- src/service/parser/__tests__/c-language/extractors/DataFlowRelationshipExtractor.test.ts
-npm test -- src/service/parser/__tests__/c-language/extractors/ControlFlowRelationshipExtractor.test.ts
-```
-
-### 2.2 集成测试执行
-
-```bash
-# 执行集成测试
-npm test -- src/service/parser/__tests__/c-language/integration
-
-# 执行端到端协调测试
-npm test -- src/service/parser/__tests__/c-language/integration/query-adapter-coordination.test.ts
-```
-
-### 2.3 覆盖率测试
-
-```bash
-# 执行测试并生成覆盖率报告
-npm test -- --coverage
-
-# 生成HTML覆盖率报告
-npm test -- --coverage --coverageReporters=html
-
-# 查看覆盖率报告
-open coverage/lcov-report/index.html
-```
-
-### 2.4 性能测试
-
-```bash
-# 执行性能基准测试
-npm run test:performance
-
-# 执行内存使用测试
-npm run test:memory
-```
-
-## 3. 测试结果分析
-
-### 3.1 测试报告解读
-
-#### 3.1.1 单元测试报告
-
-```
-PASS src/service/parser/__tests__/c-language/queries/functions.test.ts
-  Functions Query Tests
-    Function Definition Queries
-      ✓ should correctly parse simple function definitions (15 ms)
-      ✓ should correctly parse function prototypes (8 ms)
-      ✓ should correctly parse function pointers (5 ms)
-    Function Call Queries
-      ✓ should correctly parse function calls (12 ms)
-      ✓ should correctly parse recursive calls (7 ms)
-
-Test Suites: 1 passed, 1 total
-Tests:       5 passed, 5 total
-Snapshots:   0 total
-Time:        2.345 s
-```
-
-#### 3.1.2 覆盖率报告
-
-```
-----------------------|---------|----------|---------|---------|-------------------
-File                  | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
-----------------------|---------|----------|---------|---------|-------------------
-All files             |   92.45 |    88.12 |   95.23 |   91.87 |                   
- CLanguageAdapter.ts  |   95.12 |    90.45 |   98.76 |   94.23 | 145,167,189       
- DataFlowExtractor.ts |   89.34 |    85.67 |   92.11 |   87.45 | 67,89,101,123      
-----------------------|---------|----------|---------|---------|-------------------
-```
-
-### 3.2 性能指标分析
-
-#### 3.2.1 解析性能
-
-```typescript
-// 性能测试结果示例
-const performanceResults = {
-  simpleFile: {
-    fileSize: '10KB',
-    parseTime: '15ms',
-    memoryUsage: '2MB'
-  },
-  complexFile: {
-    fileSize: '100KB',
-    parseTime: '150ms',
-    memoryUsage: '15MB'
-  },
-  largeFile: {
-    fileSize: '1MB',
-    parseTime: '1.5s',
-    memoryUsage: '120MB'
-  }
-};
-```
-
-#### 3.2.2 查询性能
-
-```typescript
-// 查询性能基准
-const queryBenchmarks = {
-  functionsQuery: {
-    avgExecutionTime: '5ms',
-    avgResultCount: 25,
-    cacheHitRate: '85%'
-  },
-  dataFlowQuery: {
-    avgExecutionTime: '12ms',
-    avgResultCount: 45,
-    cacheHitRate: '78%'
-  }
-};
-```
-
-### 3.3 问题诊断
-
-#### 3.3.1 常见测试失败
-
-1. **查询规则语法错误**
-   ```
-   Error: Invalid query pattern at line 5, column 12
-   ```
-   **解决方案**: 检查查询规则语法，确保括号匹配和语法正确
-
-2. **捕获名称不匹配**
-   ```
-   Expected: 'function.name'
-   Received: 'func.name'
-   ```
-   **解决方案**: 更新适配器中的捕获名称列表或修改查询规则
-
-3. **节点类型不识别**
-   ```
-   Node type 'unknown_type' not recognized
-   ```
-   **解决方案**: 更新节点类型映射或添加新的节点类型处理
-
-#### 3.3.2 调试技巧
-
-1. **启用详细日志**
-   ```typescript
-   // 在测试中启用调试日志
-   process.env.DEBUG = 'parser:*';
-   ```
-
-2. **查看AST结构**
-   ```typescript
-   // 打印AST节点结构
-   console.log(JSON.stringify(astNode, null, 2));
-   ```
-
-3. **检查查询结果**
-   ```typescript
-   // 打印查询结果
-   console.log('Query results:', JSON.stringify(queryResults, null, 2));
-   ```
-
-## 4. 持续集成配置
-
-### 4.1 GitHub Actions配置
-
-创建 `.github/workflows/c-parser-tests.yml`:
-
-```yaml
-name: C Parser Tests
-
-on:
-  push:
-    branches: [ main, develop ]
-    paths:
-      - 'src/service/parser/**'
-  pull_request:
-    branches: [ main ]
-    paths:
-      - 'src/service/parser/**'
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    
-    strategy:
-      matrix:
-        node-version: [18.x, 20.x]
-    
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v3
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci
-    
-    - name: Run C parser tests
-      run: npm test -- src/service/parser/__tests__/c-language
-    
-    - name: Generate coverage report
-      run: npm test -- --coverage src/service/parser/__tests__/c-language
-    
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./coverage/lcov.info
-        flags: c-parser
-        name: c-parser-coverage
-```
-
-### 4.2 测试报告自动化
-
-#### 4.2.1 测试结果通知
-
-```typescript
-// 测试结果通知脚本
-const testResults = {
-  passed: 145,
-  failed: 3,
-  coverage: 92.45
-};
-
-if (testResults.failed > 0) {
-  // 发送失败通知
-  notifyTeam('C Parser tests failed', {
-    failed: testResults.failed,
-    total: testResults.passed + testResults.failed
+  const tester = new CoordinationTester();
+  const results = await tester.runBasicTests();
+  
+  // 简单的问题检测
+  const issues = [];
+  
+  results.forEach(result => {
+    if (!result.success) {
+      issues.push({
+        type: 'coordination_failure',
+        queryType: result.queryType,
+        code: result.code,
+        expected: result.expectedType
+      });
+    } else if (result.result) {
+      // 检查类型映射是否正确
+      if (result.result.type !== result.expectedType) {
+        issues.push({
+          type: 'type_mapping_mismatch',
+          queryType: result.queryType,
+          expected: result.expectedType,
+          actual: result.result.type
+        });
+      }
+      
+      // 检查名称提取是否正确
+      if (result.expectedName && result.result.name !== result.expectedName) {
+        issues.push({
+          type: 'name_extraction_mismatch',
+          queryType: result.queryType,
+          expected: result.expectedName,
+          actual: result.result.name
+        });
+      }
+    }
   });
+  
+  if (issues.length > 0) {
+    console.log('\n发现的问题:');
+    issues.forEach((issue, index) => {
+      console.log(`${index + 1}. ${issue.type}:`);
+      console.log(`   查询类型: ${issue.queryType}`);
+      if (issue.code) console.log(`   代码: ${issue.code}`);
+      if (issue.expected) console.log(`   期望: ${issue.expected}`);
+      if (issue.actual) console.log(`   实际: ${issue.actual}`);
+      console.log('');
+    });
+  } else {
+    console.log('\n✓ 所有测试通过，未发现协调问题');
+  }
+  
+  return issues;
 }
 
-if (testResults.coverage < 90) {
-  // 发送覆盖率警告
-  notifyTeam('C Parser coverage below threshold', {
-    coverage: testResults.coverage,
-    threshold: 90
-  });
+// 如果直接运行此文件
+if (require.main === module) {
+  quickVerification().catch(console.error);
 }
+
+export { quickVerification };
 ```
 
-#### 4.2.2 性能回归检测
+## 执行测试
 
-```typescript
-// 性能回归检测
-const currentPerformance = measurePerformance();
-const baselinePerformance = loadBaselinePerformance();
+### 1. 运行基础协调测试
 
-if (currentPerformance.parseTime > baselinePerformance.parseTime * 1.2) {
-  // 性能回归警告
-  alertPerformanceRegression('Parse time increased by 20%');
-}
-```
-
-## 5. 测试维护指南
-
-### 5.1 测试用例维护
-
-#### 5.1.1 添加新测试用例
-
-1. **确定测试场景**
-   - 分析新的C语言特性
-   - 识别边界条件
-   - 设计复杂场景
-
-2. **编写测试代码**
-   ```typescript
-   it('should handle new C language feature', async () => {
-     const testCode = 'new_feature_code_here';
-     const expectedResults = [/* expected results */];
-     
-     const results = await executeTest(testCode);
-     expect(results).toEqual(expectedResults);
-   });
-   ```
-
-3. **更新验证清单**
-   - 在验证清单中添加新的检查项
-   - 更新覆盖率目标
-
-#### 5.1.2 更新现有测试
-
-1. **定期审查测试用例**
-   - 检查测试用例的时效性
-   - 更新过期的预期结果
-   - 优化测试性能
-
-2. **重构测试代码**
-   - 提取重复的测试逻辑
-   - 改进测试可读性
-   - 增强错误处理
-
-### 5.2 测试数据维护
-
-#### 5.2.1 测试代码库更新
-
-1. **添加新的测试代码**
-   - 收集真实世界的C代码示例
-   - 创建边界条件测试用例
-   - 更新大型项目测试片段
-
-2. **版本控制**
-   - 使用Git管理测试代码库
-   - 标记不同版本的测试数据
-   - 维护测试数据变更日志
-
-#### 5.2.2 测试环境同步
-
-1. **依赖更新**
-   - 定期更新Tree-sitter版本
-   - 同步测试依赖版本
-   - 验证兼容性
-
-2. **环境一致性**
-   - 使用Docker容器化测试环境
-   - 维护环境配置文档
-   - 定期验证环境一致性
-
-### 5.3 测试文档维护
-
-#### 5.3.1 文档更新
-
-1. **测试计划更新**
-   - 根据项目变化调整测试计划
-   - 更新测试优先级
-   - 修订测试策略
-
-2. **技术文档同步**
-   - 更新API文档
-   - 同步架构变更
-   - 维护故障排除指南
-
-#### 5.3.2 知识分享
-
-1. **团队培训**
-   - 定期组织测试培训
-   - 分享最佳实践
-   - 交流测试经验
-
-2. **经验总结**
-   - 记录常见问题
-   - 总结解决方案
-   - 建立知识库
-
-## 6. 故障排除指南
-
-### 6.1 常见问题及解决方案
-
-#### 6.1.1 测试环境问题
-
-**问题**: Tree-sitter初始化失败
-```
-Error: Tree-sitter language initialization failed
-```
-
-**解决方案**:
 ```bash
-# 重新安装Tree-sitter
-npm uninstall tree-sitter tree-sitter-c
-npm install tree-sitter tree-sitter-c
+# 运行特定的协调测试
+npm test src/service/parser/__tests__/c-language-coordination.test.ts
 
-# 清理缓存
-npm cache clean --force
+# 或者运行快速验证
+npm test src/service/parser/__tests__/quick-verification.ts
 ```
 
-**问题**: 测试超时
-```
-Error: Test timeout of 30000ms exceeded
-```
+### 2. 在代码中直接验证
 
-**解决方案**:
 ```typescript
-// 增加测试超时时间
-jest.setTimeout(60000);
+// 在任何地方导入并运行快速验证
+import { quickVerification } from './src/service/parser/__tests__/quick-verification';
 
-// 或者优化测试代码，减少执行时间
+// 运行验证
+quickVerification().then(issues => {
+  if (issues.length === 0) {
+    console.log('协调关系验证通过');
+  } else {
+    console.log('发现协调问题:', issues);
+  }
+});
 ```
 
-#### 6.1.2 测试逻辑问题
+## 测试重点
 
-**问题**: 查询结果为空
-```
-Expected: non-empty array
-Received: []
-```
+### 1. 查询规则验证
 
-**解决方案**:
-1. 检查查询规则语法
-2. 验证测试代码格式
-3. 确认Tree-sitter解析器版本
+- 查询规则能否正确匹配目标代码结构
+- 捕获名称是否与适配器期望一致
+- 查询结果是否包含必要的信息
 
-**问题**: 断言失败
-```
-Expected: 'function'
-Received: 'expression'
-```
+### 2. 适配器验证
 
-**解决方案**:
-1. 检查查询类型映射
-2. 验证适配器逻辑
-3. 更新预期结果
+- 查询类型映射是否正确
+- 名称提取是否准确
+- 标准化结果是否符合预期
 
-#### 6.1.3 性能问题
+### 3. 协调关系验证
 
-**问题**: 测试执行缓慢
-```
-Test execution time: 120s (expected: <30s)
-```
+- 查询规则与适配器是否无缝集成
+- 数据流转是否正确
+- 错误处理是否有效
 
-**解决方案**:
-1. 优化测试数据大小
-2. 实现测试并行执行
-3. 使用测试缓存
+## 常见问题排查
 
-### 6.2 调试工具和技巧
+### 1. 查询规则未匹配
 
-#### 6.2.1 调试工具
+**症状**: 查询返回空结果
+**排查**:
+- 检查查询规则语法是否正确
+- 验证代码片段是否符合查询模式
+- 确认Tree-sitter解析器版本兼容性
 
-1. **Node.js调试器**
-   ```bash
-   # 启动调试模式
-   node --inspect-brk node_modules/.bin/jest --runInBand
-   ```
+### 2. 适配器标准化失败
 
-2. **Chrome DevTools**
-   - 打开Chrome DevTools
-   - 连接到Node.js调试会话
-   - 设置断点和监视
+**症状**: 适配器返回错误或空结果
+**排查**:
+- 检查查询类型映射是否存在
+- 验证捕获名称是否在适配器中处理
+- 确认名称提取逻辑是否正确
 
-3. **VS Code调试**
-   ```json
-   // .vscode/launch.json
-   {
-     "type": "node",
-     "request": "launch",
-     "name": "Jest Tests",
-     "program": "${workspaceFolder}/node_modules/.bin/jest",
-     "args": ["--runInBand"],
-     "console": "integratedTerminal",
-     "internalConsoleOptions": "neverOpen"
-   }
-   ```
+### 3. 类型映射不匹配
 
-#### 6.2.2 调试技巧
+**症状**: 结果类型与期望不符
+**排查**:
+- 检查 `C_QUERY_TYPE_MAPPING` 配置
+- 验证查询类型是否正确传递
+- 确认映射逻辑是否正确
 
-1. **日志调试**
-   ```typescript
-   // 添加详细日志
-   console.log('Debug: Query pattern:', queryPattern);
-   console.log('Debug: AST structure:', JSON.stringify(astNode, null, 2));
-   console.log('Debug: Query results:', JSON.stringify(results, null, 2));
-   ```
+## 下一步
 
-2. **断言调试**
-   ```typescript
-   // 使用详细的断言信息
-   expect(results).toEqual(expectedResults);
-   expect(results.length).toBe(expectedResults.length);
-   expect(results[0].type).toBe(expectedResults[0].type);
-   ```
+根据测试结果，可以：
 
-3. **分步调试**
-   ```typescript
-   // 分步执行测试
-   const astNode = parseCode(testCode);
-   console.log('AST parsed:', astNode.type);
-   
-   const queryResults = executeQuery(astNode, queryPattern);
-   console.log('Query executed:', queryResults.length);
-   
-   const standardized = await adapter.normalize(queryResults, queryType, language);
-   console.log('Normalization completed:', standardized.length);
-   ```
+1. **修复发现的问题**: 调整查询规则或适配器逻辑
+2. **扩展测试用例**: 添加更多复杂的代码场景
+3. **优化性能**: 如果测试发现性能问题，进行针对性优化
+4. **完善文档**: 记录发现的问题和解决方案
 
-## 7. 测试最佳实践
-
-### 7.1 测试设计原则
-
-1. **独立性**: 每个测试用例应该独立运行，不依赖其他测试
-2. **可重复性**: 测试结果应该一致且可重复
-3. **可读性**: 测试代码应该清晰易懂
-4. **完整性**: 测试应该覆盖所有重要场景
-5. **性能**: 测试应该快速执行
-
-### 7.2 代码质量标准
-
-1. **测试覆盖率**: 保持在90%以上
-2. **分支覆盖率**: 保持在85%以上
-3. **测试通过率**: 保持100%
-4. **性能基准**: 解析时间不超过基准值的120%
-
-### 7.3 团队协作规范
-
-1. **代码审查**: 所有测试代码都需要经过审查
-2. **文档更新**: 代码变更时同步更新测试文档
-3. **知识分享**: 定期分享测试经验和最佳实践
-4. **持续改进**: 根据测试结果持续改进代码质量
-
-## 总结
-
-本执行指南提供了C语言查询规则与语言适配器协调关系测试的完整执行流程。通过遵循这些指南，开发团队可以有效地执行测试、分析结果并维护测试质量。建议定期回顾和更新本指南，以适应项目需求的变化。
+这个简化的测试方案专注于核心协调关系的验证，避免了复杂的架构，便于快速执行和调整。
