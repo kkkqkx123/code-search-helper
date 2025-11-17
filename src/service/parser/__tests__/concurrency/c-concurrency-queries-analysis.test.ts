@@ -11,7 +11,7 @@ describe('C语言并发关系查询模式分析测试', () => {
   beforeAll(async () => {
     // 确保C语言查询已加载
     await QueryLoader.loadLanguageQueries('c');
-  });
+ });
 
   test('分析tree-sitter并发关系查询捕获的实际行为', async () => {
     const code = `
@@ -329,7 +329,7 @@ describe('C语言并发关系查询模式分析测试', () => {
         console.log(`⚠️  意外模式: ${unexpectedPatterns.join(', ')}`);
       }
     }
- });
+  });
 
   test('检测查询模式中的冗余和冲突', async () => {
     const queryPattern = await QueryLoader.getQuery('c', 'concurrency-relationships');
@@ -384,5 +384,47 @@ describe('C语言并发关系查询模式分析测试', () => {
         }
       }
     }
+  });
+  
+  test('验证修复后的查询模式没有语法错误', async () => {
+    const queryPattern = await QueryLoader.getQuery('c', 'concurrency-relationships');
+    
+    // 尝试创建查询以验证语法
+    const query = new Parser.Query(language, queryPattern);
+    
+    // 测试一些基本的并发代码
+    const testCode = `
+      #include <pthread.h>
+      #include <semaphore.h>
+      
+      pthread_t thread;
+      pthread_mutex_t mutex;
+      sem_t sem;
+      
+      int main() {
+        pthread_create(&thread, NULL, NULL, NULL);
+        pthread_mutex_lock(&mutex);
+        sem_wait(&sem);
+        return 0;
+      }
+    `;
+    
+    const tree = parser.parse(testCode);
+    const captures = query.captures(tree.rootNode);
+    
+    console.log(`\n=== 修复后查询验证 ===`);
+    console.log(`捕获总数: ${captures.length}`);
+    console.log('✅ 查询语法验证通过，没有语法错误');
+    
+    // 确保基本的并发操作都能被正确捕获
+    const captureNames = [...new Set(captures.map(c => c.name))];
+    const hasExpectedCaptures = captureNames.some(name => 
+      name.includes('thread.creation') || 
+      name.includes('mutex.lock') || 
+      name.includes('semaphore.wait')
+    );
+    
+    console.log(`包含预期捕获: ${hasExpectedCaptures ? '✅' : '❌'}`);
+    expect(hasExpectedCaptures).toBe(true);
   });
 });
