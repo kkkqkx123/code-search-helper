@@ -6,7 +6,7 @@ export default `
 ; 线程创建并发关系
 (call_expression
   function: (identifier) @thread.create.function
-  (#match? @thread.create.function "^(pthread_create|CreateThread|_beginthread|_beginthreadex)$")
+ (#match? @thread.create.function "^(pthread_create|CreateThread|_beginthreadex)$")
   arguments: (argument_list
     (identifier) @thread.handle
     (identifier) @thread.attributes
@@ -16,7 +16,7 @@ export default `
 ; 线程等待并发关系
 (call_expression
   function: (identifier) @thread.wait.function
-  (#match? @thread.wait.function "^(pthread_join|WaitForSingleObject|WaitForMultipleObjects)$")
+ (#match? @thread.wait.function "^(pthread_join|WaitForSingleObject|WaitForMultipleObjects)$")
   arguments: (argument_list
     (identifier) @thread.handle
     (identifier)? @thread.return.value)) @concurrency.relationship.thread.wait
@@ -24,27 +24,27 @@ export default `
 ; 线程分离并发关系
 (call_expression
   function: (identifier) @thread.detach.function
-  (#match? @thread.detach.function "^(pthread_detach)$")
-  arguments: (argument_list
+ (#match? @thread.detach.function "^(pthread_detach)$")
+ arguments: (argument_list
     (identifier) @thread.handle)) @concurrency.relationship.thread.detach
 
 ; 线程退出并发关系
 (call_expression
   function: (identifier) @thread.exit.function
-  (#match? @thread.exit.function "^(pthread_exit|_endthread|_endthreadex|ExitThread)$")
+ (#match? @thread.exit.function "^(pthread_exit|_endthread|_endthreadex|ExitThread)$")
   arguments: (argument_list
     (identifier)? @thread.exit.value)) @concurrency.relationship.thread.exit
 
 ; 线程ID获取并发关系
 (call_expression
   function: (identifier) @thread.id.function
-  (#match? @thread.id.function "^(pthread_self|GetCurrentThreadId)$")
+ (#match? @thread.id.function "^(pthread_self|GetCurrentThreadId)$")
   arguments: (argument_list)) @concurrency.relationship.thread.id
 
 ; 互斥锁初始化同步关系
 (call_expression
   function: (identifier) @mutex.init.function
-  (#match? @mutex.init.function "^(pthread_mutex_init|InitializeCriticalSection|CreateMutex)$")
+ (#match? @mutex.init.function "^(pthread_mutex_init|InitializeCriticalSection|CreateMutex)$")
   arguments: (argument_list
     (identifier) @mutex.handle
     (identifier)? @mutex.attributes)) @concurrency.relationship.mutex.init
@@ -52,21 +52,21 @@ export default `
 ; 互斥锁销毁同步关系
 (call_expression
   function: (identifier) @mutex.destroy.function
-  (#match? @mutex.destroy.function "^(pthread_mutex_destroy|DeleteCriticalSection|CloseHandle)$")
+ (#match? @mutex.destroy.function "^(pthread_mutex_destroy|DeleteCriticalSection|CloseHandle)$")
   arguments: (argument_list
     (identifier) @mutex.handle)) @concurrency.relationship.mutex.destroy
 
 ; 互斥锁加锁同步关系
 (call_expression
   function: (identifier) @mutex.lock.function
-  (#match? @mutex.lock.function "^(pthread_mutex_lock|EnterCriticalSection|WaitForSingleObject)$")
+ (#match? @mutex.lock.function "^(pthread_mutex_lock|EnterCriticalSection|WaitForSingleObject)$")
   arguments: (argument_list
     (identifier) @mutex.handle)) @concurrency.relationship.mutex.lock
 
 ; 互斥锁解锁同步关系
 (call_expression
   function: (identifier) @mutex.unlock.function
-  (#match? @mutex.unlock.function "^(pthread_mutex_unlock|LeaveCriticalSection|ReleaseMutex)$")
+ (#match? @mutex.unlock.function "^(pthread_mutex_unlock|LeaveCriticalSection|ReleaseMutex)$")
   arguments: (argument_list
     (identifier) @mutex.handle)) @concurrency.relationship.mutex.unlock
 
@@ -80,7 +80,7 @@ export default `
 ; 条件变量初始化同步关系
 (call_expression
   function: (identifier) @cond.init.function
-  (#match? @cond.init.function "^(pthread_cond_init)$")
+ (#match? @cond.init.function "^(pthread_cond_init)$")
   arguments: (argument_list
     (identifier) @cond.handle
     (identifier)? @cond.attributes)) @concurrency.relationship.condition.init
@@ -88,14 +88,14 @@ export default `
 ; 条件变量销毁同步关系
 (call_expression
   function: (identifier) @cond.destroy.function
-  (#match? @cond.destroy.function "^(pthread_cond_destroy)$")
+ (#match? @cond.destroy.function "^(pthread_cond_destroy)$")
   arguments: (argument_list
     (identifier) @cond.handle)) @concurrency.relationship.condition.destroy
 
 ; 条件变量等待同步关系
 (call_expression
   function: (identifier) @cond.wait.function
-  (#match? @cond.wait.function "^(pthread_cond_wait|pthread_cond_timedwait)$")
+ (#match? @cond.wait.function "^(pthread_cond_wait|pthread_cond_timedwait)$")
   arguments: (argument_list
     (identifier) @cond.handle
     (identifier) @mutex.handle)) @concurrency.relationship.condition.wait
@@ -103,14 +103,14 @@ export default `
 ; 条件变量信号同步关系
 (call_expression
   function: (identifier) @cond.signal.function
-  (#match? @cond.signal.function "^(pthread_cond_signal)$")
+ (#match? @cond.signal.function "^(pthread_cond_signal)$")
   arguments: (argument_list
     (identifier) @cond.handle)) @concurrency.relationship.condition.signal
 
 ; 条件变量广播同步关系
 (call_expression
   function: (identifier) @cond.broadcast.function
-  (#match? @cond.broadcast.function "^(pthread_cond_broadcast)$")
+ (#match? @cond.broadcast.function "^(pthread_cond_broadcast)$")
   arguments: (argument_list
     (identifier) @cond.handle)) @concurrency.relationship.condition.broadcast
 
@@ -147,7 +147,7 @@ export default `
 (call_expression
   function: (identifier) @rwlock.unlock.function
   (#match? @rwlock.unlock.function "^(pthread_rwlock_unlock)$")
-  arguments: (argument_list
+ arguments: (argument_list
     (identifier) @rwlock.handle)) @concurrency.relationship.rwlock.unlock
 
 ; 信号量初始化同步关系
@@ -190,7 +190,7 @@ export default `
 ; 原子加载操作
 (call_expression
   function: (identifier) @atomic.load.function
-  (#match? @atomic.load.function "^(atomic_load|__atomic_load_n|InterlockedExchange)$")
+ (#match? @atomic.load.function "^(atomic_load|__atomic_load_n|InterlockedExchange)$")
   arguments: (argument_list
     (identifier) @atomic.variable
     (identifier)? @atomic.memory.order)) @concurrency.relationship.atomic.load
@@ -198,7 +198,7 @@ export default `
 ; 原子存储操作
 (call_expression
   function: (identifier) @atomic.store.function
-  (#match? @atomic.store.function "^(atomic_store|__atomic_store_n|InterlockedExchange)$")
+ (#match? @atomic.store.function "^(atomic_store|__atomic_store_n|InterlockedExchange)$")
   arguments: (argument_list
     (identifier) @atomic.variable
     (identifier) @atomic.value
@@ -207,7 +207,7 @@ export default `
 ; 原子交换操作
 (call_expression
   function: (identifier) @atomic.exchange.function
-  (#match? @atomic.exchange.function "^(atomic_exchange|__atomic_exchange_n|InterlockedExchange)$")
+ (#match? @atomic.exchange.function "^(atomic_exchange|__atomic_exchange_n|InterlockedExchange)$")
   arguments: (argument_list
     (identifier) @atomic.variable
     (identifier) @atomic.value
@@ -216,7 +216,7 @@ export default `
 ; 原子比较交换操作
 (call_expression
   function: (identifier) @atomic.compare.function
-  (#match? @atomic.compare.function "^(atomic_compare_exchange|__atomic_compare_exchange_n|InterlockedCompareExchange)$")
+ (#match? @atomic.compare.function "^(atomic_compare_exchange|__atomic_compare_exchange_n|InterlockedCompareExchange)$")
   arguments: (argument_list
     (identifier) @atomic.variable
     (identifier) @atomic.expected
@@ -279,7 +279,7 @@ export default `
 ; 线程特定数据设置
 (call_expression
   function: (identifier) @tls.set.function
-  (#match? @tls.set.function "^(pthread_setspecific)$")
+ (#match? @tls.set.function "^(pthread_setspecific)$")
   arguments: (argument_list
     (identifier) @tls.key
     (identifier) @tls.value)) @concurrency.relationship.tls.set
@@ -287,7 +287,7 @@ export default `
 ; 线程特定数据获取
 (call_expression
   function: (identifier) @tls.get.function
-  (#match? @tls.get.function "^(pthread_getspecific)$")
+ (#match? @tls.get.function "^(pthread_getspecific)$")
   arguments: (argument_list
     (identifier) @tls.key)) @concurrency.relationship.tls.get
 
