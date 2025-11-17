@@ -347,4 +347,134 @@ describe('C++语言注释查询规则与适配器协调测试', () => {
 
     console.log('混合注释类型测试通过，找到', results.length, '个注释');
   });
+
+  test('Doxygen风格注释查询', async () => {
+    const code = `
+      /**
+       * @brief 计算两个整数的和
+       * @param a 第一个整数
+       * @param b 第二个整数
+       * @return 两个整数的和
+       * @see subtract
+       * @note 这是一个简单的加法函数
+       */
+      int add(int a, int b) {
+        return a + b;
+      }
+    `;
+
+    const tree = parser.parse(code);
+    const queryPattern = await QueryLoader.getQuery('cpp', 'comments');
+    const query = new Parser.Query(language, queryPattern);
+    const captures = query.captures(tree.rootNode);
+
+    const queryResults = captures.map(capture => ({
+      captures: [{
+        name: capture.name,
+        node: capture.node
+      }]
+    }));
+
+    const results = await adapter.normalize(queryResults, 'comments', 'cpp');
+
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].type).toBe('comment');
+
+    console.log('Doxygen风格注释测试通过:', results[0]);
+  });
+
+  test('C++特性注释查询', async () => {
+    const code = `
+      // C++11特性注释
+      auto lambda = [](int x, int y) -> int {
+        return x + y;
+      };
+      
+      // C++14特性注释
+      constexpr int square(int n) {
+        return n * n;
+      }
+      
+      // C++17特性注释
+      if constexpr (std::is_integral_v<T>) {
+        // 整型特化处理
+        return process_integral(value);
+      }
+      
+      // C++20特性注释
+      template <typename T>
+      concept Integral = std::is_integral_v<T>;
+    `;
+
+    const tree = parser.parse(code);
+    const queryPattern = await QueryLoader.getQuery('cpp', 'comments');
+    const query = new Parser.Query(language, queryPattern);
+    const captures = query.captures(tree.rootNode);
+
+    const queryResults = captures.map(capture => ({
+      captures: [{
+        name: capture.name,
+        node: capture.node
+      }]
+    }));
+
+    const results = await adapter.normalize(queryResults, 'comments', 'cpp');
+
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].type).toBe('comment');
+
+    console.log('C++特性注释测试通过:', results[0]);
+  });
+
+  test('Doxygen标签注释查询', async () => {
+    const code = `
+      /**
+       * @class Calculator
+       * @brief 简单计算器类
+       * @author John Doe
+       * @date 2023-01-01
+       * @version 1.0
+       * @copyright MIT License
+       */
+      class Calculator {
+      public:
+        /**
+         * @fn int add(int a, int b)
+         * @brief 加法运算
+         * @param[in] a 被加数
+         * @param[in] b 加数
+         * @return 和
+         * @exception std::overflow_error 结果溢出时抛出
+         * @pre a和b必须是有效整数
+         * @post 返回a和b的和
+         */
+        int add(int a, int b);
+        
+        /**
+         * @var int value
+         * @brief 存储计算结果的变量
+         */
+        int value;
+      };
+    `;
+
+    const tree = parser.parse(code);
+    const queryPattern = await QueryLoader.getQuery('cpp', 'comments');
+    const query = new Parser.Query(language, queryPattern);
+    const captures = query.captures(tree.rootNode);
+
+    const queryResults = captures.map(capture => ({
+      captures: [{
+        name: capture.name,
+        node: capture.node
+      }]
+    }));
+
+    const results = await adapter.normalize(queryResults, 'comments', 'cpp');
+
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].type).toBe('comment');
+
+    console.log('Doxygen标签注释测试通过:', results[0]);
+  });
 });

@@ -17,37 +17,27 @@ import dataFlow from './data-flow';
 import semanticRelationships from './semantic-relationships';
 import lifecycleRelationships from './lifecycle-relationships';
 import concurrencyRelationships from './concurrency-relationships';
-import comments from './comments';
+
+const comments = `
+; 注释查询
+(comment) @comment
+`;
 
 export default `
 ${classes}
-
 ${functions}
-
 ${variables}
-
 ${imports}
-
 ${controlFlow}
-
 ${expressions}
-
 ${exportQueries}
-
 ${interfaces}
-
 ${methods}
-
 ${properties}
-
 ${types}
-
 ${dataFlow}
-
 ${semanticRelationships}
-
 ${lifecycleRelationships}
-
 ${concurrencyRelationships}
 ${comments}
 `;

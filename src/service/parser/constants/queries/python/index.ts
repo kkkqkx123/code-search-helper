@@ -12,27 +12,22 @@ import typesDecorators from './types-decorators';
 import dataFlow from './data-flow';
 import semanticRelationships from './semantic-relationships';
 import lifecycleRelationships from './lifecycle-relationships';
-import comments from './comments';
+
+const comments = `
+; 注释查询
+(comment) @comment
+`;
 
 export default `
 ${classes}
-
 ${functions}
-
 ${variables}
-
 ${imports}
-
 ${controlFlow}
-
 ${dataStructures}
-
 ${typesDecorators}
-
 ${dataFlow}
-
 ${semanticRelationships}
-
-${comments}
 ${lifecycleRelationships}
+${comments}
 `;

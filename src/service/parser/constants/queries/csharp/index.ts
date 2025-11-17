@@ -13,29 +13,23 @@ import controlFlow from './control-flow';
 import semanticRelationships from './semantic-relationships';
 import lifecycleRelationships from './lifecycle-relationships';
 import concurrencyRelationships from './concurrency-relationships';
-import comments from './comments';
+
+const comments = `
+; 注释查询
+(comment) @comment
+`;
 
 export default `
 ${classes}
-
 ${methods}
-
 ${properties}
-
 ${linq}
-
 ${patterns}
-
 ${expressions}
-
 ${dataFlow}
-
 ${controlFlow}
-
 ${semanticRelationships}
-
 ${lifecycleRelationships}
-
-${comments}
 ${concurrencyRelationships}
+${comments}
 `;

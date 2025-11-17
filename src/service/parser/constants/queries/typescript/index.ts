@@ -14,29 +14,23 @@ import variables from './variables';
 import controlFlow from './control-flow';
 import dataFlow from './data-flow';
 import expressions from './expressions';
-import comments from './comments';
+
+const comments = `
+; 注释查询
+(comment) @comment
+`;
 
 export default `
 ${classes}
-
 ${functions}
-
-
 ${_exports}
 ${imports}
-
 ${interfaces}
-
 ${methods}
-
 ${properties}
-
 ${types}
-
 ${variables}
-
 ${controlFlow}
-
 ${dataFlow}
 ${expressions}
 ${comments}

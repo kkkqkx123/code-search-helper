@@ -8,19 +8,18 @@ import controlFlowPatterns from './control-flow-patterns';
 import dataFlow from './data-flow';
 import semanticRelationships from './semantic-relationships';
 import lifecycleRelationships from './lifecycle-relationships';
-import comments from './comments';
+
+const comments = `
+; 注释查询
+(comment) @comment
+`;
 
 export default `
 ${classesInterfaces}
-
 ${methodsVariables}
-
 ${controlFlowPatterns}
-
 ${dataFlow}
-
 ${semanticRelationships}
-
-${comments}
 ${lifecycleRelationships}
+${comments}
 `;

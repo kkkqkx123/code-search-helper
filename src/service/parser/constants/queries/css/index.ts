@@ -5,13 +5,15 @@ Optimized for code chunking and vector embedding
 import selectors from './selectors';
 import properties from './properties';
 import rules from './rules';
-import comments from './comments';
+
+const comments = `
+; 注释查询
+(comment) @comment
+`;
 
 export default `
 ${selectors}
-
 ${properties}
-
 ${comments}
 ${rules}
 `;
