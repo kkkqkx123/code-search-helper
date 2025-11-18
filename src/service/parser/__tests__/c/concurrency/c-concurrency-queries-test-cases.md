@@ -4,18 +4,6 @@
 
 ## 1. 线程创建并发关系
 
-### 查询规则
-```
-(call_expression) @concurrency.relationship.thread.creation
-  function: (identifier) @thread.create.function
-  (#match? @thread.create.function "^(pthread_create|CreateThread|_beginthreadex)$")
-  arguments: (argument_list
-    (identifier) @thread.handle
-    (identifier) @thread.attributes
-    (identifier) @thread.start.function
-    (identifier) @thread.argument)
-```
-
 ### 测试用例
 ```c
 #include <pthread.h>
@@ -55,6 +43,20 @@ int main() {
     return 0;
 }
 ```
+
+### 查询规则
+```
+(call_expression) @concurrency.relationship.thread.creation
+  function: (identifier) @thread.create.function
+  (#match? @thread.create.function "^(pthread_create|CreateThread|_beginthreadex)$")
+  arguments: (argument_list
+    (identifier) @thread.handle
+    (identifier) @thread.attributes
+    (identifier) @thread.start.function
+    (identifier) @thread.argument)
+```
+
+
 
 ## 2. 线程等待并发关系
 
