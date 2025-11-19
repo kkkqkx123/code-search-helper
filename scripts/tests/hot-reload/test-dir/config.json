@@ -1,0 +1,24 @@
+{
+  "app": {
+    "name": "Hot Reload Test App",
+    "version": "1.0.0",
+    "environment": "development"
+  },
+  "server": {
+    "port": 3000,
+    "host": "localhost"
+  },
+  "database": {
+    "type": "sqlite",
+    "path": "./data/app.db"
+  },
+  "logging": {
+    "level": "info",
+    "format": "json"
+  },
+  "features": {
+    "hotReload": true,
+    "debugMode": true,
+    "metrics": true
+  }
+}

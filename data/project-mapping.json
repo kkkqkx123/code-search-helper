@@ -1,0 +1,70 @@
+[
+  {
+    "projectIdMap": {
+      "D:/ide/tool/code-search-helper/test-files": "25c8ec09854263fc"
+    },
+    "collectionMap": {
+      "25c8ec09854263fc": "project-25c8ec09854263fc"
+    },
+    "spaceMap": {
+      "25c8ec09854263fc": "project-25c8ec09854263fc"
+    },
+    "pathToProjectMap": {
+      "25c8ec09854263fc": "D:/ide/tool/code-search-helper/test-files"
+    },
+    "projectUpdateTimes": {
+      "25c8ec09854263fc": null
+    }
+  },
+  {
+    "projectIdMap": {
+      "D:/ide/tool/code-search-helper": "7309b226edd38773"
+    },
+    "collectionMap": {
+      "7309b226edd38773": "project-7309b226edd38773"
+    },
+    "spaceMap": {
+      "7309b226edd38773": "project-7309b226edd38773"
+    },
+    "pathToProjectMap": {
+      "7309b226edd38773": "D:/ide/tool/code-search-helper"
+    },
+    "projectUpdateTimes": {
+      "7309b226edd38773": null
+    }
+  },
+  {
+    "projectIdMap": {
+      "D:\\ide\\tool\\code-search-helper\\test-files": "ada029ec0e391066"
+    },
+    "collectionMap": {
+      "ada029ec0e391066": "project-ada029ec0e391066"
+    },
+    "spaceMap": {
+      "ada029ec0e391066": "project-ada029ec0e391066"
+    },
+    "pathToProjectMap": {
+      "ada029ec0e391066": "D:\\ide\\tool\\code-search-helper\\test-files"
+    },
+    "projectUpdateTimes": {
+      "ada029ec0e391066": "2025-11-02T15:21:31.423Z"
+    }
+  },
+  {
+    "projectIdMap": {
+      "D:\\ide\\tool\\code-search-helper": "dfca34a3cbfeeb9b"
+    },
+    "collectionMap": {
+      "dfca34a3cbfeeb9b": "project-dfca34a3cbfeeb9b"
+    },
+    "spaceMap": {
+      "dfca34a3cbfeeb9b": "project-dfca34a3cbfeeb9b"
+    },
+    "pathToProjectMap": {
+      "dfca34a3cbfeeb9b": "D:\\ide\\tool\\code-search-helper"
+    },
+    "projectUpdateTimes": {
+      "dfca34a3cbfeeb9b": "2025-11-02T15:21:45.897Z"
+    }
+  }
+]
