@@ -1,0 +1,5 @@
+(call_expression) @concurrency.relationship.semaphore.operation
+  function: (identifier) @semaphore.wait.function
+  (#match? @semaphore.wait.function "^(sem_wait)$")
+  arguments: (argument_list
+    (pointer_expression argument: (identifier) @semaphore.handle))

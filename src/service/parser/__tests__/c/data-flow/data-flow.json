@@ -1,84 +1,134 @@
 {
+  "category": "data-flow",
+  "totalTests": 16,
   "requests": [
     {
+      "id": "data-flow-001",
       "language": "c",
-      "code": "#include <stdio.h>\n\nint main() {\n    int x = 5;\n    int y = x;\n    \n    // 简单赋值数据流\n    return 0;\n}",
-      "query": "[(assignment_expression\n  left: [\n    (identifier) @target.variable\n    (field_expression\n      argument: (identifier) @target.object\n      field: (field_identifier) @target.field)\n    (subscript_expression\n      argument: (identifier) @target.array\n      index: (identifier) @target.index)\n    (pointer_expression\n      argument: (identifier) @target.pointer)\n  ]\n  right: [\n    (identifier) @source.variable\n    (call_expression\n      function: (identifier) @source.function)\n    (binary_expression\n      left: (_) @binary.left\n      right: (_) @binary.right)\n    (unary_expression\n      argument: (_) @unary.argument)\n    (number_literal) @source.literal\n  ]) @data.flow.assignment\n (init_declarator\n    declarator: (identifier) @target.variable\n    value: [\n      (identifier) @source.variable\n      (call_expression\n        function: (identifier) @source.function)\n      (binary_expression\n        left: (_) @binary.left\n        right: (_) @binary.right)\n      (unary_expression\n        argument: (_) @unary.argument)\n      (number_literal) @source.literal\n    ]) @data.flow.assignment\n] @data.flow.assignment"
+      "codeFile": "tests/test-001/code.c",
+      "queryFile": "tests/test-001/query.txt",
+      "metadataFile": "tests/test-001/metadata.json",
+      "description": "Test case 001"
     },
     {
+      "id": "data-flow-002",
       "language": "c",
-      "code": "#include <stdio.h>\n\nint main() {\n    int a = 10;\n    int b = 20;\n    int result = a + b;\n    \n    // 二元表达式数据流\n    return 0;\n}",
-      "query": "[(assignment_expression\n  left: [\n    (identifier) @target.variable\n    (field_expression\n      argument: (identifier) @target.object\n      field: (field_identifier) @target.field)\n    (subscript_expression\n      argument: (identifier) @target.array\n      index: (identifier) @target.index)\n    (pointer_expression\n      argument: (identifier) @target.pointer)\n  ]\n  right: [\n    (identifier) @source.variable\n    (call_expression\n      function: (identifier) @source.function)\n    (binary_expression\n      left: (_) @binary.left\n      right: (_) @binary.right)\n    (unary_expression\n      argument: (_) @unary.argument)\n    (number_literal) @source.literal\n  ]) @data.flow.assignment\n (init_declarator\n    declarator: (identifier) @target.variable\n    value: [\n      (identifier) @source.variable\n      (call_expression\n        function: (identifier) @source.function)\n      (binary_expression\n        left: (_) @binary.left\n        right: (_) @binary.right)\n      (unary_expression\n        argument: (_) @unary.argument)\n      (number_literal) @source.literal\n    ]) @data.flow.assignment\n] @data.flow.assignment"
+      "codeFile": "tests/test-002/code.c",
+      "queryFile": "tests/test-002/query.txt",
+      "metadataFile": "tests/test-002/metadata.json",
+      "description": "Test case 002"
     },
     {
+      "id": "data-flow-003",
       "language": "c",
-      "code": "#include <stdio.h>\n\nint add(int x, int y) {\n    return x + y;\n}\n\nint main() {\n    int a = 5;\n    int result = add(a, 10);\n    \n    // 函数调用参数传递数据流\n    return 0;\n}",
-      "query": "(call_expression\n function: [\n    (identifier) @target.function\n    (pointer_expression\n      argument: (identifier) @target.function.pointer)\n    (field_expression\n      argument: (identifier) @target.object\n      field: (field_identifier) @target.method)\n ]\n  arguments: (argument_list\n    (_) @source.parameter)*) @data.flow.parameter.passing"
+      "codeFile": "tests/test-003/code.c",
+      "queryFile": "tests/test-003/query.txt",
+      "metadataFile": "tests/test-003/metadata.json",
+      "description": "Test case 003"
     },
     {
+      "id": "data-flow-004",
       "language": "c",
-      "code": "#include <stdio.h>\n\nint get_value() {\n    int value = 42;\n    return value;\n}\n\nint main() {\n    int x = get_value();\n    \n    // 返回值数据流\n    return 0;\n}",
-      "query": "(return_statement\n  .\n [\n    (identifier) @source.variable\n    (call_expression\n      function: (identifier) @source.function)\n    (field_expression\n      argument: (identifier) @source.object\n      field: (field_identifier) @source.field)\n    (binary_expression\n      left: (_) @binary.left\n      right: (_) @binary.right)\n ]) @data.flow.return.value"
+      "codeFile": "tests/test-004/code.c",
+      "queryFile": "tests/test-004/query.txt",
+      "metadataFile": "tests/test-004/metadata.json",
+      "description": "Test case 004"
     },
     {
+      "id": "data-flow-005",
       "language": "c",
-      "code": "#include <stdio.h>\n\nint main() {\n    int counter = 0;\n    counter++;\n    \n    // 增量操作数据流\n    return 0;\n}",
-      "query": "[(update_expression\n    argument: (identifier) @variable\n    operator: \"++\") @data.flow.increment\n  (update_expression\n    argument: (identifier) @variable\n    operator: \"--\") @data.flow.decrement\n  ] @data.flow.update"
+      "codeFile": "tests/test-005/code.c",
+      "queryFile": "tests/test-005/query.txt",
+      "metadataFile": "tests/test-005/metadata.json",
+      "description": "Test case 005"
     },
     {
+      "id": "data-flow-006",
       "language": "c",
-      "code": "#include <stdio.h>\n\nint main() {\n    int counter = 10;\n    counter--;\n    \n    // 减量操作数据流\n    return 0;\n}",
-      "query": "[(update_expression\n    argument: (identifier) @variable\n    operator: \"++\") @data.flow.increment\n  (update_expression\n    argument: (identifier) @variable\n    operator: \"--\") @data.flow.decrement\n  ] @data.flow.update"
+      "codeFile": "tests/test-006/code.c",
+      "queryFile": "tests/test-006/query.txt",
+      "metadataFile": "tests/test-006/metadata.json",
+      "description": "Test case 006"
     },
     {
+      "id": "data-flow-007",
       "language": "c",
-      "code": "#include <stdio.h>\n\nint main() {\n    int a = 5;\n    int b = 10;\n    a += b;\n    \n    // 复合赋值数据流\n    return 0;\n}",
-      "query": "(assignment_expression\n  left: (identifier) @target.variable\n  right: [\n    (identifier) @source.variable1\n    (binary_expression\n      left: (identifier) @source.variable1\n      operator: [\"+\" \"-\" \"*\" \"/\" \"%\" \"&\" \"|\" \"^\" \"<<\" \">>\"] @compound.operator\n      right: (identifier) @source.variable2)\n  ]) @data.flow.compound.assignment"
+      "codeFile": "tests/test-007/code.c",
+      "queryFile": "tests/test-007/query.txt",
+      "metadataFile": "tests/test-007/metadata.json",
+      "description": "Test case 007"
     },
     {
+      "id": "data-flow-008",
       "language": "c",
-      "code": "#include <stdio.h>\n\nint main() {\n    int x = 42;\n    int *ptr = &x;\n    \n    // 指针地址赋值数据流\n    return 0;\n}",
-      "query": "[(assignment_expression\n    left: (identifier) @target.pointer\n    right: (pointer_expression\n      argument: (identifier) @source.variable)) @data.flow.address.assignment\n  (assignment_expression\n    left: (pointer_expression\n      argument: (identifier) @target.pointer)\n    right: (identifier) @source.variable) @data.flow.pointer.assignment\n  (init_declarator\n    declarator: (pointer_declarator\n      declarator: (identifier) @target.pointer)\n    value: (pointer_expression\n      argument: (identifier) @source.variable)) @data.flow.address.assignment\n] @data.flow.pointer.operation"
+      "codeFile": "tests/test-008/code.c",
+      "queryFile": "tests/test-008/query.txt",
+      "metadataFile": "tests/test-008/metadata.json",
+      "description": "Test case 008"
     },
     {
+      "id": "data-flow-009",
       "language": "c",
-      "code": "#include <stdio.h>\n\nint main() {\n    int x = 42;\n    int *ptr = &x;\n    *ptr = 100;\n    \n    // 指针解引用赋值数据流\n    return 0;\n}",
-      "query": "[(assignment_expression\n    left: (identifier) @target.pointer\n    right: (pointer_expression\n      argument: (identifier) @source.variable)) @data.flow.address.assignment\n  (assignment_expression\n    left: (pointer_expression\n      argument: (identifier) @target.pointer)\n    right: (identifier) @source.variable) @data.flow.pointer.assignment\n  (init_declarator\n    declarator: (pointer_declarator\n      declarator: (identifier) @target.pointer)\n    value: (pointer_expression\n      argument: (identifier) @source.variable)) @data.flow.address.assignment\n] @data.flow.pointer.operation"
+      "codeFile": "tests/test-009/code.c",
+      "queryFile": "tests/test-009/query.txt",
+      "metadataFile": "tests/test-009/metadata.json",
+      "description": "Test case 009"
     },
     {
+      "id": "data-flow-010",
       "language": "c",
-      "code": "#include <stdio.h>\n\nint main() {\n    int x = 42;\n    double y = (double)x;\n    \n    // 类型转换数据流\n    return 0;\n}",
-      "query": "(cast_expression\n  type: (type_descriptor) @target.type\n  value: (identifier) @source.variable) @data.flow.type.conversion"
+      "codeFile": "tests/test-010/code.c",
+      "queryFile": "tests/test-010/query.txt",
+      "metadataFile": "tests/test-010/metadata.json",
+      "description": "Test case 010"
     },
     {
+      "id": "data-flow-011",
       "language": "c",
-      "code": "#include <stdio.h>\n\nint main() {\n    int a = 1, b = 2, c = 3;\n    int result = a ? b : c;\n    \n    // 条件表达式数据流\n    return 0;\n}",
-      "query": "[(assignment_expression\n    left: (identifier) @target.variable\n    right: (conditional_expression\n      condition: (identifier) @source.condition\n      consequence: (identifier) @source.consequence\n      alternative: (identifier) @source.alternative)) @data.flow.conditional.assignment\n  (init_declarator\n    declarator: (identifier) @target.variable\n    value: (conditional_expression\n      condition: (identifier) @source.condition\n      consequence: (identifier) @source.consequence\n      alternative: (identifier) @source.alternative)) @data.flow.conditional.assignment\n] @data.flow.conditional.operation"
+      "codeFile": "tests/test-011/code.c",
+      "queryFile": "tests/test-011/query.txt",
+      "metadataFile": "tests/test-011/metadata.json",
+      "description": "Test case 011"
     },
     {
+      "id": "data-flow-012",
       "language": "c",
-      "code": "#include <stdio.h>\n#include <stdlib.h>\n\nint main() {\n    int *ptr = malloc(sizeof(int) * 10);\n    \n    // 内存分配数据流\n    return 0;\n}",
-      "query": "(call_expression\n  function: (identifier) @memory.function\n  arguments: (argument_list\n    (_) @memory.argument)*) @data.flow.memory.operation"
+      "codeFile": "tests/test-012/code.c",
+      "queryFile": "tests/test-012/query.txt",
+      "metadataFile": "tests/test-012/metadata.json",
+      "description": "Test case 012"
     },
     {
+      "id": "data-flow-013",
       "language": "c",
-      "code": "#include <stdio.h>\n\nstruct Point {\n    int x;\n    int y;\n};\n\nint main() {\n    struct Point p;\n    p.x = 10;\n    \n    // 字段表达式数据流\n    return 0;\n}",
-      "query": "[(assignment_expression\n left: [\n    (identifier) @target.variable\n    (field_expression\n      argument: (identifier) @target.object\n      field: (field_identifier) @target.field)\n    (subscript_expression\n      argument: (identifier) @target.array\n      index: (identifier) @target.index)\n    (pointer_expression\n      argument: (identifier) @target.pointer)\n ]\n  right: [\n    (identifier) @source.variable\n    (call_expression\n      function: (identifier) @source.function)\n    (binary_expression\n      left: (_) @binary.left\n      right: (_) @binary.right)\n    (unary_expression\n      argument: (_) @unary.argument)\n    (number_literal) @source.literal\n  ]) @data.flow.assignment\n (init_declarator\n    declarator: (identifier) @target.variable\n    value: [\n      (identifier) @source.variable\n      (call_expression\n        function: (identifier) @source.function)\n      (binary_expression\n        left: (_) @binary.left\n        right: (_) @binary.right)\n      (unary_expression\n        argument: (_) @unary.argument)\n      (number_literal) @source.literal\n    ]) @data.flow.assignment\n] @data.flow.assignment"
+      "codeFile": "tests/test-013/code.c",
+      "queryFile": "tests/test-013/query.txt",
+      "metadataFile": "tests/test-013/metadata.json",
+      "description": "Test case 013"
     },
     {
+      "id": "data-flow-014",
       "language": "c",
-      "code": "#include <stdio.h>\n\nint main() {\n    int arr[10];\n    int index = 5;\n    arr[index] = 42;\n    \n    // 数组索引赋值数据流\n    return 0;\n}",
-      "query": "[(assignment_expression\n left: [\n    (identifier) @target.variable\n    (field_expression\n      argument: (identifier) @target.object\n      field: (field_identifier) @target.field)\n    (subscript_expression\n      argument: (identifier) @target.array\n      index: (identifier) @target.index)\n    (pointer_expression\n      argument: (identifier) @target.pointer)\n ]\n  right: [\n    (identifier) @source.variable\n    (call_expression\n      function: (identifier) @source.function)\n    (binary_expression\n      left: (_) @binary.left\n      right: (_) @binary.right)\n    (unary_expression\n      argument: (_) @unary.argument)\n    (number_literal) @source.literal\n  ]) @data.flow.assignment\n (init_declarator\n    declarator: (identifier) @target.variable\n    value: [\n      (identifier) @source.variable\n      (call_expression\n        function: (identifier) @source.function)\n      (binary_expression\n        left: (_) @binary.left\n        right: (_) @binary.right)\n      (unary_expression\n        argument: (_) @unary.argument)\n      (number_literal) @source.literal\n    ]) @data.flow.assignment\n] @data.flow.assignment"
+      "codeFile": "tests/test-014/code.c",
+      "queryFile": "tests/test-014/query.txt",
+      "metadataFile": "tests/test-014/metadata.json",
+      "description": "Test case 014"
     },
     {
+      "id": "data-flow-015",
       "language": "c",
-      "code": "#include <stdio.h>\n\n#define MAX_VALUE 10\nint main() {\n    int value = MAX_VALUE;\n    \n    // 宏调用数据流\n    return 0;\n}",
-      "query": "(init_declarator\n  declarator: (identifier) @target.variable\n  value: (identifier) @macro.value) @data.flow.macro.assignment"
+      "codeFile": "tests/test-015/code.c",
+      "queryFile": "tests/test-015/query.txt",
+      "metadataFile": "tests/test-015/metadata.json",
+      "description": "Test case 015"
     },
     {
+      "id": "data-flow-016",
       "language": "c",
-      "code": "#include <stdio.h>\n\nint main() {\n    int x;\n    size_t size = sizeof(x);\n    \n    // sizeof表达式数据流\n    return 0;\n}",
-      "query": "[(assignment_expression\n    left: (identifier) @target.variable\n    right: (sizeof_expression\n      (parenthesized_expression\n        (identifier) @source.variable))) @data.flow.sizeof.assignment\n  (init_declarator\n    declarator: (identifier) @target.variable\n    value: (sizeof_expression\n      (parenthesized_expression\n        (identifier) @source.variable))) @data.flow.sizeof.assignment\n  (sizeof_expression\n    (parenthesized_expression\n      (identifier) @source.variable)) @data.flow.sizeof.expression\n] @data.flow.sizeof.operation"
+      "codeFile": "tests/test-016/code.c",
+      "queryFile": "tests/test-016/query.txt",
+      "metadataFile": "tests/test-016/metadata.json",
+      "description": "Test case 016"
     }
   ]
 }

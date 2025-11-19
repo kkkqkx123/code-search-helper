@@ -1,0 +1,6 @@
+(call_expression
+  function: (identifier) @socket.accept.function
+  (#match? @socket.accept.function "^(accept|WSAAccept)$")
+  arguments: (argument_list
+    (identifier) @socket.handle)
+  (#set! "operation" "accept")) @lifecycle.relationship.socket.accept

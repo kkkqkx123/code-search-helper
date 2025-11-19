@@ -1,0 +1,3 @@
+(update_expression
+    argument: (_) @update.argument
+    operator: _ @update.operator) @definition.update_expression

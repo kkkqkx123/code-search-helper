@@ -1,0 +1,4 @@
+(call_expression
+  function: (identifier) @memory.function
+  arguments: (argument_list
+    (_) @memory.argument)*) @data.flow.memory.operation

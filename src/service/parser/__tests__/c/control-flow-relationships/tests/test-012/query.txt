@@ -1,0 +1,4 @@
+[
+  (break_statement) @control.flow.loop.break
+  (continue_statement) @control.flow.loop.continue
+] @control.flow.loop.control

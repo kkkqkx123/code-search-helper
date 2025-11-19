@@ -1,0 +1,6 @@
+(call_expression) @concurrency.relationship.rwlock.operation
+  function: (identifier) @rwlock.operation.function
+  (#match? @rwlock.operation.function "^(pthread_rwlock_init)$")
+  arguments: (argument_list
+    (pointer_expression argument: (identifier) @rwlock.handle)
+    (identifier)? @rwlock.attributes)

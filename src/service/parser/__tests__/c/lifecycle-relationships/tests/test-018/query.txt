@@ -1,0 +1,8 @@
+(call_expression
+  function: (identifier) @socket.bind.function
+  (#match? @socket.bind.function "^(bind)$")
+  arguments: (argument_list
+    (identifier) @socket.handle
+    [(unary_expression argument: (identifier) @socket.address) 
+     (cast_expression value: (pointer_expression argument: (identifier) @socket.address))])
+  (#set! "operation" "bind")) @lifecycle.relationship.socket.bind

@@ -1,0 +1,7 @@
+(declaration
+  type: (primitive_type) @return.type
+  declarator: (function_declarator
+    declarator: (parenthesized_declarator
+      (pointer_declarator
+        declarator: (identifier) @function.pointer.name))
+    parameters: (parameter_list))) @definition.function.pointer

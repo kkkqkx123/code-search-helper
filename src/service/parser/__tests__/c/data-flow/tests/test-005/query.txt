@@ -1,0 +1,7 @@
+[(update_expression
+    argument: (identifier) @variable
+    operator: "++") @data.flow.increment
+  (update_expression
+    argument: (identifier) @variable
+    operator: "--") @data.flow.decrement
+  ] @data.flow.update

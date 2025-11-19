@@ -1,0 +1,3 @@
+(do_statement
+  body: (statement) @source.do.block
+  condition: (_) @target.while.condition) @control.flow.do.while

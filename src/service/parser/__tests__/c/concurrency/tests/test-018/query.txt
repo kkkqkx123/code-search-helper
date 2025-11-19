@@ -1,0 +1,5 @@
+(call_expression) @concurrency.relationship.semaphore.operation
+  function: (identifier) @semaphore.destroy.function
+  (#match? @semaphore.destroy.function "^(sem_destroy)$")
+  arguments: (argument_list
+    (pointer_expression argument: (identifier) @semaphore.handle))

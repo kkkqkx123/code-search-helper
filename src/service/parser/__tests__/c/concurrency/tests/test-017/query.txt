@@ -1,0 +1,5 @@
+(call_expression) @concurrency.relationship.semaphore.operation
+  function: (identifier) @semaphore.post.function
+  (#match? @semaphore.post.function "^(sem_post)$")
+  arguments: (argument_list
+    (pointer_expression argument: (identifier) @semaphore.handle))

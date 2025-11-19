@@ -1,0 +1,7 @@
+(call_expression
+  function: (identifier) @socket.listen.function
+  (#match? @socket.listen.function "^(listen)$")
+  arguments: (argument_list
+    (identifier) @socket.handle
+    (number_literal) @socket.backlog)
+  (#set! "operation" "listen")) @lifecycle.relationship.socket.listen

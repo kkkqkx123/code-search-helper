@@ -1,0 +1,13 @@
+(return_statement
+  .
+ [
+    (identifier) @source.variable
+    (call_expression
+      function: (identifier) @source.function)
+    (field_expression
+      argument: (identifier) @source.object
+      field: (field_identifier) @source.field)
+    (binary_expression
+      left: (_) @binary.left
+      right: (_) @binary.right)
+ ]) @data.flow.return.value

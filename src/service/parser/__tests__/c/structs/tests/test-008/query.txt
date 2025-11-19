@@ -1,0 +1,3 @@
+(type_definition
+ type: (_)
+  declarator: (type_identifier) @alias.name) @definition.type.alias

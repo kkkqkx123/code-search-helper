@@ -1,0 +1,5 @@
+(call_expression) @concurrency.relationship.mutex.operation
+  function: (identifier) @mutex.unlock.function
+  (#match? @mutex.unlock.function "^(pthread_mutex_unlock)$")
+  arguments: (argument_list
+    (pointer_expression argument: (identifier) @mutex.handle))

@@ -160,7 +160,8 @@ export default `
   arguments: (argument_list
     (identifier) @socket.handle
     [(unary_expression argument: (identifier) @socket.address)
-     (cast_expression value: (pointer_expression argument: (identifier) @socket.address))]))
+     (cast_expression value: (pointer_expression argument: (identifier) @socket.address))
+     (cast_expression value: (pointer_expression argument: (unary_expression argument: (identifier) @socket.address)))]))
   (#set! "operation" "bind")) @lifecycle.relationship.socket.bind
 
 ; 套接字监听生命周期
@@ -179,7 +180,9 @@ export default `
   arguments: (argument_list
     (identifier) @socket.handle
     (null)? @socket.address
-    (null)? @socket.address_len)
+    (null)? @socket.address_len
+    (null)? @socket.condition
+    (number_literal)? @socket.dwFlags)
   (#set! "operation" "accept")) @lifecycle.relationship.socket.accept
 
 ; 套接字关闭生命周期
@@ -188,7 +191,8 @@ export default `
   (#match? @socket.close.function "^(close|closesocket|shutdown)$")
   arguments: (argument_list
     (identifier) @socket.handle
-    (number_literal)? @socket.how)
+    [(number_literal) @socket.how
+     (identifier) @socket.how])
   (#set! "operation" "close")) @lifecycle.relationship.socket.close
 
 ; 资源构造函数模式
@@ -200,8 +204,10 @@ export default `
         type: (type_identifier)
         declarator: (pointer_declarator declarator: (identifier)) @resource.pointer)))
   body: (compound_statement
-    (call_expression
-      function: (identifier) @resource.allocation.function))
+    (expression_statement
+      (call_expression
+        function: (identifier) @resource.allocation.function)))
+  (#match? @resource.allocation.function "^(malloc|calloc|realloc)$")
   (#set! "operation" "construct")) @lifecycle.relationship.resource.constructor
 
 ; 资源析构函数模式
@@ -212,9 +218,8 @@ export default `
       (parameter_declaration
         type: (type_identifier)
         declarator: (pointer_declarator declarator: (identifier)) @resource.pointer)))
-  body: (compound_statement
-    (call_expression
-      function: (identifier) @resource.deallocation.function))
+  body: (compound_statement)
+  (#eq? @resource.destructor "destroy_resource")
   (#set! "operation" "destruct")) @lifecycle.relationship.resource.destructor
 
 ; 资源初始化函数模式
@@ -243,7 +248,8 @@ export default `
 (compound_statement
   (declaration
     type: (primitive_type) @local.variable.type
-    declarator: (identifier) @local.variable.name))
+    declarator: (init_declarator
+      declarator: (identifier) @local.variable.name)))
   (#set! "operation" "scope.begin") @lifecycle.relationship.scope.local.begin
 
 ; 局部变量作用域结束
@@ -251,7 +257,8 @@ export default `
   .
   (declaration
     type: (primitive_type) @local.variable.type
-    declarator: (identifier) @local.variable.name))
+    declarator: (init_declarator
+      declarator: (identifier) @local.variable.name)))
   (#set! "operation" "scope.end") @lifecycle.relationship.scope.local.end
 
 ; 全局变量生命周期
@@ -265,7 +272,8 @@ export default `
 (declaration
   storage_class_specifier: (storage_class_specifier) @static.specifier
   type: (primitive_type) @static.variable.type
-  declarator: (identifier) @static.variable.name)
+  declarator: (init_declarator
+    declarator: (identifier) @static.variable.name))
   (#set! "operation" "static") @lifecycle.relationship.scope.static
 
 ; 函数参数生命周期

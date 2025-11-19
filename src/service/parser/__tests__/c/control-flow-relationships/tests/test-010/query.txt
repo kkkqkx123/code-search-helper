@@ -1,0 +1,5 @@
+(for_statement
+  body: (compound_statement
+    (for_statement
+      condition: (_) @source.inner.condition
+      body: (statement) @target.inner.block))) @control.flow.nested.loop

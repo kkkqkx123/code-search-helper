@@ -1,0 +1,13 @@
+[(assignment_expression
+    left: (identifier) @target.variable
+    right: (conditional_expression
+      condition: (identifier) @source.condition
+      consequence: (identifier) @source.consequence
+      alternative: (identifier) @source.alternative)) @data.flow.conditional.assignment
+  (init_declarator
+    declarator: (identifier) @target.variable
+    value: (conditional_expression
+      condition: (identifier) @source.condition
+      consequence: (identifier) @source.consequence
+      alternative: (identifier) @source.alternative)) @data.flow.conditional.assignment
+] @data.flow.conditional.operation

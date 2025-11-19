@@ -1,0 +1,3 @@
+(unary_expression
+    operator: _ @unary.operator
+    argument: (_) @unary.argument) @definition.unary_expression

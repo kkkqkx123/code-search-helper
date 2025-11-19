@@ -1,0 +1,11 @@
+(call_expression
+ function: [
+    (identifier) @target.function
+    (pointer_expression
+      argument: (identifier) @target.function.pointer)
+    (field_expression
+      argument: (identifier) @target.object
+      field: (field_identifier) @target.method)
+ ]
+  arguments: (argument_list
+    (_) @source.parameter)*) @data.flow.parameter.passing

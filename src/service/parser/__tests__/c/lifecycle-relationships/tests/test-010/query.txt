@@ -1,0 +1,9 @@
+(call_expression
+  function: (identifier) @thread.create.function
+  (#match? @thread.create.function "^(pthread_create|CreateThread|_beginthread)$")
+  arguments: (argument_list
+    (pointer_expression argument: (identifier) @thread.handle)
+    (pointer_expression argument: (identifier) @thread.attributes)
+    (identifier) @thread.function
+    (null) @thread.argument)
+  (#set! "operation" "create")) @lifecycle.relationship.thread.create

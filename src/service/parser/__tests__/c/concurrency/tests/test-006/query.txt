@@ -1,0 +1,5 @@
+(call_expression) @concurrency.relationship.condition.operation
+  function: (identifier) @cond.operation.function
+  (#match? @cond.operation.function "^(pthread_cond_broadcast)$")
+  arguments: (argument_list
+    (pointer_expression argument: (identifier) @cond.handle))

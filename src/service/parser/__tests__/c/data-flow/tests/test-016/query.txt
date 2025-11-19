@@ -1,0 +1,14 @@
+[(assignment_expression
+    left: (identifier) @target.variable
+    right: (sizeof_expression
+      (parenthesized_expression
+        (identifier) @source.variable))) @data.flow.sizeof.assignment
+  (init_declarator
+    declarator: (identifier) @target.variable
+    value: (sizeof_expression
+      (parenthesized_expression
+        (identifier) @source.variable))) @data.flow.sizeof.assignment
+  (sizeof_expression
+    (parenthesized_expression
+      (identifier) @source.variable)) @data.flow.sizeof.expression
+] @data.flow.sizeof.operation

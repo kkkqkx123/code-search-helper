@@ -1,0 +1,5 @@
+(call_expression) @concurrency.relationship.thread.detach
+  function: (identifier) @thread.detach.function
+  (#match? @thread.detach.function "^(pthread_detach)$")
+  arguments: (argument_list
+    (identifier) @thread.handle)

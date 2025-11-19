@@ -1,0 +1,5 @@
+(declaration
+  (storage_class_specifier) @thread.local.specifier
+  (#match? @thread.local.specifier "^(__thread|_Thread_local)$")
+  type: (primitive_type) @thread.local.type
+  declarator: (identifier) @thread.local.variable) @concurrency.relationship.thread.local

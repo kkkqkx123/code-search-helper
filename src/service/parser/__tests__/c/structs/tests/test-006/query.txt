@@ -1,0 +1,5 @@
+(enum_specifier
+  name: (type_identifier) @type.name
+  body: (enumerator_list
+    (enumerator
+      name: (identifier) @enum.constant)*)) @definition.enum

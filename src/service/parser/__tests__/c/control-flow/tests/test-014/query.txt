@@ -1,0 +1,4 @@
+(conditional_expression
+    condition: (_) @conditional.condition
+    consequence: (_) @conditional.consequence
+    alternative: (_) @conditional.alternative) @definition.conditional_expression

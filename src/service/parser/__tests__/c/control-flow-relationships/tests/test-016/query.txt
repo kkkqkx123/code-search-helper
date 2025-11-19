@@ -1,0 +1,4 @@
+(conditional_expression
+  condition: (_)? @source.condition
+  consequence: (_)? @source.consequence
+  alternative: (_)? @source.alternative) @control.flow.conditional.expression

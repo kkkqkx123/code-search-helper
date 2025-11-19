@@ -1,0 +1,4 @@
+(call_expression) @concurrency.relationship.barrier.operation
+  function: (identifier) @barrier.operation.function
+  (#match? @barrier.operation.function "^(__sync_synchronize)$")
+  arguments: (argument_list)

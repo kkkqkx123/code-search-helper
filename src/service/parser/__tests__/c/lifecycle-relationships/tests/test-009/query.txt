@@ -1,0 +1,8 @@
+(declaration
+  type: [(type_identifier) (primitive_type)] @file.handle.type
+  declarator: (init_declarator
+    declarator: [(identifier) (pointer_declarator declarator: (identifier))] @file.handle.variable
+    value: (call_expression
+      function: (identifier) @file.open.function
+      (#match? @file.open.function "^(fopen|open)$")))
+  (#set! "operation" "open")) @lifecycle.relationship.file.handle.binding

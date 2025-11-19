@@ -1,0 +1,23 @@
+[
+  (if_statement
+    condition: (_) @source.condition
+    consequence: (statement) @target.if.block) @control.flow.if
+  (if_statement
+    condition: (_) @source.condition
+    consequence: (statement) @target.if.block
+    alternative: (else_clause
+      (statement) @target.else.block)) @control.flow.if.else
+  (if_statement
+    condition: (_) @source.outer.condition
+    consequence: (compound_statement
+      (if_statement
+        condition: (_) @source.inner.condition
+        consequence: (statement) @target.inner.block))) @control.flow.nested.if
+  (if_statement
+    condition: (_) @source.first.condition
+    consequence: (statement) @target.first.block
+    alternative: (else_clause
+      (if_statement
+        condition: (_) @source.second.condition
+        consequence: (statement) @target.second.block))) @control.flow.else.if
+] @control.flow.if.statement

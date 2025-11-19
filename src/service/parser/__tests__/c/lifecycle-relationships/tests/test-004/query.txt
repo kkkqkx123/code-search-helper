@@ -1,0 +1,9 @@
+(declaration
+  type: (primitive_type)
+  declarator: (init_declarator
+    declarator: (pointer_declarator declarator: (identifier) @pointer.variable)
+    value: (cast_expression
+      value: (call_expression
+        function: (identifier) @allocation.function
+        (#match? @allocation.function "^(malloc|calloc|realloc|alloca)$"))))
+  (#set! "operation" "allocate")) @lifecycle.relationship.memory.variable.binding

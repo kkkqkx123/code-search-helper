@@ -1,0 +1,5 @@
+(call_expression) @concurrency.relationship.barrier.operation
+ function: (identifier) @barrier.operation.function
+  (#match? @barrier.operation.function "^(atomic_thread_fence|__atomic_thread_fence)$")
+  arguments: (argument_list
+    (identifier)? @memory.order)

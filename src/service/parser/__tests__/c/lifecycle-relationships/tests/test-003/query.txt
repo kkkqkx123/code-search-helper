@@ -1,0 +1,7 @@
+(call_expression
+  function: (identifier) @reallocation.function
+  (#match? @reallocation.function "^(realloc)$")
+  arguments: (argument_list
+    (identifier) @original.pointer
+    (binary_expression) @new.size)
+  (#set! "operation" "reallocate")) @lifecycle.relationship.memory.reallocation

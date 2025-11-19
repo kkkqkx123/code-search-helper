@@ -1,0 +1,3 @@
+(labeled_statement
+  label: (statement_identifier) @source.label
+  (statement) @target.labeled.statement) @control.flow.label

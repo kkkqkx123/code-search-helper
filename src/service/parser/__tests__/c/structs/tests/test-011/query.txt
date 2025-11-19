@@ -1,0 +1,4 @@
+(declaration
+  type: (_)
+  declarator: (pointer_declarator
+    declarator: (identifier) @pointer.name)) @definition.pointer

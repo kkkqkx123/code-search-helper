@@ -1,0 +1,3 @@
+(call_expression
+  function: (identifier) @recursive.call
+  arguments: (argument_list)) @definition.recursive.call

@@ -1,0 +1,5 @@
+(declaration
+  type: (primitive_type)
+  declarator: (function_declarator
+    declarator: (identifier) @function.name
+    parameters: (parameter_list))) @definition.function.prototype

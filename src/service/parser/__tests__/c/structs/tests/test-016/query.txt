@@ -1,0 +1,3 @@
+(field_expression
+  argument: (identifier) @pointer.name
+  field: (field_identifier) @field.name) @definition.pointer.member.access

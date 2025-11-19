@@ -1,0 +1,5 @@
+(call_expression) @concurrency.relationship.thread.exit
+  function: (identifier) @thread.exit.function
+  (#match? @thread.exit.function "^(pthread_exit)$")
+  arguments: (argument_list
+    (identifier)? @thread.exit.value)
