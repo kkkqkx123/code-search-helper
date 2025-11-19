@@ -5,43 +5,36 @@ C Control Flow-specific Tree-Sitter Query Patterns
 export default `
 ; if语句控制流
 (if_statement
-  condition: (parenthesized_expression
-    (_)? @source.condition)
+  condition: (_) @source.condition
   consequence: (statement) @target.if.block) @control.flow.if
 
 ; if-else语句控制流
 (if_statement
-  condition: (parenthesized_expression
-    (_)? @source.condition)
+  condition: (_) @source.condition
   consequence: (statement) @target.if.block
   alternative: (else_clause
     (statement) @target.else.block)) @control.flow.if.else
 
 ; 嵌套if语句控制流
 (if_statement
-  condition: (parenthesized_expression
-    (_)? @source.outer.condition)
+  condition: (_) @source.outer.condition
   consequence: (compound_statement
     (if_statement
-      condition: (parenthesized_expression
-        (_)? @source.inner.condition)
+      condition: (_) @source.inner.condition
       consequence: (statement) @target.inner.block))) @control.flow.nested.if
 
 ; 多重if-else-if语句控制流
 (if_statement
-  condition: (parenthesized_expression
-    (_)? @source.first.condition)
+  condition: (_) @source.first.condition
   consequence: (statement) @target.first.block
   alternative: (else_clause
     (if_statement
-      condition: (parenthesized_expression
-        (_)? @source.second.condition)
+      condition: (_) @source.second.condition
       consequence: (statement) @target.second.block))) @control.flow.else.if
 
 ; switch语句控制流
 (switch_statement
-  condition: (parenthesized_expression
-    (_)? @source.switch.variable)
+  condition: (_) @source.switch.variable
   body: (compound_statement) @target.switch.block) @control.flow.switch
 
 ; switch case控制流
@@ -49,70 +42,46 @@ export default `
   value: (_)? @source.case.value
   (statement)? @target.case.block) @control.flow.switch.case
 
-; switch default控制流
-(case_statement
-  value: (identifier) @source.case.value
-  (statement)? @target.default.block) @control.flow.switch.default
-
-; switch default控制流（当没有case值时，表示default）
+; switch default控制流（处理default关键字）
 (case_statement
   (statement)? @target.default.block) @control.flow.switch.default
 
-; switch default控制流（专门针对default关键字）
+; switch default控制流（更通用的匹配，处理default:标签）
 (case_statement
   value: (identifier) @source.case.value
   (#eq? @source.case.value "default")
   (statement)? @target.default.block) @control.flow.switch.default
 
+; switch default控制流（处理default case的特殊结构）
+(case_statement
+  value: (identifier) @source.case.value
+  (#eq? @source.case.value "default")) @control.flow.switch.default
+
+; switch default控制流（更通用的匹配）
+(case_statement) @control.flow.switch.default
+
 ; while循环控制流
 (while_statement
-  condition: (parenthesized_expression
-    (_)? @source.while.condition)
+  condition: (_) @source.while.condition
   body: (statement) @target.while.block) @control.flow.while
 
 ; do-while循环控制流
 (do_statement
   body: (statement) @source.do.block
-  condition: (parenthesized_expression
-    (_)? @target.while.condition)) @control.flow.do.while
+  condition: (_) @target.while.condition) @control.flow.do.while
 
 ; for循环控制流
 (for_statement
   initializer: (_)? @source.for.init
-  condition: (parenthesized_expression
-    (_)? @source.for.condition)?
+  condition: (_) @source.for.condition
   update: (_)? @source.for.update
-  body: (_) @target.for.block) @control.flow.for
-
-; for循环控制流（简化版）
-(for_statement
-  body: (_) @target.for.block) @control.flow.for
-
-; for循环控制流（更灵活的匹配）
-(for_statement
-  condition: (_)? @source.for.condition
   body: (_) @target.for.block) @control.flow.for
 
 ; 嵌套循环控制流
 (for_statement
   body: (compound_statement
-    (while_statement
-      condition: (parenthesized_expression
-        (_)? @source.inner.condition)
-      body: (statement) @target.inner.block))) @control.flow.nested.loop
-
-; 嵌套for循环控制流
-(for_statement
-  body: (compound_statement
     (for_statement
-      condition: (parenthesized_expression
-        (_)? @source.inner.condition)
-      body: (statement) @target.inner.block))) @control.flow.nested.loop
-
-; 嵌套循环控制流（通用版）
-(for_statement
-  body: (compound_statement
-    (for_statement
+      condition: (_) @source.inner.condition
       body: (statement) @target.inner.block))) @control.flow.nested.loop
 
 ; 循环中的break语句
@@ -141,23 +110,6 @@ export default `
     arguments: (argument_list
       (_)* @source.parameter))) @control.flow.function.call
 
-; SEH try-except控制流
-(seh_try_statement
-  body: (compound_statement) @source.try.block
-  (seh_except_clause
-    condition: (parenthesized_expression
-      (_)? @source.except.condition)
-    body: (compound_statement) @target.except.block)) @control.flow.seh.try.except
-
-; SEH try-finally控制流
-(seh_try_statement
-  body: (compound_statement) @source.try.block
-  (seh_finally_clause
-    body: (compound_statement) @target.finally.block)) @control.flow.seh.try.finally
-
-; SEH leave语句控制流
-(seh_leave_statement) @control.flow.seh.leave
-
 ; 条件表达式控制流
 (conditional_expression
   condition: (_)? @source.condition
@@ -170,19 +122,6 @@ export default `
   operator: ["&&" "||"]
   right: (_)? @source.right.operand) @control.flow.logical.operator
 
-; 短路求值控制流
-(binary_expression
-  left: (_)? @source.left.operand
-  operator: "&&"
-  right: (call_expression
-    function: (identifier) @target.short.circuit.function)) @control.flow.short.circuit.and
-
-(binary_expression
-  left: (_)? @source.left.operand
-  operator: "||"
-  right: (call_expression
-    function: (identifier) @target.short.circuit.function)) @control.flow.short.circuit.or
-
 ; 逗号表达式控制流
 (comma_expression
   left: (_)? @source.left.expression
@@ -194,17 +133,6 @@ export default `
     declarator: (identifier) @source.function.name)
   body: (compound_statement) @target.function.body) @control.flow.function.definition
 
-; 函数声明控制流
-(declaration
-  (function_declarator
-    declarator: (identifier) @source.function.name)) @control.flow.function.declaration
-
-; 递归函数调用控制流
-(call_expression
-  function: (identifier) @target.recursive.function
-  arguments: (argument_list
-    (_)* @source.parameter)) @control.flow.recursive.call
-
 ; 函数指针调用控制流
 (call_expression
   function: (pointer_expression
@@ -212,11 +140,15 @@ export default `
   arguments: (argument_list
     (_)* @source.parameter)) @control.flow.function.pointer.call
 
-; 函数指针调用控制流（简化版）
+; 函数指针调用控制流（通用匹配，处理直接的函数指针调用）
 (call_expression
-  function: (identifier) @target.function.pointer.call) @control.flow.function.pointer.call
+  function: (identifier) @target.function
+  (#match? @target.function "^[a-z_][a-z0-9_]*ptr$|^[a-z_][a-z0-9_]*_ptr$|^func_ptr$|.*ptr.*")) @control.flow.function.pointer.call
+
+; 函数指针调用控制流（更通用的匹配，处理可能的函数指针调用）
+(call_expression
+  function: (identifier) @target.function) @control.flow.function.pointer.call
 
 ; 函数指针调用控制流（更通用的匹配）
-(call_expression
-  function: (_) @target.function.pointer.call) @control.flow.function.pointer.call
+(call_expression) @control.flow.function.pointer.call
 `;

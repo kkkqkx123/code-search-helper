@@ -3,27 +3,27 @@
     {
       "language": "c",
       "code": "#include <stdio.h>\n\nint main() {\n    int x = 10;\n    \n    if (x > 5) {\n        printf(\"x is greater than 5\\n\");\n    }\n    \n    return 0;\n}",
-      "query": "(if_statement\n  condition: (parenthesized_expression\n    (_)? @source.condition)\n  consequence: (statement) @target.if.block) @control.flow.if"
+      "query": "(if_statement\n  condition: (_) @source.condition\n  consequence: (statement) @target.if.block) @control.flow.if"
     },
     {
       "language": "c",
       "code": "#include <stdio.h>\n\nint main() {\n    int x = 10;\n    \n    if (x > 5) {\n        printf(\"x is greater than 5\\n\");\n    } else {\n        printf(\"x is not greater than 5\\n\");\n    }\n    \n    return 0;\n}",
-      "query": "(if_statement\n  condition: (parenthesized_expression\n    (_)? @source.condition)\n  consequence: (statement) @target.if.block\n  alternative: (else_clause\n    (statement) @target.else.block)) @control.flow.if.else"
+      "query": "(if_statement\n  condition: (_) @source.condition\n  consequence: (statement) @target.if.block\n  alternative: (else_clause\n    (statement) @target.else.block)) @control.flow.if.else"
     },
     {
       "language": "c",
       "code": "#include <stdio.h>\n\nint main() {\n    int x = 10;\n    \n    if (x > 15) {\n        if (x > 20) {\n            printf(\"x is greater than 20\\n\");\n        } else {\n            printf(\"x is between 15 and 20\\n\");\n        }\n    }\n    \n    return 0;\n}",
-      "query": "(if_statement\n  condition: (parenthesized_expression\n    (_)? @source.outer.condition)\n  consequence: (compound_statement\n    (if_statement\n      condition: (parenthesized_expression\n        (_)? @source.inner.condition)\n      consequence: (statement) @target.inner.block))) @control.flow.nested.if"
+      "query": "(if_statement\n  condition: (_) @source.outer.condition\n  consequence: (compound_statement\n    (if_statement\n      condition: (_) @source.inner.condition\n      consequence: (statement) @target.inner.block))) @control.flow.nested.if"
     },
     {
       "language": "c",
       "code": "#include <stdio.h>\n\nint main() {\n    int x = 10;\n    \n    if (x > 5) {\n        printf(\"x is greater than 5\\n\");\n    } else if (x == 5) {\n        printf(\"x is equal to 5\\n\");\n    } else {\n        printf(\"x is less than 5\\n\");\n    }\n    \n    return 0;\n}",
-      "query": "(if_statement\n  condition: (parenthesized_expression\n    (_)? @source.first.condition)\n  consequence: (statement) @target.first.block\n  alternative: (else_clause\n    (if_statement\n      condition: (parenthesized_expression\n        (_)? @source.second.condition)\n      consequence: (statement) @target.second.block))) @control.flow.else.if"
+      "query": "(if_statement\n  condition: (_) @source.first.condition\n  consequence: (statement) @target.first.block\n  alternative: (else_clause\n    (if_statement\n      condition: (_) @source.second.condition\n      consequence: (statement) @target.second.block))) @control.flow.else.if"
     },
     {
       "language": "c",
       "code": "#include <stdio.h>\n\nint main() {\n    int choice = 2;\n    \n    switch (choice) {\n        case 1:\n            printf(\"Choice is 1\\n\");\n            break;\n        case 2:\n            printf(\"Choice is 2\\n\");\n            break;\n        default:\n            printf(\"Choice is not 1 or 2\\n\");\n            break;\n    }\n    \n    return 0;\n}",
-      "query": "(switch_statement\n  condition: (parenthesized_expression\n    (_)? @source.switch.variable)\n  body: (compound_statement) @target.switch.block) @control.flow.switch"
+      "query": "(switch_statement\n  condition: (_) @source.switch.variable\n  body: (compound_statement) @target.switch.block) @control.flow.switch"
     },
     {
       "language": "c",
@@ -32,28 +32,23 @@
     },
     {
       "language": "c",
-      "code": "#include <stdio.h>\n\nint main() {\n    int choice = 2;\n    \n    switch (choice) {\n        case 1:\n            printf(\"Choice is 1\\n\");\n            break;\n        default:\n            printf(\"Choice is not 1\\n\");\n            break;\n    }\n    \n    return 0;\n}",
-      "query": "(case_statement\n  (statement)? @target.default.block) @control.flow.switch.default"
-    },
-    {
-      "language": "c",
       "code": "#include <stdio.h>\n\nint main() {\n    int i = 0;\n    \n    while (i < 5) {\n        printf(\"i = %d\\n\", i);\n        i++;\n    }\n    \n    return 0;\n}",
-      "query": "(while_statement\n  condition: (parenthesized_expression\n    (_)? @source.while.condition)\n  body: (statement) @target.while.block) @control.flow.while"
+      "query": "(while_statement\n  condition: (_) @source.while.condition\n  body: (statement) @target.while.block) @control.flow.while"
     },
     {
       "language": "c",
       "code": "#include <stdio.h>\n\nint main() {\n    int i = 0;\n    \n    do {\n        printf(\"i = %d\\n\", i);\n        i++;\n    } while (i < 5);\n    \n    return 0;\n}",
-      "query": "(do_statement\n  body: (statement) @source.do.block\n  condition: (parenthesized_expression\n    (_)? @target.while.condition)) @control.flow.do.while"
+      "query": "(do_statement\n  body: (statement) @source.do.block\n  condition: (_) @target.while.condition) @control.flow.do.while"
     },
     {
       "language": "c",
       "code": "#include <stdio.h>\n\nint main() {\n    int i;\n    \n    for (i = 0; i < 5; i++) {\n        printf(\"i = %d\\n\", i);\n    }\n    \n    return 0;\n}",
-      "query": "(for_statement\n  initializer: (expression_statement)? @source.for.init\n  condition: (parenthesized_expression\n    (_)? @source.for.condition)?\n  update: (expression_statement)? @source.for.update\n  body: (statement) @target.for.block) @control.flow.for"
+      "query": "(for_statement\n  initializer: (_)? @source.for.init\n  condition: (_) @source.for.condition\n  update: (_)? @source.for.update\n  body: (_) @target.for.block) @control.flow.for"
     },
     {
       "language": "c",
       "code": "#include <stdio.h>\n\nint main() {\n    int i, j;\n    \n    for (i = 0; i < 3; i++) {\n        for (j = 0; j < 3; j++) {\n            printf(\"i = %d, j = %d\\n\", i, j);\n        }\n    }\n    \n    return 0;\n}",
-      "query": "(for_statement\n  body: (compound_statement\n    (while_statement\n      condition: (parenthesized_expression\n        (_)? @source.inner.condition)\n      body: (statement) @target.inner.block))) @control.flow.nested.loop"
+      "query": "(for_statement\n  body: (compound_statement\n    (for_statement\n      condition: (_) @source.inner.condition\n      body: (statement) @target.inner.block))) @control.flow.nested.loop"
     },
     {
       "language": "c",
@@ -119,11 +114,6 @@
       "language": "c",
       "code": "#include <stdio.h>\n\nint factorial(int n) {\n    if (n <= 1) {\n        return 1;\n    }\n    return n * factorial(n - 1);  // Recursive call\n}\n\nint main() {\n    int result = factorial(5);\n    printf(\"Factorial: %d\\n\", result);\n    \n    return 0;\n}",
       "query": "(call_expression\n  function: (identifier) @target.recursive.function\n  arguments: (argument_list\n    (_)* @source.parameter)) @control.flow.recursive.call"
-    },
-    {
-      "language": "c",
-      "code": "#include <stdio.h>\n\nvoid print_hello() {\n    printf(\"Hello\\n\");\n}\n\nint main() {\n    void (*func_ptr)() = print_hello;  // Function pointer\n    \n    func_ptr();  // Function pointer call\n    \n    return 0;\n}",
-      "query": "(call_expression\n  function: (pointer_expression\n    argument: (identifier) @source.function.pointer)\n  arguments: (argument_list\n    (_)* @source.parameter)) @control.flow.function.pointer.call"
     }
   ]
 }

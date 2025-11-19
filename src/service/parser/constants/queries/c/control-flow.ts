@@ -66,10 +66,15 @@ export default `
     value: (_) @cast.value) @definition.cast_expression
   (sizeof_expression
     argument: (_) @sizeof.argument) @definition.sizeof_expression
+  (sizeof_expression) @definition.sizeof_expression
   (alignof_expression) @definition.alignof_expression
   (_Alignof_expression) @definition.alignof_expression
-  (sizeof_expression) @definition.sizeof_expression
-  (cast_expression) @definition.cast_expression
+  (expression_statement
+    (sizeof_expression
+      argument: (_) @sizeof.argument)) @definition.sizeof_expression
+  (assignment_expression
+    right: (sizeof_expression
+      argument: (_) @sizeof.argument)) @definition.sizeof_expression
 ] @definition.type_expression
 
 ; 复合表达式查询 - 简化模式
@@ -81,9 +86,31 @@ export default `
     right: (_) @comma.right) @definition.comma_expression
   (comma_expression) @definition.comma_expression
   (assignment_expression
+    right: (parenthesized_expression
+      (comma_expression
+        left: (_) @comma.left
+        right: (_) @comma.right))) @definition.comma_expression
+  (expression_statement
+    (comma_expression
+      left: (_) @comma.left
+      right: (_) @comma.right)) @definition.comma_expression
+  (assignment_expression
     right: (comma_expression
       left: (_) @comma.left
       right: (_) @comma.right)) @definition.comma_expression
+  (assignment_expression
+    right: (parenthesized_expression
+      (comma_expression))) @definition.comma_expression
+  (assignment_expression
+    right: (comma_expression)) @definition.comma_expression
+  (assignment_expression
+    right: (parenthesized_expression
+      expression: (_) @parenthesized.expression)) @definition.parenthesized_expression
+  (binary_expression
+    left: (parenthesized_expression
+      expression: (_) @parenthesized.expression)
+    operator: _
+    right: (_)) @definition.parenthesized_expression
 ] @definition.compound_expression
 
 ; 字面量查询 - 使用交替模式

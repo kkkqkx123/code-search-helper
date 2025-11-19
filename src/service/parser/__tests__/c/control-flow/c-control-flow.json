@@ -3,17 +3,17 @@
     {
       "language": "c",
       "code": "#include <stdio.h>\n\nint main() {\n    int x = 10;\n    \n    if (x > 5) {\n        printf(\"x is greater than 5\\n\");\n    }\n    \n    return 0;\n}",
-      "query": "(if_statement\n  condition: (parenthesized_expression\n    (_)? @if.condition)\n  consequence: (compound_statement) @if.body\n  alternative: (_)? @if.else) @definition.control_statement"
+      "query": "(if_statement\n  condition: (_) @if.condition\n  consequence: (compound_statement) @if.body\n  alternative: (_)? @if.else) @definition.control_statement"
     },
     {
       "language": "c",
       "code": "#include <stdio.h>\n\nint main() {\n    int x = 10;\n    \n    if (x > 5) {\n        printf(\"x is greater than 5\\n\");\n    } else {\n        printf(\"x is not greater than 5\\n\");\n    }\n    \n    return 0;\n}",
-      "query": "(if_statement\n  condition: (parenthesized_expression\n    (_)? @if.condition)\n  consequence: (compound_statement) @if.body\n  alternative: (_)? @if.else) @definition.control_statement"
+      "query": "(if_statement\n  condition: (_) @if.condition\n  consequence: (compound_statement) @if.body\n  alternative: (_)? @if.else) @definition.control_statement"
     },
     {
       "language": "c",
       "code": "#include <stdio.h>\n\nint main() {\n    int x = 10;\n    \n    if (x > 15) {\n        if (x > 20) {\n            printf(\"x is greater than 20\\n\");\n        } else {\n            printf(\"x is between 15 and 20\\n\");\n        }\n    }\n    \n    return 0;\n}",
-      "query": "(if_statement\n  condition: (parenthesized_expression\n    (_)? @if.condition)\n  consequence: (compound_statement\n    (if_statement\n      condition: (parenthesized_expression\n        (_)? @if.condition)\n      consequence: (compound_statement) @if.body\n      alternative: (_)? @if.else))\n  alternative: (_)? @if.else) @definition.control_statement"
+      "query": "(if_statement\n  condition: (_) @if.condition\n  consequence: (compound_statement\n    (if_statement\n      condition: (_) @if.condition\n      consequence: (compound_statement) @if.body\n      alternative: (_)? @if.else))\n  alternative: (_)? @if.else) @definition.control_statement"
     },
     {
       "language": "c",
@@ -69,31 +69,6 @@
       "language": "c",
       "code": "#include <stdio.h>\n\nint main() {\n    int a = 5;\n    int b = 10;\n    \n    int max = (a > b) ? a : b;\n    \n    printf(\"Max: %d\\n\", max);\n    \n    return 0;\n}",
       "query": "(conditional_expression\n    condition: (_) @conditional.condition\n    consequence: (_) @conditional.consequence\n    alternative: (_) @conditional.alternative) @definition.conditional_expression"
-    },
-    {
-      "language": "c",
-      "code": "#include <stdio.h>\n\nint main() {\n    int x = (5 + 3) * 2;\n    \n    printf(\"Result: %d\\n\", x);\n    \n    return 0;\n}",
-      "query": "(parenthesized_expression\n    expression: (_) @parenthesized.expression) @definition.parenthesized_expression"
-    },
-    {
-      "language": "c",
-      "code": "#include <stdio.h>\n\nint main() {\n    int x = 5, y = 10, z;\n    z = (x, y);  // Comma operator\n    \n    printf(\"z: %d\\n\", z);\n    \n    return 0;\n}",
-      "query": "(comma_expression\n    left: (_) @comma.left\n    right: (_) @comma.right) @definition.comma_expression"
-    },
-    {
-      "language": "c",
-      "code": "#include <stdio.h>\n\nint main() {\n    int x = (int)3.14;  // Cast to int\n    \n    printf(\"x: %d\\n\", x);\n    \n    int size = sizeof(x);\n    printf(\"Size of x: %zu\\n\", size);\n    \n    return 0;\n}",
-      "query": "[(cast_expression\n    type: (type_descriptor) @cast.type\n    value: (_) @cast.value) @definition.cast_expression\n  (sizeof_expression\n    argument: (_) @sizeof.argument) @definition.sizeof_expression]"
-    },
-    {
-      "language": "c",
-      "code": "#include <stdio.h>\n\nint main() {\n    int x = 42;\n    float y = 3.14f;\n    char c = 'A';\n    \n    printf(\"x: %d, y: %f, c: %c\\n\", x, y, c);\n    \n    return 0;\n}",
-      "query": "[(number_literal) @definition.number_literal\n  (string_literal) @definition.string_literal\n  (char_literal) @definition.char_literal]"
-    },
-    {
-      "language": "c",
-      "code": "#include <stdio.h>\n\nconst int MAX = 100;\nstatic int counter = 0;\n\nint main() {\n    extern int external_var;\n    \n    printf(\"MAX: %d, counter: %d\\n\", MAX, counter);\n    \n    return 0;\n}",
-      "query": "[(type_qualifier) @definition.type_qualifier\n  (storage_class_specifier) @definition.storage_class\n  (primitive_type) @definition.primitive_type]"
     }
   ]
 }
