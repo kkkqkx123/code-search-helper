@@ -58,7 +58,7 @@
         {
             "language": "c",
             "code": "#include <stdio.h>\n\nstruct Point {\n    int x;\n    int y;\n};\n\nint main() {\n    struct Point p = {5, 10};\n    struct Point* ptr = &p;\n    \n    // 指针成员访问测试\n    printf(\"X: %d, Y: %d\\n\", ptr->x, ptr->y);\n    \n    // 修改通过指针访问的成员\n    ptr->x = 15;\n    ptr->y = 25;\n    \n    return 0;\n}",
-            "query": "(field_expression\n  argument: (pointer_expression\n    argument: (identifier) @pointer.name)\n  field: (field_identifier) @field.name) @definition.pointer.member.access"
+            "query": "(field_expression\n  argument: (identifier) @pointer.name\n  field: (field_identifier) @field.name) @definition.pointer.member.access"
         },
         {
             "language": "c",
@@ -78,7 +78,7 @@
         {
             "language": "c",
             "code": "#include <stdio.h>\n\nstruct Point {\n    int x;\n    int y;\n};\n\nint main() {\n    struct Point p = {5, 10};\n    struct Point* ptr = &p;\n    \n    // 指针成员访问测试\n    printf(\"X: %d, Y: %d\\n\", ptr->x, ptr->y);\n    \n    // 修改通过指针访问的成员\n    ptr->x = 15;\n    ptr->y = 25;\n    \n    return 0;\n}",
-            "query": "(field_expression\n  argument: (pointer_expression\n    argument: (identifier) @pointer.name)\n  field: (field_identifier) @field.name) @definition.pointer.member.access"
+            "query": "(field_expression\n  argument: (identifier) @pointer.name\n  field: (field_identifier) @field.name) @definition.pointer.member.access"
         },
         {
             "language": "c",

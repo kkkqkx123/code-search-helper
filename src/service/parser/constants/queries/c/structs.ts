@@ -68,6 +68,13 @@ export default `
   argument: (identifier) @array.name
   index: (_) @index) @definition.array.access
 
+; 二维数组访问查询
+(subscript_expression
+  argument: (subscript_expression
+    argument: (identifier) @array.name
+    index: (_))
+  index: (_) @index) @definition.array.access
+
 ; 嵌套结构体查询 - 简化版本
 (struct_specifier
   body: (field_declaration_list
