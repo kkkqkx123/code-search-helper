@@ -159,7 +159,8 @@ export default `
   (#match? @socket.bind.function "^(bind)$")
   arguments: (argument_list
     (identifier) @socket.handle
-    (unary_expression argument: (identifier) @socket.address))
+    [(unary_expression argument: (identifier) @socket.address)
+     (cast_expression value: (pointer_expression argument: (identifier) @socket.address))]))
   (#set! "operation" "bind")) @lifecycle.relationship.socket.bind
 
 ; 套接字监听生命周期
@@ -196,8 +197,8 @@ export default `
     declarator: (identifier) @resource.constructor
     parameters: (parameter_list
       (parameter_declaration
-        type: (primitive_type)
-        declarator: (pointer_declarator declarator: (identifier) @resource.pointer))))
+        type: (type_identifier)
+        declarator: (pointer_declarator declarator: (identifier)) @resource.pointer))))
   body: (compound_statement
     (expression_statement
       (call_expression
@@ -210,8 +211,8 @@ export default `
     declarator: (identifier) @resource.destructor
     parameters: (parameter_list
       (parameter_declaration
-        type: (primitive_type)
-        declarator: (pointer_declarator declarator: (identifier) @resource.pointer))))
+        type: (type_identifier)
+        declarator: (pointer_declarator declarator: (identifier)) @resource.pointer))))
   body: (compound_statement
     (expression_statement
       (call_expression
@@ -224,8 +225,8 @@ export default `
     declarator: (identifier) @resource.init.function
     parameters: (parameter_list
       (parameter_declaration
-        type: (primitive_type)
-        declarator: (pointer_declarator declarator: (identifier) @resource.pointer))))
+        type: (type_identifier)
+        declarator: (pointer_declarator declarator: (identifier)) @resource.pointer)))
   body: (compound_statement)
   (#set! "operation" "init")) @lifecycle.relationship.resource.init
 
@@ -235,15 +236,15 @@ export default `
     declarator: (identifier) @resource.cleanup.function
     parameters: (parameter_list
       (parameter_declaration
-        type: (primitive_type)
-        declarator: (pointer_declarator declarator: (identifier) @resource.pointer))))
+        type: (type_identifier)
+        declarator: (pointer_declarator declarator: (identifier)) @resource.pointer)))
   body: (compound_statement)
   (#set! "operation" "cleanup")) @lifecycle.relationship.resource.cleanup
 
 ; 局部变量作用域开始
 (compound_statement
   (declaration
-    type: (primitive_type) @local.variable.type
+    type: (type_identifier) @local.variable.type
     declarator: (identifier) @local.variable.name))
   (#set! "operation" "scope.begin") @lifecycle.relationship.scope.local.begin
 
@@ -251,13 +252,13 @@ export default `
 (compound_statement
   .
   (declaration
-    type: (primitive_type) @local.variable.type
+    type: (type_identifier) @local.variable.type
     declarator: (identifier) @local.variable.name))
   (#set! "operation" "scope.end") @lifecycle.relationship.scope.local.end
 
 ; 全局变量生命周期
 (declaration
-  type: (primitive_type) @global.variable.type
+  type: (type_identifier) @global.variable.type
   declarator: (init_declarator
     declarator: (identifier) @global.variable.name))
   (#set! "operation" "global") @lifecycle.relationship.scope.global
@@ -265,7 +266,7 @@ export default `
 ; 静态变量生命周期
 (declaration
   storage_class_specifier: (storage_class_specifier) @static.specifier
-  type: (primitive_type) @static.variable.type
+  type: (type_identifier) @static.variable.type
   declarator: (identifier) @static.variable.name)
   (#set! "operation" "static") @lifecycle.relationship.scope.static
 
@@ -274,7 +275,7 @@ export default `
   declarator: (function_declarator
     parameters: (parameter_list
       (parameter_declaration
-        type: (primitive_type) @parameter.type
+        type: (type_identifier) @parameter.type
         declarator: (identifier) @parameter.name)))
   body: (compound_statement)
   (#set! "operation" "parameter") @lifecycle.relationship.scope.parameter)

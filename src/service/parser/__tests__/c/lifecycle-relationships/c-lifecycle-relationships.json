@@ -13,7 +13,7 @@
     {
       "language": "c",
       "code": "#include <stdlib.h>\n\nint main() {\n    int* ptr = (int*)malloc(sizeof(int) * 10);\n    \n    // realloc测试\n    int* new_ptr = (int*)realloc(ptr, sizeof(int) * 20);\n    \n    return 0;\n}",
-      "query": "(call_expression\n  function: (identifier) @reallocation.function\n  (#match? @reallocation.function \"^(realloc)$\")\n  arguments: (argument_list\n    (identifier) @original.pointer\n    (identifier) @new.size)\n  (#set! \"operation\" \"reallocate\")) @lifecycle.relationship.memory.reallocation"
+      "query": "(call_expression\n  function: (identifier) @reallocation.function\n  (#match? @reallocation.function \"^(realloc)$\")\n  arguments: (argument_list\n    (identifier) @original.pointer\n    (binary_expression) @new.size)\n  (#set! \"operation\" \"reallocate\")) @lifecycle.relationship.memory.reallocation"
     },
     {
       "language": "c",
@@ -48,7 +48,7 @@
     {
       "language": "c",
       "code": "#include <pthread.h>\n#include <windows.h>\n\nvoid* thread_function(void* arg) {\n    return NULL;\n}\n\nint main() {\n    pthread_t thread;\n    pthread_attr_t attr;\n    HANDLE hThread;\n    DWORD threadId;\n    \n    // pthread_create测试\n    pthread_create(&thread, &attr, thread_function, NULL);\n    \n    // CreateThread测试\n    hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)thread_function, NULL, 0, &threadId);\n    \n    // _beginthread测试\n    HANDLE hThread2 = (HANDLE)_beginthread(thread_function, 0, NULL);\n    \n    return 0;\n}",
-      "query": "(call_expression\n  function: (identifier) @thread.create.function\n  (#match? @thread.create.function \"^(pthread_create|CreateThread|_beginthread)$\")\n  arguments: (argument_list\n    (identifier) @thread.handle\n    (identifier) @thread.attributes\n    (identifier) @thread.function\n    (identifier) @thread.argument)\n  (#set! \"operation\" \"create\")) @lifecycle.relationship.thread.create"
+      "query": "(call_expression\n  function: (identifier) @thread.create.function\n  (#match? @thread.create.function \"^(pthread_create|CreateThread|_beginthread)$\")\n  arguments: (argument_list\n    (pointer_expression argument: (identifier) @thread.handle)\n    (pointer_expression argument: (identifier) @thread.attributes)\n    (identifier) @thread.function\n    (null) @thread.argument)\n  (#set! \"operation\" \"create\")) @lifecycle.relationship.thread.create"
     },
     {
       "language": "c",
@@ -63,22 +63,22 @@
     {
       "language": "c",
       "code": "#include <pthread.h>\n#include <windows.h>\n\nint main() {\n    pthread_mutex_t mutex;\n    CRITICAL_SECTION cs;\n    \n    // pthread_mutex_init测试\n    pthread_mutex_init(&mutex, NULL);\n    \n    // InitializeCriticalSection测试\n    InitializeCriticalSection(&cs);\n    \n    return 0;\n}",
-      "query": "(call_expression\n  function: (identifier) @mutex.init.function\n  (#match? @mutex.init.function \"^(pthread_mutex_init|InitializeCriticalSection)$\")\n  arguments: (argument_list\n    (identifier) @mutex.handle)\n  (#set! \"operation\" \"init\")) @lifecycle.relationship.mutex.init"
+      "query": "(call_expression\n  function: (identifier) @mutex.init.function\n  (#match? @mutex.init.function \"^(pthread_mutex_init|InitializeCriticalSection)$\")\n  arguments: (argument_list\n    (pointer_expression argument: (identifier) @mutex.handle)\n    (null)? @mutex.attributes)\n  (#set! \"operation\" \"init\")) @lifecycle.relationship.mutex.init"
     },
     {
       "language": "c",
       "code": "#include <pthread.h>\n#include <windows.h>\n\nint main() {\n    pthread_mutex_t mutex;\n    CRITICAL_SECTION cs;\n    \n    pthread_mutex_init(&mutex, NULL);\n    InitializeCriticalSection(&cs);\n    \n    // pthread_mutex_destroy测试\n    pthread_mutex_destroy(&mutex);\n    \n    // DeleteCriticalSection测试\n    DeleteCriticalSection(&cs);\n    \n    return 0;\n}",
-      "query": "(call_expression\n  function: (identifier) @mutex.destroy.function\n  (#match? @mutex.destroy.function \"^(pthread_mutex_destroy|DeleteCriticalSection)$\")\n  arguments: (argument_list\n    (identifier) @mutex.handle)\n  (#set! \"operation\" \"destroy\")) @lifecycle.relationship.mutex.destroy"
+      "query": "(call_expression\n  function: (identifier) @mutex.destroy.function\n  (#match? @mutex.destroy.function \"^(pthread_mutex_destroy|DeleteCriticalSection)$\")\n  arguments: (argument_list\n    (pointer_expression argument: (identifier) @mutex.handle))\n  (#set! \"operation\" \"destroy\")) @lifecycle.relationship.mutex.destroy"
     },
     {
       "language": "c",
       "code": "#include <pthread.h>\n#include <windows.h>\n\nint main() {\n    pthread_mutex_t mutex;\n    CRITICAL_SECTION cs;\n    \n    pthread_mutex_init(&mutex, NULL);\n    InitializeCriticalSection(&cs);\n    \n    // pthread_mutex_lock测试\n    pthread_mutex_lock(&mutex);\n    \n    // EnterCriticalSection测试\n    EnterCriticalSection(&cs);\n    \n    return 0;\n}",
-      "query": "(call_expression\n  function: (identifier) @mutex.lock.function\n  (#match? @mutex.lock.function \"^(pthread_mutex_lock|EnterCriticalSection)$\")\n  arguments: (argument_list\n    (identifier) @mutex.handle)\n  (#set! \"operation\" \"lock\")) @lifecycle.relationship.mutex.lock"
+      "query": "(call_expression\n  function: (identifier) @mutex.lock.function\n  (#match? @mutex.lock.function \"^(pthread_mutex_lock|EnterCriticalSection)$\")\n  arguments: (argument_list\n    (pointer_expression argument: (identifier) @mutex.handle))\n  (#set! \"operation\" \"lock\")) @lifecycle.relationship.mutex.lock"
     },
     {
       "language": "c",
       "code": "#include <pthread.h>\n#include <windows.h>\n\nint main() {\n    pthread_mutex_t mutex;\n    CRITICAL_SECTION cs;\n    \n    pthread_mutex_init(&mutex, NULL);\n    InitializeCriticalSection(&cs);\n    \n    pthread_mutex_lock(&mutex);\n    EnterCriticalSection(&cs);\n    \n    // pthread_mutex_unlock测试\n    pthread_mutex_unlock(&mutex);\n    \n    // LeaveCriticalSection测试\n    LeaveCriticalSection(&cs);\n    \n    return 0;\n}",
-      "query": "(call_expression\n  function: (identifier) @mutex.unlock.function\n  (#match? @mutex.unlock.function \"^(pthread_mutex_unlock|LeaveCriticalSection)$\")\n  arguments: (argument_list\n    (identifier) @mutex.handle)\n  (#set! \"operation\" \"unlock\")) @lifecycle.relationship.mutex.unlock"
+      "query": "(call_expression\n  function: (identifier) @mutex.unlock.function\n  (#match? @mutex.unlock.function \"^(pthread_mutex_unlock|LeaveCriticalSection)$\")\n  arguments: (argument_list\n    (pointer_expression argument: (identifier) @mutex.handle))\n  (#set! \"operation\" \"unlock\")) @lifecycle.relationship.mutex.unlock"
     },
     {
       "language": "c",
@@ -88,12 +88,12 @@
     {
       "language": "c",
       "code": "#include <sys/socket.h>\n\nint main() {\n    int sockfd = socket(AF_INET, SOCK_STREAM, 0);\n    struct sockaddr_in addr;\n    \n    // bind测试\n    bind(sockfd, (struct sockaddr*)&addr, sizeof(addr));\n    \n    return 0;\n}",
-      "query": "(call_expression\n  function: (identifier) @socket.bind.function\n  (#match? @socket.bind.function \"^(bind)$\")\n  arguments: (argument_list\n    (identifier) @socket.handle\n    (identifier) @socket.address)\n  (#set! \"operation\" \"bind\")) @lifecycle.relationship.socket.bind"
+      "query": "(call_expression\n  function: (identifier) @socket.bind.function\n  (#match? @socket.bind.function \"^(bind)$\")\n  arguments: (argument_list\n    (identifier) @socket.handle\n    [(unary_expression argument: (identifier) @socket.address) \n     (cast_expression value: (pointer_expression argument: (identifier) @socket.address))])\n  (#set! \"operation\" \"bind\")) @lifecycle.relationship.socket.bind"
     },
     {
       "language": "c",
       "code": "#include <sys/socket.h>\n\nint main() {\n    int sockfd = socket(AF_INET, SOCK_STREAM, 0);\n    \n    // listen测试\n    listen(sockfd, 5);\n    \n    return 0;\n}",
-      "query": "(call_expression\n  function: (identifier) @socket.listen.function\n  (#match? @socket.listen.function \"^(listen)$\")\n  arguments: (argument_list\n    (identifier) @socket.handle\n    (identifier) @socket.backlog)\n  (#set! \"operation\" \"listen\")) @lifecycle.relationship.socket.listen"
+      "query": "(call_expression\n  function: (identifier) @socket.listen.function\n  (#match? @socket.listen.function \"^(listen)$\")\n  arguments: (argument_list\n    (identifier) @socket.handle\n    (number_literal) @socket.backlog)\n  (#set! \"operation\" \"listen\")) @lifecycle.relationship.socket.listen"
     },
     {
       "language": "c",
@@ -108,22 +108,22 @@
     {
       "language": "c",
       "code": "#include <stdlib.h>\n\ntypedef struct {\n    int* data;\n    size_t size;\n} Resource;\n\n// 资源构造函数\nResource* create_resource(size_t size) {\n    Resource* res = (Resource*)malloc(sizeof(Resource));\n    if (res) {\n        res->data = (int*)malloc(size * sizeof(int));\n        res->size = size;\n    }\n    return res;\n}",
-      "query": "(function_definition\n  declarator: (function_declarator\n    declarator: (identifier) @resource.constructor\n    parameters: (parameter_list\n      (parameter_declaration\n        type: (pointer_type)\n        declarator: (identifier) @resource.pointer)))\n  body: (compound_statement\n    (expression_statement\n      (call_expression\n        function: (identifier) @resource.allocation.function)))\n  (#set! \"operation\" \"construct\")) @lifecycle.relationship.resource.constructor"
+      "query": "(function_definition\n  declarator: (function_declarator\n    declarator: (identifier) @resource.constructor\n    parameters: (parameter_list\n      (parameter_declaration\n        type: (primitive_type)\n        declarator: (identifier) @resource.pointer))))\n  body: (compound_statement\n    (expression_statement\n      (call_expression\n        function: (identifier) @resource.allocation.function)))\n  (#set! \"operation\" \"construct\")) @lifecycle.relationship.resource.constructor"
     },
     {
       "language": "c",
       "code": "#include <stdlib.h>\n\ntypedef struct {\n    int* data;\n    size_t size;\n} Resource;\n\n// 资源析构函数\nvoid destroy_resource(Resource* res) {\n    if (res) {\n        free(res->data);\n        free(res);\n    }\n}",
-      "query": "(function_definition\n  declarator: (function_declarator\n    declarator: (identifier) @resource.destructor\n    parameters: (parameter_list\n      (parameter_declaration\n        type: (pointer_type)\n        declarator: (identifier) @resource.pointer)))\n  body: (compound_statement\n    (expression_statement\n      (call_expression\n        function: (identifier) @resource.deallocation.function)))\n  (#set! \"operation\" \"destruct\")) @lifecycle.relationship.resource.destructor"
+      "query": "(function_definition\n  declarator: (function_declarator\n    declarator: (identifier) @resource.destructor\n    parameters: (parameter_list\n      (parameter_declaration\n        type: (primitive_type)\n        declarator: (pointer_declarator declarator: (identifier) @resource.pointer))))\n  body: (compound_statement\n    (expression_statement\n      (call_expression\n        function: (identifier) @resource.deallocation.function)))\n  (#set! \"operation\" \"destruct\")) @lifecycle.relationship.resource.destructor"
     },
     {
       "language": "c",
       "code": "#include <stdlib.h>\n\ntypedef struct {\n    int* data;\n    size_t size;\n} Resource;\n\n// 资源初始化函数\nint init_resource(Resource* res) {\n    if (!res) return -1;\n    res->data = NULL;\n    res->size = 0;\n    return 0;\n}",
-      "query": "(function_definition\n  declarator: (function_declarator\n    declarator: (identifier) @resource.init.function\n    parameters: (parameter_list\n      (parameter_declaration\n        type: (pointer_type)\n        declarator: (identifier) @resource.pointer)))\n  body: (compound_statement)\n  (#set! \"operation\" \"init\")) @lifecycle.relationship.resource.init"
+      "query": "(function_definition\n  declarator: (function_declarator\n    declarator: (identifier) @resource.init.function\n    parameters: (parameter_list\n      (parameter_declaration\n        type: (type_identifier)\n        declarator: (pointer_declarator declarator: (identifier)) @resource.pointer)))\n  body: (compound_statement)\n  (#set! \"operation\" \"init\")) @lifecycle.relationship.resource.init"
     },
     {
       "language": "c",
       "code": "#include <stdlib.h>\n\ntypedef struct {\n    int* data;\n    size_t size;\n} Resource;\n\n// 资源清理函数\nvoid cleanup_resource(Resource* res) {\n    if (res) {\n        if (res->data) {\n            free(res->data);\n            res->data = NULL;\n        }\n        res->size = 0;\n    }\n}",
-      "query": "(function_definition\n  declarator: (function_declarator\n    declarator: (identifier) @resource.cleanup.function\n    parameters: (parameter_list\n      (parameter_declaration\n        type: (pointer_type)\n        declarator: (identifier) @resource.pointer)))\n  body: (compound_statement)\n  (#set! \"operation\" \"cleanup\")) @lifecycle.relationship.resource.cleanup"
+      "query": "(function_definition\n  declarator: (function_declarator\n    declarator: (identifier) @resource.cleanup.function\n    parameters: (parameter_list\n      (parameter_declaration\n        type: (type_identifier)\n        declarator: (pointer_declarator declarator: (identifier)) @resource.pointer)))\n  body: (compound_statement)\n  (#set! \"operation\" \"cleanup\")) @lifecycle.relationship.resource.cleanup"
     },
     {
       "language": "c",
