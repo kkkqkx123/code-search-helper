@@ -1,0 +1,163 @@
+{
+  "success": true,
+  "data": [
+    {
+      "captureName": "concurrency.relationship.rwlock.destroy",
+      "type": "call_expression",
+      "text": "pthread_rwlock_init(&rwlock, NULL)",
+      "startPosition": {
+        "row": 5,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 5,
+        "column": 38
+      }
+    },
+    {
+      "captureName": "rwlock.destroy.function",
+      "type": "identifier",
+      "text": "pthread_rwlock_init",
+      "startPosition": {
+        "row": 5,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 5,
+        "column": 23
+      }
+    },
+    {
+      "captureName": "rwlock.handle",
+      "type": "identifier",
+      "text": "rwlock",
+      "startPosition": {
+        "row": 5,
+        "column": 25
+      },
+      "endPosition": {
+        "row": 5,
+        "column": 31
+      }
+    },
+    {
+      "captureName": "concurrency.relationship.rwlock.destroy",
+      "type": "call_expression",
+      "text": "pthread_rwlock_wrlock(&rwlock)",
+      "startPosition": {
+        "row": 6,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 6,
+        "column": 34
+      }
+    },
+    {
+      "captureName": "rwlock.destroy.function",
+      "type": "identifier",
+      "text": "pthread_rwlock_wrlock",
+      "startPosition": {
+        "row": 6,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 6,
+        "column": 25
+      }
+    },
+    {
+      "captureName": "rwlock.handle",
+      "type": "identifier",
+      "text": "rwlock",
+      "startPosition": {
+        "row": 6,
+        "column": 27
+      },
+      "endPosition": {
+        "row": 6,
+        "column": 33
+      }
+    },
+    {
+      "captureName": "concurrency.relationship.rwlock.destroy",
+      "type": "call_expression",
+      "text": "pthread_rwlock_unlock(&rwlock)",
+      "startPosition": {
+        "row": 7,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 7,
+        "column": 34
+      }
+    },
+    {
+      "captureName": "rwlock.destroy.function",
+      "type": "identifier",
+      "text": "pthread_rwlock_unlock",
+      "startPosition": {
+        "row": 7,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 7,
+        "column": 25
+      }
+    },
+    {
+      "captureName": "rwlock.handle",
+      "type": "identifier",
+      "text": "rwlock",
+      "startPosition": {
+        "row": 7,
+        "column": 27
+      },
+      "endPosition": {
+        "row": 7,
+        "column": 33
+      }
+    },
+    {
+      "captureName": "concurrency.relationship.rwlock.destroy",
+      "type": "call_expression",
+      "text": "pthread_rwlock_destroy(&rwlock)",
+      "startPosition": {
+        "row": 10,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 10,
+        "column": 35
+      }
+    },
+    {
+      "captureName": "rwlock.destroy.function",
+      "type": "identifier",
+      "text": "pthread_rwlock_destroy",
+      "startPosition": {
+        "row": 10,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 10,
+        "column": 26
+      }
+    },
+    {
+      "captureName": "rwlock.handle",
+      "type": "identifier",
+      "text": "rwlock",
+      "startPosition": {
+        "row": 10,
+        "column": 28
+      },
+      "endPosition": {
+        "row": 10,
+        "column": 34
+      }
+    }
+  ],
+  "errors": [],
+  "timestamp": "2025-11-19T00:43:17.172Z"
+}

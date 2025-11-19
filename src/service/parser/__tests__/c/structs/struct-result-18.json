@@ -1,0 +1,319 @@
+{
+  "success": true,
+  "data": [
+    {
+      "captureName": "definition.array.access",
+      "type": "subscript_expression",
+      "text": "arr[0]",
+      "startPosition": {
+        "row": 7,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 7,
+        "column": 10
+      }
+    },
+    {
+      "captureName": "array.name",
+      "type": "identifier",
+      "text": "arr",
+      "startPosition": {
+        "row": 7,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 7,
+        "column": 7
+      }
+    },
+    {
+      "captureName": "index",
+      "type": "number_literal",
+      "text": "0",
+      "startPosition": {
+        "row": 7,
+        "column": 8
+      },
+      "endPosition": {
+        "row": 7,
+        "column": 9
+      }
+    },
+    {
+      "captureName": "definition.array.access",
+      "type": "subscript_expression",
+      "text": "arr[1]",
+      "startPosition": {
+        "row": 8,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 8,
+        "column": 10
+      }
+    },
+    {
+      "captureName": "array.name",
+      "type": "identifier",
+      "text": "arr",
+      "startPosition": {
+        "row": 8,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 8,
+        "column": 7
+      }
+    },
+    {
+      "captureName": "index",
+      "type": "number_literal",
+      "text": "1",
+      "startPosition": {
+        "row": 8,
+        "column": 8
+      },
+      "endPosition": {
+        "row": 8,
+        "column": 9
+      }
+    },
+    {
+      "captureName": "definition.array.access",
+      "type": "subscript_expression",
+      "text": "arr[2]",
+      "startPosition": {
+        "row": 9,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 9,
+        "column": 10
+      }
+    },
+    {
+      "captureName": "array.name",
+      "type": "identifier",
+      "text": "arr",
+      "startPosition": {
+        "row": 9,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 9,
+        "column": 7
+      }
+    },
+    {
+      "captureName": "index",
+      "type": "number_literal",
+      "text": "2",
+      "startPosition": {
+        "row": 9,
+        "column": 8
+      },
+      "endPosition": {
+        "row": 9,
+        "column": 9
+      }
+    },
+    {
+      "captureName": "definition.array.access",
+      "type": "subscript_expression",
+      "text": "arr[0]",
+      "startPosition": {
+        "row": 9,
+        "column": 13
+      },
+      "endPosition": {
+        "row": 9,
+        "column": 19
+      }
+    },
+    {
+      "captureName": "array.name",
+      "type": "identifier",
+      "text": "arr",
+      "startPosition": {
+        "row": 9,
+        "column": 13
+      },
+      "endPosition": {
+        "row": 9,
+        "column": 16
+      }
+    },
+    {
+      "captureName": "index",
+      "type": "number_literal",
+      "text": "0",
+      "startPosition": {
+        "row": 9,
+        "column": 17
+      },
+      "endPosition": {
+        "row": 9,
+        "column": 18
+      }
+    },
+    {
+      "captureName": "definition.array.access",
+      "type": "subscript_expression",
+      "text": "arr[1]",
+      "startPosition": {
+        "row": 9,
+        "column": 22
+      },
+      "endPosition": {
+        "row": 9,
+        "column": 28
+      }
+    },
+    {
+      "captureName": "array.name",
+      "type": "identifier",
+      "text": "arr",
+      "startPosition": {
+        "row": 9,
+        "column": 22
+      },
+      "endPosition": {
+        "row": 9,
+        "column": 25
+      }
+    },
+    {
+      "captureName": "index",
+      "type": "number_literal",
+      "text": "1",
+      "startPosition": {
+        "row": 9,
+        "column": 26
+      },
+      "endPosition": {
+        "row": 9,
+        "column": 27
+      }
+    },
+    {
+      "captureName": "definition.array.access",
+      "type": "subscript_expression",
+      "text": "matrix[0]",
+      "startPosition": {
+        "row": 12,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 12,
+        "column": 13
+      }
+    },
+    {
+      "captureName": "array.name",
+      "type": "identifier",
+      "text": "matrix",
+      "startPosition": {
+        "row": 12,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 12,
+        "column": 10
+      }
+    },
+    {
+      "captureName": "index",
+      "type": "number_literal",
+      "text": "0",
+      "startPosition": {
+        "row": 12,
+        "column": 11
+      },
+      "endPosition": {
+        "row": 12,
+        "column": 12
+      }
+    },
+    {
+      "captureName": "definition.array.access",
+      "type": "subscript_expression",
+      "text": "matrix[1]",
+      "startPosition": {
+        "row": 13,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 13,
+        "column": 13
+      }
+    },
+    {
+      "captureName": "array.name",
+      "type": "identifier",
+      "text": "matrix",
+      "startPosition": {
+        "row": 13,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 13,
+        "column": 10
+      }
+    },
+    {
+      "captureName": "index",
+      "type": "number_literal",
+      "text": "1",
+      "startPosition": {
+        "row": 13,
+        "column": 11
+      },
+      "endPosition": {
+        "row": 13,
+        "column": 12
+      }
+    },
+    {
+      "captureName": "definition.array.access",
+      "type": "subscript_expression",
+      "text": "arr[i]",
+      "startPosition": {
+        "row": 17,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 17,
+        "column": 10
+      }
+    },
+    {
+      "captureName": "array.name",
+      "type": "identifier",
+      "text": "arr",
+      "startPosition": {
+        "row": 17,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 17,
+        "column": 7
+      }
+    },
+    {
+      "captureName": "index",
+      "type": "identifier",
+      "text": "i",
+      "startPosition": {
+        "row": 17,
+        "column": 8
+      },
+      "endPosition": {
+        "row": 17,
+        "column": 9
+      }
+    }
+  ],
+  "errors": [],
+  "timestamp": "2025-11-19T00:43:17.072Z"
+}

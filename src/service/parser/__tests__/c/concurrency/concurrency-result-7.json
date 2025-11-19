@@ -1,0 +1,85 @@
+{
+  "success": true,
+  "data": [
+    {
+      "captureName": "concurrency.relationship.condition.destroy",
+      "type": "call_expression",
+      "text": "pthread_cond_init(&cond, NULL)",
+      "startPosition": {
+        "row": 5,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 5,
+        "column": 34
+      }
+    },
+    {
+      "captureName": "cond.destroy.function",
+      "type": "identifier",
+      "text": "pthread_cond_init",
+      "startPosition": {
+        "row": 5,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 5,
+        "column": 21
+      }
+    },
+    {
+      "captureName": "cond.handle",
+      "type": "identifier",
+      "text": "cond",
+      "startPosition": {
+        "row": 5,
+        "column": 23
+      },
+      "endPosition": {
+        "row": 5,
+        "column": 27
+      }
+    },
+    {
+      "captureName": "concurrency.relationship.condition.destroy",
+      "type": "call_expression",
+      "text": "pthread_cond_destroy(&cond)",
+      "startPosition": {
+        "row": 8,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 8,
+        "column": 31
+      }
+    },
+    {
+      "captureName": "cond.destroy.function",
+      "type": "identifier",
+      "text": "pthread_cond_destroy",
+      "startPosition": {
+        "row": 8,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 8,
+        "column": 24
+      }
+    },
+    {
+      "captureName": "cond.handle",
+      "type": "identifier",
+      "text": "cond",
+      "startPosition": {
+        "row": 8,
+        "column": 26
+      },
+      "endPosition": {
+        "row": 8,
+        "column": 30
+      }
+    }
+  ],
+  "errors": [],
+  "timestamp": "2025-11-19T00:43:17.118Z"
+}

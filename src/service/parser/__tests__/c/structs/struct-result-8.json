@@ -1,0 +1,111 @@
+{
+  "success": true,
+  "data": [
+    {
+      "captureName": "definition.type.alias",
+      "type": "type_definition",
+      "text": "typedef int Integer;",
+      "startPosition": {
+        "row": 1,
+        "column": 0
+      },
+      "endPosition": {
+        "row": 1,
+        "column": 20
+      }
+    },
+    {
+      "captureName": "alias.name",
+      "type": "type_identifier",
+      "text": "Integer",
+      "startPosition": {
+        "row": 1,
+        "column": 12
+      },
+      "endPosition": {
+        "row": 1,
+        "column": 19
+      }
+    },
+    {
+      "captureName": "definition.type.alias",
+      "type": "type_definition",
+      "text": "typedef struct Point Point;",
+      "startPosition": {
+        "row": 3,
+        "column": 0
+      },
+      "endPosition": {
+        "row": 3,
+        "column": 27
+      }
+    },
+    {
+      "captureName": "alias.name",
+      "type": "type_identifier",
+      "text": "Point",
+      "startPosition": {
+        "row": 3,
+        "column": 21
+      },
+      "endPosition": {
+        "row": 3,
+        "column": 26
+      }
+    },
+    {
+      "captureName": "definition.type.alias",
+      "type": "type_definition",
+      "text": "typedef enum Color Color;",
+      "startPosition": {
+        "row": 4,
+        "column": 0
+      },
+      "endPosition": {
+        "row": 4,
+        "column": 25
+      }
+    },
+    {
+      "captureName": "alias.name",
+      "type": "type_identifier",
+      "text": "Color",
+      "startPosition": {
+        "row": 4,
+        "column": 19
+      },
+      "endPosition": {
+        "row": 4,
+        "column": 24
+      }
+    },
+    {
+      "captureName": "definition.type.alias",
+      "type": "type_definition",
+      "text": "typedef union Data Data;",
+      "startPosition": {
+        "row": 5,
+        "column": 0
+      },
+      "endPosition": {
+        "row": 5,
+        "column": 24
+      }
+    },
+    {
+      "captureName": "alias.name",
+      "type": "type_identifier",
+      "text": "Data",
+      "startPosition": {
+        "row": 5,
+        "column": 19
+      },
+      "endPosition": {
+        "row": 5,
+        "column": 23
+      }
+    }
+  ],
+  "errors": [],
+  "timestamp": "2025-11-19T00:43:17.002Z"
+}

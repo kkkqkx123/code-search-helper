@@ -1,0 +1,150 @@
+{
+  "success": true,
+  "data": [
+    {
+      "captureName": "concurrency.relationship.mutex.trylock",
+      "type": "call_expression",
+      "text": "pthread_mutex_init(&mutex, NULL)",
+      "startPosition": {
+        "row": 6,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 6,
+        "column": 36
+      }
+    },
+    {
+      "captureName": "mutex.trylock.function",
+      "type": "identifier",
+      "text": "pthread_mutex_init",
+      "startPosition": {
+        "row": 6,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 6,
+        "column": 22
+      }
+    },
+    {
+      "captureName": "mutex.handle",
+      "type": "identifier",
+      "text": "mutex",
+      "startPosition": {
+        "row": 6,
+        "column": 24
+      },
+      "endPosition": {
+        "row": 6,
+        "column": 29
+      }
+    },
+    {
+      "captureName": "concurrency.relationship.mutex.trylock",
+      "type": "call_expression",
+      "text": "pthread_mutex_trylock(&mutex)",
+      "startPosition": {
+        "row": 9,
+        "column": 17
+      },
+      "endPosition": {
+        "row": 9,
+        "column": 46
+      }
+    },
+    {
+      "captureName": "mutex.trylock.function",
+      "type": "identifier",
+      "text": "pthread_mutex_trylock",
+      "startPosition": {
+        "row": 9,
+        "column": 17
+      },
+      "endPosition": {
+        "row": 9,
+        "column": 38
+      }
+    },
+    {
+      "captureName": "mutex.handle",
+      "type": "identifier",
+      "text": "mutex",
+      "startPosition": {
+        "row": 9,
+        "column": 40
+      },
+      "endPosition": {
+        "row": 9,
+        "column": 45
+      }
+    },
+    {
+      "captureName": "concurrency.relationship.mutex.trylock",
+      "type": "call_expression",
+      "text": "pthread_mutex_unlock(&mutex)",
+      "startPosition": {
+        "row": 13,
+        "column": 8
+      },
+      "endPosition": {
+        "row": 13,
+        "column": 36
+      }
+    },
+    {
+      "captureName": "mutex.trylock.function",
+      "type": "identifier",
+      "text": "pthread_mutex_unlock",
+      "startPosition": {
+        "row": 13,
+        "column": 8
+      },
+      "endPosition": {
+        "row": 13,
+        "column": 28
+      }
+    },
+    {
+      "captureName": "mutex.handle",
+      "type": "identifier",
+      "text": "mutex",
+      "startPosition": {
+        "row": 13,
+        "column": 30
+      },
+      "endPosition": {
+        "row": 13,
+        "column": 35
+      }
+    },
+    {
+      "captureName": "concurrency.relationship.mutex.trylock",
+      "type": "call_expression",
+      "text": "printf(\"Mutex is locked by another thread\\n\")",
+      "startPosition": {
+        "row": 15,
+        "column": 8
+      },
+      "endPosition": {
+        "row": 15,
+        "column": 53
+      }
+    },
+    {
+      "captureName": "mutex.trylock.function",
+      "type": "identifier",
+      "text": "printf",
+      "startPosition": {
+        "row": 15,
+        "column": 8
+      },
+      "endPosition": {
+        "row": 15,
+        "column": 14
+      }
+    }
+  ],
+  "errors": [],
+  "timestamp": "2025-11-19T00:43:17.288Z"
+}

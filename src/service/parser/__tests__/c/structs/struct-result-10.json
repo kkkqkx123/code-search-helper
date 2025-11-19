@@ -1,0 +1,150 @@
+{
+  "success": true,
+  "data": [
+    {
+      "captureName": "definition.array",
+      "type": "declaration",
+      "text": "int numbers[10];",
+      "startPosition": {
+        "row": 1,
+        "column": 0
+      },
+      "endPosition": {
+        "row": 1,
+        "column": 16
+      }
+    },
+    {
+      "captureName": "array.name",
+      "type": "identifier",
+      "text": "numbers",
+      "startPosition": {
+        "row": 1,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 1,
+        "column": 11
+      }
+    },
+    {
+      "captureName": "array.size",
+      "type": "number_literal",
+      "text": "10",
+      "startPosition": {
+        "row": 1,
+        "column": 12
+      },
+      "endPosition": {
+        "row": 1,
+        "column": 14
+      }
+    },
+    {
+      "captureName": "definition.array",
+      "type": "declaration",
+      "text": "char buffer[256];",
+      "startPosition": {
+        "row": 2,
+        "column": 0
+      },
+      "endPosition": {
+        "row": 2,
+        "column": 17
+      }
+    },
+    {
+      "captureName": "array.name",
+      "type": "identifier",
+      "text": "buffer",
+      "startPosition": {
+        "row": 2,
+        "column": 5
+      },
+      "endPosition": {
+        "row": 2,
+        "column": 11
+      }
+    },
+    {
+      "captureName": "array.size",
+      "type": "number_literal",
+      "text": "256",
+      "startPosition": {
+        "row": 2,
+        "column": 12
+      },
+      "endPosition": {
+        "row": 2,
+        "column": 15
+      }
+    },
+    {
+      "captureName": "definition.array",
+      "type": "declaration",
+      "text": "double values[20];",
+      "startPosition": {
+        "row": 4,
+        "column": 0
+      },
+      "endPosition": {
+        "row": 4,
+        "column": 18
+      }
+    },
+    {
+      "captureName": "array.name",
+      "type": "identifier",
+      "text": "values",
+      "startPosition": {
+        "row": 4,
+        "column": 7
+      },
+      "endPosition": {
+        "row": 4,
+        "column": 13
+      }
+    },
+    {
+      "captureName": "array.size",
+      "type": "number_literal",
+      "text": "20",
+      "startPosition": {
+        "row": 4,
+        "column": 14
+      },
+      "endPosition": {
+        "row": 4,
+        "column": 16
+      }
+    },
+    {
+      "captureName": "definition.array",
+      "type": "declaration",
+      "text": "int dynamic_array[];",
+      "startPosition": {
+        "row": 6,
+        "column": 0
+      },
+      "endPosition": {
+        "row": 6,
+        "column": 20
+      }
+    },
+    {
+      "captureName": "array.name",
+      "type": "identifier",
+      "text": "dynamic_array",
+      "startPosition": {
+        "row": 6,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 6,
+        "column": 17
+      }
+    }
+  ],
+  "errors": [],
+  "timestamp": "2025-11-19T00:43:17.022Z"
+}

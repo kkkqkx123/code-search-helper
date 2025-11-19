@@ -1,0 +1,215 @@
+{
+  "success": true,
+  "data": [
+    {
+      "captureName": "definition.forward.struct",
+      "type": "struct_specifier",
+      "text": "struct Node",
+      "startPosition": {
+        "row": 1,
+        "column": 0
+      },
+      "endPosition": {
+        "row": 1,
+        "column": 11
+      }
+    },
+    {
+      "captureName": "forward.struct.name",
+      "type": "type_identifier",
+      "text": "Node",
+      "startPosition": {
+        "row": 1,
+        "column": 7
+      },
+      "endPosition": {
+        "row": 1,
+        "column": 11
+      }
+    },
+    {
+      "captureName": "definition.forward.union",
+      "type": "union_specifier",
+      "text": "union Storage",
+      "startPosition": {
+        "row": 2,
+        "column": 0
+      },
+      "endPosition": {
+        "row": 2,
+        "column": 13
+      }
+    },
+    {
+      "captureName": "forward.union.name",
+      "type": "type_identifier",
+      "text": "Storage",
+      "startPosition": {
+        "row": 2,
+        "column": 6
+      },
+      "endPosition": {
+        "row": 2,
+        "column": 13
+      }
+    },
+    {
+      "captureName": "definition.forward.enum",
+      "type": "enum_specifier",
+      "text": "enum State",
+      "startPosition": {
+        "row": 3,
+        "column": 0
+      },
+      "endPosition": {
+        "row": 3,
+        "column": 10
+      }
+    },
+    {
+      "captureName": "forward.enum.name",
+      "type": "type_identifier",
+      "text": "State",
+      "startPosition": {
+        "row": 3,
+        "column": 5
+      },
+      "endPosition": {
+        "row": 3,
+        "column": 10
+      }
+    },
+    {
+      "captureName": "definition.forward.struct",
+      "type": "struct_specifier",
+      "text": "struct Node {\n    int data;\n    struct Node* next;\n}",
+      "startPosition": {
+        "row": 6,
+        "column": 0
+      },
+      "endPosition": {
+        "row": 9,
+        "column": 1
+      }
+    },
+    {
+      "captureName": "forward.struct.name",
+      "type": "type_identifier",
+      "text": "Node",
+      "startPosition": {
+        "row": 6,
+        "column": 7
+      },
+      "endPosition": {
+        "row": 6,
+        "column": 11
+      }
+    },
+    {
+      "captureName": "definition.forward.struct",
+      "type": "struct_specifier",
+      "text": "struct Node",
+      "startPosition": {
+        "row": 8,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 8,
+        "column": 15
+      }
+    },
+    {
+      "captureName": "forward.struct.name",
+      "type": "type_identifier",
+      "text": "Node",
+      "startPosition": {
+        "row": 8,
+        "column": 11
+      },
+      "endPosition": {
+        "row": 8,
+        "column": 15
+      }
+    },
+    {
+      "captureName": "definition.forward.union",
+      "type": "union_specifier",
+      "text": "union Storage {\n    int i;\n    float f;\n    char c;\n}",
+      "startPosition": {
+        "row": 11,
+        "column": 0
+      },
+      "endPosition": {
+        "row": 15,
+        "column": 1
+      }
+    },
+    {
+      "captureName": "forward.union.name",
+      "type": "type_identifier",
+      "text": "Storage",
+      "startPosition": {
+        "row": 11,
+        "column": 6
+      },
+      "endPosition": {
+        "row": 11,
+        "column": 13
+      }
+    },
+    {
+      "captureName": "definition.forward.enum",
+      "type": "enum_specifier",
+      "text": "enum State {\n    INIT,\n    RUNNING,\n    STOPPED\n}",
+      "startPosition": {
+        "row": 17,
+        "column": 0
+      },
+      "endPosition": {
+        "row": 21,
+        "column": 1
+      }
+    },
+    {
+      "captureName": "forward.enum.name",
+      "type": "type_identifier",
+      "text": "State",
+      "startPosition": {
+        "row": 17,
+        "column": 5
+      },
+      "endPosition": {
+        "row": 17,
+        "column": 10
+      }
+    },
+    {
+      "captureName": "definition.forward.struct",
+      "type": "struct_specifier",
+      "text": "struct Node",
+      "startPosition": {
+        "row": 24,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 24,
+        "column": 15
+      }
+    },
+    {
+      "captureName": "forward.struct.name",
+      "type": "type_identifier",
+      "text": "Node",
+      "startPosition": {
+        "row": 24,
+        "column": 11
+      },
+      "endPosition": {
+        "row": 24,
+        "column": 15
+      }
+    }
+  ],
+  "errors": [],
+  "timestamp": "2025-11-19T00:43:16.960Z"
+}

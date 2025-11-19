@@ -1,0 +1,163 @@
+{
+  "success": true,
+  "data": [
+    {
+      "captureName": "concurrency.relationship.semaphore.destroy",
+      "type": "call_expression",
+      "text": "sem_init(&sem, 0, 1)",
+      "startPosition": {
+        "row": 5,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 5,
+        "column": 24
+      }
+    },
+    {
+      "captureName": "semaphore.destroy.function",
+      "type": "identifier",
+      "text": "sem_init",
+      "startPosition": {
+        "row": 5,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 5,
+        "column": 12
+      }
+    },
+    {
+      "captureName": "semaphore.handle",
+      "type": "identifier",
+      "text": "sem",
+      "startPosition": {
+        "row": 5,
+        "column": 14
+      },
+      "endPosition": {
+        "row": 5,
+        "column": 17
+      }
+    },
+    {
+      "captureName": "concurrency.relationship.semaphore.destroy",
+      "type": "call_expression",
+      "text": "sem_wait(&sem)",
+      "startPosition": {
+        "row": 6,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 6,
+        "column": 18
+      }
+    },
+    {
+      "captureName": "semaphore.destroy.function",
+      "type": "identifier",
+      "text": "sem_wait",
+      "startPosition": {
+        "row": 6,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 6,
+        "column": 12
+      }
+    },
+    {
+      "captureName": "semaphore.handle",
+      "type": "identifier",
+      "text": "sem",
+      "startPosition": {
+        "row": 6,
+        "column": 14
+      },
+      "endPosition": {
+        "row": 6,
+        "column": 17
+      }
+    },
+    {
+      "captureName": "concurrency.relationship.semaphore.destroy",
+      "type": "call_expression",
+      "text": "sem_post(&sem)",
+      "startPosition": {
+        "row": 7,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 7,
+        "column": 18
+      }
+    },
+    {
+      "captureName": "semaphore.destroy.function",
+      "type": "identifier",
+      "text": "sem_post",
+      "startPosition": {
+        "row": 7,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 7,
+        "column": 12
+      }
+    },
+    {
+      "captureName": "semaphore.handle",
+      "type": "identifier",
+      "text": "sem",
+      "startPosition": {
+        "row": 7,
+        "column": 14
+      },
+      "endPosition": {
+        "row": 7,
+        "column": 17
+      }
+    },
+    {
+      "captureName": "concurrency.relationship.semaphore.destroy",
+      "type": "call_expression",
+      "text": "sem_destroy(&sem)",
+      "startPosition": {
+        "row": 10,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 10,
+        "column": 21
+      }
+    },
+    {
+      "captureName": "semaphore.destroy.function",
+      "type": "identifier",
+      "text": "sem_destroy",
+      "startPosition": {
+        "row": 10,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 10,
+        "column": 15
+      }
+    },
+    {
+      "captureName": "semaphore.handle",
+      "type": "identifier",
+      "text": "sem",
+      "startPosition": {
+        "row": 10,
+        "column": 17
+      },
+      "endPosition": {
+        "row": 10,
+        "column": 20
+      }
+    }
+  ],
+  "errors": [],
+  "timestamp": "2025-11-19T00:43:17.209Z"
+}

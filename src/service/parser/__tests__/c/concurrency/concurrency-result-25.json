@@ -1,0 +1,59 @@
+{
+  "success": true,
+  "data": [
+    {
+      "captureName": "concurrency.relationship.mutex.init",
+      "type": "call_expression",
+      "text": "pthread_mutex_init(&mutex, &attr)",
+      "startPosition": {
+        "row": 7,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 7,
+        "column": 37
+      }
+    },
+    {
+      "captureName": "mutex.init.function",
+      "type": "identifier",
+      "text": "pthread_mutex_init",
+      "startPosition": {
+        "row": 7,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 7,
+        "column": 22
+      }
+    },
+    {
+      "captureName": "mutex.handle",
+      "type": "identifier",
+      "text": "mutex",
+      "startPosition": {
+        "row": 7,
+        "column": 24
+      },
+      "endPosition": {
+        "row": 7,
+        "column": 29
+      }
+    },
+    {
+      "captureName": "mutex.handle",
+      "type": "identifier",
+      "text": "attr",
+      "startPosition": {
+        "row": 7,
+        "column": 32
+      },
+      "endPosition": {
+        "row": 7,
+        "column": 36
+      }
+    }
+  ],
+  "errors": [],
+  "timestamp": "2025-11-19T00:43:17.270Z"
+}
