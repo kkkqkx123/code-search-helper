@@ -66,8 +66,8 @@ export default `
     value: (_) @cast.value) @definition.cast_expression
   (sizeof_expression
     argument: (_) @sizeof.argument) @definition.sizeof_expression
-  (alignof_expression
-    argument: (_) @alignof.argument) @definition.alignof_expression
+  (alignof_expression) @definition.alignof_expression
+  (_Alignof_expression) @definition.alignof_expression
 ] @definition.type_expression
 
 ; 复合表达式查询 - 简化模式
@@ -104,8 +104,8 @@ export default `
       (generic_association
         pattern: (_) @association.pattern
         result: (_) @association.result)*)) @definition.generic_expression
-  (alignas_qualifier
-    argument: (_) @alignas.argument) @definition.alignas_qualifier
+  (alignas_qualifier) @definition.alignas_qualifier
+  (_Alignas_qualifier) @definition.alignas_qualifier
   (extension_expression
     argument: (_) @extension.argument) @definition.extension_expression
 ] @definition.modern_feature

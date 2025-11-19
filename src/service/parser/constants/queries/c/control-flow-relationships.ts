@@ -6,13 +6,13 @@ export default `
 ; if语句控制流
 (if_statement
   condition: (parenthesized_expression
-    (identifier) @source.condition)
+    (_)? @source.condition)
   consequence: (statement) @target.if.block) @control.flow.if
 
 ; if-else语句控制流
 (if_statement
   condition: (parenthesized_expression
-    (identifier) @source.condition)
+    (_)? @source.condition)
   consequence: (statement) @target.if.block
   alternative: (else_clause
     (statement) @target.else.block)) @control.flow.if.else
@@ -20,56 +20,56 @@ export default `
 ; 嵌套if语句控制流
 (if_statement
   condition: (parenthesized_expression
-    (identifier) @source.outer.condition)
+    (_)? @source.outer.condition)
   consequence: (compound_statement
     (if_statement
       condition: (parenthesized_expression
-        (identifier) @source.inner.condition)
+        (_)? @source.inner.condition)
       consequence: (statement) @target.inner.block))) @control.flow.nested.if
 
 ; 多重if-else-if语句控制流
 (if_statement
   condition: (parenthesized_expression
-    (identifier) @source.first.condition)
+    (_)? @source.first.condition)
   consequence: (statement) @target.first.block
   alternative: (else_clause
     (if_statement
       condition: (parenthesized_expression
-        (identifier) @source.second.condition)
+        (_)? @source.second.condition)
       consequence: (statement) @target.second.block))) @control.flow.else.if
 
 ; switch语句控制流
 (switch_statement
   condition: (parenthesized_expression
-    (identifier) @source.switch.variable)
+    (_)? @source.switch.variable)
   body: (compound_statement) @target.switch.block) @control.flow.switch
 
 ; switch case控制流
 (case_statement
-  value: (identifier) @source.case.value
-  (statement) @target.case.block) @control.flow.switch.case
+  value: (_)? @source.case.value
+  (statement)? @target.case.block) @control.flow.switch.case
 
 ; switch default控制流
 (case_statement
-  (statement) @target.default.block) @control.flow.switch.default
+  (statement)? @target.default.block) @control.flow.switch.default
 
 ; while循环控制流
 (while_statement
   condition: (parenthesized_expression
-    (identifier) @source.while.condition)
+    (_)? @source.while.condition)
   body: (statement) @target.while.block) @control.flow.while
 
 ; do-while循环控制流
 (do_statement
   body: (statement) @source.do.block
   condition: (parenthesized_expression
-    (identifier) @target.while.condition)) @control.flow.do.while
+    (_)? @target.while.condition)) @control.flow.do.while
 
 ; for循环控制流
 (for_statement
   initializer: (expression_statement)? @source.for.init
   condition: (parenthesized_expression
-    (identifier) @source.for.condition)?
+    (_)? @source.for.condition)?
   update: (expression_statement)? @source.for.update
   body: (statement) @target.for.block) @control.flow.for
 
@@ -78,7 +78,7 @@ export default `
   body: (compound_statement
     (while_statement
       condition: (parenthesized_expression
-        (identifier) @source.inner.condition)
+        (_)? @source.inner.condition)
       body: (statement) @target.inner.block))) @control.flow.nested.loop
 
 ; 循环中的break语句
@@ -98,21 +98,21 @@ export default `
 
 ; return语句控制流
 (return_statement
-  (identifier)? @source.return.variable) @control.flow.return
+  (_)? @source.return.variable) @control.flow.return
 
 ; 函数调用控制流
 (expression_statement
   (call_expression
     function: (identifier) @target.function
     arguments: (argument_list
-      (identifier)* @source.parameter))) @control.flow.function.call
+      (_)* @source.parameter))) @control.flow.function.call
 
 ; SEH try-except控制流
 (seh_try_statement
   body: (compound_statement) @source.try.block
   (seh_except_clause
     condition: (parenthesized_expression
-      (identifier) @source.except.condition)
+      (_)? @source.except.condition)
     body: (compound_statement) @target.except.block)) @control.flow.seh.try.except
 
 ; SEH try-finally控制流
@@ -126,33 +126,33 @@ export default `
 
 ; 条件表达式控制流
 (conditional_expression
-  condition: (identifier) @source.condition
-  consequence: (identifier) @source.consequence
-  alternative: (identifier) @source.alternative) @control.flow.conditional.expression
+  condition: (_)? @source.condition
+  consequence: (_)? @source.consequence
+  alternative: (_)? @source.alternative) @control.flow.conditional.expression
 
 ; 逻辑运算符控制流
 (binary_expression
-  left: (identifier) @source.left.operand
+  left: (_)? @source.left.operand
   operator: ["&&" "||"]
-  right: (identifier) @source.right.operand) @control.flow.logical.operator
+  right: (_)? @source.right.operand) @control.flow.logical.operator
 
 ; 短路求值控制流
 (binary_expression
-  left: (identifier) @source.left.operand
+  left: (_)? @source.left.operand
   operator: "&&"
   right: (call_expression
     function: (identifier) @target.short.circuit.function)) @control.flow.short.circuit.and
 
 (binary_expression
-  left: (identifier) @source.left.operand
+  left: (_)? @source.left.operand
   operator: "||"
   right: (call_expression
     function: (identifier) @target.short.circuit.function)) @control.flow.short.circuit.or
 
 ; 逗号表达式控制流
 (comma_expression
-  left: (identifier) @source.left.expression
-  right: (identifier) @source.right.expression) @control.flow.comma.expression
+  left: (_)? @source.left.expression
+  right: (_)? @source.right.expression) @control.flow.comma.expression
 
 ; 函数定义控制流
 (function_definition
@@ -169,12 +169,12 @@ export default `
 (call_expression
   function: (identifier) @target.recursive.function
   arguments: (argument_list
-    (identifier)* @source.parameter)) @control.flow.recursive.call
+    (_)* @source.parameter)) @control.flow.recursive.call
 
 ; 函数指针调用控制流
 (call_expression
   function: (pointer_expression
     argument: (identifier) @source.function.pointer)
   arguments: (argument_list
-    (identifier)* @source.parameter)) @control.flow.function.pointer.call
+    (_)* @source.parameter)) @control.flow.function.pointer.call
 `;

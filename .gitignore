@@ -15,4 +15,3 @@ docs/ref/strategies
 test-data
 **/*.db
 **/*.db-*
-src/service/parser/__tests__/**/*.json
