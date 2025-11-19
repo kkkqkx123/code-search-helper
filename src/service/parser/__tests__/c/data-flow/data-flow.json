@@ -1,0 +1,84 @@
+{
+  "requests": [
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\nint main() {\n    int x = 5;\n    int y = x;\n    \n    // 简单赋值数据流\n    return 0;\n}",
+      "query": "[(assignment_expression\n  left: [\n    (identifier) @target.variable\n    (field_expression\n      argument: (identifier) @target.object\n      field: (field_identifier) @target.field)\n    (subscript_expression\n      argument: (identifier) @target.array\n      index: (identifier) @target.index)\n    (pointer_expression\n      argument: (identifier) @target.pointer)\n  ]\n  right: [\n    (identifier) @source.variable\n    (call_expression\n      function: (identifier) @source.function)\n    (binary_expression\n      left: (_) @binary.left\n      right: (_) @binary.right)\n    (unary_expression\n      argument: (_) @unary.argument)\n    (number_literal) @source.literal\n  ]) @data.flow.assignment\n (init_declarator\n    declarator: (identifier) @target.variable\n    value: [\n      (identifier) @source.variable\n      (call_expression\n        function: (identifier) @source.function)\n      (binary_expression\n        left: (_) @binary.left\n        right: (_) @binary.right)\n      (unary_expression\n        argument: (_) @unary.argument)\n      (number_literal) @source.literal\n    ]) @data.flow.assignment\n] @data.flow.assignment"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\nint main() {\n    int a = 10;\n    int b = 20;\n    int result = a + b;\n    \n    // 二元表达式数据流\n    return 0;\n}",
+      "query": "[(assignment_expression\n  left: [\n    (identifier) @target.variable\n    (field_expression\n      argument: (identifier) @target.object\n      field: (field_identifier) @target.field)\n    (subscript_expression\n      argument: (identifier) @target.array\n      index: (identifier) @target.index)\n    (pointer_expression\n      argument: (identifier) @target.pointer)\n  ]\n  right: [\n    (identifier) @source.variable\n    (call_expression\n      function: (identifier) @source.function)\n    (binary_expression\n      left: (_) @binary.left\n      right: (_) @binary.right)\n    (unary_expression\n      argument: (_) @unary.argument)\n    (number_literal) @source.literal\n  ]) @data.flow.assignment\n (init_declarator\n    declarator: (identifier) @target.variable\n    value: [\n      (identifier) @source.variable\n      (call_expression\n        function: (identifier) @source.function)\n      (binary_expression\n        left: (_) @binary.left\n        right: (_) @binary.right)\n      (unary_expression\n        argument: (_) @unary.argument)\n      (number_literal) @source.literal\n    ]) @data.flow.assignment\n] @data.flow.assignment"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\nint add(int x, int y) {\n    return x + y;\n}\n\nint main() {\n    int a = 5;\n    int result = add(a, 10);\n    \n    // 函数调用参数传递数据流\n    return 0;\n}",
+      "query": "(call_expression\n function: [\n    (identifier) @target.function\n    (pointer_expression\n      argument: (identifier) @target.function.pointer)\n    (field_expression\n      argument: (identifier) @target.object\n      field: (field_identifier) @target.method)\n ]\n  arguments: (argument_list\n    (_) @source.parameter)*) @data.flow.parameter.passing"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\nint get_value() {\n    int value = 42;\n    return value;\n}\n\nint main() {\n    int x = get_value();\n    \n    // 返回值数据流\n    return 0;\n}",
+      "query": "(return_statement\n  .\n [\n    (identifier) @source.variable\n    (call_expression\n      function: (identifier) @source.function)\n    (field_expression\n      argument: (identifier) @source.object\n      field: (field_identifier) @source.field)\n    (binary_expression\n      left: (_) @binary.left\n      right: (_) @binary.right)\n ]) @data.flow.return.value"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\nint main() {\n    int counter = 0;\n    counter++;\n    \n    // 增量操作数据流\n    return 0;\n}",
+      "query": "[(update_expression\n    argument: (identifier) @variable\n    operator: \"++\") @data.flow.increment\n  (update_expression\n    argument: (identifier) @variable\n    operator: \"--\") @data.flow.decrement\n  ] @data.flow.update"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\nint main() {\n    int counter = 10;\n    counter--;\n    \n    // 减量操作数据流\n    return 0;\n}",
+      "query": "[(update_expression\n    argument: (identifier) @variable\n    operator: \"++\") @data.flow.increment\n  (update_expression\n    argument: (identifier) @variable\n    operator: \"--\") @data.flow.decrement\n  ] @data.flow.update"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\nint main() {\n    int a = 5;\n    int b = 10;\n    a += b;\n    \n    // 复合赋值数据流\n    return 0;\n}",
+      "query": "(assignment_expression\n  left: (identifier) @target.variable\n  right: [\n    (identifier) @source.variable1\n    (binary_expression\n      left: (identifier) @source.variable1\n      operator: [\"+\" \"-\" \"*\" \"/\" \"%\" \"&\" \"|\" \"^\" \"<<\" \">>\"] @compound.operator\n      right: (identifier) @source.variable2)\n  ]) @data.flow.compound.assignment"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\nint main() {\n    int x = 42;\n    int *ptr = &x;\n    \n    // 指针地址赋值数据流\n    return 0;\n}",
+      "query": "[(assignment_expression\n    left: (identifier) @target.pointer\n    right: (pointer_expression\n      argument: (identifier) @source.variable)) @data.flow.address.assignment\n  (assignment_expression\n    left: (pointer_expression\n      argument: (identifier) @target.pointer)\n    right: (identifier) @source.variable) @data.flow.pointer.assignment\n  (init_declarator\n    declarator: (pointer_declarator\n      declarator: (identifier) @target.pointer)\n    value: (pointer_expression\n      argument: (identifier) @source.variable)) @data.flow.address.assignment\n] @data.flow.pointer.operation"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\nint main() {\n    int x = 42;\n    int *ptr = &x;\n    *ptr = 100;\n    \n    // 指针解引用赋值数据流\n    return 0;\n}",
+      "query": "[(assignment_expression\n    left: (identifier) @target.pointer\n    right: (pointer_expression\n      argument: (identifier) @source.variable)) @data.flow.address.assignment\n  (assignment_expression\n    left: (pointer_expression\n      argument: (identifier) @target.pointer)\n    right: (identifier) @source.variable) @data.flow.pointer.assignment\n  (init_declarator\n    declarator: (pointer_declarator\n      declarator: (identifier) @target.pointer)\n    value: (pointer_expression\n      argument: (identifier) @source.variable)) @data.flow.address.assignment\n] @data.flow.pointer.operation"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\nint main() {\n    int x = 42;\n    double y = (double)x;\n    \n    // 类型转换数据流\n    return 0;\n}",
+      "query": "(cast_expression\n  type: (type_descriptor) @target.type\n  value: (identifier) @source.variable) @data.flow.type.conversion"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\nint main() {\n    int a = 1, b = 2, c = 3;\n    int result = a ? b : c;\n    \n    // 条件表达式数据流\n    return 0;\n}",
+      "query": "[(assignment_expression\n    left: (identifier) @target.variable\n    right: (conditional_expression\n      condition: (identifier) @source.condition\n      consequence: (identifier) @source.consequence\n      alternative: (identifier) @source.alternative)) @data.flow.conditional.assignment\n  (init_declarator\n    declarator: (identifier) @target.variable\n    value: (conditional_expression\n      condition: (identifier) @source.condition\n      consequence: (identifier) @source.consequence\n      alternative: (identifier) @source.alternative)) @data.flow.conditional.assignment\n] @data.flow.conditional.operation"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n#include <stdlib.h>\n\nint main() {\n    int *ptr = malloc(sizeof(int) * 10);\n    \n    // 内存分配数据流\n    return 0;\n}",
+      "query": "(call_expression\n function: (identifier) @memory.function\n  arguments: (argument_list\n    (_) @memory.argument)*)\n  (#match? @memory.function \"^(malloc|calloc|realloc|free|memcpy|memmove|memset)$\") @data.flow.memory.operation"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\nstruct Point {\n    int x;\n    int y;\n};\n\nint main() {\n    struct Point p;\n    p.x = 10;\n    \n    // 字段表达式数据流\n    return 0;\n}",
+      "query": "[(assignment_expression\n left: [\n    (identifier) @target.variable\n    (field_expression\n      argument: (identifier) @target.object\n      field: (field_identifier) @target.field)\n    (subscript_expression\n      argument: (identifier) @target.array\n      index: (identifier) @target.index)\n    (pointer_expression\n      argument: (identifier) @target.pointer)\n ]\n  right: [\n    (identifier) @source.variable\n    (call_expression\n      function: (identifier) @source.function)\n    (binary_expression\n      left: (_) @binary.left\n      right: (_) @binary.right)\n    (unary_expression\n      argument: (_) @unary.argument)\n    (number_literal) @source.literal\n  ]) @data.flow.assignment\n (init_declarator\n    declarator: (identifier) @target.variable\n    value: [\n      (identifier) @source.variable\n      (call_expression\n        function: (identifier) @source.function)\n      (binary_expression\n        left: (_) @binary.left\n        right: (_) @binary.right)\n      (unary_expression\n        argument: (_) @unary.argument)\n      (number_literal) @source.literal\n    ]) @data.flow.assignment\n] @data.flow.assignment"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\nint main() {\n    int arr[10];\n    int index = 5;\n    arr[index] = 42;\n    \n    // 数组索引赋值数据流\n    return 0;\n}",
+      "query": "[(assignment_expression\n left: [\n    (identifier) @target.variable\n    (field_expression\n      argument: (identifier) @target.object\n      field: (field_identifier) @target.field)\n    (subscript_expression\n      argument: (identifier) @target.array\n      index: (identifier) @target.index)\n    (pointer_expression\n      argument: (identifier) @target.pointer)\n ]\n  right: [\n    (identifier) @source.variable\n    (call_expression\n      function: (identifier) @source.function)\n    (binary_expression\n      left: (_) @binary.left\n      right: (_) @binary.right)\n    (unary_expression\n      argument: (_) @unary.argument)\n    (number_literal) @source.literal\n  ]) @data.flow.assignment\n (init_declarator\n    declarator: (identifier) @target.variable\n    value: [\n      (identifier) @source.variable\n      (call_expression\n        function: (identifier) @source.function)\n      (binary_expression\n        left: (_) @binary.left\n        right: (_) @binary.right)\n      (unary_expression\n        argument: (_) @unary.argument)\n      (number_literal) @source.literal\n    ]) @data.flow.assignment\n] @data.flow.assignment"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\n#define MAX_VALUE 10\nint main() {\n    int value = MAX_VALUE;\n    \n    // 宏调用数据流\n    return 0;\n}",
+      "query": "(init_declarator\n  declarator: (identifier) @target.variable\n  value: (identifier) @macro.value) @data.flow.macro.assignment"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\nint main() {\n    int x;\n    size_t size = sizeof(x);\n    \n    // sizeof表达式数据流\n    return 0;\n}",
+      "query": "[(assignment_expression\n    left: (identifier) @target.variable\n    right: (sizeof_expression\n      (parenthesized_expression\n        (identifier) @source.variable))) @data.flow.sizeof.assignment\n  (init_declarator\n    declarator: (identifier) @target.variable\n    value: (sizeof_expression\n      (parenthesized_expression\n        (identifier) @source.variable))) @data.flow.sizeof.assignment\n  (sizeof_expression\n    (parenthesized_expression\n      (identifier) @source.variable)) @data.flow.sizeof.expression\n] @data.flow.sizeof.operation"
+    }
+  ]
+}

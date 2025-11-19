@@ -1,0 +1,64 @@
+{
+  "requests": [
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\n// 简单函数定义\nint add(int a, int b) {\n    return a + b;\n}\n\nint main() {\n    int result = add(5, 3);\n    return 0;\n}",
+      "query": "(function_definition\n  declarator: (function_declarator\n    declarator: (identifier) @function.name)\n body: (compound_statement) @function.body) @definition.function"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\n// 函数原型声明\nint multiply(int x, int y);\n\nint main() {\n    int result = multiply(4, 5);\n    return 0;\n}",
+      "query": "(declaration\n  type: (primitive_type)\n  declarator: (function_declarator\n    declarator: (identifier) @function.name\n    parameters: (parameter_list))) @definition.function.prototype"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\n// 带参数的函数\nint calculate(int x, int y, int z) {\n    return x * y + z;\n}\n\nint main() {\n    int result = calculate(2, 3, 4);\n    return 0;\n}",
+      "query": "(function_definition\n  declarator: (function_declarator\n    declarator: (identifier) @function.name\n    parameters: (parameter_list\n      (parameter_declaration\n        type: (primitive_type)\n        declarator: (identifier) @param.name)+))\n body: (compound_statement) @function.body) @definition.function.with_params"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\nint add(int a, int b) {\n    return a + b;\n}\n\nint main() {\n    // 函数调用\n    int result = add(5, 3);\n    return 0;\n}",
+      "query": "(call_expression\n  function: (identifier) @call.function\n  arguments: (argument_list\n    (_) @call.argument)*) @definition.function.call"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\n// 函数指针声明\nint (*func_ptr)(int, int);\n\nint add(int a, int b) {\n    return a + b;\n}\n\nint main() {\n    func_ptr = add;\n    int result = func_ptr(5, 3);\n    return 0;\n}",
+      "query": "(declaration\n  type: (primitive_type) @return.type\n  declarator: (function_declarator\n    declarator: (parenthesized_declarator\n      (pointer_declarator\n        declarator: (identifier) @function.pointer.name))\n    parameters: (parameter_list))) @definition.function.pointer"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\n// 递归函数\nint factorial(int n) {\n    if (n <= 1) {\n        return 1;\n    }\n    return n * factorial(n - 1);\n}\n\nint main() {\n    int result = factorial(5);\n    return 0;\n}",
+      "query": "(call_expression\n  function: (identifier) @recursive.call\n  arguments: (argument_list)) @definition.recursive.call"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\n// 内联函数\nstatic inline int square(int x) {\n    return x * x;\n}\n\nint main() {\n    int result = square(5);\n    return 0;\n}",
+      "query": "(function_definition\n  (storage_class_specifier) @func.type\n  declarator: (function_declarator\n    declarator: (identifier) @inline.function)\n  body: (compound_statement) @inline.body\n  (#match? @func.type \"inline|static\")) @definition.inline.function"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\n// 空函数\nvoid empty_function() {\n    // Do nothing\n}\n\nint main() {\n    empty_function();\n    return 0;\n}",
+      "query": "(function_definition\n declarator: (function_declarator\n    declarator: (identifier) @function.name)\n body: (compound_statement) @function.body) @definition.function"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\n// 返回指针的函数\nint* get_pointer(int *x) {\n    return x;\n}\n\nint main() {\n    int value = 42;\n    int *ptr = get_pointer(&value);\n    return 0;\n}",
+      "query": "(function_definition\n  declarator: (function_declarator\n    declarator: (identifier) @function.name)\n  body: (compound_statement) @function.body) @definition.function"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\n// 可变参数函数\n#include <stdarg.h>\n\nint sum(int count, ...) {\n    va_list args;\n    va_start(args, count);\n    \n    int total = 0;\n    for (int i = 0; i < count; i++) {\n        total += va_arg(args, int);\n    }\n    \n    va_end(args);\n    return total;\n}\n\nint main() {\n    int result = sum(3, 1, 2, 3);\n    return 0;\n}",
+      "query": "(function_definition\n  declarator: (function_declarator\n    declarator: (identifier) @function.name\n    parameters: (parameter_list\n      (parameter_declaration\n        type: (primitive_type)\n        declarator: (identifier) @param.name)+))\n body: (compound_statement) @function.body) @definition.function.with_params"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\n// 静态函数\nstatic int static_add(int a, int b) {\n    return a + b;\n}\n\nint main() {\n    int result = static_add(3, 4);\n    return 0;\n}",
+      "query": "(function_definition\n  declarator: (function_declarator\n    declarator: (identifier) @function.name)\n  body: (compound_statement) @function.body) @definition.function"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\n// 多个参数的函数\nint complex_calc(int a, int b, int c, int d, int e) {\n    return a + b * c - d / e;\n}\n\nint main() {\n    int result = complex_calc(1, 2, 3, 4, 5);\n    return 0;\n}",
+      "query": "(function_definition\n declarator: (function_declarator\n    declarator: (identifier) @function.name\n    parameters: (parameter_list\n      (parameter_declaration\n        type: (primitive_type)\n        declarator: (identifier) @param.name)+))\n  body: (compound_statement) @function.body) @definition.function.with_params"
+    }
+  ]
+}

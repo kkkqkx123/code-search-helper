@@ -4,37 +4,56 @@ C Data Flow-specific Tree-Sitter Query Patterns
 Optimized based on tree-sitter best practices
 */
 export default `
-; 统一的赋值数据流查询 - 使用交替模式
-(assignment_expression
-  left: [
-    (identifier) @target.variable
-    (field_expression
-      argument: (identifier) @target.object
-      field: (field_identifier) @target.field)
-    (subscript_expression
-      argument: (identifier) @target.array
-      index: (identifier) @target.index)
-    (pointer_expression
-      argument: (identifier) @target.pointer)
-  ]
-  right: [
-    (identifier) @source.variable
-    (call_expression
-      function: (identifier) @source.function)
-    (binary_expression
-      left: (_) @binary.left
-      right: (_) @binary.right)
-    (unary_expression
-      argument: (_) @unary.argument)
-  ]) @data.flow.assignment
+; 统一的赋值数据流查询 - 使用交替模式，包含声明初始化和赋值表达式
+[
+  (assignment_expression
+    left: [
+      (identifier) @target.variable
+      (field_expression
+        argument: (identifier) @target.object
+        field: (field_identifier) @target.field)
+      (subscript_expression
+        argument: (identifier) @target.array
+        index: (identifier) @target.index)
+      (pointer_expression
+        argument: (identifier) @target.pointer)
+    ]
+    right: [
+      (identifier) @source.variable
+      (call_expression
+        function: (identifier) @source.function)
+      (binary_expression
+        left: (_) @binary.left
+        right: (_) @binary.right)
+      (unary_expression
+        argument: (_) @unary.argument)
+      (number_literal) @source.literal
+    ]) @data.flow.assignment
+  (init_declarator
+    declarator: (identifier) @target.variable
+    value: [
+      (identifier) @source.variable
+      (call_expression
+        function: (identifier) @source.function)
+      (binary_expression
+        left: (_) @binary.left
+        right: (_) @binary.right)
+      (unary_expression
+        argument: (_) @unary.argument)
+      (number_literal) @source.literal
+    ]) @data.flow.assignment
+]
 
-; 复合赋值数据流 - 使用谓词过滤
+; 复合赋值数据流 - 修复：复合赋值的右边可能是identifier或binary_expression
 (assignment_expression
   left: (identifier) @target.variable
-  right: (binary_expression
-    left: (identifier) @source.variable1
-    operator: ["+" "-" "*" "/" "%" "&" "|" "^" "<<" ">>"] @compound.operator
-    right: (identifier) @source.variable2)) @data.flow.compound.assignment
+  right: [
+    (identifier) @source.variable1
+    (binary_expression
+      left: (identifier) @source.variable1
+      operator: ["+" "-" "*" "/" "%" "&" "|" "^" "<<" ">>"] @compound.operator
+      right: (identifier) @source.variable2)
+  ]) @data.flow.compound.assignment
 
 ; 增量/减量数据流 - 使用交替模式
 [
@@ -57,7 +76,7 @@ export default `
       field: (field_identifier) @target.method)
   ]
   arguments: (argument_list
-    (identifier) @source.parameter)+) @data.flow.parameter.passing
+    (_) @source.parameter)*) @data.flow.parameter.passing
 
 ; 返回值数据流 - 使用锚点操作符
 (return_statement
@@ -72,6 +91,7 @@ export default `
     (binary_expression
       left: (_) @binary.left
       right: (_) @binary.right)
+    (number_literal) @source.literal
   ]) @data.flow.return.value
 
 ; 初始化数据流 - 使用交替模式
@@ -79,15 +99,15 @@ export default `
   (init_declarator
     declarator: (identifier) @target.variable
     value: (initializer_list
-      (identifier) @source.variable)+)) @data.flow.struct.initialization
+      (_) @source.variable)*)) @data.flow.struct.initialization
   (init_declarator
     declarator: (array_declarator
       declarator: (identifier) @target.array)
     value: (initializer_list
-      (identifier) @source.variable)+)) @data.flow.array.initialization
+      (_) @source.variable)*)) @data.flow.array.initialization
 ] @data.flow.initialization
 
-; 指针操作数据流 - 使用谓词过滤
+; 指针操作数据流 - 使用交替模式
 [
   (assignment_expression
     left: (identifier) @target.pointer
@@ -97,6 +117,11 @@ export default `
     left: (pointer_expression
       argument: (identifier) @target.pointer)
     right: (identifier) @source.variable) @data.flow.pointer.assignment
+  (init_declarator
+    declarator: (pointer_declarator
+      declarator: (identifier) @target.pointer)
+    value: (pointer_expression
+      argument: (identifier) @source.variable)) @data.flow.address.assignment
 ] @data.flow.pointer.operation
 
 ; 类型转换数据流 - 简化模式
@@ -104,19 +129,27 @@ export default `
   type: (type_descriptor) @target.type
   value: (identifier) @source.variable) @data.flow.type.conversion
 
-; 条件表达式数据流 - 使用锚点确保精确匹配
-(assignment_expression
-  left: (identifier) @target.variable
-  right: (conditional_expression
-    condition: (identifier) @source.condition
-    consequence: (identifier) @source.consequence
-    alternative: (identifier) @source.alternative)) @data.flow.conditional.assignment
+; 条件表达式数据流 - 修复：条件表达式可能在init_declarator中
+[
+  (assignment_expression
+    left: (identifier) @target.variable
+    right: (conditional_expression
+      condition: (identifier) @source.condition
+      consequence: (identifier) @source.consequence
+      alternative: (identifier) @source.alternative)) @data.flow.conditional.assignment
+  (init_declarator
+    declarator: (identifier) @target.variable
+    value: (conditional_expression
+      condition: (identifier) @source.condition
+      consequence: (identifier) @source.consequence
+      alternative: (identifier) @source.alternative)) @data.flow.conditional.assignment
+] @data.flow.conditional.operation
 
 ; 内存操作数据流 - 使用谓词过滤
 (call_expression
   function: (identifier) @memory.function
   arguments: (argument_list
-    (identifier) @memory.argument)+)
+    (_) @memory.argument)*)
   (#match? @memory.function "^(malloc|calloc|realloc|free|memcpy|memmove|memset)$")) @data.flow.memory.operation
 
 ; 链式访问数据流 - 使用量词操作符
@@ -135,16 +168,25 @@ export default `
   ]
   right: (identifier) @target.variable) @data.flow.chained.access
 
-; 宏调用数据流 - 使用谓词过滤
-(call_expression
-  function: (identifier) @macro.function
-  arguments: (argument_list
-    (identifier) @macro.parameter)+)
-  (#not-match? @macro.function "^(malloc|calloc|realloc|free|memcpy|memmove|memset)$")) @data.flow.macro.call
+; 宏调用数据流 - 修复：宏展开后是identifier，不是call_expression
+(init_declarator
+  declarator: (identifier) @target.variable
+  value: (identifier) @macro.value) @data.flow.macro.assignment
 
-; sizeof表达式数据流 - 简化模式
-(assignment_expression
-  left: (identifier) @target.variable
-  right: (sizeof_expression
-    argument: (identifier) @source.variable)) @data.flow.sizeof.assignment
+; sizeof表达式数据流 - 修复：sizeof表达式可能在init_declarator中，且参数可能是parenthesized_expression
+[
+  (assignment_expression
+    left: (identifier) @target.variable
+    right: (sizeof_expression
+      (parenthesized_expression
+        (identifier) @source.variable))) @data.flow.sizeof.assignment
+  (init_declarator
+    declarator: (identifier) @target.variable
+    value: (sizeof_expression
+      (parenthesized_expression
+        (identifier) @source.variable))) @data.flow.sizeof.assignment
+  (sizeof_expression
+    (parenthesized_expression
+      (identifier) @source.variable)) @data.flow.sizeof.expression
+] @data.flow.sizeof.operation
 `;
