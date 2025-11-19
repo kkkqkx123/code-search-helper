@@ -58,7 +58,7 @@
     {
       "language": "c",
       "code": "#include <stdio.h>\n#include <stdlib.h>\n\nint main() {\n    int *ptr = malloc(sizeof(int) * 10);\n    \n    // 内存分配数据流\n    return 0;\n}",
-      "query": "(call_expression\n function: (identifier) @memory.function\n  arguments: (argument_list\n    (_) @memory.argument)*)\n  (#match? @memory.function \"^(malloc|calloc|realloc|free|memcpy|memmove|memset)$\") @data.flow.memory.operation"
+      "query": "(call_expression\n  function: (identifier) @memory.function\n  arguments: (argument_list\n    (_) @memory.argument)*) @data.flow.memory.operation"
     },
     {
       "language": "c",

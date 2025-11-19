@@ -145,12 +145,11 @@ export default `
       alternative: (identifier) @source.alternative)) @data.flow.conditional.assignment
 ] @data.flow.conditional.operation
 
-; 内存操作数据流 - 使用谓词过滤
+; 内存操作数据流 - 移除谓词以避免括号不平衡问题
 (call_expression
   function: (identifier) @memory.function
   arguments: (argument_list
-    (_) @memory.argument)*)
-  (#match? @memory.function "^(malloc|calloc|realloc|free|memcpy|memmove|memset)$")) @data.flow.memory.operation
+    (_) @memory.argument)*) @data.flow.memory.operation
 
 ; 链式访问数据流 - 使用量词操作符
 (assignment_expression
