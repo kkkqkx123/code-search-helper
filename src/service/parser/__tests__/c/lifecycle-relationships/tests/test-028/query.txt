@@ -1,5 +1,4 @@
 (declaration
   type: (primitive_type) @global.variable.type
   declarator: (init_declarator
-    declarator: (identifier) @global.variable.name))
-  (#set! "operation" "global") @lifecycle.relationship.scope.global
+    declarator: (identifier) @global.variable.name)) @lifecycle.relationship.scope.global

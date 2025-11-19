@@ -2,5 +2,5 @@
   (declaration
     type: (primitive_type) @local.variable.type
     declarator: (init_declarator
-      declarator: (identifier) @local.variable.name)))
-  (#set! "operation" "scope.begin") @lifecycle.relationship.scope.local.begin
+      declarator: (identifier) @local.variable.name))
+  (#set! "operation" "scope.begin")) @lifecycle.relationship.scope.local.begin

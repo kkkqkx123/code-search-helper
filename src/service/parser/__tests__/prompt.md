@@ -114,41 +114,45 @@ src/service/parser/__tests__/scripts/c/temp/
 
 需要修改时修改测试代码与查询模式，并同步修改查询常量定义文件。
 
-**代码文件 (code.c)** - 标准C语言源代码
-```c
-#include <stdlib.h>
+**顽固错误预计需要使用专门的脚本了解具体解析结构，参考src\service\parser\__tests__\scripts\debug-ast-structure.js(使用外部api的api/parser端点，api文档见src\service\parser\__tests__\api.md)**
 
-int main() {
-    int* ptr = (int*)malloc(sizeof(int) * 10);
-    free(ptr);
-    return 0;
-}
-```
+批量修改测试用例时建议使用脚本
 
-**查询文件 (query.txt)** - TreeSitter S-Expression查询语法
-```
-(call_expression
-  function: (identifier) @deallocation.function
-  (#match? @deallocation.function "^(free)$")
-  arguments: (argument_list
-    (identifier) @deallocated.pointer)
-  (#set! "operation" "deallocate")) @lifecycle.relationship.memory.deallocation
-```
 
 ## 验收标准
+
+### 第一步：测试通过
 ✅ node src\service\parser\__tests__\scripts\process-test-cases.js 测试特定内容后：
 - 所有supported类别的results/目录都包含result-XXX.json文件
 - 每个result文件的response.success为true
 - response.data数组非空（有匹配结果）
 - 没有REQUEST_ERROR或PARSING_ERROR
-- 检查哪些查询可以改造为交替查询改造，并修改src\service\parser\constants\queries中相应的常量定义文件。参考下方说明。
-- 验证最终查询常量与已通过的测试用例是否一致
 
-通常出现Query executed successfully but found no matches就代表部分查询不成功。
+通常出现"Query executed successfully but found no matches"就代表部分查询不成功。
 
-批量修改测试用例时建议使用脚本
+### 第二步：查询优化（可选）
+- 检查哪些查询可以改造为交替查询，并修改src\service\parser\constants\queries中相应的常量定义文件。参考下方说明。
+- 修改后需要重新运行完整流程，确保所有校验仍然通过
 
-修改过程中验证修复效果时建议运行特定测试用例，
+### 第三步：查询一致性校验（必须执行）
+✅ 必须运行一致性校验脚本，确保测试用例与查询常量完全一致：
+```powershell
+node src\service\parser\__tests__\scripts\validate-queries-consistency.js <language> <category>
+```
+
+示例：
+```powershell
+node src\service\parser\__tests__\scripts\validate-queries-consistency.js c lifecycle
+```
+
+校验脚本会检查：
+- 测试用例中的所有query.txt是否在对应的常量定义文件中存在
+- 常量定义文件中的所有查询是否都被测试用例使用
+- 任何不匹配都会详细报告，包括相似度分析
+
+近一步诊断可以使用`src\service\parser\__tests__\scripts\diagnose-query-mismatches.js`
+
+**此步骤失败则整个验收失败**
 
 
 **交替查询改造工作流**

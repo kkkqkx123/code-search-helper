@@ -7,6 +7,7 @@
 ### 快速参考
 - **当前文件** - 整体指南和快速查询
 - **[scripts/USAGE.md](./scripts/USAGE.md)** - 脚本参数详细说明
+- **[scripts/VALIDATION.md](./scripts/VALIDATION.md)** - 查询一致性校验指南
 
 ### 详细教程
 - **[scripts/README.md](./scripts/README.md)** - 脚本功能和工作流程
@@ -24,6 +25,8 @@
 | 运行某个类别 | `node src/service/parser/__tests__/scripts/process-test-cases.js  c:lifecycle` |
 | 运行特定测试 | `node src/service/parser/__tests__/scripts/process-test-cases.js  c:lifecycle:001` |
 | 运行多个测试 | `node src/service/parser/__tests__/scripts/process-test-cases.js  c:lifecycle:001,003,005` |
+| 验证查询一致性 | `node src/service/parser/__tests__/scripts/validate-queries-consistency.js c lifecycle` |
+| 诊断不匹配查询 | `node src/service/parser/__tests__/scripts/diagnose-query-mismatches.js c lifecycle` |
 | 查看帮助 | `node src/service/parser/__tests__/scripts/process-test-cases.js  --help` |
 
 ## 快速开始
@@ -46,6 +49,18 @@ cat src/service/parser/__tests__/c/lifecycle-relationships/results/result-025.js
 
 ```bash
 node src/service/parser/__tests__/scripts/process-test-cases.js  c:lifecycle
+```
+
+### 步骤4：验证查询一致性（重要！）
+
+```bash
+node src/service/parser/__tests__/scripts/validate-queries-consistency.js c:lifecycle
+```
+
+如果失败，诊断具体差异：
+
+```bash
+node src/service/parser/__tests__/scripts/diagnose-query-mismatches.js c lifecycle
 ```
 
 ## 📁 项目结构速览
@@ -241,11 +256,7 @@ const TEST_CATEGORIES = {
 ```
 
 2. **创建测试结构**
-
-```bash
-mkdir -p src/service/parser/__tests__/python/comprehensions/tests/test-001
-# 创建 code.py, query.txt, metadata.json
-```
+参考prompt.md中创建测试用例的工作流
 
 ### 编写性能优化查询
 
@@ -277,51 +288,12 @@ mkdir -p src/service/parser/__tests__/python/comprehensions/tests/test-001
 复杂查询谨慎使用交替模式，且必须严格使用测试用例验证(而非仅验证符号闭合)，且相似查询少于4个时收益不大，不建议使用交替查询。
 ```
 
-## 📊 常用分析脚本
-
-### 统计通过率
-
-```bash
-#!/bin/bash
-total=0
-passed=0
-
-for category in lifecycle-relationships control-flow control-flow-relationships data-flow functions structs concurrency; do
-  cat_total=$(find src/service/parser/__tests__/c/$category/results -name "*.json" 2>/dev/null | wc -l)
-  cat_passed=$(grep -l '"success": true' src/service/parser/__tests__/c/$category/results/*.json 2>/dev/null | wc -l)
-  
-  if [ $cat_total -gt 0 ]; then
-    percentage=$((cat_passed * 100 / cat_total))
-    echo "$category: $cat_passed/$cat_total ($percentage%)"
-    total=$((total + cat_total))
-    passed=$((passed + cat_passed))
-  fi
-done
-
-echo "---"
-if [ $total -gt 0 ]; then
-  overall=$((passed * 100 / total))
-  echo "Overall: $passed/$total ($overall%)"
-fi
-```
-
-### 列出所有失败的测试
-
-```bash
-#!/bin/bash
-echo "失败的测试:"
-find src/service/parser/__tests__/c/*/results -name "*.json" -exec grep -L '"success": true' {} \; | while read file; do
-  category=$(echo "$file" | awk -F'/' '{print $(NF-3)}')
-  testnum=$(grep -o 'result-[0-9]*' <<< "$file" | cut -d'-' -f2)
-  testid=$(grep -o '"testId": "[^"]*"' "$file" | cut -d'"' -f4)
-  echo "  $category:$testnum ($testid)"
-done
-```
 
 ## 🔗 快速链接
 
 - [脚本USAGE文档](./scripts/USAGE.md) - 参数详细说明
 - [脚本README文档](./scripts/README.md) - 脚本功能总览
+- [查询一致性校验](./scripts/VALIDATION.md) - 校验脚本使用指南
 - [使用示例文档](./scripts/EXAMPLES.md) - 真实场景示例
 - [测试架构说明](./TEST_ARCHITECTURE.md) - 新架构详解
 - [API文档](./api.md) - API端点说明
