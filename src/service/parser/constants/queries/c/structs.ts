@@ -46,13 +46,12 @@ export default `
   declarator: (pointer_declarator
     declarator: (identifier) @pointer.name)) @definition.pointer
 
-; 成员访问查询
+; 成员访问查询 (for regular member access like obj.field)
 (field_expression
   argument: (identifier) @object.name
   field: (field_identifier) @field.name) @definition.member.access
 
-; 指针成员访问查询
-; 匹配简单的指针成员访问 (ptr->field)
+; 指针成员访问查询 (for pointer member access like ptr->field)
 (field_expression
   argument: (identifier) @pointer.name
   field: (field_identifier) @field.name) @definition.pointer.member.access

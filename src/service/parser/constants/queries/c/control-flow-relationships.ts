@@ -4,33 +4,29 @@ C Control Flow-specific Tree-Sitter Query Patterns
 */
 export default `
 ; if语句控制流
-(if_statement
-  condition: (_) @source.condition
-  consequence: (statement) @target.if.block) @control.flow.if
-
-; if-else语句控制流
-(if_statement
-  condition: (_) @source.condition
-  consequence: (statement) @target.if.block
-  alternative: (else_clause
-    (statement) @target.else.block)) @control.flow.if.else
-
-; 嵌套if语句控制流
-(if_statement
-  condition: (_) @source.outer.condition
-  consequence: (compound_statement
-    (if_statement
-      condition: (_) @source.inner.condition
-      consequence: (statement) @target.inner.block))) @control.flow.nested.if
-
-; 多重if-else-if语句控制流
-(if_statement
-  condition: (_) @source.first.condition
-  consequence: (statement) @target.first.block
-  alternative: (else_clause
-    (if_statement
-      condition: (_) @source.second.condition
-      consequence: (statement) @target.second.block))) @control.flow.else.if
+[
+  (if_statement
+    condition: (_) @source.condition
+    consequence: (statement) @target.if.block) @control.flow.if
+  (if_statement
+    condition: (_) @source.condition
+    consequence: (statement) @target.if.block
+    alternative: (else_clause
+      (statement) @target.else.block)) @control.flow.if.else
+  (if_statement
+    condition: (_) @source.outer.condition
+    consequence: (compound_statement
+      (if_statement
+        condition: (_) @source.inner.condition
+        consequence: (statement) @target.inner.block))) @control.flow.nested.if
+  (if_statement
+    condition: (_) @source.first.condition
+    consequence: (statement) @target.first.block
+    alternative: (else_clause
+      (if_statement
+        condition: (_) @source.second.condition
+        consequence: (statement) @target.second.block))) @control.flow.else.if
+] @control.flow.if.statement
 
 ; switch语句控制流
 (switch_statement
@@ -45,20 +41,6 @@ export default `
 ; switch default控制流（处理default关键字）
 (case_statement
   (statement)? @target.default.block) @control.flow.switch.default
-
-; switch default控制流（更通用的匹配，处理default:标签）
-(case_statement
-  value: (identifier) @source.case.value
-  (#eq? @source.case.value "default")
-  (statement)? @target.default.block) @control.flow.switch.default
-
-; switch default控制流（处理default case的特殊结构）
-(case_statement
-  value: (identifier) @source.case.value
-  (#eq? @source.case.value "default")) @control.flow.switch.default
-
-; switch default控制流（更通用的匹配）
-(case_statement) @control.flow.switch.default
 
 ; while循环控制流
 (while_statement
@@ -84,11 +66,11 @@ export default `
       condition: (_) @source.inner.condition
       body: (statement) @target.inner.block))) @control.flow.nested.loop
 
-; 循环中的break语句
-(break_statement) @control.flow.loop.break
-
-; 循环中的continue语句
-(continue_statement) @control.flow.loop.continue
+; 循环控制语句
+[
+  (break_statement) @control.flow.loop.break
+  (continue_statement) @control.flow.loop.continue
+] @control.flow.loop.control
 
 ; goto语句控制流
 (goto_statement
@@ -104,11 +86,17 @@ export default `
   (_)? @source.return.variable) @control.flow.return
 
 ; 函数调用控制流
-(expression_statement
+[
+  (expression_statement
+    (call_expression
+      function: (identifier) @target.function
+      arguments: (argument_list
+        (_)* @source.parameter))) @control.flow.function.call
   (call_expression
-    function: (identifier) @target.function
+    function: (identifier) @target.recursive.function
     arguments: (argument_list
-      (_)* @source.parameter))) @control.flow.function.call
+      (_)* @source.parameter)) @control.flow.recursive.call
+] @control.flow.function.invocation
 
 ; 条件表达式控制流
 (conditional_expression
@@ -140,15 +128,28 @@ export default `
   arguments: (argument_list
     (_)* @source.parameter)) @control.flow.function.pointer.call
 
-; 函数指针调用控制流（通用匹配，处理直接的函数指针调用）
-(call_expression
-  function: (identifier) @target.function
-  (#match? @target.function "^[a-z_][a-z0-9_]*ptr$|^[a-z_][a-z0-9_]*_ptr$|^func_ptr$|.*ptr.*")) @control.flow.function.pointer.call
+; 短路求值与控制流
+[
+  (binary_expression
+    left: (_)? @source.left.operand
+    operator: "&&"
+    right: (call_expression
+      function: (identifier) @target.short.circuit.function)) @control.flow.short.circuit.and
+  (binary_expression
+    left: (_)? @source.left.operand
+    operator: "||"
+    right: (call_expression
+      function: (identifier) @target.short.circuit.function)) @control.flow.short.circuit.or
+] @control.flow.short.circuit
 
-; 函数指针调用控制流（更通用的匹配，处理可能的函数指针调用）
-(call_expression
-  function: (identifier) @target.function) @control.flow.function.pointer.call
+; 函数声明控制流
+(declaration
+  (function_declarator
+    declarator: (identifier) @source.function.name)) @control.flow.function.declaration
 
-; 函数指针调用控制流（更通用的匹配）
-(call_expression) @control.flow.function.pointer.call
+; 递归函数调用控制流
+(call_expression
+  function: (identifier) @target.recursive.function
+  arguments: (argument_list
+    (_)* @source.parameter)) @control.flow.recursive.call
 `;

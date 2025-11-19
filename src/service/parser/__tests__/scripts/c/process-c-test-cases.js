@@ -14,7 +14,7 @@ const CONCURRENCY_TEST_CASE_FILE = path.join(__dirname, '../../c/concurrency/c-c
 
 // 输出目录
 const STRUCT_OUTPUT_DIR = path.join(__dirname, '../../c/structs');
-const CONCURRENCY_OUTPUT_DIR = path.join(__dirname, '../../__tests__/c/concurrency');
+const CONCURRENCY_OUTPUT_DIR = path.join(__dirname, '../../c/concurrency');
 
 /**
  * 发送POST请求

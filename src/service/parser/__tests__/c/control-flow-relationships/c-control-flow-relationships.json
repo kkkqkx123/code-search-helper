@@ -3,22 +3,22 @@
     {
       "language": "c",
       "code": "#include <stdio.h>\n\nint main() {\n    int x = 10;\n    \n    if (x > 5) {\n        printf(\"x is greater than 5\\n\");\n    }\n    \n    return 0;\n}",
-      "query": "(if_statement\n  condition: (_) @source.condition\n  consequence: (statement) @target.if.block) @control.flow.if"
+      "query": "[\n  (if_statement\n    condition: (_) @source.condition\n    consequence: (statement) @target.if.block) @control.flow.if\n  (if_statement\n    condition: (_) @source.condition\n    consequence: (statement) @target.if.block\n    alternative: (else_clause\n      (statement) @target.else.block)) @control.flow.if.else\n  (if_statement\n    condition: (_) @source.outer.condition\n    consequence: (compound_statement\n      (if_statement\n        condition: (_) @source.inner.condition\n        consequence: (statement) @target.inner.block))) @control.flow.nested.if\n  (if_statement\n    condition: (_) @source.first.condition\n    consequence: (statement) @target.first.block\n    alternative: (else_clause\n      (if_statement\n        condition: (_) @source.second.condition\n        consequence: (statement) @target.second.block))) @control.flow.else.if\n] @control.flow.if.statement"
     },
     {
       "language": "c",
       "code": "#include <stdio.h>\n\nint main() {\n    int x = 10;\n    \n    if (x > 5) {\n        printf(\"x is greater than 5\\n\");\n    } else {\n        printf(\"x is not greater than 5\\n\");\n    }\n    \n    return 0;\n}",
-      "query": "(if_statement\n  condition: (_) @source.condition\n  consequence: (statement) @target.if.block\n  alternative: (else_clause\n    (statement) @target.else.block)) @control.flow.if.else"
+      "query": "[\n  (if_statement\n    condition: (_) @source.condition\n    consequence: (statement) @target.if.block) @control.flow.if\n  (if_statement\n    condition: (_) @source.condition\n    consequence: (statement) @target.if.block\n    alternative: (else_clause\n      (statement) @target.else.block)) @control.flow.if.else\n  (if_statement\n    condition: (_) @source.outer.condition\n    consequence: (compound_statement\n      (if_statement\n        condition: (_) @source.inner.condition\n        consequence: (statement) @target.inner.block))) @control.flow.nested.if\n  (if_statement\n    condition: (_) @source.first.condition\n    consequence: (statement) @target.first.block\n    alternative: (else_clause\n      (if_statement\n        condition: (_) @source.second.condition\n        consequence: (statement) @target.second.block))) @control.flow.else.if\n] @control.flow.if.statement"
     },
     {
       "language": "c",
       "code": "#include <stdio.h>\n\nint main() {\n    int x = 10;\n    \n    if (x > 15) {\n        if (x > 20) {\n            printf(\"x is greater than 20\\n\");\n        } else {\n            printf(\"x is between 15 and 20\\n\");\n        }\n    }\n    \n    return 0;\n}",
-      "query": "(if_statement\n  condition: (_) @source.outer.condition\n  consequence: (compound_statement\n    (if_statement\n      condition: (_) @source.inner.condition\n      consequence: (statement) @target.inner.block))) @control.flow.nested.if"
+      "query": "[\n  (if_statement\n    condition: (_) @source.condition\n    consequence: (statement) @target.if.block) @control.flow.if\n  (if_statement\n    condition: (_) @source.condition\n    consequence: (statement) @target.if.block\n    alternative: (else_clause\n      (statement) @target.else.block)) @control.flow.if.else\n  (if_statement\n    condition: (_) @source.outer.condition\n    consequence: (compound_statement\n      (if_statement\n        condition: (_) @source.inner.condition\n        consequence: (statement) @target.inner.block))) @control.flow.nested.if\n  (if_statement\n    condition: (_) @source.first.condition\n    consequence: (statement) @target.first.block\n    alternative: (else_clause\n      (if_statement\n        condition: (_) @source.second.condition\n        consequence: (statement) @target.second.block))) @control.flow.else.if\n] @control.flow.if.statement"
     },
     {
       "language": "c",
       "code": "#include <stdio.h>\n\nint main() {\n    int x = 10;\n    \n    if (x > 5) {\n        printf(\"x is greater than 5\\n\");\n    } else if (x == 5) {\n        printf(\"x is equal to 5\\n\");\n    } else {\n        printf(\"x is less than 5\\n\");\n    }\n    \n    return 0;\n}",
-      "query": "(if_statement\n  condition: (_) @source.first.condition\n  consequence: (statement) @target.first.block\n  alternative: (else_clause\n    (if_statement\n      condition: (_) @source.second.condition\n      consequence: (statement) @target.second.block))) @control.flow.else.if"
+      "query": "[\n  (if_statement\n    condition: (_) @source.condition\n    consequence: (statement) @target.if.block) @control.flow.if\n  (if_statement\n    condition: (_) @source.condition\n    consequence: (statement) @target.if.block\n    alternative: (else_clause\n      (statement) @target.else.block)) @control.flow.if.else\n  (if_statement\n    condition: (_) @source.outer.condition\n    consequence: (compound_statement\n      (if_statement\n        condition: (_) @source.inner.condition\n        consequence: (statement) @target.inner.block))) @control.flow.nested.if\n  (if_statement\n    condition: (_) @source.first.condition\n    consequence: (statement) @target.first.block\n    alternative: (else_clause\n      (if_statement\n        condition: (_) @source.second.condition\n        consequence: (statement) @target.second.block))) @control.flow.else.if\n] @control.flow.if.statement"
     },
     {
       "language": "c",
@@ -53,12 +53,12 @@
     {
       "language": "c",
       "code": "#include <stdio.h>\n\nint main() {\n    int i;\n    \n    for (i = 0; i < 10; i++) {\n        if (i == 5) {\n            break;\n        }\n        printf(\"i = %d\\n\", i);\n    }\n    \n    return 0;\n}",
-      "query": "(break_statement) @control.flow.loop.break"
+      "query": "[\n  (break_statement) @control.flow.loop.break\n  (continue_statement) @control.flow.loop.continue\n] @control.flow.loop.control"
     },
     {
       "language": "c",
       "code": "#include <stdio.h>\n\nint main() {\n    int i;\n    \n    for (i = 0; i < 10; i++) {\n        if (i % 2 == 0) {\n            continue;\n        }\n        printf(\"i = %d\\n\", i);\n    }\n    \n    return 0;\n}",
-      "query": "(continue_statement) @control.flow.loop.continue"
+      "query": "[\n  (break_statement) @control.flow.loop.break\n  (continue_statement) @control.flow.loop.continue\n] @control.flow.loop.control"
     },
     {
       "language": "c",
@@ -88,12 +88,12 @@
     {
       "language": "c",
       "code": "#include <stdio.h>\n\nvoid print_message() {\n    printf(\"Message printed\\n\");\n}\n\nint main() {\n    int x = 5;\n    \n    if (x > 0 && print_message()) {\n        printf(\"Condition met\\n\");\n    }\n    \n    return 0;\n}",
-      "query": "(binary_expression\n  left: (_)? @source.left.operand\n  operator: \"&&\"\n  right: (call_expression\n    function: (identifier) @target.short.circuit.function)) @control.flow.short.circuit.and"
+      "query": "[\n  (binary_expression\n    left: (_)? @source.left.operand\n    operator: \"&&\"\n    right: (call_expression\n      function: (identifier) @target.short.circuit.function)) @control.flow.short.circuit.and\n  (binary_expression\n    left: (_)? @source.left.operand\n    operator: \"||\"\n    right: (call_expression\n      function: (identifier) @target.short.circuit.function)) @control.flow.short.circuit.or\n] @control.flow.short.circuit"
     },
     {
       "language": "c",
       "code": "#include <stdio.h>\n\nvoid print_message() {\n    printf(\"Message printed\\n\");\n}\n\nint main() {\n    int x = -1;\n    \n    if (x > 0 || print_message()) {\n        printf(\"Condition met\\n\");\n    }\n    \n    return 0;\n}",
-      "query": "(binary_expression\n  left: (_)? @source.left.operand\n  operator: \"||\"\n  right: (call_expression\n    function: (identifier) @target.short.circuit.function)) @control.flow.short.circuit.or"
+      "query": "[\n  (binary_expression\n    left: (_)? @source.left.operand\n    operator: \"&&\"\n    right: (call_expression\n      function: (identifier) @target.short.circuit.function)) @control.flow.short.circuit.and\n  (binary_expression\n    left: (_)? @source.left.operand\n    operator: \"||\"\n    right: (call_expression\n      function: (identifier) @target.short.circuit.function)) @control.flow.short.circuit.or\n] @control.flow.short.circuit"
     },
     {
       "language": "c",
@@ -113,7 +113,7 @@
     {
       "language": "c",
       "code": "#include <stdio.h>\n\nint factorial(int n) {\n    if (n <= 1) {\n        return 1;\n    }\n    return n * factorial(n - 1);  // Recursive call\n}\n\nint main() {\n    int result = factorial(5);\n    printf(\"Factorial: %d\\n\", result);\n    \n    return 0;\n}",
-      "query": "(call_expression\n  function: (identifier) @target.recursive.function\n  arguments: (argument_list\n    (_)* @source.parameter)) @control.flow.recursive.call"
+      "query": "[\n  (expression_statement\n    (call_expression\n      function: (identifier) @target.function\n      arguments: (argument_list\n        (_)* @source.parameter))) @control.flow.function.call\n  (call_expression\n    function: (identifier) @target.recursive.function\n    arguments: (argument_list\n      (_)* @source.parameter)) @control.flow.recursive.call\n] @control.flow.function.invocation"
     }
   ]
 }

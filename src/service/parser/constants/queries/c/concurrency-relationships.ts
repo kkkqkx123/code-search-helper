@@ -41,164 +41,64 @@ export default `
   (#match? @thread.id.function "^(pthread_self)$")
   arguments: (argument_list)
 
-; 互斥锁初始化同步关系
-(call_expression) @concurrency.relationship.mutex.init
-  function: (identifier) @mutex.init.function
-  (#match? @mutex.init.function "^(pthread_mutex_init)$")
-  arguments: (argument_list
-    (pointer_expression argument: (identifier) @mutex.handle)
-    (identifier)? @mutex.attributes)
+; 互斥锁相关的同步关系 - 合并为单一查询 to improve efficiency
+(call_expression) @concurrency.relationship.mutex.operation
+  function: (identifier) @mutex.operation.function
+  (#match? @mutex.operation.function "^(pthread_mutex_init|pthread_mutex_lock|pthread_mutex_trylock|pthread_mutex_unlock|pthread_mutex_destroy)$")
+  [
+    (argument_list
+      (pointer_expression argument: (identifier) @mutex.handle)
+      (identifier)? @mutex.attributes)
+    (argument_list
+      (pointer_expression argument: (identifier) @mutex.handle))
+  ]
 
-; 互斥锁加锁同步关系
-(call_expression) @concurrency.relationship.mutex.lock
-  function: (identifier) @mutex.lock.function
-  (#match? @mutex.lock.function "^(pthread_mutex_lock)$")
-  arguments: (argument_list
-    (pointer_expression argument: (identifier) @mutex.handle))
+; 条件变量相关的同步关系 - 合并为单一查询 to improve efficiency
+(call_expression) @concurrency.relationship.condition.operation
+  function: (identifier) @cond.operation.function
+  (#match? @cond.operation.function "^(pthread_cond_init|pthread_cond_wait|pthread_cond_timedwait|pthread_cond_signal|pthread_cond_broadcast|pthread_cond_destroy)$")
+  [
+    (argument_list
+      (pointer_expression argument: (identifier) @cond.handle)
+      (identifier)? @cond.attributes)
+    (argument_list
+      (pointer_expression argument: (identifier) @cond.handle)
+      (pointer_expression argument: (identifier) @mutex.handle))
+    (argument_list
+      (pointer_expression argument: (identifier) @cond.handle))
+  ]
 
-; 互斥锁尝试加锁同步关系
-(call_expression) @concurrency.relationship.mutex.trylock
-  function: (identifier) @mutex.trylock.function
-  (#match? @mutex.trylock.function "^(pthread_mutex_trylock)$")
-  arguments: (argument_list
-    (pointer_expression argument: (identifier) @mutex.handle))
+; 读写锁相关的同步关系 - 合并为单一查询 to improve efficiency
+(call_expression) @concurrency.relationship.rwlock.operation
+  function: (identifier) @rwlock.operation.function
+  (#match? @rwlock.operation.function "^(pthread_rwlock_init|pthread_rwlock_rdlock|pthread_rwlock_wrlock|pthread_rwlock_unlock|pthread_rwlock_destroy)$")
+  [
+    (argument_list
+      (pointer_expression argument: (identifier) @rwlock.handle)
+      (identifier)? @rwlock.attributes)
+    (argument_list
+      (pointer_expression argument: (identifier) @rwlock.handle))
+  ]
 
-; 互斥锁解锁同步关系
-(call_expression) @concurrency.relationship.mutex.unlock
-  function: (identifier) @mutex.unlock.function
-  (#match? @mutex.unlock.function "^(pthread_mutex_unlock)$")
-  arguments: (argument_list
-    (pointer_expression argument: (identifier) @mutex.handle))
+; 信号量相关的同步关系 - 合并为单一查询 to improve efficiency
+(call_expression) @concurrency.relationship.semaphore.operation
+  function: (identifier) @semaphore.operation.function
+  (#match? @semaphore.operation.function "^(sem_init|sem_wait|sem_trywait|sem_post|sem_destroy)$")
+  [
+    (argument_list
+      (pointer_expression argument: (identifier) @semaphore.handle)
+      (identifier) @semaphore.pshared
+      (identifier) @semaphore.value)
+    (argument_list
+      (pointer_expression argument: (identifier) @semaphore.handle))
+  ]
 
-; 互斥锁销毁同步关系
-(call_expression) @concurrency.relationship.mutex.destroy
-  function: (identifier) @mutex.destroy.function
-  (#match? @mutex.destroy.function "^(pthread_mutex_destroy)$")
-  arguments: (argument_list
-    (pointer_expression argument: (identifier) @mutex.handle))
-
-; 条件变量初始化同步关系
-(call_expression) @concurrency.relationship.condition.init
-  function: (identifier) @cond.init.function
-  (#match? @cond.init.function "^(pthread_cond_init)$")
-  arguments: (argument_list
-    (pointer_expression argument: (identifier) @cond.handle)
-    (identifier)? @cond.attributes)
-
-; 条件变量等待同步关系
-(call_expression) @concurrency.relationship.condition.wait
-  function: (identifier) @cond.wait.function
-  (#match? @cond.wait.function "^(pthread_cond_wait|pthread_cond_timedwait)$")
-  arguments: (argument_list
-    (pointer_expression argument: (identifier) @cond.handle)
-    (pointer_expression argument: (identifier) @mutex.handle))
-
-; 条件变量信号同步关系
-(call_expression) @concurrency.relationship.condition.signal
-  function: (identifier) @cond.signal.function
-  (#match? @cond.signal.function "^(pthread_cond_signal)$")
-  arguments: (argument_list
-    (pointer_expression argument: (identifier) @cond.handle))
-
-; 条件变量广播同步关系
-(call_expression) @concurrency.relationship.condition.broadcast
-  function: (identifier) @cond.broadcast.function
-  (#match? @cond.broadcast.function "^(pthread_cond_broadcast)$")
-  arguments: (argument_list
-    (pointer_expression argument: (identifier) @cond.handle))
-
-; 条件变量销毁同步关系
-(call_expression) @concurrency.relationship.condition.destroy
-  function: (identifier) @cond.destroy.function
-  (#match? @cond.destroy.function "^(pthread_cond_destroy)$")
-  arguments: (argument_list
-    (pointer_expression argument: (identifier) @cond.handle))
-
-; 读写锁初始化同步关系
-(call_expression) @concurrency.relationship.rwlock.init
-  function: (identifier) @rwlock.init.function
-  (#match? @rwlock.init.function "^(pthread_rwlock_init)$")
-  arguments: (argument_list
-    (pointer_expression argument: (identifier) @rwlock.handle)
-    (identifier)? @rwlock.attributes)
-
-; 读写锁读锁同步关系
-(call_expression) @concurrency.relationship.rwlock.readlock
-  function: (identifier) @rwlock.readlock.function
-  (#match? @rwlock.readlock.function "^(pthread_rwlock_rdlock)$")
-  arguments: (argument_list
-    (pointer_expression argument: (identifier) @rwlock.handle))
-
-; 读写锁写锁同步关系
-(call_expression) @concurrency.relationship.rwlock.writelock
-  function: (identifier) @rwlock.writelock.function
-  (#match? @rwlock.writelock.function "^(pthread_rwlock_wrlock)$")
-  arguments: (argument_list
-    (pointer_expression argument: (identifier) @rwlock.handle))
-
-; 读写锁解锁同步关系
-(call_expression) @concurrency.relationship.rwlock.unlock
-  function: (identifier) @rwlock.unlock.function
-  (#match? @rwlock.unlock.function "^(pthread_rwlock_unlock)$")
-  arguments: (argument_list
-    (pointer_expression argument: (identifier) @rwlock.handle))
-
-; 读写锁销毁同步关系
-(call_expression) @concurrency.relationship.rwlock.destroy
-  function: (identifier) @rwlock.destroy.function
-  (#match? @rwlock.destroy.function "^(pthread_rwlock_destroy)$")
-  arguments: (argument_list
-    (pointer_expression argument: (identifier) @rwlock.handle))
-
-; 信号量初始化同步关系
-(call_expression) @concurrency.relationship.semaphore.init
-  function: (identifier) @semaphore.init.function
-  (#match? @semaphore.init.function "^(sem_init)$")
-  arguments: (argument_list
-    (pointer_expression argument: (identifier) @semaphore.handle)
-    (identifier) @semaphore.pshared
-    (identifier) @semaphore.value)
-
-; 信号量等待同步关系
-(call_expression) @concurrency.relationship.semaphore.wait
-  function: (identifier) @semaphore.wait.function
-  (#match? @semaphore.wait.function "^(sem_wait)$")
-  arguments: (argument_list
-    (pointer_expression argument: (identifier) @semaphore.handle))
-
-; 信号量尝试等待同步关系
-(call_expression) @concurrency.relationship.semaphore.trywait
-  function: (identifier) @semaphore.trywait.function
-  (#match? @semaphore.trywait.function "^(sem_trywait)$")
-  arguments: (argument_list
-    (pointer_expression argument: (identifier) @semaphore.handle))
-
-; 信号量信号同步关系
-(call_expression) @concurrency.relationship.semaphore.post
-  function: (identifier) @semaphore.post.function
-  (#match? @semaphore.post.function "^(sem_post)$")
-  arguments: (argument_list
-    (pointer_expression argument: (identifier) @semaphore.handle))
-
-; 信号量销毁同步关系
-(call_expression) @concurrency.relationship.semaphore.destroy
-  function: (identifier) @semaphore.destroy.function
-  (#match? @semaphore.destroy.function "^(sem_destroy)$")
-  arguments: (argument_list
-    (pointer_expression argument: (identifier) @semaphore.handle))
-
-; 内存屏障并发关系
-(call_expression) @concurrency.relationship.memory.barrier
-  function: (identifier) @memory.barrier.function
-  (#match? @memory.barrier.function "^(atomic_thread_fence|__atomic_thread_fence)$")
+; 内存和编译器屏障并发关系 - 合并为单一查询 to improve efficiency
+(call_expression) @concurrency.relationship.barrier.operation
+  function: (identifier) @barrier.operation.function
+  (#match? @barrier.operation.function "^(atomic_thread_fence|__atomic_thread_fence|__sync_synchronize)$")
   arguments: (argument_list
     (identifier)? @memory.order)
-
-; 编译器屏障并发关系
-(call_expression) @concurrency.relationship.compiler.barrier
-  function: (identifier) @compiler.barrier.function
-  (#match? @compiler.barrier.function "^(__sync_synchronize)$")
-  arguments: (argument_list)
 
 ; 线程本地变量声明
 (declaration
