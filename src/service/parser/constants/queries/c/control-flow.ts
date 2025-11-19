@@ -68,6 +68,8 @@ export default `
     argument: (_) @sizeof.argument) @definition.sizeof_expression
   (alignof_expression) @definition.alignof_expression
   (_Alignof_expression) @definition.alignof_expression
+  (sizeof_expression) @definition.sizeof_expression
+  (cast_expression) @definition.cast_expression
 ] @definition.type_expression
 
 ; 复合表达式查询 - 简化模式
@@ -77,6 +79,11 @@ export default `
   (comma_expression
     left: (_) @comma.left
     right: (_) @comma.right) @definition.comma_expression
+  (comma_expression) @definition.comma_expression
+  (assignment_expression
+    right: (comma_expression
+      left: (_) @comma.left
+      right: (_) @comma.right)) @definition.comma_expression
 ] @definition.compound_expression
 
 ; 字面量查询 - 使用交替模式

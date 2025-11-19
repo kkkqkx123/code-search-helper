@@ -1,0 +1,46 @@
+{
+  "success": true,
+  "data": [
+    {
+      "captureName": "definition.control_statement",
+      "type": "while_statement",
+      "text": "while (i < 5) {\n        printf(\"i = %d\\n\", i);\n        i++;\n    }",
+      "startPosition": {
+        "row": 5,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 8,
+        "column": 5
+      }
+    },
+    {
+      "captureName": "while.condition",
+      "type": "parenthesized_expression",
+      "text": "(i < 5)",
+      "startPosition": {
+        "row": 5,
+        "column": 10
+      },
+      "endPosition": {
+        "row": 5,
+        "column": 17
+      }
+    },
+    {
+      "captureName": "while.body",
+      "type": "compound_statement",
+      "text": "{\n        printf(\"i = %d\\n\", i);\n        i++;\n    }",
+      "startPosition": {
+        "row": 5,
+        "column": 18
+      },
+      "endPosition": {
+        "row": 8,
+        "column": 5
+      }
+    }
+  ],
+  "errors": [],
+  "timestamp": "2025-11-19T02:27:21.209Z"
+}

@@ -1,0 +1,46 @@
+{
+  "success": true,
+  "data": [
+    {
+      "captureName": "control.flow.comma.expression",
+      "type": "comma_expression",
+      "text": "x = 5, y = 10",
+      "startPosition": {
+        "row": 5,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 5,
+        "column": 17
+      }
+    },
+    {
+      "captureName": "source.left.expression",
+      "type": "assignment_expression",
+      "text": "x = 5",
+      "startPosition": {
+        "row": 5,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 5,
+        "column": 9
+      }
+    },
+    {
+      "captureName": "source.right.expression",
+      "type": "assignment_expression",
+      "text": "y = 10",
+      "startPosition": {
+        "row": 5,
+        "column": 11
+      },
+      "endPosition": {
+        "row": 5,
+        "column": 17
+      }
+    }
+  ],
+  "errors": [],
+  "timestamp": "2025-11-19T02:27:21.465Z"
+}

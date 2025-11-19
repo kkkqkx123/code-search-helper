@@ -1,0 +1,85 @@
+{
+  "success": true,
+  "data": [
+    {
+      "captureName": "control.flow.function.definition",
+      "type": "function_definition",
+      "text": "int add(int a, int b) {\n    return a + b;\n}",
+      "startPosition": {
+        "row": 2,
+        "column": 0
+      },
+      "endPosition": {
+        "row": 4,
+        "column": 1
+      }
+    },
+    {
+      "captureName": "source.function.name",
+      "type": "identifier",
+      "text": "add",
+      "startPosition": {
+        "row": 2,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 2,
+        "column": 7
+      }
+    },
+    {
+      "captureName": "target.function.body",
+      "type": "compound_statement",
+      "text": "{\n    return a + b;\n}",
+      "startPosition": {
+        "row": 2,
+        "column": 22
+      },
+      "endPosition": {
+        "row": 4,
+        "column": 1
+      }
+    },
+    {
+      "captureName": "control.flow.function.definition",
+      "type": "function_definition",
+      "text": "int main() {\n    int result = add(3, 4);\n    printf(\"Result: %d\\n\", result);\n    \n    return 0;\n}",
+      "startPosition": {
+        "row": 6,
+        "column": 0
+      },
+      "endPosition": {
+        "row": 11,
+        "column": 1
+      }
+    },
+    {
+      "captureName": "source.function.name",
+      "type": "identifier",
+      "text": "main",
+      "startPosition": {
+        "row": 6,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 6,
+        "column": 8
+      }
+    },
+    {
+      "captureName": "target.function.body",
+      "type": "compound_statement",
+      "text": "{\n    int result = add(3, 4);\n    printf(\"Result: %d\\n\", result);\n    \n    return 0;\n}",
+      "startPosition": {
+        "row": 6,
+        "column": 11
+      },
+      "endPosition": {
+        "row": 11,
+        "column": 1
+      }
+    }
+  ],
+  "errors": [],
+  "timestamp": "2025-11-19T02:27:21.480Z"
+}

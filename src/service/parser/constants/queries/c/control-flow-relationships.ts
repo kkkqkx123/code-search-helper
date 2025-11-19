@@ -51,6 +51,17 @@ export default `
 
 ; switch default控制流
 (case_statement
+  value: (identifier) @source.case.value
+  (statement)? @target.default.block) @control.flow.switch.default
+
+; switch default控制流（当没有case值时，表示default）
+(case_statement
+  (statement)? @target.default.block) @control.flow.switch.default
+
+; switch default控制流（专门针对default关键字）
+(case_statement
+  value: (identifier) @source.case.value
+  (#eq? @source.case.value "default")
   (statement)? @target.default.block) @control.flow.switch.default
 
 ; while循环控制流
@@ -67,11 +78,20 @@ export default `
 
 ; for循环控制流
 (for_statement
-  initializer: (expression_statement)? @source.for.init
+  initializer: (_)? @source.for.init
   condition: (parenthesized_expression
     (_)? @source.for.condition)?
-  update: (expression_statement)? @source.for.update
-  body: (statement) @target.for.block) @control.flow.for
+  update: (_)? @source.for.update
+  body: (_) @target.for.block) @control.flow.for
+
+; for循环控制流（简化版）
+(for_statement
+  body: (_) @target.for.block) @control.flow.for
+
+; for循环控制流（更灵活的匹配）
+(for_statement
+  condition: (_)? @source.for.condition
+  body: (_) @target.for.block) @control.flow.for
 
 ; 嵌套循环控制流
 (for_statement
@@ -79,6 +99,20 @@ export default `
     (while_statement
       condition: (parenthesized_expression
         (_)? @source.inner.condition)
+      body: (statement) @target.inner.block))) @control.flow.nested.loop
+
+; 嵌套for循环控制流
+(for_statement
+  body: (compound_statement
+    (for_statement
+      condition: (parenthesized_expression
+        (_)? @source.inner.condition)
+      body: (statement) @target.inner.block))) @control.flow.nested.loop
+
+; 嵌套循环控制流（通用版）
+(for_statement
+  body: (compound_statement
+    (for_statement
       body: (statement) @target.inner.block))) @control.flow.nested.loop
 
 ; 循环中的break语句
@@ -177,4 +211,12 @@ export default `
     argument: (identifier) @source.function.pointer)
   arguments: (argument_list
     (_)* @source.parameter)) @control.flow.function.pointer.call
+
+; 函数指针调用控制流（简化版）
+(call_expression
+  function: (identifier) @target.function.pointer.call) @control.flow.function.pointer.call
+
+; 函数指针调用控制流（更通用的匹配）
+(call_expression
+  function: (_) @target.function.pointer.call) @control.flow.function.pointer.call
 `;

@@ -1,0 +1,124 @@
+{
+  "success": true,
+  "data": [
+    {
+      "captureName": "control.flow.recursive.call",
+      "type": "call_expression",
+      "text": "factorial(n - 1)",
+      "startPosition": {
+        "row": 6,
+        "column": 15
+      },
+      "endPosition": {
+        "row": 6,
+        "column": 31
+      }
+    },
+    {
+      "captureName": "target.recursive.function",
+      "type": "identifier",
+      "text": "factorial",
+      "startPosition": {
+        "row": 6,
+        "column": 15
+      },
+      "endPosition": {
+        "row": 6,
+        "column": 24
+      }
+    },
+    {
+      "captureName": "source.parameter",
+      "type": "binary_expression",
+      "text": "n - 1",
+      "startPosition": {
+        "row": 6,
+        "column": 25
+      },
+      "endPosition": {
+        "row": 6,
+        "column": 30
+      }
+    },
+    {
+      "captureName": "control.flow.recursive.call",
+      "type": "call_expression",
+      "text": "factorial(5)",
+      "startPosition": {
+        "row": 10,
+        "column": 17
+      },
+      "endPosition": {
+        "row": 10,
+        "column": 29
+      }
+    },
+    {
+      "captureName": "target.recursive.function",
+      "type": "identifier",
+      "text": "factorial",
+      "startPosition": {
+        "row": 10,
+        "column": 17
+      },
+      "endPosition": {
+        "row": 10,
+        "column": 26
+      }
+    },
+    {
+      "captureName": "source.parameter",
+      "type": "number_literal",
+      "text": "5",
+      "startPosition": {
+        "row": 10,
+        "column": 27
+      },
+      "endPosition": {
+        "row": 10,
+        "column": 28
+      }
+    },
+    {
+      "captureName": "control.flow.recursive.call",
+      "type": "call_expression",
+      "text": "printf(\"Factorial: %d\\n\", result)",
+      "startPosition": {
+        "row": 11,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 11,
+        "column": 37
+      }
+    },
+    {
+      "captureName": "target.recursive.function",
+      "type": "identifier",
+      "text": "printf",
+      "startPosition": {
+        "row": 11,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 11,
+        "column": 10
+      }
+    },
+    {
+      "captureName": "source.parameter",
+      "type": "string_literal",
+      "text": "\"Factorial: %d\\n\"",
+      "startPosition": {
+        "row": 11,
+        "column": 11
+      },
+      "endPosition": {
+        "row": 11,
+        "column": 28
+      }
+    }
+  ],
+  "errors": [],
+  "timestamp": "2025-11-19T02:27:21.491Z"
+}

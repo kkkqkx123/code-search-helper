@@ -1,0 +1,20 @@
+{
+  "success": true,
+  "data": [
+    {
+      "captureName": "definition.continue",
+      "type": "continue_statement",
+      "text": "continue;",
+      "startPosition": {
+        "row": 7,
+        "column": 12
+      },
+      "endPosition": {
+        "row": 7,
+        "column": 21
+      }
+    }
+  ],
+  "errors": [],
+  "timestamp": "2025-11-19T02:27:21.235Z"
+}

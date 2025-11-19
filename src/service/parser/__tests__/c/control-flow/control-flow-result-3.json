@@ -1,0 +1,72 @@
+{
+  "success": true,
+  "data": [
+    {
+      "captureName": "definition.control_statement",
+      "type": "if_statement",
+      "text": "if (x > 15) {\n        if (x > 20) {\n            printf(\"x is greater than 20\\n\");\n        } else {\n            printf(\"x is between 15 and 20\\n\");\n        }\n    }",
+      "startPosition": {
+        "row": 5,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 11,
+        "column": 5
+      }
+    },
+    {
+      "captureName": "if.condition",
+      "type": "binary_expression",
+      "text": "x > 15",
+      "startPosition": {
+        "row": 5,
+        "column": 8
+      },
+      "endPosition": {
+        "row": 5,
+        "column": 14
+      }
+    },
+    {
+      "captureName": "if.condition",
+      "type": "binary_expression",
+      "text": "x > 20",
+      "startPosition": {
+        "row": 6,
+        "column": 12
+      },
+      "endPosition": {
+        "row": 6,
+        "column": 18
+      }
+    },
+    {
+      "captureName": "if.body",
+      "type": "compound_statement",
+      "text": "{\n            printf(\"x is greater than 20\\n\");\n        }",
+      "startPosition": {
+        "row": 6,
+        "column": 20
+      },
+      "endPosition": {
+        "row": 8,
+        "column": 9
+      }
+    },
+    {
+      "captureName": "if.else",
+      "type": "else_clause",
+      "text": "else {\n            printf(\"x is between 15 and 20\\n\");\n        }",
+      "startPosition": {
+        "row": 8,
+        "column": 10
+      },
+      "endPosition": {
+        "row": 10,
+        "column": 9
+      }
+    }
+  ],
+  "errors": [],
+  "timestamp": "2025-11-19T02:27:21.195Z"
+}

@@ -1,0 +1,46 @@
+{
+  "success": true,
+  "data": [
+    {
+      "captureName": "definition.unary_expression",
+      "type": "unary_expression",
+      "text": "-x",
+      "startPosition": {
+        "row": 4,
+        "column": 12
+      },
+      "endPosition": {
+        "row": 4,
+        "column": 14
+      }
+    },
+    {
+      "captureName": "unary.operator",
+      "type": "-",
+      "text": "-",
+      "startPosition": {
+        "row": 4,
+        "column": 12
+      },
+      "endPosition": {
+        "row": 4,
+        "column": 13
+      }
+    },
+    {
+      "captureName": "unary.argument",
+      "type": "identifier",
+      "text": "x",
+      "startPosition": {
+        "row": 4,
+        "column": 13
+      },
+      "endPosition": {
+        "row": 4,
+        "column": 14
+      }
+    }
+  ],
+  "errors": [],
+  "timestamp": "2025-11-19T02:27:21.258Z"
+}

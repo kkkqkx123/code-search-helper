@@ -1,0 +1,46 @@
+{
+  "success": true,
+  "data": [
+    {
+      "captureName": "control.flow.label",
+      "type": "labeled_statement",
+      "text": "start:\n    if (x > 0) {\n        printf(\"x = %d\\n\", x);\n        x--;\n        goto start;\n    }",
+      "startPosition": {
+        "row": 5,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 10,
+        "column": 5
+      }
+    },
+    {
+      "captureName": "source.label",
+      "type": "statement_identifier",
+      "text": "start",
+      "startPosition": {
+        "row": 5,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 5,
+        "column": 9
+      }
+    },
+    {
+      "captureName": "target.labeled.statement",
+      "type": "if_statement",
+      "text": "if (x > 0) {\n        printf(\"x = %d\\n\", x);\n        x--;\n        goto start;\n    }",
+      "startPosition": {
+        "row": 6,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 10,
+        "column": 5
+      }
+    }
+  ],
+  "errors": [],
+  "timestamp": "2025-11-19T02:27:21.422Z"
+}

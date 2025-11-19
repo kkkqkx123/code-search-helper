@@ -1,0 +1,46 @@
+{
+  "success": true,
+  "data": [
+    {
+      "captureName": "definition.control_statement",
+      "type": "switch_statement",
+      "text": "switch (choice) {\n        case 1:\n            printf(\"Choice is 1\\n\");\n            break;\n        case 2:\n            printf(\"Choice is 2\\n\");\n            break;\n        default:\n            printf(\"Choice is not 1 or 2\\n\");\n            break;\n    }",
+      "startPosition": {
+        "row": 5,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 15,
+        "column": 5
+      }
+    },
+    {
+      "captureName": "switch.condition",
+      "type": "parenthesized_expression",
+      "text": "(choice)",
+      "startPosition": {
+        "row": 5,
+        "column": 11
+      },
+      "endPosition": {
+        "row": 5,
+        "column": 19
+      }
+    },
+    {
+      "captureName": "switch.body",
+      "type": "compound_statement",
+      "text": "{\n        case 1:\n            printf(\"Choice is 1\\n\");\n            break;\n        case 2:\n            printf(\"Choice is 2\\n\");\n            break;\n        default:\n            printf(\"Choice is not 1 or 2\\n\");\n            break;\n    }",
+      "startPosition": {
+        "row": 5,
+        "column": 20
+      },
+      "endPosition": {
+        "row": 15,
+        "column": 5
+      }
+    }
+  ],
+  "errors": [],
+  "timestamp": "2025-11-19T02:27:21.221Z"
+}

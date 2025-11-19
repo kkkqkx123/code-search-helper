@@ -1,0 +1,33 @@
+{
+  "success": true,
+  "data": [
+    {
+      "captureName": "control.flow.function.declaration",
+      "type": "declaration",
+      "text": "int add(int a, int b);",
+      "startPosition": {
+        "row": 2,
+        "column": 0
+      },
+      "endPosition": {
+        "row": 2,
+        "column": 22
+      }
+    },
+    {
+      "captureName": "source.function.name",
+      "type": "identifier",
+      "text": "add",
+      "startPosition": {
+        "row": 2,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 2,
+        "column": 7
+      }
+    }
+  ],
+  "errors": [],
+  "timestamp": "2025-11-19T02:27:21.486Z"
+}

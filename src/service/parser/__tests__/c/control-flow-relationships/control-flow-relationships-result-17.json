@@ -1,0 +1,59 @@
+{
+  "success": true,
+  "data": [
+    {
+      "captureName": "control.flow.conditional.expression",
+      "type": "conditional_expression",
+      "text": "(a > b) ? a : b",
+      "startPosition": {
+        "row": 7,
+        "column": 13
+      },
+      "endPosition": {
+        "row": 7,
+        "column": 28
+      }
+    },
+    {
+      "captureName": "source.condition",
+      "type": "parenthesized_expression",
+      "text": "(a > b)",
+      "startPosition": {
+        "row": 7,
+        "column": 13
+      },
+      "endPosition": {
+        "row": 7,
+        "column": 20
+      }
+    },
+    {
+      "captureName": "source.consequence",
+      "type": "identifier",
+      "text": "a",
+      "startPosition": {
+        "row": 7,
+        "column": 23
+      },
+      "endPosition": {
+        "row": 7,
+        "column": 24
+      }
+    },
+    {
+      "captureName": "source.alternative",
+      "type": "identifier",
+      "text": "b",
+      "startPosition": {
+        "row": 7,
+        "column": 27
+      },
+      "endPosition": {
+        "row": 7,
+        "column": 28
+      }
+    }
+  ],
+  "errors": [],
+  "timestamp": "2025-11-19T02:27:21.435Z"
+}

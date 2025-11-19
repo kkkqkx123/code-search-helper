@@ -1,0 +1,59 @@
+{
+  "success": true,
+  "data": [
+    {
+      "captureName": "control.flow.return",
+      "type": "return_statement",
+      "text": "return a + b;",
+      "startPosition": {
+        "row": 3,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 3,
+        "column": 17
+      }
+    },
+    {
+      "captureName": "source.return.variable",
+      "type": "binary_expression",
+      "text": "a + b",
+      "startPosition": {
+        "row": 3,
+        "column": 11
+      },
+      "endPosition": {
+        "row": 3,
+        "column": 16
+      }
+    },
+    {
+      "captureName": "control.flow.return",
+      "type": "return_statement",
+      "text": "return 0;",
+      "startPosition": {
+        "row": 10,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 10,
+        "column": 13
+      }
+    },
+    {
+      "captureName": "source.return.variable",
+      "type": "number_literal",
+      "text": "0",
+      "startPosition": {
+        "row": 10,
+        "column": 11
+      },
+      "endPosition": {
+        "row": 10,
+        "column": 12
+      }
+    }
+  ],
+  "errors": [],
+  "timestamp": "2025-11-19T02:27:21.429Z"
+}

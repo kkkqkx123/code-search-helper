@@ -1,0 +1,59 @@
+{
+  "success": true,
+  "data": [
+    {
+      "captureName": "control.flow.if.else",
+      "type": "if_statement",
+      "text": "if (x > 5) {\n        printf(\"x is greater than 5\\n\");\n    } else {\n        printf(\"x is not greater than 5\\n\");\n    }",
+      "startPosition": {
+        "row": 5,
+        "column": 4
+      },
+      "endPosition": {
+        "row": 9,
+        "column": 5
+      }
+    },
+    {
+      "captureName": "source.condition",
+      "type": "binary_expression",
+      "text": "x > 5",
+      "startPosition": {
+        "row": 5,
+        "column": 8
+      },
+      "endPosition": {
+        "row": 5,
+        "column": 13
+      }
+    },
+    {
+      "captureName": "target.if.block",
+      "type": "compound_statement",
+      "text": "{\n        printf(\"x is greater than 5\\n\");\n    }",
+      "startPosition": {
+        "row": 5,
+        "column": 15
+      },
+      "endPosition": {
+        "row": 7,
+        "column": 5
+      }
+    },
+    {
+      "captureName": "target.else.block",
+      "type": "compound_statement",
+      "text": "{\n        printf(\"x is not greater than 5\\n\");\n    }",
+      "startPosition": {
+        "row": 7,
+        "column": 11
+      },
+      "endPosition": {
+        "row": 9,
+        "column": 5
+      }
+    }
+  ],
+  "errors": [],
+  "timestamp": "2025-11-19T02:27:21.350Z"
+}
