@@ -89,7 +89,12 @@ async function processTestCases(testCases, outputDir, prefix) {
                 response: response
             });
         } catch (error) {
-            console.error(`Error processing test case ${i + 1}:`, error.message);
+            const errorMessage = error.message || '未知错误';
+            const errorDetails = error.stack || '';
+            console.error(`错误处理测试用例 ${i + 1}:`, errorMessage);
+            if (errorDetails) {
+                console.error(`详细信息:`, errorDetails);
+            }
             results.push({
                 testCaseIndex: i,
                 request: {
@@ -97,7 +102,8 @@ async function processTestCases(testCases, outputDir, prefix) {
                     code: testCase.code,
                     query: testCase.query
                 },
-                error: error.message
+                error: errorMessage,
+                errorDetails: errorDetails
             });
         }
     }
@@ -120,13 +126,17 @@ function analyzeResults(results, queryFile) {
             issues.push({
                 type: 'REQUEST_ERROR',
                 testCaseIndex: result.testCaseIndex,
-                message: result.error
+                message: result.error,
+                details: result.errorDetails
             });
         } else if (!result.response.success) {
+            const errorMsg = result.response.errors?.join(', ') || '未知解析错误';
+            const responseMsg = result.response.message || '';
+            const details = responseMsg ? `${errorMsg} | ${responseMsg}` : errorMsg;
             issues.push({
                 type: 'PARSING_ERROR',
                 testCaseIndex: result.testCaseIndex,
-                message: result.response.errors?.join(', ') || 'Unknown parsing error'
+                message: details
             });
         } else {
             passedTests++;
@@ -137,7 +147,7 @@ function analyzeResults(results, queryFile) {
                 issues.push({
                     type: 'NO_MATCHES',
                     testCaseIndex: result.testCaseIndex,
-                    message: 'Query executed successfully but found no matches'
+                    message: '查询成功执行但未找到匹配结果'
                 });
             }
         }

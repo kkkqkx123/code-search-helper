@@ -108,12 +108,12 @@
     {
       "language": "c",
       "code": "#include <stdlib.h>\n\ntypedef struct {\n    int* data;\n    size_t size;\n} Resource;\n\n// 资源构造函数\nResource* create_resource(size_t size) {\n    Resource* res = (Resource*)malloc(sizeof(Resource));\n    if (res) {\n        res->data = (int*)malloc(size * sizeof(int));\n        res->size = size;\n    }\n    return res;\n}",
-      "query": "(function_definition\n  declarator: (function_declarator\n    declarator: (identifier) @resource.constructor\n    parameters: (parameter_list\n      (parameter_declaration\n        type: (primitive_type)\n        declarator: (identifier) @resource.pointer))))\n  body: (compound_statement\n    (expression_statement\n      (call_expression\n        function: (identifier) @resource.allocation.function)))\n  (#set! \"operation\" \"construct\")) @lifecycle.relationship.resource.constructor"
+      "query": "(function_definition\n  declarator: (function_declarator\n    declarator: (identifier) @resource.constructor\n    parameters: (parameter_list\n      (parameter_declaration\n        type: (type_identifier)\n        declarator: (pointer_declarator declarator: (identifier)) @resource.pointer)))\n  body: (compound_statement\n    (expression_statement\n      (call_expression\n        function: (identifier) @resource.allocation.function)))\n  (#set! \"operation\" \"construct\")) @lifecycle.relationship.resource.constructor"
     },
     {
       "language": "c",
       "code": "#include <stdlib.h>\n\ntypedef struct {\n    int* data;\n    size_t size;\n} Resource;\n\n// 资源析构函数\nvoid destroy_resource(Resource* res) {\n    if (res) {\n        free(res->data);\n        free(res);\n    }\n}",
-      "query": "(function_definition\n  declarator: (function_declarator\n    declarator: (identifier) @resource.destructor\n    parameters: (parameter_list\n      (parameter_declaration\n        type: (primitive_type)\n        declarator: (pointer_declarator declarator: (identifier) @resource.pointer))))\n  body: (compound_statement\n    (expression_statement\n      (call_expression\n        function: (identifier) @resource.deallocation.function)))\n  (#set! \"operation\" \"destruct\")) @lifecycle.relationship.resource.destructor"
+      "query": "(function_definition\n  declarator: (function_declarator\n    declarator: (identifier) @resource.destructor\n    parameters: (parameter_list\n      (parameter_declaration\n        type: (type_identifier)\n        declarator: (pointer_declarator declarator: (identifier)) @resource.pointer)))\n  body: (compound_statement\n    (expression_statement\n      (call_expression\n        function: (identifier) @resource.deallocation.function)))\n  (#set! \"operation\" \"destruct\")) @lifecycle.relationship.resource.destructor"
     },
     {
       "language": "c",
@@ -128,27 +128,27 @@
     {
       "language": "c",
       "code": "int main() {\n    // 局部变量作用域开始测试\n    {\n        int local_var = 42;\n        char str[] = \"Hello\";\n        // 使用局部变量\n        printf(\"%d\\n\", local_var);\n    }\n    \n    return 0;\n}",
-      "query": "(compound_statement\n  (declaration\n    type: (type_identifier) @local.variable.type\n    declarator: (identifier) @local.variable.name))\n  (#set! \"operation\" \"scope.begin\") @lifecycle.relationship.scope.local.begin"
+      "query": "(compound_statement\n  (declaration\n    type: (primitive_type) @local.variable.type\n    declarator: (identifier) @local.variable.name))\n  (#set! \"operation\" \"scope.begin\") @lifecycle.relationship.scope.local.begin"
     },
     {
       "language": "c",
       "code": "int main() {\n    // 局部变量作用域结束测试\n    {\n        int local_var = 42;\n        printf(\"%d\\n\", local_var);\n    } // 作用域在此结束\n    \n    return 0;\n}",
-      "query": "(compound_statement\n  .\n  (declaration\n    type: (type_identifier) @local.variable.type\n    declarator: (identifier) @local.variable.name))\n  (#set! \"operation\" \"scope.end\") @lifecycle.relationship.scope.local.end"
+      "query": "(compound_statement\n  .\n  (declaration\n    type: (primitive_type) @local.variable.type\n    declarator: (identifier) @local.variable.name))\n  (#set! \"operation\" \"scope.end\") @lifecycle.relationship.scope.local.end"
     },
     {
       "language": "c",
       "code": "#include <stdio.h>\n\n// 全局变量生命周期测试\nint global_counter = 0;\nchar* global_message = \"Hello, World!\";\n\nint main() {\n    global_counter++;\n    printf(\"%s\\n\", global_message);\n    return 0;\n}",
-      "query": "(declaration\n  type: (type_identifier) @global.variable.type\n  declarator: (init_declarator\n    declarator: (identifier) @global.variable.name))\n  (#set! \"operation\" \"global\") @lifecycle.relationship.scope.global"
+      "query": "(declaration\n  type: (primitive_type) @global.variable.type\n  declarator: (init_declarator\n    declarator: (identifier) @global.variable.name))\n  (#set! \"operation\" \"global\") @lifecycle.relationship.scope.global"
     },
     {
       "language": "c",
       "code": "#include <stdio.h>\n\n// 静态变量生命周期测试\nstatic int static_counter = 0;\nstatic char* static_message = \"Static Message\";\n\nvoid increment_counter() {\n    static int function_static = 0;\n    function_static++;\n    static_counter++;\n}\n\nint main() {\n    increment_counter();\n    return 0;\n}",
-      "query": "(declaration\n  storage_class_specifier: (storage_class_specifier) @static.specifier\n  type: (type_identifier) @static.variable.type\n  declarator: (identifier) @static.variable.name)\n  (#set! \"operation\" \"static\") @lifecycle.relationship.scope.static"
+      "query": "(declaration\n  storage_class_specifier: (storage_class_specifier) @static.specifier\n  type: (primitive_type) @static.variable.type\n  declarator: (identifier) @static.variable.name)\n  (#set! \"operation\" \"static\") @lifecycle.relationship.scope.static"
     },
     {
       "language": "c",
       "code": "#include <stdio.h>\n\n// 函数参数生命周期测试\nint process_data(int value, char* text) {\n    printf(\"Value: %d, Text: %s\\n\", value, text);\n    return value * 2;\n}\n\nint main() {\n    int result = process_data(42, \"Hello\");\n    return result;\n}",
-      "query": "(function_definition\n  declarator: (function_declarator\n    parameters: (parameter_list\n      (parameter_declaration\n        type: (type_identifier) @parameter.type\n        declarator: (identifier) @parameter.name)))\n  body: (compound_statement)\n  (#set! \"operation\" \"parameter\")) @lifecycle.relationship.scope.parameter"
+      "query": "(function_definition\n  declarator: (function_declarator\n    parameters: (parameter_list\n      (parameter_declaration\n        type: (primitive_type) @parameter.type\n        declarator: (identifier) @parameter.name)))\n  body: (compound_statement)\n  (#set! \"operation\" \"parameter\")) @lifecycle.relationship.scope.parameter"
     }
   ]
 }
