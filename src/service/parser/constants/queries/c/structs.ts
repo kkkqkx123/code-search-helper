@@ -5,75 +5,71 @@ Fixed syntax errors based on tree-sitter query syntax
 Only contains verified and tested query patterns
 */
 export default `
-; 结构体定义查询
-(struct_specifier
-  name: (type_identifier) @type.name
-  body: (field_declaration_list
-    (field_declaration
-      type: (_) @field.type
-      declarator: (field_identifier) @field.name)*)) @definition.struct
-
-; 联合体定义查询
-(union_specifier
-  name: (type_identifier) @type.name
-  body: (field_declaration_list
-    (field_declaration
-      type: (_) @field.type
-      declarator: (field_identifier) @field.name)*)) @definition.union
-
-; 枚举定义查询
-(enum_specifier
-  name: (type_identifier) @type.name
-  body: (enumerator_list
-    (enumerator
-      name: (identifier) @enum.constant)*)) @definition.enum
+; 结构体、联合体和枚举定义查询 - 使用交替模式合并
+[
+  (struct_specifier
+    name: (type_identifier) @type.name
+    body: (field_declaration_list
+      (field_declaration
+        type: (_) @field.type
+        declarator: (field_identifier) @field.name)*)) @definition.struct
+  (union_specifier
+    name: (type_identifier) @type.name
+    body: (field_declaration_list
+      (field_declaration
+        type: (_) @field.type
+        declarator: (field_identifier) @field.name)*)) @definition.union
+  (enum_specifier
+    name: (type_identifier) @type.name
+    body: (enumerator_list
+      (enumerator
+        name: (identifier) @enum.constant)*)) @definition.enum
+] @definition.type
 
 ; 类型别名查询
 (type_definition
   type: (_)
   declarator: (type_identifier) @alias.name) @definition.type.alias
 
-; 数组声明查询
-(declaration
-  type: (_)
-  declarator: (array_declarator
-    declarator: (identifier) @array.name
-    size: (_)? @array.size)) @definition.array
+; 数组和指针声明查询 - 使用交替模式合并
+[
+  (declaration
+    type: (_)
+    declarator: (array_declarator
+      declarator: (identifier) @array.name
+      size: (_)? @array.size)) @definition.array
+  (declaration
+    type: (_)
+    declarator: (pointer_declarator
+      declarator: (identifier) @pointer.name)) @definition.pointer
+] @definition.variable
 
-; 指针声明查询
-(declaration
-  type: (_)
-  declarator: (pointer_declarator
-    declarator: (identifier) @pointer.name)) @definition.pointer
+; 成员访问查询 - 普通成员访问、指针成员访问和解引用指针成员访问合并
+[
+  (field_expression
+    argument: (identifier) @object.name
+    field: (field_identifier) @field.name) @definition.member.access
+  (field_expression
+    argument: (identifier) @pointer.name
+    field: (field_identifier) @field.name) @definition.pointer.member.access
+ (field_expression
+    argument: (parenthesized_expression
+      (pointer_expression
+        argument: (identifier) @pointer.name))
+    field: (field_identifier) @field.name) @definition.pointer.member.access
+] @definition.access
 
-; 成员访问查询 (for regular member access like obj.field)
-(field_expression
-  argument: (identifier) @object.name
-  field: (field_identifier) @field.name) @definition.member.access
-
-; 指针成员访问查询 (for pointer member access like ptr->field)
-(field_expression
-  argument: (identifier) @pointer.name
-  field: (field_identifier) @field.name) @definition.pointer.member.access
-
-; 匹配解引用的指针成员访问 ((*ptr)->field)
-(field_expression
-  argument: (parenthesized_expression
-    (pointer_expression
-      argument: (identifier) @pointer.name))
-  field: (field_identifier) @field.name) @definition.pointer.member.access
-
-; 数组访问查询
-(subscript_expression
-  argument: (identifier) @array.name
-  index: (_) @index) @definition.array.access
-
-; 二维数组访问查询
-(subscript_expression
-  argument: (subscript_expression
+; 数组访问查询 - 一维和二维数组访问合并
+[
+  (subscript_expression
     argument: (identifier) @array.name
-    index: (_))
-  index: (_) @index) @definition.array.access
+    index: (_) @index) @definition.array.access
+  (subscript_expression
+    argument: (subscript_expression
+      argument: (identifier) @array.name
+      index: (_))
+    index: (_) @index) @definition.array.access
+] @definition.array.access
 
 ; 嵌套结构体查询 - 简化版本
 (struct_specifier
@@ -82,13 +78,13 @@ export default `
       type: (struct_specifier)
       declarator: (field_identifier) @nested.field.name))) @definition.nested.struct
 
-; 前向声明查询 - 简单匹配（这会与完整定义有重叠，但这是预期的）
-(struct_specifier
-  name: (type_identifier) @forward.struct.name) @definition.forward.struct
-
-(union_specifier
-  name: (type_identifier) @forward.union.name) @definition.forward.union
-
-(enum_specifier
-  name: (type_identifier) @forward.enum.name) @definition.forward.enum
+; 前向声明查询 - 结构体、联合体和枚举的前向声明合并（这会与完整定义有重叠，但这是预期的）
+[
+  (struct_specifier
+    name: (type_identifier) @forward.struct.name) @definition.forward.struct
+  (union_specifier
+    name: (type_identifier) @forward.union.name) @definition.forward.union
+  (enum_specifier
+    name: (type_identifier) @forward.enum.name) @definition.forward.enum
+] @definition.forward
 `;

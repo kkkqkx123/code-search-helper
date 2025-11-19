@@ -17,3 +17,6 @@ src\service\parser\__tests__\scripts\c\test-struct-fixes.js
 - 问题 16: Query executed successfully but found no matches
 
 这是测试用例src\service\parser\__tests__\c\structs\c-struct.json由node src\service\parser\__tests__\scripts\c\process-c-test-cases.js执行时的结果。分析测试用例中的问题并修复。完成验证后保持查询模式常量定义与测试用例同步
+
+交替查询改造：
+分析 @/src/service/parser/constants/queries/c/structs.ts 哪些查询模式语法相近的查询可以合并为一个交替查询以提高查询效率，并作出修改。然后参考src\service\parser\__tests__\scripts\c\temp\test_alternation_queries.js使用一个测试用例来验证修改后的交替查询(不需要运行完整测试)。
