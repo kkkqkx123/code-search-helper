@@ -202,12 +202,24 @@ function generateReport(allResults) {
         const totalTests = results.length;
         const passedTests = results.filter(r => !r.error && r.response?.success).length;
         const failedTests = totalTests - passedTests;
-        const emptyMatches = results.filter(r => !r.error && r.response?.success && (!r.response?.data || r.response.data.length === 0)).length;
+        const errorTests = results.filter(r => r.error);
+        const emptyMatches = results.filter(r => !r.error && r.response?.success && (!r.response?.data || r.response.data.length === 0));
 
         console.log(`\n[${categoryKey}]`);
         console.log(`  总计: ${totalTests}, 通过: ${passedTests}, 失败: ${failedTests}`);
-        if (emptyMatches > 0) {
-            console.log(`  ⚠️  空匹配: ${emptyMatches} (查询无结果)`);
+        
+        if (errorTests.length > 0) {
+            console.log(`  ❌ 执行出错: ${errorTests.length}`);
+            errorTests.forEach(t => {
+                console.log(`     - ${t.testId}: ${t.error}`);
+            });
+        }
+        
+        if (emptyMatches.length > 0) {
+            console.log(`  ⚠️  空匹配: ${emptyMatches.length} (查询无结果)`);
+            emptyMatches.forEach(t => {
+                console.log(`     - ${t.testId}`);
+            });
         }
     }
 }
