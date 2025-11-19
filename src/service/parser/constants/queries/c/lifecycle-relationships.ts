@@ -25,18 +25,18 @@ export default `
   (#match? @reallocation.function "^(realloc)$")
   arguments: (argument_list
     (identifier) @original.pointer
-    (identifier) @new.size)
+    (binary_expression) @new.size)
   (#set! "operation" "reallocate")) @lifecycle.relationship.memory.reallocation
 
 ; 内存分配变量绑定
 (declaration
-  type: (pointer_type
-    (type_identifier) @pointed.type)
+  type: (primitive_type)
   declarator: (init_declarator
-    declarator: (identifier) @pointer.variable
-    value: (call_expression
-      function: (identifier) @allocation.function
-      (#match? @allocation.function "^(malloc|calloc|realloc|alloca)$")))
+    declarator: (pointer_declarator declarator: (identifier) @pointer.variable)
+    value: (cast_expression
+      value: (call_expression
+        function: (identifier) @allocation.function
+        (#match? @allocation.function "^(malloc|calloc|realloc|alloca)$"))))
   (#set! "operation" "allocate")) @lifecycle.relationship.memory.variable.binding
 
 ; 文件打开生命周期
@@ -74,9 +74,9 @@ export default `
 
 ; 文件句柄变量绑定
 (declaration
-  type: (type_identifier) @file.handle.type
+  type: [(type_identifier) (primitive_type)] @file.handle.type
   declarator: (init_declarator
-    declarator: (identifier) @file.handle.variable
+    declarator: [(identifier) (pointer_declarator declarator: (identifier))] @file.handle.variable
     value: (call_expression
       function: (identifier) @file.open.function
       (#match? @file.open.function "^(fopen|open)$")))
@@ -87,10 +87,10 @@ export default `
   function: (identifier) @thread.create.function
   (#match? @thread.create.function "^(pthread_create|CreateThread|_beginthread)$")
   arguments: (argument_list
-    (identifier) @thread.handle
-    (identifier) @thread.attributes
+    (pointer_expression argument: (identifier) @thread.handle)
+    (pointer_expression argument: (identifier) @thread.attributes)
     (identifier) @thread.function
-    (identifier) @thread.argument)
+    (null) @thread.argument)
   (#set! "operation" "create")) @lifecycle.relationship.thread.create
 
 ; 线程加入生命周期
@@ -98,7 +98,8 @@ export default `
   function: (identifier) @thread.join.function
   (#match? @thread.join.function "^(pthread_join|WaitForSingleObject)$")
   arguments: (argument_list
-    (identifier) @thread.handle)
+    (identifier) @thread.handle
+    (unary_expression argument: (identifier) @thread.return.value)?)
   (#set! "operation" "join")) @lifecycle.relationship.thread.join
 
 ; 线程分离生命周期
@@ -114,7 +115,8 @@ export default `
   function: (identifier) @mutex.init.function
   (#match? @mutex.init.function "^(pthread_mutex_init|InitializeCriticalSection)$")
   arguments: (argument_list
-    (identifier) @mutex.handle)
+    (pointer_expression argument: (identifier) @mutex.handle)
+    (null)? @mutex.attributes)
   (#set! "operation" "init")) @lifecycle.relationship.mutex.init
 
 ; 互斥锁销毁生命周期
@@ -122,7 +124,7 @@ export default `
   function: (identifier) @mutex.destroy.function
   (#match? @mutex.destroy.function "^(pthread_mutex_destroy|DeleteCriticalSection)$")
   arguments: (argument_list
-    (identifier) @mutex.handle)
+    (pointer_expression argument: (identifier) @mutex.handle))
   (#set! "operation" "destroy")) @lifecycle.relationship.mutex.destroy
 
 ; 互斥锁加锁生命周期
@@ -130,7 +132,7 @@ export default `
   function: (identifier) @mutex.lock.function
   (#match? @mutex.lock.function "^(pthread_mutex_lock|EnterCriticalSection)$")
   arguments: (argument_list
-    (identifier) @mutex.handle)
+    (pointer_expression argument: (identifier) @mutex.handle))
   (#set! "operation" "lock")) @lifecycle.relationship.mutex.lock
 
 ; 互斥锁解锁生命周期
@@ -138,7 +140,7 @@ export default `
   function: (identifier) @mutex.unlock.function
   (#match? @mutex.unlock.function "^(pthread_mutex_unlock|LeaveCriticalSection)$")
   arguments: (argument_list
-    (identifier) @mutex.handle)
+    (pointer_expression argument: (identifier) @mutex.handle))
   (#set! "operation" "unlock")) @lifecycle.relationship.mutex.unlock
 
 ; 套接字创建生命周期
@@ -157,7 +159,7 @@ export default `
   (#match? @socket.bind.function "^(bind)$")
   arguments: (argument_list
     (identifier) @socket.handle
-    (identifier) @socket.address)
+    (unary_expression argument: (identifier) @socket.address))
   (#set! "operation" "bind")) @lifecycle.relationship.socket.bind
 
 ; 套接字监听生命周期
@@ -166,7 +168,7 @@ export default `
   (#match? @socket.listen.function "^(listen)$")
   arguments: (argument_list
     (identifier) @socket.handle
-    (identifier) @socket.backlog)
+    (number_literal) @socket.backlog)
   (#set! "operation" "listen")) @lifecycle.relationship.socket.listen
 
 ; 套接字接受生命周期
@@ -174,7 +176,9 @@ export default `
   function: (identifier) @socket.accept.function
   (#match? @socket.accept.function "^(accept|WSAAccept)$")
   arguments: (argument_list
-    (identifier) @socket.handle)
+    (identifier) @socket.handle
+    (null)? @socket.address
+    (null)? @socket.address_len)
   (#set! "operation" "accept")) @lifecycle.relationship.socket.accept
 
 ; 套接字关闭生命周期
@@ -182,7 +186,8 @@ export default `
   function: (identifier) @socket.close.function
   (#match? @socket.close.function "^(close|closesocket|shutdown)$")
   arguments: (argument_list
-    (identifier) @socket.handle)
+    (identifier) @socket.handle
+    (number_literal)? @socket.how)
   (#set! "operation" "close")) @lifecycle.relationship.socket.close
 
 ; 资源构造函数模式
@@ -191,8 +196,8 @@ export default `
     declarator: (identifier) @resource.constructor
     parameters: (parameter_list
       (parameter_declaration
-        type: (pointer_type)
-        declarator: (identifier) @resource.pointer)))
+        type: (primitive_type)
+        declarator: (pointer_declarator declarator: (identifier) @resource.pointer))))
   body: (compound_statement
     (expression_statement
       (call_expression
@@ -205,8 +210,8 @@ export default `
     declarator: (identifier) @resource.destructor
     parameters: (parameter_list
       (parameter_declaration
-        type: (pointer_type)
-        declarator: (identifier) @resource.pointer)))
+        type: (primitive_type)
+        declarator: (pointer_declarator declarator: (identifier) @resource.pointer))))
   body: (compound_statement
     (expression_statement
       (call_expression
@@ -219,8 +224,8 @@ export default `
     declarator: (identifier) @resource.init.function
     parameters: (parameter_list
       (parameter_declaration
-        type: (pointer_type)
-        declarator: (identifier) @resource.pointer)))
+        type: (primitive_type)
+        declarator: (pointer_declarator declarator: (identifier) @resource.pointer))))
   body: (compound_statement)
   (#set! "operation" "init")) @lifecycle.relationship.resource.init
 
@@ -230,15 +235,15 @@ export default `
     declarator: (identifier) @resource.cleanup.function
     parameters: (parameter_list
       (parameter_declaration
-        type: (pointer_type)
-        declarator: (identifier) @resource.pointer)))
+        type: (primitive_type)
+        declarator: (pointer_declarator declarator: (identifier) @resource.pointer))))
   body: (compound_statement)
   (#set! "operation" "cleanup")) @lifecycle.relationship.resource.cleanup
 
 ; 局部变量作用域开始
 (compound_statement
   (declaration
-    type: (type_identifier) @local.variable.type
+    type: (primitive_type) @local.variable.type
     declarator: (identifier) @local.variable.name))
   (#set! "operation" "scope.begin") @lifecycle.relationship.scope.local.begin
 
@@ -246,13 +251,13 @@ export default `
 (compound_statement
   .
   (declaration
-    type: (type_identifier) @local.variable.type
+    type: (primitive_type) @local.variable.type
     declarator: (identifier) @local.variable.name))
   (#set! "operation" "scope.end") @lifecycle.relationship.scope.local.end
 
 ; 全局变量生命周期
 (declaration
-  type: (type_identifier) @global.variable.type
+  type: (primitive_type) @global.variable.type
   declarator: (init_declarator
     declarator: (identifier) @global.variable.name))
   (#set! "operation" "global") @lifecycle.relationship.scope.global
@@ -260,7 +265,7 @@ export default `
 ; 静态变量生命周期
 (declaration
   storage_class_specifier: (storage_class_specifier) @static.specifier
-  type: (type_identifier) @static.variable.type
+  type: (primitive_type) @static.variable.type
   declarator: (identifier) @static.variable.name)
   (#set! "operation" "static") @lifecycle.relationship.scope.static
 
@@ -269,7 +274,7 @@ export default `
   declarator: (function_declarator
     parameters: (parameter_list
       (parameter_declaration
-        type: (type_identifier) @parameter.type
+        type: (primitive_type) @parameter.type
         declarator: (identifier) @parameter.name)))
   body: (compound_statement)
   (#set! "operation" "parameter") @lifecycle.relationship.scope.parameter)

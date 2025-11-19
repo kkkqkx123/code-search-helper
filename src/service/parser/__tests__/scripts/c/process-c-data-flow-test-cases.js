@@ -68,7 +68,6 @@ async function processTestCases(testCases, outputDir, prefix) {
 
     for (let i = 0; i < testCases.length; i++) {
         const testCase = testCases[i];
-        console.log(`Processing test case ${i + 1}/${testCases.length}...`);
 
         try {
             // 发送请求
@@ -81,7 +80,6 @@ async function processTestCases(testCases, outputDir, prefix) {
             // 保存响应结果到单独的JSON文件
             const outputFile = path.join(outputDir, `${prefix}-result-${i + 1}.json`);
             fs.writeFileSync(outputFile, JSON.stringify(response, null, 2));
-            console.log(`Saved result to ${outputFile}`);
 
             results.push({
                 testCaseIndex: i,

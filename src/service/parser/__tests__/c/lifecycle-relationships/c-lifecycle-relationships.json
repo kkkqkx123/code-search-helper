@@ -1,0 +1,154 @@
+{
+  "requests": [
+    {
+      "language": "c",
+      "code": "#include <stdlib.h>\n\nint main() {\n    // malloc测试\n    int* ptr1 = (int*)malloc(sizeof(int) * 10);\n    \n    // calloc测试\n    int* ptr2 = (int*)calloc(10, sizeof(int));\n    \n    // realloc测试\n    int* ptr3 = (int*)realloc(ptr1, sizeof(int) * 20);\n    \n    // alloca测试\n    int* ptr4 = (int*)alloca(sizeof(int) * 5);\n    \n    return 0;\n}",
+      "query": "(call_expression\n  function: (identifier) @allocation.function\n  (#match? @allocation.function \"^(malloc|calloc|realloc|alloca)$\")\n  arguments: (argument_list\n    (identifier) @allocation.size)\n  (#set! \"operation\" \"allocate\")) @lifecycle.relationship.memory.allocation"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdlib.h>\n\nint main() {\n    int* ptr = (int*)malloc(sizeof(int) * 10);\n    \n    // free测试\n    free(ptr);\n    \n    return 0;\n}",
+      "query": "(call_expression\n  function: (identifier) @deallocation.function\n  (#match? @deallocation.function \"^(free)$\")\n  arguments: (argument_list\n    (identifier) @deallocated.pointer)\n  (#set! \"operation\" \"deallocate\")) @lifecycle.relationship.memory.deallocation"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdlib.h>\n\nint main() {\n    int* ptr = (int*)malloc(sizeof(int) * 10);\n    \n    // realloc测试\n    int* new_ptr = (int*)realloc(ptr, sizeof(int) * 20);\n    \n    return 0;\n}",
+      "query": "(call_expression\n  function: (identifier) @reallocation.function\n  (#match? @reallocation.function \"^(realloc)$\")\n  arguments: (argument_list\n    (identifier) @original.pointer\n    (identifier) @new.size)\n  (#set! \"operation\" \"reallocate\")) @lifecycle.relationship.memory.reallocation"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdlib.h>\n\nint main() {\n    // 内存分配变量绑定测试\n    int* ptr = (int*)malloc(sizeof(int) * 10);\n    char* str = (char*)calloc(100, sizeof(char));\n    \n    return 0;\n}",
+      "query": "(declaration\n  type: (primitive_type)\n  declarator: (init_declarator\n    declarator: (pointer_declarator declarator: (identifier) @pointer.variable)\n    value: (cast_expression\n      value: (call_expression\n        function: (identifier) @allocation.function\n        (#match? @allocation.function \"^(malloc|calloc|realloc|alloca)$\"))))\n  (#set! \"operation\" \"allocate\")) @lifecycle.relationship.memory.variable.binding"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\nint main() {\n    // fopen测试\n    FILE* file1 = fopen(\"test.txt\", \"r\");\n    \n    // open测试\n    int fd1 = open(\"data.bin\", O_RDONLY);\n    \n    // fopen_s测试\n    FILE* file2;\n    errno_t err = fopen_s(&file2, \"test2.txt\", \"w\");\n    \n    // open_s测试\n    int fd2;\n    errno_t err2 = open_s(&fd2, \"data2.bin\", O_WRONLY);\n    \n    return 0;\n}",
+      "query": "(call_expression\n  function: (identifier) @file.open.function\n  (#match? @file.open.function \"^(fopen|open|fopen_s|open_s)$\")\n  arguments: (argument_list\n    (string_literal) @file.path\n    (string_literal) @file.mode)\n  (#set! \"operation\" \"open\")) @lifecycle.relationship.file.open"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n#include <unistd.h>\n\nint main() {\n    FILE* file = fopen(\"test.txt\", \"r\");\n    int fd = open(\"data.bin\", O_RDONLY);\n    \n    // fclose测试\n    fclose(file);\n    \n    // close测试\n    close(fd);\n    \n    return 0;\n}",
+      "query": "(call_expression\n  function: (identifier) @file.close.function\n  (#match? @file.close.function \"^(fclose|close)$\")\n  arguments: (argument_list\n    (identifier) @file.handle)\n  (#set! \"operation\" \"close\")) @lifecycle.relationship.file.close"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n#include <unistd.h>\n\nint main() {\n    FILE* file = fopen(\"test.txt\", \"r\");\n    int fd = open(\"data.bin\", O_RDONLY);\n    char buffer[1024];\n    \n    // fread测试\n    size_t bytes_read = fread(buffer, 1, sizeof(buffer), file);\n    \n    // read测试\n    ssize_t bytes_read2 = read(fd, buffer, sizeof(buffer));\n    \n    // fgets测试\n    char* line = fgets(buffer, sizeof(buffer), file);\n    \n    // getline测试\n    char* line2 = NULL;\n    size_t len = 0;\n    ssize_t read = getline(&line2, &len, file);\n    \n    return 0;\n}",
+      "query": "(call_expression\n  function: (identifier) @file.read.function\n  (#match? @file.read.function \"^(fread|read|fgets|getline)$\")\n  arguments: (argument_list\n    (identifier) @file.handle)\n  (#set! \"operation\" \"read\")) @lifecycle.relationship.file.read"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n#include <unistd.h>\n\nint main() {\n    FILE* file = fopen(\"test.txt\", \"w\");\n    int fd = open(\"data.bin\", O_WRONLY);\n    char buffer[] = \"Hello, World!\";\n    \n    // fwrite测试\n    size_t bytes_written = fwrite(buffer, 1, sizeof(buffer), file);\n    \n    // write测试\n    ssize_t bytes_written2 = write(fd, buffer, sizeof(buffer));\n    \n    // fputs测试\n    fputs(\"Hello\\n\", file);\n    \n    // fprintf测试\n    fprintf(file, \"Value: %d\\n\", 42);\n    \n    return 0;\n}",
+      "query": "(call_expression\n  function: (identifier) @file.write.function\n  (#match? @file.write.function \"^(fwrite|write|fputs|fprintf)$\")\n  arguments: (argument_list\n    (identifier) @file.handle)\n  (#set! \"operation\" \"write\")) @lifecycle.relationship.file.write"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\nint main() {\n    // 文件句柄变量绑定测试\n    FILE* file = fopen(\"test.txt\", \"r\");\n    int fd = open(\"data.bin\", O_RDONLY);\n    \n    return 0;\n}",
+      "query": "(declaration\n  type: [(type_identifier) (primitive_type)] @file.handle.type\n  declarator: (init_declarator\n    declarator: [(identifier) (pointer_declarator declarator: (identifier))] @file.handle.variable\n    value: (call_expression\n      function: (identifier) @file.open.function\n      (#match? @file.open.function \"^(fopen|open)$\")))\n  (#set! \"operation\" \"open\")) @lifecycle.relationship.file.handle.binding"
+    },
+    {
+      "language": "c",
+      "code": "#include <pthread.h>\n#include <windows.h>\n\nvoid* thread_function(void* arg) {\n    return NULL;\n}\n\nint main() {\n    pthread_t thread;\n    pthread_attr_t attr;\n    HANDLE hThread;\n    DWORD threadId;\n    \n    // pthread_create测试\n    pthread_create(&thread, &attr, thread_function, NULL);\n    \n    // CreateThread测试\n    hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)thread_function, NULL, 0, &threadId);\n    \n    // _beginthread测试\n    HANDLE hThread2 = (HANDLE)_beginthread(thread_function, 0, NULL);\n    \n    return 0;\n}",
+      "query": "(call_expression\n  function: (identifier) @thread.create.function\n  (#match? @thread.create.function \"^(pthread_create|CreateThread|_beginthread)$\")\n  arguments: (argument_list\n    (identifier) @thread.handle\n    (identifier) @thread.attributes\n    (identifier) @thread.function\n    (identifier) @thread.argument)\n  (#set! \"operation\" \"create\")) @lifecycle.relationship.thread.create"
+    },
+    {
+      "language": "c",
+      "code": "#include <pthread.h>\n#include <windows.h>\n\nvoid* thread_function(void* arg) {\n    return NULL;\n}\n\nint main() {\n    pthread_t thread;\n    HANDLE hThread;\n    void* result;\n    \n    pthread_create(&thread, NULL, thread_function, NULL);\n    hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)thread_function, NULL, 0, NULL);\n    \n    // pthread_join测试\n    pthread_join(thread, &result);\n    \n    // WaitForSingleObject测试\n    WaitForSingleObject(hThread, INFINITE);\n    \n    return 0;\n}",
+      "query": "(call_expression\n  function: (identifier) @thread.join.function\n  (#match? @thread.join.function \"^(pthread_join|WaitForSingleObject)$\")\n  arguments: (argument_list\n    (identifier) @thread.handle)\n  (#set! \"operation\" \"join\")) @lifecycle.relationship.thread.join"
+    },
+    {
+      "language": "c",
+      "code": "#include <pthread.h>\n\nvoid* thread_function(void* arg) {\n    return NULL;\n}\n\nint main() {\n    pthread_t thread;\n    \n    pthread_create(&thread, NULL, thread_function, NULL);\n    \n    // pthread_detach测试\n    pthread_detach(thread);\n    \n    return 0;\n}",
+      "query": "(call_expression\n  function: (identifier) @thread.detach.function\n  (#match? @thread.detach.function \"^(pthread_detach)$\")\n  arguments: (argument_list\n    (identifier) @thread.handle)\n  (#set! \"operation\" \"detach\")) @lifecycle.relationship.thread.detach"
+    },
+    {
+      "language": "c",
+      "code": "#include <pthread.h>\n#include <windows.h>\n\nint main() {\n    pthread_mutex_t mutex;\n    CRITICAL_SECTION cs;\n    \n    // pthread_mutex_init测试\n    pthread_mutex_init(&mutex, NULL);\n    \n    // InitializeCriticalSection测试\n    InitializeCriticalSection(&cs);\n    \n    return 0;\n}",
+      "query": "(call_expression\n  function: (identifier) @mutex.init.function\n  (#match? @mutex.init.function \"^(pthread_mutex_init|InitializeCriticalSection)$\")\n  arguments: (argument_list\n    (identifier) @mutex.handle)\n  (#set! \"operation\" \"init\")) @lifecycle.relationship.mutex.init"
+    },
+    {
+      "language": "c",
+      "code": "#include <pthread.h>\n#include <windows.h>\n\nint main() {\n    pthread_mutex_t mutex;\n    CRITICAL_SECTION cs;\n    \n    pthread_mutex_init(&mutex, NULL);\n    InitializeCriticalSection(&cs);\n    \n    // pthread_mutex_destroy测试\n    pthread_mutex_destroy(&mutex);\n    \n    // DeleteCriticalSection测试\n    DeleteCriticalSection(&cs);\n    \n    return 0;\n}",
+      "query": "(call_expression\n  function: (identifier) @mutex.destroy.function\n  (#match? @mutex.destroy.function \"^(pthread_mutex_destroy|DeleteCriticalSection)$\")\n  arguments: (argument_list\n    (identifier) @mutex.handle)\n  (#set! \"operation\" \"destroy\")) @lifecycle.relationship.mutex.destroy"
+    },
+    {
+      "language": "c",
+      "code": "#include <pthread.h>\n#include <windows.h>\n\nint main() {\n    pthread_mutex_t mutex;\n    CRITICAL_SECTION cs;\n    \n    pthread_mutex_init(&mutex, NULL);\n    InitializeCriticalSection(&cs);\n    \n    // pthread_mutex_lock测试\n    pthread_mutex_lock(&mutex);\n    \n    // EnterCriticalSection测试\n    EnterCriticalSection(&cs);\n    \n    return 0;\n}",
+      "query": "(call_expression\n  function: (identifier) @mutex.lock.function\n  (#match? @mutex.lock.function \"^(pthread_mutex_lock|EnterCriticalSection)$\")\n  arguments: (argument_list\n    (identifier) @mutex.handle)\n  (#set! \"operation\" \"lock\")) @lifecycle.relationship.mutex.lock"
+    },
+    {
+      "language": "c",
+      "code": "#include <pthread.h>\n#include <windows.h>\n\nint main() {\n    pthread_mutex_t mutex;\n    CRITICAL_SECTION cs;\n    \n    pthread_mutex_init(&mutex, NULL);\n    InitializeCriticalSection(&cs);\n    \n    pthread_mutex_lock(&mutex);\n    EnterCriticalSection(&cs);\n    \n    // pthread_mutex_unlock测试\n    pthread_mutex_unlock(&mutex);\n    \n    // LeaveCriticalSection测试\n    LeaveCriticalSection(&cs);\n    \n    return 0;\n}",
+      "query": "(call_expression\n  function: (identifier) @mutex.unlock.function\n  (#match? @mutex.unlock.function \"^(pthread_mutex_unlock|LeaveCriticalSection)$\")\n  arguments: (argument_list\n    (identifier) @mutex.handle)\n  (#set! \"operation\" \"unlock\")) @lifecycle.relationship.mutex.unlock"
+    },
+    {
+      "language": "c",
+      "code": "#include <sys/socket.h>\n#include <winsock2.h>\n\nint main() {\n    // socket测试\n    int sockfd = socket(AF_INET, SOCK_STREAM, 0);\n    \n    // WSASocket测试\n    SOCKET sock = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, 0);\n    \n    return 0;\n}",
+      "query": "(call_expression\n  function: (identifier) @socket.create.function\n  (#match? @socket.create.function \"^(socket|socket|WSASocket)$\")\n  arguments: (argument_list\n    (identifier) @socket.domain\n    (identifier) @socket.type\n    (identifier) @socket.protocol)\n  (#set! \"operation\" \"create\")) @lifecycle.relationship.socket.create"
+    },
+    {
+      "language": "c",
+      "code": "#include <sys/socket.h>\n\nint main() {\n    int sockfd = socket(AF_INET, SOCK_STREAM, 0);\n    struct sockaddr_in addr;\n    \n    // bind测试\n    bind(sockfd, (struct sockaddr*)&addr, sizeof(addr));\n    \n    return 0;\n}",
+      "query": "(call_expression\n  function: (identifier) @socket.bind.function\n  (#match? @socket.bind.function \"^(bind)$\")\n  arguments: (argument_list\n    (identifier) @socket.handle\n    (identifier) @socket.address)\n  (#set! \"operation\" \"bind\")) @lifecycle.relationship.socket.bind"
+    },
+    {
+      "language": "c",
+      "code": "#include <sys/socket.h>\n\nint main() {\n    int sockfd = socket(AF_INET, SOCK_STREAM, 0);\n    \n    // listen测试\n    listen(sockfd, 5);\n    \n    return 0;\n}",
+      "query": "(call_expression\n  function: (identifier) @socket.listen.function\n  (#match? @socket.listen.function \"^(listen)$\")\n  arguments: (argument_list\n    (identifier) @socket.handle\n    (identifier) @socket.backlog)\n  (#set! \"operation\" \"listen\")) @lifecycle.relationship.socket.listen"
+    },
+    {
+      "language": "c",
+      "code": "#include <sys/socket.h>\n#include <winsock2.h>\n\nint main() {\n    int sockfd = socket(AF_INET, SOCK_STREAM, 0);\n    SOCKET listen_sock = socket(AF_INET, SOCK_STREAM, 0);\n    \n    // accept测试\n    int client_fd = accept(sockfd, NULL, NULL);\n    \n    // WSAAccept测试\n    SOCKET client_sock = WSAAccept(listen_sock, NULL, NULL, NULL, 0);\n    \n    return 0;\n}",
+      "query": "(call_expression\n  function: (identifier) @socket.accept.function\n  (#match? @socket.accept.function \"^(accept|WSAAccept)$\")\n  arguments: (argument_list\n    (identifier) @socket.handle)\n  (#set! \"operation\" \"accept\")) @lifecycle.relationship.socket.accept"
+    },
+    {
+      "language": "c",
+      "code": "#include <sys/socket.h>\n#include <unistd.h>\n#include <winsock2.h>\n\nint main() {\n    int sockfd = socket(AF_INET, SOCK_STREAM, 0);\n    SOCKET win_sock = socket(AF_INET, SOCK_STREAM, 0);\n    \n    // close测试\n    close(sockfd);\n    \n    // closesocket测试\n    closesocket(win_sock);\n    \n    // shutdown测试\n    shutdown(sockfd, SHUT_RDWR);\n    \n    return 0;\n}",
+      "query": "(call_expression\n  function: (identifier) @socket.close.function\n  (#match? @socket.close.function \"^(close|closesocket|shutdown)$\")\n  arguments: (argument_list\n    (identifier) @socket.handle)\n  (#set! \"operation\" \"close\")) @lifecycle.relationship.socket.close"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdlib.h>\n\ntypedef struct {\n    int* data;\n    size_t size;\n} Resource;\n\n// 资源构造函数\nResource* create_resource(size_t size) {\n    Resource* res = (Resource*)malloc(sizeof(Resource));\n    if (res) {\n        res->data = (int*)malloc(size * sizeof(int));\n        res->size = size;\n    }\n    return res;\n}",
+      "query": "(function_definition\n  declarator: (function_declarator\n    declarator: (identifier) @resource.constructor\n    parameters: (parameter_list\n      (parameter_declaration\n        type: (pointer_type)\n        declarator: (identifier) @resource.pointer)))\n  body: (compound_statement\n    (expression_statement\n      (call_expression\n        function: (identifier) @resource.allocation.function)))\n  (#set! \"operation\" \"construct\")) @lifecycle.relationship.resource.constructor"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdlib.h>\n\ntypedef struct {\n    int* data;\n    size_t size;\n} Resource;\n\n// 资源析构函数\nvoid destroy_resource(Resource* res) {\n    if (res) {\n        free(res->data);\n        free(res);\n    }\n}",
+      "query": "(function_definition\n  declarator: (function_declarator\n    declarator: (identifier) @resource.destructor\n    parameters: (parameter_list\n      (parameter_declaration\n        type: (pointer_type)\n        declarator: (identifier) @resource.pointer)))\n  body: (compound_statement\n    (expression_statement\n      (call_expression\n        function: (identifier) @resource.deallocation.function)))\n  (#set! \"operation\" \"destruct\")) @lifecycle.relationship.resource.destructor"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdlib.h>\n\ntypedef struct {\n    int* data;\n    size_t size;\n} Resource;\n\n// 资源初始化函数\nint init_resource(Resource* res) {\n    if (!res) return -1;\n    res->data = NULL;\n    res->size = 0;\n    return 0;\n}",
+      "query": "(function_definition\n  declarator: (function_declarator\n    declarator: (identifier) @resource.init.function\n    parameters: (parameter_list\n      (parameter_declaration\n        type: (pointer_type)\n        declarator: (identifier) @resource.pointer)))\n  body: (compound_statement)\n  (#set! \"operation\" \"init\")) @lifecycle.relationship.resource.init"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdlib.h>\n\ntypedef struct {\n    int* data;\n    size_t size;\n} Resource;\n\n// 资源清理函数\nvoid cleanup_resource(Resource* res) {\n    if (res) {\n        if (res->data) {\n            free(res->data);\n            res->data = NULL;\n        }\n        res->size = 0;\n    }\n}",
+      "query": "(function_definition\n  declarator: (function_declarator\n    declarator: (identifier) @resource.cleanup.function\n    parameters: (parameter_list\n      (parameter_declaration\n        type: (pointer_type)\n        declarator: (identifier) @resource.pointer)))\n  body: (compound_statement)\n  (#set! \"operation\" \"cleanup\")) @lifecycle.relationship.resource.cleanup"
+    },
+    {
+      "language": "c",
+      "code": "int main() {\n    // 局部变量作用域开始测试\n    {\n        int local_var = 42;\n        char str[] = \"Hello\";\n        // 使用局部变量\n        printf(\"%d\\n\", local_var);\n    }\n    \n    return 0;\n}",
+      "query": "(compound_statement\n  (declaration\n    type: (type_identifier) @local.variable.type\n    declarator: (identifier) @local.variable.name))\n  (#set! \"operation\" \"scope.begin\") @lifecycle.relationship.scope.local.begin"
+    },
+    {
+      "language": "c",
+      "code": "int main() {\n    // 局部变量作用域结束测试\n    {\n        int local_var = 42;\n        printf(\"%d\\n\", local_var);\n    } // 作用域在此结束\n    \n    return 0;\n}",
+      "query": "(compound_statement\n  .\n  (declaration\n    type: (type_identifier) @local.variable.type\n    declarator: (identifier) @local.variable.name))\n  (#set! \"operation\" \"scope.end\") @lifecycle.relationship.scope.local.end"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\n// 全局变量生命周期测试\nint global_counter = 0;\nchar* global_message = \"Hello, World!\";\n\nint main() {\n    global_counter++;\n    printf(\"%s\\n\", global_message);\n    return 0;\n}",
+      "query": "(declaration\n  type: (type_identifier) @global.variable.type\n  declarator: (init_declarator\n    declarator: (identifier) @global.variable.name))\n  (#set! \"operation\" \"global\") @lifecycle.relationship.scope.global"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\n// 静态变量生命周期测试\nstatic int static_counter = 0;\nstatic char* static_message = \"Static Message\";\n\nvoid increment_counter() {\n    static int function_static = 0;\n    function_static++;\n    static_counter++;\n}\n\nint main() {\n    increment_counter();\n    return 0;\n}",
+      "query": "(declaration\n  storage_class_specifier: (storage_class_specifier) @static.specifier\n  type: (type_identifier) @static.variable.type\n  declarator: (identifier) @static.variable.name)\n  (#set! \"operation\" \"static\") @lifecycle.relationship.scope.static"
+    },
+    {
+      "language": "c",
+      "code": "#include <stdio.h>\n\n// 函数参数生命周期测试\nint process_data(int value, char* text) {\n    printf(\"Value: %d, Text: %s\\n\", value, text);\n    return value * 2;\n}\n\nint main() {\n    int result = process_data(42, \"Hello\");\n    return result;\n}",
+      "query": "(function_definition\n  declarator: (function_declarator\n    parameters: (parameter_list\n      (parameter_declaration\n        type: (type_identifier) @parameter.type\n        declarator: (identifier) @parameter.name)))\n  body: (compound_statement)\n  (#set! \"operation\" \"parameter\")) @lifecycle.relationship.scope.parameter"
+    }
+  ]
+}
