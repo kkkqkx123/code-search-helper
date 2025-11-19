@@ -52,9 +52,16 @@ export default `
   field: (field_identifier) @field.name) @definition.member.access
 
 ; 指针成员访问查询
+; 匹配简单的指针成员访问 (ptr->field)
 (field_expression
-  argument: (pointer_expression
-    argument: (identifier) @pointer.name)
+  argument: (identifier) @pointer.name
+  field: (field_identifier) @field.name) @definition.pointer.member.access
+
+; 匹配解引用的指针成员访问 ((*ptr)->field)
+(field_expression
+  argument: (parenthesized_expression
+    (pointer_expression
+      argument: (identifier) @pointer.name))
   field: (field_identifier) @field.name) @definition.pointer.member.access
 
 ; 数组访问查询
