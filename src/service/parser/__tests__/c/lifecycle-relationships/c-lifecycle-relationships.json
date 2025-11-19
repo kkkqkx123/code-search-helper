@@ -108,12 +108,12 @@
     {
       "language": "c",
       "code": "#include <stdlib.h>\n\ntypedef struct {\n    int* data;\n    size_t size;\n} Resource;\n\n// 资源构造函数\nResource* create_resource(size_t size) {\n    Resource* res = (Resource*)malloc(sizeof(Resource));\n    if (res) {\n        res->data = (int*)malloc(size * sizeof(int));\n        res->size = size;\n    }\n    return res;\n}",
-      "query": "(function_definition\n  declarator: (function_declarator\n    declarator: (identifier) @resource.constructor\n    parameters: (parameter_list\n      (parameter_declaration\n        type: (type_identifier)\n        declarator: (pointer_declarator declarator: (identifier)) @resource.pointer)))\n  body: (compound_statement\n    (expression_statement\n      (call_expression\n        function: (identifier) @resource.allocation.function)))\n  (#set! \"operation\" \"construct\")) @lifecycle.relationship.resource.constructor"
+      "query": "(function_definition\n  declarator: (function_declarator\n    declarator: (identifier) @resource.constructor\n    parameters: (parameter_list\n      (parameter_declaration\n        type: (type_identifier)\n        declarator: (pointer_declarator declarator: (identifier)) @resource.pointer)))\n  body: (compound_statement\n    (call_expression\n      function: (identifier) @resource.allocation.function))\n  (#set! \"operation\" \"construct\")) @lifecycle.relationship.resource.constructor"
     },
     {
       "language": "c",
       "code": "#include <stdlib.h>\n\ntypedef struct {\n    int* data;\n    size_t size;\n} Resource;\n\n// 资源析构函数\nvoid destroy_resource(Resource* res) {\n    if (res) {\n        free(res->data);\n        free(res);\n    }\n}",
-      "query": "(function_definition\n  declarator: (function_declarator\n    declarator: (identifier) @resource.destructor\n    parameters: (parameter_list\n      (parameter_declaration\n        type: (type_identifier)\n        declarator: (pointer_declarator declarator: (identifier)) @resource.pointer)))\n  body: (compound_statement\n    (expression_statement\n      (call_expression\n        function: (identifier) @resource.deallocation.function)))\n  (#set! \"operation\" \"destruct\")) @lifecycle.relationship.resource.destructor"
+      "query": "(function_definition\n  declarator: (function_declarator\n    declarator: (identifier) @resource.destructor\n    parameters: (parameter_list\n      (parameter_declaration\n        type: (type_identifier)\n        declarator: (pointer_declarator declarator: (identifier)) @resource.pointer)))\n  body: (compound_statement\n    (call_expression\n      function: (identifier) @resource.deallocation.function))\n  (#set! \"operation\" \"destruct\")) @lifecycle.relationship.resource.destructor"
     },
     {
       "language": "c",

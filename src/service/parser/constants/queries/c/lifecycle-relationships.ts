@@ -198,11 +198,10 @@ export default `
     parameters: (parameter_list
       (parameter_declaration
         type: (type_identifier)
-        declarator: (pointer_declarator declarator: (identifier)) @resource.pointer))))
+        declarator: (pointer_declarator declarator: (identifier)) @resource.pointer)))
   body: (compound_statement
-    (expression_statement
-      (call_expression
-        function: (identifier) @resource.allocation.function)))
+    (call_expression
+      function: (identifier) @resource.allocation.function))
   (#set! "operation" "construct")) @lifecycle.relationship.resource.constructor
 
 ; 资源析构函数模式
@@ -212,11 +211,10 @@ export default `
     parameters: (parameter_list
       (parameter_declaration
         type: (type_identifier)
-        declarator: (pointer_declarator declarator: (identifier)) @resource.pointer))))
+        declarator: (pointer_declarator declarator: (identifier)) @resource.pointer)))
   body: (compound_statement
-    (expression_statement
-      (call_expression
-        function: (identifier) @resource.deallocation.function)))
+    (call_expression
+      function: (identifier) @resource.deallocation.function))
   (#set! "operation" "destruct")) @lifecycle.relationship.resource.destructor
 
 ; 资源初始化函数模式
