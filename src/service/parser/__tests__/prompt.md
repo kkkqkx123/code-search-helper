@@ -1,58 +1,156 @@
-**任务：**
-1. 创建测试用例json
-为src\service\parser\constants\queries\c\data-flow.ts
-src\service\parser\constants\queries\c\functions.ts创建测试用例，格式与src\service\parser\__tests__\c\concurrency\c-concurrency.json保持一致，每个测试文件放在单独目录中。
+**任务：** 创建和验证TreeSitter查询测试用例
 
-2. 编写测试脚本
-编写脚本用于向localhost的4001端口发送请求并把每个测试用例的响应结果分别写入新的json中(每个测试用例1个json)，分别放在各自的目录。
-api文档见src\service\parser\__tests__\api.md(主要使用api/parser和api/parser/batch端点)。
-注意：测试文件使用的是json测试用例文件。请保持测试用例与查询模式定义同步
-测试脚本参考src\service\parser\__tests__\scripts\c\process-c-test-cases.js
+注意：所有命令从根目录出发
 
-3. 验证
-如果出现Query executed successfully but found no matches，这代表该测试用例失败了，且返回内容为空。需要修改测试用例中查询模式的问题，并同步修改src\service\parser\constants\queries目录中相应查询模式常量定义文件中的问题。如果同类错误较多，建议先专注于一个问题(可以针对某个问题单独编写临时脚本)，找出共同问题后一起修改
-你可以使用api/parse端点查询一个片段的解析结果，以理解解析的过程
-寻找测试用例时建议通过名称查询
-需要检查符合闭合问题时使用src\service\parser\__tests__\scripts\validate-queries.js(需要自己修改目标路径)
+开始工作前查看src\service\parser\__tests__\TESTING_GUIDE.md，其他文档后续按需读取。
 
-过程中可以创建测试脚本来验证特定问题。临时测试脚本放在src\service\parser\__tests__\scripts目录的特定语言文件夹的temp目录中。
-参考src\service\parser\__tests__\scripts\c\temp目录
+## 1. 创建测试用例
 
-注意：测试脚本使用的都是外部api，不需要启动主应用
+为特定文件的特定类别创建测试用例，例如src\service\parser\constants\queries\c\data-flow.ts创建测试用例，格式参考src\service\parser\__tests__\c\concurrency\c-concurrency-queries-test-cases.md。
+之后使用命令把md文档转为结构化的文件夹：
+```powershell
+node src\service\parser\__tests__\scripts\convert-markdown-to-structure.js <原md文件绝对路径> <目标绝对路径>
+```
+目标路径使用src\service\parser\__tests__\c\concurrency的形式。具体说明见src\service\parser\__tests__\scripts\md-convert-README.md(仅在需要时查看)
 
-4. 验收标准
-使用node执行测试脚本后所有查询都能返回正确、非空的结果
+使用Markdown文件+命令的形式是为了方便你快速写入所有测试用例。
 
----
-修改任务：
+生成的文件结构为：
 
-**任务：**
-1. 创建测试用例json(已完成)
-src\service\parser\__tests__\c\lifecycle-relationships\c-lifecycle-relationships.json
+**文件结构**
+```
+src/service/parser/__tests__/{language}/{category}/
+├── {category}.json              # 索引文件（引用式）
+├── tests/
+│   ├── test-001/
+│   │   ├── code.c               # 源代码文件
+│   │   ├── query.txt            # TreeSitter查询语句
+│   │   └── metadata.json        # 元数据
+│   ├── test-002/
+│   │   ├── code.c
+│   │   ├── query.txt
+│   │   └── metadata.json
+│   └── ...
+└── results/                      # API响应结果
+    ├── result-001.json
+    ├── result-002.json
+    └── ...
+```
 
-2. 编写测试脚本(已完成)
-src\service\parser\__tests__\scripts\c\process-c-lifecycle-relationships-test-cases.js
-此脚本用于向localhost的4001端口发送请求并把每个测试用例的响应结果分别写入新的json中(每个测试用例1个json)
+### 代码文件
+正常的代码文件格式。文件后缀名视语言而定。
 
-3. 验证
-使用node执行测试脚本。
-api文档见src\service\parser\__tests__\api.md(主要使用api/parser和api/parser/batch端点)。注意：测试文件使用的是json测试用例文件。请保持测试用例与查询模式定义同步
-如果出现Query executed successfully but found no matches，这代表该测试用例失败了，且返回内容为空。需要修改测试用例中查询模式的问题，并同步修改src\service\parser\constants\queries目录中相应查询模式常量定义文件中的问题。如果同类错误较多，建议先专注于一个问题(可以针对某个问题单独编写临时脚本)，找出共同问题后一起修改
-你可以使用api/parse端点查询一个片段的解析结果，以理解解析的过程
-寻找测试用例时建议通过名称查询
-需要检查符合闭合问题时使用src\service\parser\__tests__\scripts\validate-queries.js(需要自己修改目标路径)
+### 索引文件格式 ({category}.json)
+```json
+{
+  "category": "lifecycle-relationships",
+  "totalTests": 30,
+  "requests": [
+    {
+      "id": "lifecycle-relationships-001",
+      "language": "c",
+      "codeFile": "tests/test-001/code.c",
+      "queryFile": "tests/test-001/query.txt",
+      "metadataFile": "tests/test-001/metadata.json",
+      "description": "malloc/calloc/realloc测试"
+    }
+  ]
+}
+```
 
-过程中可以创建测试脚本来验证特定问题。临时测试脚本放在src\service\parser\__tests__\scripts目录的特定语言文件夹的temp目录中。
-参考src\service\parser\__tests__\scripts\c\temp目录
+### 元数据文件格式 (metadata.json)
+```json
+{
+  "id": "lifecycle-relationships-001",
+  "language": "c",
+  "description": "malloc/calloc/realloc测试",
+  "category": "lifecycle-relationships",
+  "expectedMatches": 4
+}
+```
 
-注意：测试脚本使用的都是外部api，不需要启动主应用
+## 2. 验证查询
+执行统一测试脚本处理所有测试类别。建议一次测试特定语言的特定类别，参考：
+```powershell
+node src\service\parser\__tests__\scripts\process-test-cases.js c:lifecycle
+```
 
-4. 验收标准
-使用node执行测试脚本后所有查询都能返回正确、非空的结果
+此脚本会：
+- 自动扫描所有测试类别的索引文件
+- 从tests/test-XXX/目录加载code和query文件
+- 向API发送请求并保存结果到results/目录
+- 生成测试执行总结报告
 
-[目前，已经完成测试脚本的编写，需要完成验证]
+## 3. 根据失败情况修复问题
 
----
+### 问题诊断
+如果出现 "Query executed successfully but found no matches"：
+1. **验证代码语法** - 使用API parse端点检查AST：
+   ```bash
+   POST /api/parse
+   {
+     "language": "c",
+     "code": "..."  // 检查从code.c加载的代码
+   }
+   ```
 
-交替查询改造：
-分析 @/src/service/parser/constants/queries/c/structs.ts 哪些查询模式语法相近的查询可以合并为一个交替查询以提高查询效率，并作出修改。然后参考src\service\parser\__tests__\scripts\c\temp\test_alternation_queries.js使用一个测试用例来验证修改后的交替查询(不需要运行完整测试)。
+2. **检查查询语法** - 使用验证脚本：
+   ```bash
+   node src/service/parser/__tests__/scripts/validate-queries.js \
+     src/service/parser/__tests__/c/{category}/tests/test-XXX/query.txt
+   ```
+
+3. **对比查询模式定义** - 检查src\service\parser\constants\queries\c\*.ts中的定义
+
+### 临时测试脚本
+创建用于调试特定问题的脚本：
+```
+src/service/parser/__tests__/scripts/c/temp/
+├── test-single-query.js        # 测试单个查询
+├── test-language-detection.js  # 测试语言检测
+└── ...
+```
+已有脚本包括src\service\parser\__tests__\scripts\validate-queries.js，src\service\parser\__tests__\scripts\debug-ast-structure.js
+
+需要修改时修改测试代码与查询模式，并同步修改查询常量定义文件。
+
+**代码文件 (code.c)** - 标准C语言源代码
+```c
+#include <stdlib.h>
+
+int main() {
+    int* ptr = (int*)malloc(sizeof(int) * 10);
+    free(ptr);
+    return 0;
+}
+```
+
+**查询文件 (query.txt)** - TreeSitter S-Expression查询语法
+```
+(call_expression
+  function: (identifier) @deallocation.function
+  (#match? @deallocation.function "^(free)$")
+  arguments: (argument_list
+    (identifier) @deallocated.pointer)
+  (#set! "operation" "deallocate")) @lifecycle.relationship.memory.deallocation
+```
+
+## 验收标准
+✅ node src\service\parser\__tests__\scripts\process-test-cases.js 测试特定内容后：
+- 所有supported类别的results/目录都包含result-XXX.json文件
+- 每个result文件的response.success为true
+- response.data数组非空（有匹配结果）
+- 没有REQUEST_ERROR或PARSING_ERROR
+- 检查哪些查询可以改造为交替查询改造，并修改src\service\parser\constants\queries中相应的常量定义文件。参考下方说明。
+- 验证最终查询常量与已通过的测试用例是否一致
+
+通常出现Query executed successfully but found no matches就代表部分查询不成功。
+
+批量修改测试用例时建议使用脚本
+
+修改过程中验证修复效果时建议运行特定测试用例，
+
+
+**交替查询改造工作流**
+分析当前测试的查询常量定义，例如 src/service/parser/constants/queries/c/structs.ts ，分析哪些查询模式语法高度相近的查询可以合并为一个交替查询，以提高查询效率，并作出修改。
+然后参考src\service\parser\__tests__\scripts\c\temp\test_alternation_queries.js使用一个测试用例来验证修改后的交替查询(不需要运行完整测试，只有保证每处改造没有破坏语法即可。理论上除了语法问题不存在其他问题)。
