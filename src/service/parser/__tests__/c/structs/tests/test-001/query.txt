@@ -3,4 +3,4 @@
   body: (field_declaration_list
     (field_declaration
       type: (_) @field.type
-      declarator: (field_identifier) @field.name)*)) @definition.struct
+      declarator: (field_identifier) @field.name)*)) @definition.type

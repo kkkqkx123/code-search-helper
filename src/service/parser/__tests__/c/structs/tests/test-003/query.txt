@@ -1,8 +1,2 @@
 (struct_specifier
-  name: (type_identifier) @forward.struct.name) @definition.forward.struct
-
-(union_specifier
-  name: (type_identifier) @forward.union.name) @definition.forward.union
-
-(enum_specifier
-  name: (type_identifier) @forward.enum.name) @definition.forward.enum
+  name: (type_identifier) @forward.struct.name) @definition.forward

@@ -2,4 +2,4 @@
   type: (_)
   declarator: (array_declarator
     declarator: (identifier) @array.name
-    size: (_)? @array.size)) @definition.array
+    size: (_)? @array.size)) @definition.variable

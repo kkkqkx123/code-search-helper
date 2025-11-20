@@ -54,13 +54,19 @@ export class QueryLoader {
         
         this.logger.debug(`尝试加载 ${language} 语言的查询文件: ${absolutePath}`);
         
+        // 将绝对路径转换为file:// URL格式，以便在Windows上使用
+        const pathModule = require('path');
+        const fsModule = require('fs');
+        const urlModule = require('url');
+        
         // 检查文件是否存在
-        const fs = require('fs');
-        if (fs.existsSync(absolutePath + '.ts') || fs.existsSync(absolutePath + '.js')) {
+        if (fsModule.existsSync(absolutePath + '.ts') || fsModule.existsSync(absolutePath + '.js')) {
           this.logger.debug(`文件存在，开始动态导入: ${absolutePath}`);
             let queryModule;
             try {
-              queryModule = await import(absolutePath);
+              // 将绝对路径转换为file:// URL格式
+              const fileUrl = urlModule.pathToFileURL(absolutePath).href;
+              queryModule = await import(fileUrl);
             } catch (importError) {
               this.logger.error(`动态导入失败 ${absolutePath}:`, {
                 error: importError instanceof Error ? importError.message : String(importError),
@@ -96,12 +102,9 @@ export class QueryLoader {
           throw new Error(`Query file does not exist: ${absolutePath}`);
         }
       } catch (error) {
-        this.logger.error(`新结构加载失败 ${language}:`, {
-          error: error instanceof Error ? error.message : String(error),
-          stack: error instanceof Error ? error.stack : undefined,
-          name: error instanceof Error ? error.name : 'Unknown'
-        });
-
+        // 只记录警告，不输出详细错误信息，因为这是常见情况
+        this.logger.warn(`新结构加载失败 ${language}，将尝试旧结构`);
+        
         // 尝试回退到旧的单一文件结构
         try {
           const modulePath = require('path');
@@ -109,10 +112,15 @@ export class QueryLoader {
           
           this.logger.debug(`尝试回退到旧结构: ${absolutePath}`);
           
+          // 将绝对路径转换为file:// URL格式，以便在Windows上使用
+          const pathModule = require('path');
+          const fsModule = require('fs');
+          const urlModule = require('url');
+          
           // 检查文件是否存在
-          const fs = require('fs');
-          if (fs.existsSync(absolutePath + '.ts') || fs.existsSync(absolutePath + '.js')) {
-            const queryModule = await import(absolutePath);
+          if (fsModule.existsSync(absolutePath + '.ts') || fsModule.existsSync(absolutePath + '.js')) {
+            const fileUrl = urlModule.pathToFileURL(absolutePath).href;
+            const queryModule = await import(fileUrl);
             const query = queryModule.default || queryModule[`${queryFileName}Query`];
             
             if (query) {
@@ -130,7 +138,8 @@ export class QueryLoader {
             throw new Error(`Query file does not exist: ${absolutePath}`);
           }
         } catch (fallbackError) {
-          this.logger.error(`旧结构加载也失败: ${fallbackError}`);
+          // 旧结构加载失败也只记录警告，不输出详细错误
+          this.logger.warn(`旧结构加载也失败 ${language}`);
         }
       }
 
@@ -532,10 +541,14 @@ export class QueryLoader {
           const modulePath = require('path');
           const absolutePath = modulePath.join(__dirname, `../../constants/queries/${queryFileName}/${queryType}`);
           
-          // 检查文件是否存在
+          // 将绝对路径转换为file:// URL格式，以便在Windows上使用
           const fs = require('fs');
+          const urlModule = require('url');
+          
+          // 检查文件是否存在
           if (fs.existsSync(absolutePath + '.ts') || fs.existsSync(absolutePath + '.js')) {
-            const queryModule = await import(absolutePath);
+            const fileUrl = urlModule.pathToFileURL(absolutePath).href;
+            const queryModule = await import(fileUrl);
             const query = queryModule.default;
             
             if (query) {
@@ -553,10 +566,14 @@ export class QueryLoader {
           const modulePath = require('path');
           const absolutePath = modulePath.join(__dirname, `../../constants/queries/${queryFileName}/${compoundType.file}`);
           
-          // 检查文件是否存在
+          // 将绝对路径转换为file:// URL格式，以便在Windows上使用
           const fs = require('fs');
+          const urlModule = require('url');
+          
+          // 检查文件是否存在
           if (fs.existsSync(absolutePath + '.ts') || fs.existsSync(absolutePath + '.js')) {
-            const queryModule = await import(absolutePath);
+            const fileUrl = urlModule.pathToFileURL(absolutePath).href;
+            const queryModule = await import(fileUrl);
             const query = queryModule.default;
             
             if (query) {
@@ -594,10 +611,14 @@ export class QueryLoader {
                   const modulePath = require('path');
                   const absolutePath = modulePath.join(__dirname, `../../constants/queries/${queryFileName}/${queryType}`);
                   
-                  // 检查文件是否存在
+                  // 将绝对路径转换为file:// URL格式，以便在Windows上使用
                   const fs = require('fs');
+                  const urlModule = require('url');
+                  
+                  // 检查文件是否存在
                   if (fs.existsSync(absolutePath + '.ts') || fs.existsSync(absolutePath + '.js')) {
-                    const queryModule = await import(absolutePath);
+                    const fileUrl = urlModule.pathToFileURL(absolutePath).href;
+                    const queryModule = await import(fileUrl);
                     const query = queryModule.default;
                     
                     if (query) {
