@@ -1,0 +1,5 @@
+(call_expression
+  function: (field_expression
+    object: (identifier) @thread.object
+    field: (field_identifier) @thread.method))
+  (#match? @thread.method "detach") @concurrency.relationship.thread.detach

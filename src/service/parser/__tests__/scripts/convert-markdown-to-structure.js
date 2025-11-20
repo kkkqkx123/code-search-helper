@@ -73,19 +73,22 @@ function parseMarkdownFile(filePath) {
  * 预期格式: {language}-{category}-queries-test-cases.md 或类似变体
  */
 function extractLanguageAndCategory(filePath) {
-  // 匹配模式: *-{language}-{category}-*
-  // 例: c-concurrency-queries-test-cases.md -> language: c, category: concurrency
+  // 匹配模式: {language}-{category}-queries-test-cases.md
+  // 例: c-concurrency-relationships-queries-test-cases.md -> language: c, category: concurrency-relationships
   const filename = path.basename(filePath, '.md');
-  const parts = filename.split('-');
   
-  if (parts.length < 3) {
+  // 使用正则表达式匹配 {language}-{category}-queries-test-cases 模式
+  const regex = /^([^-]+)-(.+)-queries-test-cases$/;
+  const match = filename.match(regex);
+  
+  if (!match) {
     throw new Error(
-      `Invalid filename format. Expected: {language}-{category}-queries-test-cases.md or similar, got: ${filename}`
+      `Invalid filename format. Expected: {language}-{category}-queries-test-cases.md, got: ${filename}`
     );
   }
 
-  const language = parts[0];
-  const category = parts[1];
+  const language = match[1];
+  const category = match[2];
   
   return { language, category };
 }

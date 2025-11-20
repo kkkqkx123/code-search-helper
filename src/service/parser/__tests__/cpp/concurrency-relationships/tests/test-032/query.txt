@@ -1,0 +1,8 @@
+(call_expression
+  function: (qualified_identifier
+    scope: (identifier) @std.scope
+    name: (identifier) @parallel.algorithm)
+  arguments: (argument_list
+    (identifier) @execution.policy
+    (identifier) @algorithm.args))
+  (#match? @parallel.algorithm "^(for_each|sort|transform|reduce)$") @concurrency.relationship.parallel.algorithm

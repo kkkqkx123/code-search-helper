@@ -1,0 +1,8 @@
+(call_expression
+  function: (field_expression
+    object: (identifier) @atomic.variable
+    field: (field_identifier) @atomic.method)
+  arguments: (argument_list
+    (identifier) @expected.value
+    (identifier) @desired.value))
+  (#match? @atomic.method "compare_exchange") @concurrency.relationship.atomic.compare_exchange

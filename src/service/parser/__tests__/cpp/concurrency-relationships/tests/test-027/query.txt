@@ -1,0 +1,10 @@
+(assignment_expression
+  left: (field_expression
+    object: (identifier) @shared.variable
+    field: (field_identifier) @shared.field)
+  right: (binary_expression
+    left: (field_expression
+      object: (identifier) @shared.variable
+      field: (field_identifier) @shared.field)
+    operator: (identifier) @operator
+    right: (identifier) @increment.value)) @concurrency.relationship.race.condition

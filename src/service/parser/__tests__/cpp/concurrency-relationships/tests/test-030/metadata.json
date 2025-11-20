@@ -1,0 +1,7 @@
+{
+  "id": "concurrency-030",
+  "language": "cpp",
+  "section": "读写锁模式",
+  "description": "Test case 030: 读写锁模式",
+  "timestamp": "2025-11-20T10:25:38.074Z"
+}

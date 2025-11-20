@@ -1,0 +1,7 @@
+{
+  "id": "concurrency-025",
+  "language": "cpp",
+  "section": "线程本地存储",
+  "description": "Test case 025: 线程本地存储",
+  "timestamp": "2025-11-20T10:25:38.061Z"
+}

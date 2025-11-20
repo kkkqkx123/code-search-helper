@@ -1,0 +1,7 @@
+(call_expression
+  function: (field_expression
+    object: (identifier) @promise.object
+    field: (field_identifier) @promise.method)
+  arguments: (argument_list
+    (identifier) @promise.value))
+  (#match? @promise.method "set_value") @concurrency.relationship.promise.set_value

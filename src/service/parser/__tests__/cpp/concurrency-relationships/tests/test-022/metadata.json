@@ -1,0 +1,7 @@
+{
+  "id": "concurrency-022",
+  "language": "cpp",
+  "section": "共享异步任务获取结果",
+  "description": "Test case 022: 共享异步任务获取结果",
+  "timestamp": "2025-11-20T10:25:38.054Z"
+}

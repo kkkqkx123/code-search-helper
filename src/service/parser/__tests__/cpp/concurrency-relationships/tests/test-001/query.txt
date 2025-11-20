@@ -1,0 +1,4 @@
+(declaration
+  type: (qualified_identifier
+    scope: (namespace_identifier) @std.scope
+    name: (type_identifier) @thread.constructor)) @concurrency.relationship.thread.creation

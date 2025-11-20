@@ -1,0 +1,7 @@
+{
+  "id": "concurrency-028",
+  "language": "cpp",
+  "section": "死锁模式（多个锁获取）",
+  "description": "Test case 028: 死锁模式（多个锁获取）",
+  "timestamp": "2025-11-20T10:25:38.072Z"
+}

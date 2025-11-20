@@ -1,0 +1,7 @@
+{
+  "id": "concurrency-009",
+  "language": "cpp",
+  "section": "条件变量通知",
+  "description": "Test case 009: 条件变量通知",
+  "timestamp": "2025-11-20T10:25:38.033Z"
+}

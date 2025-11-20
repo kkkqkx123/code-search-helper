@@ -1,0 +1,7 @@
+(call_expression
+  function: (qualified_identifier
+    scope: (identifier) @std.scope
+    name: (identifier) @atomic.function)
+  arguments: (argument_list
+    (identifier) @memory.order))
+  (#match? @atomic.function "atomic_thread_fence") @concurrency.relationship.memory.fence

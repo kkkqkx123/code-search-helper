@@ -1,0 +1,5 @@
+(call_expression
+  function: (field_expression
+    object: (identifier) @condition.variable
+    field: (field_identifier) @condition.method))
+  (#match? @condition.method "^(notify_one|notify_all)$") @concurrency.relationship.condition.notify

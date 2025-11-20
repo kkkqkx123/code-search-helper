@@ -1,0 +1,5 @@
+(call_expression
+  function: (field_expression
+    object: (identifier) @atomic.flag
+    field: (field_identifier) @flag.method))
+  (#match? @flag.method "^(test_and_set|clear)$") @concurrency.relationship.atomic.flag
