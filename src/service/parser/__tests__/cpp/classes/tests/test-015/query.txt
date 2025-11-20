@@ -1,0 +1,4 @@
+(friend_declaration
+  (function_definition
+    declarator: (function_declarator
+      declarator: (identifier) @friend.function))) @definition.friend.function

@@ -1,0 +1,4 @@
+(function_definition
+ (virtual_specifier) @virtual.specifier
+ declarator: (function_declarator
+    declarator: (field_identifier) @virtual.method.name)) @definition.virtual.method

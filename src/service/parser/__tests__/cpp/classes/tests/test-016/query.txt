@@ -1,0 +1,3 @@
+(friend_declaration
+  (class_specifier
+    name: (type_identifier) @friend.class)) @definition.friend.class

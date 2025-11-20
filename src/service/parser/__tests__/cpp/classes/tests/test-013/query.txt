@@ -1,0 +1,5 @@
+(function_definition
+  (virtual_specifier) @virtual.specifier
+ declarator: (function_declarator
+    declarator: (field_identifier) @pure.virtual.method)
+  body: (pure_virtual_clause)) @definition.pure.virtual.method

@@ -10,7 +10,8 @@ const PROTOCOL = 'http';
 const TESTS_BASE_DIR = path.join(__dirname, '../');
 
 // 支持的语言和测试类别
-const SUPPORTED_LANGUAGES = ['c', 'python', 'javascript', 'java', 'go', 'rust'];
+// 支持的语言和测试类别
+const SUPPORTED_LANGUAGES = ['c', 'python', 'javascript', 'java', 'go', 'rust', 'cpp'];
 
 const TEST_CATEGORIES = {
     c: [
@@ -25,11 +26,13 @@ const TEST_CATEGORIES = {
         'variables',
         'semantic-relationships'
     ],
+    cpp: [
+        'classes'
+    ],
     python: [],  // 后续扩展
     javascript: [],  // 后续扩展
     // ... 其他语言
 };
-
 /**
  * 发送POST请求
  */
