@@ -27,7 +27,8 @@ const TEST_CATEGORIES = {
         'semantic-relationships'
     ],
     cpp: [
-        'classes'
+        'classes',
+        'concurrency-relationships'
     ],
     python: [],  // 后续扩展
     javascript: [],  // 后续扩展

@@ -101,21 +101,32 @@ async function debugAST(language, code, description) {
  * 主函数
  */
 async function main() {
+    const args = process.argv.slice(2);
+    
     console.log('开始调试AST结构...\n');
     
-    // 调试_Alignof的AST结构
-    await debugAST(
-        'c',
-        '#include <stdio.h>\n#include <stdalign.h>\n\nint main() {\n    int x = _Alignof(int);\n    printf("Alignment of int: %d\\n", x);\n    return 0;\n}',
-        '_Alignof表达式'
-    );
-    
-    // 调试_Alignas的AST结构
-    await debugAST(
-        'c',
-        '#include <stdio.h>\n#include <stdalign.h>\n\n_Alignas(16) int x;\n\nint main() {\n    printf("Alignment of x: %zu\\n", _Alignof(x));\n    return 0;\n}',
-        '_Alignas限定符'
-    );
+    if (args.length >= 2) {
+        const language = args[0];
+        const code = args[1];
+        const description = args[2] || '自定义代码';
+        
+        await debugAST(language, code, description);
+    } else {
+        // 默认调试C语言的_Alignof和_Alignas
+        // 调试_Alignof的AST结构
+        await debugAST(
+            'c',
+            '#include <stdio.h>\n#include <stdalign.h>\n\nint main() {\n    int x = _Alignof(int);\n    printf("Alignment of int: %d\\n", x);\n    return 0;\n}',
+            '_Alignof表达式'
+        );
+        
+        // 调试_Alignas的AST结构
+        await debugAST(
+            'c',
+            '#include <stdio.h>\n#include <stdalign.h>\n\n_Alignas(16) int x;\n\nint main() {\n    printf("Alignment of x: %zu\\n", _Alignof(x));\n    return 0;\n}',
+            '_Alignas限定符'
+        );
+    }
     
     console.log('\n调试完成!');
 }

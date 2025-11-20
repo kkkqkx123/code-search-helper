@@ -3,6 +3,9 @@
 const fs = require('fs');
 const path = require('path');
 
+// 注意：由于这是一个JavaScript文件，无法直接导入TypeScript中的常量
+// 这里保留原有的常量定义，以维持脚本的独立性
+
 /**
  * 从Markdown文件中解析测试用例
  */

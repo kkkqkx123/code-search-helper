@@ -26,7 +26,7 @@ const TESTS_BASE_DIR = path.join(__dirname, '../');
 const QUERIES_CONST_DIR = path.join(__dirname, '../../constants/queries');
 
 // 支持的语言和类别
-const SUPPORTED_LANGUAGES = ['c', 'python', 'javascript', 'java', 'go', 'rust'];
+const SUPPORTED_LANGUAGES = ['c', 'python', 'javascript', 'java', 'go', 'rust', 'cpp'];
 
 const TEST_CATEGORIES = {
   c: [
@@ -41,6 +41,10 @@ const TEST_CATEGORIES = {
     'preprocessor',
     'variables',
     'semantic-relationships'
+  ],
+  cpp: [
+    'classes',
+    'concurrency-relationships'
   ],
   python: [],
   javascript: [],

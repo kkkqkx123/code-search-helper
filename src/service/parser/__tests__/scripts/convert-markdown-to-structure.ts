@@ -2,71 +2,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-
-// LANGUAGE_MAP 常量，用于将语言名称映射到扩展名
-const LANGUAGE_MAP: Record<string, string> = {
-  '.js': 'javascript',
-  '.ts': 'typescript',
-  '.jsx': 'javascript',
-  '.tsx': 'typescript',
-  '.py': 'python',
-  '.java': 'java',
-  '.cpp': 'cpp',
-  '.c': 'c',
-  '.h': 'cpp',
-  '.hpp': 'cpp',
-  '.cs': 'csharp',
-  '.go': 'go',
-  '.rs': 'rust',
-  '.php': 'php',
-  '.rb': 'ruby',
-  '.swift': 'swift',
- '.kt': 'kotlin',
-  '.scala': 'scala',
-  '.md': 'markdown',
-  '.json': 'json',
-  '.xml': 'xml',
- '.yaml': 'yaml',
-  '.yml': 'yaml',
-  '.sql': 'sql',
-  '.sh': 'shell',
-  '.bash': 'shell',
-  '.zsh': 'shell',
-  '.fish': 'shell',
-  '.html': 'html',
-  '.htm': 'html',
-  '.css': 'css',
-  '.scss': 'scss',
-  '.sass': 'sass',
- '.less': 'less',
-  '.vue': 'vue',
-  '.svelte': 'svelte',
-  '.txt': 'text',
-  '.log': 'log',
-  '.ini': 'ini',
-  '.cfg': 'ini',
-  '.conf': 'ini',
- '.toml': 'toml',
-  '.dockerfile': 'dockerfile',
-  '.makefile': 'makefile',
-  '.cmake': 'cmake',
-  '.pl': 'perl',
-  '.r': 'r',
-  '.m': 'matlab',
-  '.lua': 'lua',
-  '.dart': 'dart',
-  '.ex': 'elixir',
-  '.exs': 'elixir',
-  '.erl': 'erlang',
-  '.hs': 'haskell',
- '.ml': 'ocaml',
-  '.fs': 'fsharp',
-  '.vb': 'visualbasic',
-  '.ps1': 'powershell',
-  '.bat': 'batch',
-  '.cmd': 'batch',
-  '.csv': 'csv',
-};
+import { LANGUAGE_MAP } from '../../constants/language-constants';
 
 // 反向映射：从语言名到扩展名
 const LANGUAGE_TO_EXTENSION: Record<string, string> = {};
@@ -182,13 +118,13 @@ function getCodeFileExtension(language: string): string {
   if (language.startsWith('.')) {
     return language;
   }
-  
+
   // 尝试在LANGUAGE_TO_EXTENSION中查找对应的语言
   const langLower = language.toLowerCase();
   if (LANGUAGE_TO_EXTENSION[langLower]) {
     return LANGUAGE_TO_EXTENSION[langLower];
   }
-  
+
   // 如果没有找到，返回原格式（可能无法识别）
   return `.${language}`;
 }

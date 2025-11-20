@@ -4,14 +4,10 @@ C++ Concurrency Relationships-specific Tree-Sitter Query Patterns
 */
 export default `
 ; 线程创建
-(call_expression
-  function: (qualified_identifier
-    scope: (identifier) @std.scope
-    name: (identifier) @thread.constructor)
-  arguments: (argument_list
-    (identifier) @thread.function
-    (identifier) @thread.args))
-  (#match? @std.scope "std") @concurrency.relationship.thread.creation
+(declaration
+  type: (qualified_identifier
+    scope: (namespace_identifier) @std.scope
+    name: (type_identifier) @thread.constructor)) @concurrency.relationship.thread.creation
 
 ; 线程加入
 (call_expression
@@ -320,10 +316,4 @@ export default `
     (identifier) @memory.order))
   (#match? @memory.order "^(memory_order_relaxed|memory_order_acquire|memory_order_release|memory_order_acq_rel|memory_order_seq_cst)$") @concurrency.relationship.memory.order
 
-; 事务内存（C++事务内存扩展）
-(call_expression
-  function: (qualified_identifier
-    scope: (identifier) @transaction.scope
-    name: (identifier) @transaction.function))
-  (#match? @transaction.function "^(atomic|atomic_noexcept|atomic_cancel|atomic_commit)$") @concurrency.relationship.transactional.memory
 `;
