@@ -75,6 +75,8 @@ src/service/parser/__tests__/{language}/{category}/
 node src\service\parser\__tests__\scripts\process-test-cases.js c:lifecycle
 ```
 
+注意：该脚本使用的是外部api，你可以默认该api已经开始提供服务。服务位于4001端口，提供api/health用于健康检查，api/parse用于解析代码块，api/parse/batch用于批量解析。如果执行失败且api端点测活失败，结束任务并要求我添加。
+
 此脚本会：
 - 自动扫描所有测试类别的索引文件
 - 从tests/test-XXX/目录加载code和query文件
