@@ -4,7 +4,7 @@ Optimized for code chunking and vector embedding
 */
 import classes from './classes';
 import functions from './functions';
-import _exports from './exports';
+import exportsQuery from './exports';
 import imports from './imports';
 import interfaces from './interfaces';
 import methods from './methods';
@@ -23,7 +23,7 @@ const comments = `
 export default `
 ${classes}
 ${functions}
-${_exports}
+${exportsQuery}
 ${imports}
 ${interfaces}
 ${methods}

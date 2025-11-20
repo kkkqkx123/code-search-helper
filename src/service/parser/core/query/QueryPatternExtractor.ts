@@ -10,55 +10,60 @@ export class QueryPatternExtractor {
    * @returns 提取的模式数组
    */
   static extractPatterns(query: string, keywords: string[]): string[] {
-    const lines = query.split('\n');
-    const patterns: string[] = [];
-    let currentPattern: string[] = [];
-    let inPattern = false;
-    let parenDepth = 0;
+    try {
+      const lines = query.split('\n');
+      const patterns: string[] = [];
+      let currentPattern: string[] = [];
+      let inPattern = false;
+      let parenDepth = 0;
 
-    for (const line of lines) {
-      const trimmedLine = line.trim();
+      for (const line of lines) {
+        const trimmedLine = line.trim();
 
-      // 跳过空行和注释
-      if (!trimmedLine || trimmedLine.startsWith(';') || trimmedLine.startsWith('//')) {
-        if (currentPattern.length > 0 && parenDepth === 0) {
-          patterns.push(currentPattern.join('\n'));
-          currentPattern = [];
-          inPattern = false;
+        // 跳过空行和注释
+        if (!trimmedLine || trimmedLine.startsWith(';') || trimmedLine.startsWith('//')) {
+          if (currentPattern.length > 0 && parenDepth === 0) {
+            patterns.push(currentPattern.join('\n'));
+            currentPattern = [];
+            inPattern = false;
+          }
+          continue;
         }
-        continue;
+
+        // 检查是否包含目标关键词
+        const hasKeyword = keywords.some(keyword =>
+          trimmedLine.includes(`(${keyword}`) ||
+          trimmedLine.includes(` ${keyword} `) ||
+          trimmedLine.includes(`@${keyword}`)
+        );
+
+        if (hasKeyword || inPattern) {
+          currentPattern.push(line);
+          inPattern = true;
+
+          // 计算括号深度
+          parenDepth += (line.match(/\(/g) || []).length;
+          parenDepth -= (line.match(/\)/g) || []).length;
+
+          // 如果括号平衡，可能是一个完整的模式
+          if (parenDepth === 0 && currentPattern.length > 0) {
+            patterns.push(currentPattern.join('\n'));
+            currentPattern = [];
+            inPattern = false;
+          }
+        }
       }
 
-      // 检查是否包含目标关键词
-      const hasKeyword = keywords.some(keyword =>
-        trimmedLine.includes(`(${keyword}`) ||
-        trimmedLine.includes(` ${keyword} `) ||
-        trimmedLine.includes(`@${keyword}`)
-      );
-
-      if (hasKeyword || inPattern) {
-        currentPattern.push(line);
-        inPattern = true;
-
-        // 计算括号深度
-        parenDepth += (line.match(/\(/g) || []).length;
-        parenDepth -= (line.match(/\)/g) || []).length;
-
-        // 如果括号平衡，可能是一个完整的模式
-        if (parenDepth === 0 && currentPattern.length > 0) {
-          patterns.push(currentPattern.join('\n'));
-          currentPattern = [];
-          inPattern = false;
-        }
+      // 处理未完成的模式
+      if (currentPattern.length > 0 && parenDepth === 0) {
+        patterns.push(currentPattern.join('\n'));
       }
-    }
 
-    // 处理未完成的模式
-    if (currentPattern.length > 0 && parenDepth === 0) {
-      patterns.push(currentPattern.join('\n'));
+      return patterns;
+    } catch (error) {
+      console.error('QueryPatternExtractor.extractPatterns error:', error);
+      return []; // 返回空数组以避免错误传播
     }
-
-    return patterns;
   }
 
   /**
@@ -68,18 +73,23 @@ export class QueryPatternExtractor {
    * @returns 查询类型到模式字符串的映射
    */
   static extractAllPatterns(
-    query: string, 
+    query: string,
     queryPatterns: Record<string, string[]>
   ): Map<string, string> {
-    const result = new Map<string, string>();
+    try {
+      const result = new Map<string, string>();
 
-    for (const [queryType, keywords] of Object.entries(queryPatterns)) {
-      const patterns = this.extractPatterns(query, keywords);
-      if (patterns.length > 0) {
-        result.set(queryType, patterns.join('\n\n'));
+      for (const [queryType, keywords] of Object.entries(queryPatterns)) {
+        const patterns = this.extractPatterns(query, keywords);
+        if (patterns.length > 0) {
+          result.set(queryType, patterns.join('\n\n'));
+        }
       }
-    }
 
-    return result;
+      return result;
+    } catch (error) {
+      console.error('QueryPatternExtractor.extractAllPatterns error:', error);
+      return new Map<string, string>(); // 返回空映射以避免错误传播
+    }
   }
 }

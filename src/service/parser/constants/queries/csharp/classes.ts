@@ -141,3 +141,4 @@ export default `
   (modifier) @partial.modifier
   name: (identifier) @partial.class.name
   (#match? @partial.modifier "partial")) @definition.partial.class
+`;

@@ -75,7 +75,6 @@ import { IFileFeatureDetector } from '../../service/parser/detection/IFileFeatur
 import { FileFeatureDetector } from '../../service/parser/detection/FileFeatureDetector';
 
 // 分段器模块服务
-import { ProtectionCoordinator } from '../../service/parser/processing/utils/protection/ProtectionCoordinator';
 import { ChunkFilter } from '../../service/parser/processing/utils/chunking/ChunkFilter';
 import { ChunkMerger } from '../../service/parser/processing/utils/chunking/evaluators/ChunkMerger';
 import { ChunkSimilarityCalculator } from '../../service/parser/processing/utils/chunking/evaluators/ChunkSimilarityCalculator';
@@ -83,6 +82,7 @@ import { ChunkSimilarityCalculator } from '../../service/parser/processing/utils
 // 新增的processing模块替代组件
 import { StrategyFactory } from '../../service/parser/processing/factory/StrategyFactory';
 import { ProcessingCoordinator } from '../../service/parser/processing/coordinator/ProcessingCoordinator';
+import { SimpleConfigManager } from '../../service/parser/processing/coordinator/SimpleConfigManager';
 
 import { ChunkPostProcessorCoordinator } from '../../service/parser/post-processing/ChunkPostProcessorCoordinator';
 import { ProcessingConfig } from '../../service/parser/processing/core/types/ConfigTypes';
@@ -186,7 +186,7 @@ export class BusinessServiceRegistrar {
       container.bind<TreeSitterCoreService>(TYPES.TreeSitterCoreService).to(TreeSitterCoreService).inSingletonScope();
       container.bind<TreeSitterService>(TYPES.TreeSitterService).to(TreeSitterService).inSingletonScope();
       container.bind<TreeSitterQueryEngine>(TYPES.TreeSitterQueryEngine).to(TreeSitterQueryEngine).inSingletonScope();
-      
+
 
       // 标准化服务
       container.bind<QueryResultNormalizer>(TYPES.QueryResultNormalizer).to(QueryResultNormalizer).inSingletonScope();
@@ -324,6 +324,79 @@ export class BusinessServiceRegistrar {
 
 
       container.bind<ChunkPostProcessorCoordinator>(TYPES.ChunkPostProcessorCoordinator).to(ChunkPostProcessorCoordinator).inSingletonScope();
+
+      // 注册 SimpleConfigManager
+      container.bind<SimpleConfigManager>(TYPES.ConfigurationManager).toDynamicValue(context => {
+        // 创建默认的ProcessingConfig
+        const processingConfig: ProcessingConfig = {
+          chunking: {
+            maxChunkSize: 2000,
+            minChunkSize: 200,
+            overlapSize: 100,
+            maxLinesPerChunk: 50,
+            minLinesPerChunk: 5,
+            maxOverlapRatio: 0.2,
+            defaultStrategy: 'semantic',
+            strategyPriorities: {
+              'semantic': 10,
+              'bracket': 8,
+              'line': 6,
+              'ast': 9
+            },
+            enableIntelligentChunking: true,
+            enableSemanticBoundaryDetection: true
+          },
+          features: {
+            enableAST: true,
+            enableSemanticDetection: true,
+            enableBracketBalance: true,
+            enableCodeOverlap: true,
+            enableStandardization: true,
+            standardizationFallback: true,
+            enableComplexityCalculation: true,
+            enableLanguageFeatureDetection: true,
+            featureDetectionThresholds: {}
+          },
+          performance: {
+            memoryLimitMB: 500,
+            maxExecutionTime: 30000,
+            enableCaching: true,
+            cacheSizeLimit: 100,
+            enablePerformanceMonitoring: true,
+            concurrencyLimit: 10,
+            queueSizeLimit: 100,
+            enableBatchProcessing: true,
+            batchSize: 50,
+            enableLazyLoading: true
+          },
+          languages: {},
+          postProcessing: {
+            enabled: true,
+            enabledProcessors: ['OverlapPostProcessor', 'ChunkFilter', 'ChunkRebalancer'],
+            processorConfigs: {},
+            processorOrder: ['OverlapPostProcessor', 'ChunkFilter', 'ChunkRebalancer'],
+            maxProcessingRounds: 3,
+            enableParallelProcessing: false,
+            parallelProcessingLimit: 5
+          },
+          global: {
+            debugMode: false,
+            logLevel: 'info',
+            enableMetrics: true,
+            enableStatistics: true,
+            configVersion: '1.0.0',
+            compatibilityMode: false,
+            strictMode: false,
+            experimentalFeatures: [],
+            customProperties: {}
+          },
+          version: '1.0.0',
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        };
+
+        return new SimpleConfigManager(processingConfig);
+      }).inSingletonScope();
 
       // 注册 ProcessingCoordinator
       container.bind<ProcessingCoordinator>(TYPES.UnifiedProcessingCoordinator).to(ProcessingCoordinator).inSingletonScope();

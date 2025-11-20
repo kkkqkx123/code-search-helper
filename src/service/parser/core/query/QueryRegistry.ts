@@ -33,14 +33,26 @@ export class QueryRegistryImpl {
       }
       
       // 从查询文件加载
-      await this.loadFromQueryFiles();
+      try {
+        await this.loadFromQueryFiles();
+      } catch (error) {
+        this.logger.error('查询文件加载失败:', {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          name: error instanceof Error ? error.name : 'Unknown',
+          type: typeof error
+        });
+        throw error;
+      }
       
       this.initialized = true;
       this.logger.info(`查询注册表初始化完成，支持 ${this.patterns.size} 种语言`);
       
     } catch (error) {
       this.logger.error('查询注册表初始化失败:', error);
-      throw error;
+      // 不要抛出错误，让系统继续运行，但标记为未初始化
+      // 这样即使查询加载失败，应用也能继续启动
+      this.initialized = false;
     }
   }
 
@@ -56,7 +68,14 @@ export class QueryRegistryImpl {
     for (let i = 0; i < languages.length; i += batchSize) {
       const batch = languages.slice(i, i + batchSize);
       const results = await Promise.allSettled(
-        batch.map(language => this.loadLanguageQueries(language))
+        batch.map(async (language) => {
+          try {
+            await this.loadLanguageQueries(language);
+          } catch (error) {
+            this.logger.warn(`加载 ${language} 语言查询失败:`, error);
+            throw error; // 重新抛出错误，以便Promise.allSettled能捕获
+          }
+        })
       );
       
       // 记录结果
@@ -77,25 +96,30 @@ export class QueryRegistryImpl {
   private static async loadLanguageQueries(language: string): Promise<void> {
     this.logger.debug(`加载 ${language} 语言查询...`);
     
-    // 使用QueryLoader加载查询（支持新结构和旧结构）
-    await QueryLoader.loadLanguageQueries(language);
-    
-    // 如果QueryLoader成功加载，直接使用其查询
-    if (QueryLoader.isLanguageLoaded(language)) {
-      const queryTypes = QueryLoader.getQueryTypesForLanguage(language);
-      const languagePatterns = new Map<string, string>();
+    try {
+      // 使用QueryLoader加载查询（支持新结构和旧结构）
+      await QueryLoader.loadLanguageQueries(language);
       
-      for (const queryType of queryTypes) {
-        try {
-          const query = QueryLoader.getQuery(language, queryType);
-          languagePatterns.set(queryType, query);
-        } catch (error) {
-          this.logger.warn(`获取 ${language}.${queryType} 查询失败:`, error);
+      // 如果QueryLoader成功加载，直接使用其查询
+      if (QueryLoader.isLanguageLoaded(language)) {
+        const queryTypes = QueryLoader.getQueryTypesForLanguage(language);
+        const languagePatterns = new Map<string, string>();
+        
+        for (const queryType of queryTypes) {
+          try {
+            const query = QueryLoader.getQuery(language, queryType);
+            languagePatterns.set(queryType, query);
+          } catch (error) {
+            this.logger.warn(`获取 ${language}.${queryType} 查询失败:`, error);
+          }
         }
+        
+        this.patterns.set(language, languagePatterns);
+        this.logger.debug(`成功加载 ${language} 语言的 ${languagePatterns.size} 种查询模式`);
       }
-      
-      this.patterns.set(language, languagePatterns);
-      this.logger.debug(`成功加载 ${language} 语言的 ${languagePatterns.size} 种查询模式`);
+    } catch (error) {
+      this.logger.error(`加载 ${language} 语言查询时发生错误:`, error);
+      // 继续执行，不中断整个加载过程
     }
   }
 

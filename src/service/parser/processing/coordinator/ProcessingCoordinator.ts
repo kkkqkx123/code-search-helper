@@ -18,8 +18,6 @@ import { LoggerService } from '../../../../utils/LoggerService';
 import { injectable, inject, optional } from 'inversify';
 import { FileFeatureDetector } from '../../detection/FileFeatureDetector';
 import { DetectionService } from '../../detection/DetectionService';
-import { ComplexityCalculator } from '../../../../utils/parser/ComplexityCalculator';
-import { ChunkFactory } from '../../../../utils/parser/ChunkFactory';
 import { TYPES } from '../../../../types';
 import {
   UNIFIED_STRATEGY_PRIORITIES,
@@ -455,7 +453,7 @@ export class ProcessingCoordinator {
       return LineEndingType.CR;
     } else {
       // 使用 FileFeatureDetector 进行换行符类型检测
-    return this.fileFeatureDetector.detectLineEndingType(content);
+      return this.fileFeatureDetector.detectLineEndingType(content);
     }
   }
 

@@ -8,7 +8,7 @@ import variables from './variables';
 import imports from './imports';
 import controlFlow from './control-flow';
 import expressions from './expressions';
-import exportQueries from './exports';
+import exportsQuery from './exports';
 import interfaces from './interfaces';
 import methods from './methods';
 import properties from './properties';
@@ -30,7 +30,7 @@ ${variables}
 ${imports}
 ${controlFlow}
 ${expressions}
-${exportQueries}
+${exportsQuery}
 ${interfaces}
 ${methods}
 ${properties}

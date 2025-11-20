@@ -174,3 +174,4 @@ export default `
       type: (identifier) @param.type)*)?
   body: (block)? @partial.method.body
   (#match? @partial.modifier "partial")) @definition.partial.method
+`;

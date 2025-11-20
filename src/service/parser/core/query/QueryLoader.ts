@@ -38,6 +38,8 @@ export class QueryLoader {
       return;
     }
 
+    this.logger.info(`开始加载 ${language} 语言的查询...`);
+
     try {
       const languageQueries = new Map<string, string>();
       const queryFileName = this.getQueryFileName(language);
@@ -45,45 +47,87 @@ export class QueryLoader {
       try {
         // 首先尝试加载index.ts文件（新结构）
         const importPath = `../../constants/queries/${queryFileName}/index`;
-
-        const queryModule = await import(importPath);
-        const query = queryModule.default;
-
-        if (query) {
-          // 对于有index.ts的语言，尝试加载单独的查询文件
-          const languageQueriesMap = await this.loadStructuredQueries(queryFileName, language);
-          
-          // 如果没有找到单独的查询文件，回退到智能分类
-          if (languageQueriesMap.size === 0) {
-            const categorizedMap = this.categorizeSimpleLanguageQuery(query, language);
-            // 确保至少有functions和classes查询类型
-            this.ensureBasicQueryTypes(categorizedMap, query, language);
-            languageQueriesMap.clear();
-            for (const [key, value] of Array.from(categorizedMap)) {
-              languageQueriesMap.set(key, value);
+        
+        // 使用绝对路径处理，避免相对路径问题
+        const modulePath = require('path');
+        const absolutePath = modulePath.join(__dirname, `../../constants/queries/${queryFileName}/index`);
+        
+        this.logger.debug(`尝试加载 ${language} 语言的查询文件: ${absolutePath}`);
+        
+        // 检查文件是否存在
+        const fs = require('fs');
+        if (fs.existsSync(absolutePath + '.ts') || fs.existsSync(absolutePath + '.js')) {
+          this.logger.debug(`文件存在，开始动态导入: ${absolutePath}`);
+            let queryModule;
+            try {
+              queryModule = await import(absolutePath);
+            } catch (importError) {
+              this.logger.error(`动态导入失败 ${absolutePath}:`, {
+                error: importError instanceof Error ? importError.message : String(importError),
+                stack: importError instanceof Error ? importError.stack : undefined,
+                name: importError instanceof Error ? importError.name : 'Unknown',
+                type: typeof importError
+              });
+              throw importError;
             }
-          }
-
-          this.queries.set(normalizedLanguage, languageQueriesMap);
-          this.loadedLanguages.add(normalizedLanguage);
-          return;
-        }
-      } catch (error) {
-
-        // 尝试回退到旧的单一文件结构
-        try {
-          const queryModule = await import(`../../constants/queries/${queryFileName}`);
-          const query = queryModule.default || queryModule[`${queryFileName}Query`];
-
+          const query = queryModule.default;
+          
           if (query) {
-            // 对于简单语言，使用智能分类
-            const languageQueriesMap = this.categorizeSimpleLanguageQuery(query, language);
-            // 确保至少有functions和classes查询类型
-            this.ensureBasicQueryTypes(languageQueriesMap, query, language);
-
+            // 对于有index.ts的语言，尝试加载单独的查询文件
+            const languageQueriesMap = await this.loadStructuredQueries(queryFileName, language);
+            
+            // 如果没有找到单独的查询文件，回退到智能分类
+            if (languageQueriesMap.size === 0) {
+              const categorizedMap = this.categorizeSimpleLanguageQuery(query, language);
+              // 确保至少有functions和classes查询类型
+              this.ensureBasicQueryTypes(categorizedMap, query, language);
+              languageQueriesMap.clear();
+              for (const [key, value] of Array.from(categorizedMap)) {
+                languageQueriesMap.set(key, value);
+              }
+            }
+            
             this.queries.set(normalizedLanguage, languageQueriesMap);
             this.loadedLanguages.add(normalizedLanguage);
             return;
+          }
+        } else {
+          // 文件不存在，继续到下一个catch块
+          throw new Error(`Query file does not exist: ${absolutePath}`);
+        }
+      } catch (error) {
+        this.logger.error(`新结构加载失败 ${language}:`, {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          name: error instanceof Error ? error.name : 'Unknown'
+        });
+
+        // 尝试回退到旧的单一文件结构
+        try {
+          const modulePath = require('path');
+          const absolutePath = modulePath.join(__dirname, `../../constants/queries/${queryFileName}`);
+          
+          this.logger.debug(`尝试回退到旧结构: ${absolutePath}`);
+          
+          // 检查文件是否存在
+          const fs = require('fs');
+          if (fs.existsSync(absolutePath + '.ts') || fs.existsSync(absolutePath + '.js')) {
+            const queryModule = await import(absolutePath);
+            const query = queryModule.default || queryModule[`${queryFileName}Query`];
+            
+            if (query) {
+              // 对于简单语言，使用智能分类
+              const languageQueriesMap = this.categorizeSimpleLanguageQuery(query, language);
+              // 确保至少有functions和classes查询类型
+              this.ensureBasicQueryTypes(languageQueriesMap, query, language);
+              
+              this.queries.set(normalizedLanguage, languageQueriesMap);
+              this.loadedLanguages.add(normalizedLanguage);
+              return;
+            }
+          } else {
+            // 文件不存在，继续到下一个catch块
+            throw new Error(`Query file does not exist: ${absolutePath}`);
           }
         } catch (fallbackError) {
           this.logger.error(`旧结构加载也失败: ${fallbackError}`);
@@ -92,7 +136,13 @@ export class QueryLoader {
 
       throw new Error(`未找到${language}语言的查询文件`);
     } catch (error) {
-      this.logger.error(`加载${language}语言查询失败:`, error);
+      this.logger.error(`加载${language}语言查询失败:`, {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        name: error instanceof Error ? error.name : 'Unknown',
+        type: typeof error,
+        constructor: error?.constructor?.name
+      });
       throw error;
     }
   }
@@ -447,15 +497,23 @@ export class QueryLoader {
    * @returns 分类后的查询映射
    */
   private static categorizeSimpleLanguageQuery(query: string, language: string): Map<string, string> {
-    // 使用QueryPatternExtractor提取所有模式
-    const languageQueriesMap = QueryPatternExtractor.extractAllPatterns(query, QUERY_PATTERNS);
+    try {
+      // 使用QueryPatternExtractor提取所有模式
+      const languageQueriesMap = QueryPatternExtractor.extractAllPatterns(query, QUERY_PATTERNS);
 
-    // 如果没有找到任何分类，将整个查询作为通用查询
-    if (languageQueriesMap.size === 0) {
-      languageQueriesMap.set('functions', query);
+      // 如果没有找到任何分类，将整个查询作为通用查询
+      if (languageQueriesMap.size === 0) {
+        languageQueriesMap.set('functions', query);
+      }
+
+      return languageQueriesMap;
+    } catch (error) {
+      this.logger.error(`查询模式分类失败 ${language}:`, error);
+      // 返回一个基本的映射以避免完全失败
+      const fallbackMap = new Map<string, string>();
+      fallbackMap.set('functions', query);
+      return fallbackMap;
     }
-
-    return languageQueriesMap;
   }
 
   /**
@@ -471,12 +529,18 @@ export class QueryLoader {
       // 尝试加载常见的查询类型
       for (const queryType of COMMON_QUERY_TYPES) {
         try {
-          const importPath = `../../constants/queries/${queryFileName}/${queryType}`;
-          const queryModule = await import(importPath);
-          const query = queryModule.default;
+          const modulePath = require('path');
+          const absolutePath = modulePath.join(__dirname, `../../constants/queries/${queryFileName}/${queryType}`);
           
-          if (query) {
-            languageQueriesMap.set(queryType, query);
+          // 检查文件是否存在
+          const fs = require('fs');
+          if (fs.existsSync(absolutePath + '.ts') || fs.existsSync(absolutePath + '.js')) {
+            const queryModule = await import(absolutePath);
+            const query = queryModule.default;
+            
+            if (query) {
+              languageQueriesMap.set(queryType, query);
+            }
           }
         } catch (error) {
           // 某些查询类型可能不存在，这是正常的
@@ -486,16 +550,22 @@ export class QueryLoader {
       // 尝试加载复合查询类型
       for (const compoundType of COMPOUND_QUERY_TYPES) {
         try {
-          const importPath = `../../constants/queries/${queryFileName}/${compoundType.file}`;
-          const queryModule = await import(importPath);
-          const query = queryModule.default;
+          const modulePath = require('path');
+          const absolutePath = modulePath.join(__dirname, `../../constants/queries/${queryFileName}/${compoundType.file}`);
           
-          if (query) {
-            // 为复合查询类型中的每个查询类型创建查询
-            const categorizedQueries = this.categorizeSimpleLanguageQuery(query, language);
-            for (const queryType of compoundType.queries) {
-              if (categorizedQueries.has(queryType) && !languageQueriesMap.has(queryType)) {
-                languageQueriesMap.set(queryType, categorizedQueries.get(queryType)!);
+          // 检查文件是否存在
+          const fs = require('fs');
+          if (fs.existsSync(absolutePath + '.ts') || fs.existsSync(absolutePath + '.js')) {
+            const queryModule = await import(absolutePath);
+            const query = queryModule.default;
+            
+            if (query) {
+              // 为复合查询类型中的每个查询类型创建查询
+              const categorizedQueries = this.categorizeSimpleLanguageQuery(query, language);
+              for (const queryType of compoundType.queries) {
+                if (categorizedQueries.has(queryType) && !languageQueriesMap.has(queryType)) {
+                  languageQueriesMap.set(queryType, categorizedQueries.get(queryType)!);
+                }
               }
             }
           }
@@ -521,12 +591,18 @@ export class QueryLoader {
               // 如果该查询类型尚未加载，则尝试加载
               if (!languageQueriesMap.has(queryType)) {
                 try {
-                  const importPath = `../../constants/queries/${queryFileName}/${queryType}`;
-                  const queryModule = await import(importPath);
-                  const query = queryModule.default;
+                  const modulePath = require('path');
+                  const absolutePath = modulePath.join(__dirname, `../../constants/queries/${queryFileName}/${queryType}`);
                   
-                  if (query) {
-                    languageQueriesMap.set(queryType, query);
+                  // 检查文件是否存在
+                  const fs = require('fs');
+                  if (fs.existsSync(absolutePath + '.ts') || fs.existsSync(absolutePath + '.js')) {
+                    const queryModule = await import(absolutePath);
+                    const query = queryModule.default;
+                    
+                    if (query) {
+                      languageQueriesMap.set(queryType, query);
+                    }
                   }
                 } catch (error) {
                   // 某些查询文件可能无法直接导入，这是正常的

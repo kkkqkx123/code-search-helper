@@ -103,7 +103,6 @@ export class DatabaseServiceRegistrar {
 
       // 新的图服务绑定
       container.bind<IGraphService>(TYPES.IGraphService).to(GraphService).inSingletonScope();
-      container.bind<GraphService>(TYPES.GraphService).to(GraphService).inSingletonScope();
       
       // Repository层
       container.bind<GraphRepository>(TYPES.GraphRepository).to(GraphRepository).inSingletonScope();
@@ -126,7 +125,6 @@ export class DatabaseServiceRegistrar {
       container.bind<NebulaDataService>(TYPES.NebulaDataService).to(NebulaDataService).inSingletonScope();
       container.bind<INebulaDataService>(TYPES.INebulaDataService).to(NebulaDataService).inSingletonScope();
       container.bind<NebulaSpaceManager>(TYPES.NebulaSpaceManager).to(NebulaSpaceManager).inSingletonScope();
-      container.bind<INebulaSpaceManager>(TYPES.INebulaSpaceManager).to(NebulaSpaceManager).inSingletonScope();
       container.bind<NebulaQueryService>(TYPES.NebulaQueryService).to(NebulaQueryService).inSingletonScope();
       container.bind<INebulaQueryService>(TYPES.INebulaQueryService).to(NebulaQueryService).inSingletonScope();
       container.bind<NebulaDataOperations>(TYPES.NebulaDataOperations).to(NebulaDataOperations).inSingletonScope();

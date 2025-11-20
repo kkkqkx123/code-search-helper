@@ -33,9 +33,16 @@ export class QueryCache {
       return cached;
     }
 
-    const query = new Parser.Query(language, pattern);
-    this.queryCache.set(key, query);
-    return query;
+    try {
+      const query = new Parser.Query(language, pattern);
+      this.queryCache.set(key, query);
+      return query;
+    } catch (error) {
+      console.error('QueryCache.getQuery error - failed to create Parser.Query:', error);
+      console.error('Language:', language?.name);
+      console.error('Pattern:', pattern.substring(0, 200) + (pattern.length > 200 ? '...' : '')); // 只显示前200个字符
+      throw error; // 重新抛出错误，让上层处理
+    }
   }
 
   static getStats() {

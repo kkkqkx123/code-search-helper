@@ -358,7 +358,10 @@ export class PerformanceMonitor implements IPerformanceMonitor {
   endOperation(operationId: string, result?: Partial<OperationResult>): void {
     const context = this.operationContexts.get(operationId);
     if (!context) {
-      this.logger.warn('Attempted to end non-existent operation', { operationId });
+      this.logger.warn('Attempted to end non-existent operation', {
+        operationId,
+        operationType: operationId.split('_')[0] // 提取操作类型（ID的第一部分）
+      });
       return;
     }
 

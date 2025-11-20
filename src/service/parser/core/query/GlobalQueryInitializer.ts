@@ -49,7 +49,12 @@ export class GlobalQueryInitializer {
       return true;
     } catch (error) {
       this.initializing = false;
-      this.logger.error('全局查询系统初始化失败:', error);
+      this.logger.error('全局查询系统初始化失败:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        name: error instanceof Error ? error.name : 'Unknown',
+        type: typeof error
+      });
       return false;
     }
   }

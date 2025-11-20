@@ -158,6 +158,14 @@ export class SessionManager extends EventEmitter implements ISessionManager {
     this.stats.totalAcquires++;
 
     try {
+      // 开始操作监控
+      const operationId = this.performanceMonitor.startOperation('session_acquire', {
+        metadata: {
+          spaceName,
+          startTime
+        }
+      });
+
       let session: Session;
 
       // 如果指定了空间名称，先尝试从缓存获取
@@ -179,7 +187,7 @@ export class SessionManager extends EventEmitter implements ISessionManager {
       }
 
       const acquireTime = Date.now() - startTime;
-      this.performanceMonitor.endOperation('session_acquire', {
+      this.performanceMonitor.endOperation(operationId, {
         duration: acquireTime,
         metadata: {
           spaceName,
@@ -531,7 +539,22 @@ export class SessionManager extends EventEmitter implements ISessionManager {
     }
 
     // 记录会话管理器性能指标
-    this.performanceMonitor.endOperation('session_manager_stats', {
+    const operationId = this.performanceMonitor.startOperation('session_manager_stats', {
+      metadata: {
+        totalSessions: this.stats.totalSessions,
+        activeSessions: this.stats.activeSessions,
+        idleSessions: this.stats.idleSessions,
+        spaceCount: this.stats.spaceCount,
+        totalAcquires: this.stats.totalAcquires,
+        totalReleases: this.stats.totalReleases,
+        cacheHits: this.stats.cacheHits,
+        cacheMisses: this.stats.cacheMisses,
+        averageSessionAge: this.stats.averageSessionAge,
+        spaceNames: this.getSpaceNames()
+      }
+    });
+    
+    this.performanceMonitor.endOperation(operationId, {
       duration: 0,
       metadata: {
         totalSessions: this.stats.totalSessions,

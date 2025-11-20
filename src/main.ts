@@ -28,7 +28,13 @@ const eventManager = ProcessEventManager.getInstance();
 const uncaughtExceptionHandler = async (error: Error) => {
   const errorMessage = error instanceof Error ? error.message : String(error);
   const errorStack = error instanceof Error ? error.stack : undefined;
-  console.error('Uncaught Exception:', errorMessage);
+  const errorName = error instanceof Error ? error.name : 'Unknown';
+  console.error('Uncaught Exception:', {
+    name: errorName,
+    message: errorMessage,
+    stack: errorStack,
+    fullError: error
+  });
   if (errorStack) {
     console.error('Stack trace:', errorStack);
   }

@@ -159,3 +159,4 @@ export default `
       name: (identifier) @param.name
       type: (identifier) @param.type)*)?
   body: (block) @local.function.body) @definition.local.function
+`;
