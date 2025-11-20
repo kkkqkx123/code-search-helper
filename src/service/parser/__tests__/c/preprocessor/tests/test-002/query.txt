@@ -1,6 +1,2 @@
-[
-  (preproc_def
-    name: (identifier) @name.definition.macro)
-  (preproc_function_def
-    name: (identifier) @name.definition.macro)
-] @definition.macro
+(preproc_function_def
+  name: (identifier) @name.definition.macro) @definition.macro

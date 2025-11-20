@@ -22,6 +22,8 @@ export default `
 ; Preprocessor conditionals - important for conditional compilation
 (preproc_if
   condition: (_) @name.definition.preproc_condition) @definition.preproc_condition
+
+; Preprocessor elif - important for conditional compilation
 (preproc_elif
   condition: (_) @name.definition.preproc_condition) @definition.preproc_condition
 
