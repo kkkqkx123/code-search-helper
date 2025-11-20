@@ -1,0 +1,6 @@
+[
+  (preproc_include
+    path: (system_lib_string) @name.definition.include)
+  (preproc_include
+    path: (string_literal) @name.definition.include)
+] @definition.include

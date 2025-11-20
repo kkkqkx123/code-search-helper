@@ -1,0 +1,172 @@
+{
+  "testId": "preprocessor-003",
+  "request": {
+    "language": "c",
+    "code": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <math.h>\n#include <time.h>\n#include <unistd.h>\n\nint main() {\n    printf(\"Hello, World!\\n\");\n    return 0;\n}",
+    "query": "[\n  (preproc_include\n    path: (system_lib_string) @name.definition.include)\n  (preproc_include\n    path: (string_literal) @name.definition.include)\n] @definition.include"
+  },
+  "response": {
+    "success": true,
+    "data": [
+      {
+        "captureName": "definition.include",
+        "type": "preproc_include",
+        "text": "#include <stdio.h>\n",
+        "startPosition": {
+          "row": 0,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 1,
+          "column": 0
+        }
+      },
+      {
+        "captureName": "name.definition.include",
+        "type": "system_lib_string",
+        "text": "<stdio.h>",
+        "startPosition": {
+          "row": 0,
+          "column": 9
+        },
+        "endPosition": {
+          "row": 0,
+          "column": 18
+        }
+      },
+      {
+        "captureName": "definition.include",
+        "type": "preproc_include",
+        "text": "#include <stdlib.h>\n",
+        "startPosition": {
+          "row": 1,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 2,
+          "column": 0
+        }
+      },
+      {
+        "captureName": "name.definition.include",
+        "type": "system_lib_string",
+        "text": "<stdlib.h>",
+        "startPosition": {
+          "row": 1,
+          "column": 9
+        },
+        "endPosition": {
+          "row": 1,
+          "column": 19
+        }
+      },
+      {
+        "captureName": "definition.include",
+        "type": "preproc_include",
+        "text": "#include <string.h>\n",
+        "startPosition": {
+          "row": 2,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 3,
+          "column": 0
+        }
+      },
+      {
+        "captureName": "name.definition.include",
+        "type": "system_lib_string",
+        "text": "<string.h>",
+        "startPosition": {
+          "row": 2,
+          "column": 9
+        },
+        "endPosition": {
+          "row": 2,
+          "column": 19
+        }
+      },
+      {
+        "captureName": "definition.include",
+        "type": "preproc_include",
+        "text": "#include <math.h>\n",
+        "startPosition": {
+          "row": 3,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 4,
+          "column": 0
+        }
+      },
+      {
+        "captureName": "name.definition.include",
+        "type": "system_lib_string",
+        "text": "<math.h>",
+        "startPosition": {
+          "row": 3,
+          "column": 9
+        },
+        "endPosition": {
+          "row": 3,
+          "column": 17
+        }
+      },
+      {
+        "captureName": "definition.include",
+        "type": "preproc_include",
+        "text": "#include <time.h>\n",
+        "startPosition": {
+          "row": 4,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 5,
+          "column": 0
+        }
+      },
+      {
+        "captureName": "name.definition.include",
+        "type": "system_lib_string",
+        "text": "<time.h>",
+        "startPosition": {
+          "row": 4,
+          "column": 9
+        },
+        "endPosition": {
+          "row": 4,
+          "column": 17
+        }
+      },
+      {
+        "captureName": "definition.include",
+        "type": "preproc_include",
+        "text": "#include <unistd.h>\n",
+        "startPosition": {
+          "row": 5,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 6,
+          "column": 0
+        }
+      },
+      {
+        "captureName": "name.definition.include",
+        "type": "system_lib_string",
+        "text": "<unistd.h>",
+        "startPosition": {
+          "row": 5,
+          "column": 9
+        },
+        "endPosition": {
+          "row": 5,
+          "column": 19
+        }
+      }
+    ],
+    "errors": [],
+    "timestamp": "2025-11-20T00:31:46.402Z"
+  },
+  "timestamp": "2025-11-20T00:31:46.403Z"
+}

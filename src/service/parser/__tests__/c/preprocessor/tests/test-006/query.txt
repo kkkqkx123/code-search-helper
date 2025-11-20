@@ -1,0 +1,2 @@
+(preproc_ifdef
+  name: (identifier) @name.definition.preproc_ifdef) @definition.preproc_ifdef

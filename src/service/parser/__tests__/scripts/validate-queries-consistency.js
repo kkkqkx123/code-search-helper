@@ -36,7 +36,8 @@ const TEST_CATEGORIES = {
     'data-flow',
     'functions',
     'structs',
-    'concurrency'
+    'concurrency',
+    'preprocessor'
   ],
   python: [],
   javascript: [],

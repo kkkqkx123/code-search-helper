@@ -20,7 +20,8 @@ const TEST_CATEGORIES = {
     'data-flow',
     'functions',
     'structs',
-    'concurrency'
+    'concurrency',
+    'preprocessor'
   ],
   python: [],  // 后续扩展
   javascript: [],  // 后续扩展

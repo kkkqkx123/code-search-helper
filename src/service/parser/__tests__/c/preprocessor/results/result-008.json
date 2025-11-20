@@ -1,0 +1,42 @@
+{
+  "testId": "preprocessor-008",
+  "request": {
+    "language": "c",
+    "code": "#define ENABLE_FEATURE_X\n\n#ifdef ENABLE_FEATURE_X\n    void feature_x() {\n        printf(\"Feature X is enabled\\n\");\n    }\n#else\n    void feature_x() {\n        // Feature X is disabled\n    }\n#endif\n\n#ifndef DISABLE_LOGGING\n    #define LOG(msg) printf(\"LOG: %s\\n\", msg)\n#else\n    #define LOG(msg)\n#endif\n\nint main() {\n    feature_x();\n    LOG(\"Application started\");\n    return 0;\n}",
+    "query": "(preproc_else) @definition.preproc_else"
+  },
+  "response": {
+    "success": true,
+    "data": [
+      {
+        "captureName": "definition.preproc_else",
+        "type": "preproc_else",
+        "text": "#else\n    void feature_x() {\n        // Feature X is disabled\n    }",
+        "startPosition": {
+          "row": 6,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 9,
+          "column": 5
+        }
+      },
+      {
+        "captureName": "definition.preproc_else",
+        "type": "preproc_else",
+        "text": "#else\n    #define LOG(msg)\n",
+        "startPosition": {
+          "row": 14,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 16,
+          "column": 0
+        }
+      }
+    ],
+    "errors": [],
+    "timestamp": "2025-11-20T00:31:46.435Z"
+  },
+  "timestamp": "2025-11-20T00:31:46.436Z"
+}

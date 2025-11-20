@@ -1,0 +1,120 @@
+{
+  "testId": "preprocessor-004",
+  "request": {
+    "language": "c",
+    "code": "#include \"my_header.h\"\n#include \"utils/helper.h\"\n#include \"config/settings.h\"\n#include \"../common/types.h\"\n\nint main() {\n    // 使用自定义头文件中的函数和类型\n    my_function();\n    return 0;\n}",
+    "query": "[\n  (preproc_include\n    path: (system_lib_string) @name.definition.include)\n  (preproc_include\n    path: (string_literal) @name.definition.include)\n] @definition.include"
+  },
+  "response": {
+    "success": true,
+    "data": [
+      {
+        "captureName": "definition.include",
+        "type": "preproc_include",
+        "text": "#include \"my_header.h\"\n",
+        "startPosition": {
+          "row": 0,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 1,
+          "column": 0
+        }
+      },
+      {
+        "captureName": "name.definition.include",
+        "type": "string_literal",
+        "text": "\"my_header.h\"",
+        "startPosition": {
+          "row": 0,
+          "column": 9
+        },
+        "endPosition": {
+          "row": 0,
+          "column": 22
+        }
+      },
+      {
+        "captureName": "definition.include",
+        "type": "preproc_include",
+        "text": "#include \"utils/helper.h\"\n",
+        "startPosition": {
+          "row": 1,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 2,
+          "column": 0
+        }
+      },
+      {
+        "captureName": "name.definition.include",
+        "type": "string_literal",
+        "text": "\"utils/helper.h\"",
+        "startPosition": {
+          "row": 1,
+          "column": 9
+        },
+        "endPosition": {
+          "row": 1,
+          "column": 25
+        }
+      },
+      {
+        "captureName": "definition.include",
+        "type": "preproc_include",
+        "text": "#include \"config/settings.h\"\n",
+        "startPosition": {
+          "row": 2,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 3,
+          "column": 0
+        }
+      },
+      {
+        "captureName": "name.definition.include",
+        "type": "string_literal",
+        "text": "\"config/settings.h\"",
+        "startPosition": {
+          "row": 2,
+          "column": 9
+        },
+        "endPosition": {
+          "row": 2,
+          "column": 28
+        }
+      },
+      {
+        "captureName": "definition.include",
+        "type": "preproc_include",
+        "text": "#include \"../common/types.h\"\n",
+        "startPosition": {
+          "row": 3,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 4,
+          "column": 0
+        }
+      },
+      {
+        "captureName": "name.definition.include",
+        "type": "string_literal",
+        "text": "\"../common/types.h\"",
+        "startPosition": {
+          "row": 3,
+          "column": 9
+        },
+        "endPosition": {
+          "row": 3,
+          "column": 28
+        }
+      }
+    ],
+    "errors": [],
+    "timestamp": "2025-11-20T00:31:46.409Z"
+  },
+  "timestamp": "2025-11-20T00:31:46.410Z"
+}
