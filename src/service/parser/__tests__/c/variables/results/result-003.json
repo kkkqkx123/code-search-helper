@@ -1,0 +1,120 @@
+{
+  "testId": "variables-003",
+  "request": {
+    "language": "c",
+    "code": "// 基本类型初始化\nint count = 0;\nfloat rate = 3.14;\nchar letter = 'A';\n\n// 指针类型初始化\nint* ptr = NULL;\nchar* str = \"Hello\";\nvoid* data = malloc(100);\n\n// 数组初始化\nint arr[] = {1, 2, 3, 4, 5};\nchar name[] = \"John\";\n\n// 结构体初始化\nstruct Config {\n    int port;\n    char* host;\n} config = {8080, \"localhost\"};",
+    "query": "(declaration\n  type: (_)\n  declarator: (identifier) @name.definition.variable) @definition.variable\n\n(declaration\n  (storage_class_specifier)\n  type: (_)\n  declarator: (identifier) @name.definition.variable) @definition.variable\n\n(declaration\n  type: (_)\n  declarator: (init_declarator\n    declarator: (identifier) @name.definition.variable)) @definition.variable\n\n(assignment_expression\n  left: (identifier) @name.definition.assignment) @definition.assignment"
+  },
+  "response": {
+    "success": true,
+    "data": [
+      {
+        "captureName": "definition.variable",
+        "type": "declaration",
+        "text": "int count = 0;",
+        "startPosition": {
+          "row": 1,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 1,
+          "column": 14
+        }
+      },
+      {
+        "captureName": "name.definition.variable",
+        "type": "identifier",
+        "text": "count",
+        "startPosition": {
+          "row": 1,
+          "column": 4
+        },
+        "endPosition": {
+          "row": 1,
+          "column": 9
+        }
+      },
+      {
+        "captureName": "definition.variable",
+        "type": "declaration",
+        "text": "float rate = 3.14;",
+        "startPosition": {
+          "row": 2,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 2,
+          "column": 18
+        }
+      },
+      {
+        "captureName": "name.definition.variable",
+        "type": "identifier",
+        "text": "rate",
+        "startPosition": {
+          "row": 2,
+          "column": 6
+        },
+        "endPosition": {
+          "row": 2,
+          "column": 10
+        }
+      },
+      {
+        "captureName": "definition.variable",
+        "type": "declaration",
+        "text": "char letter = 'A';",
+        "startPosition": {
+          "row": 3,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 3,
+          "column": 18
+        }
+      },
+      {
+        "captureName": "name.definition.variable",
+        "type": "identifier",
+        "text": "letter",
+        "startPosition": {
+          "row": 3,
+          "column": 5
+        },
+        "endPosition": {
+          "row": 3,
+          "column": 11
+        }
+      },
+      {
+        "captureName": "definition.variable",
+        "type": "declaration",
+        "text": "struct Config {\n    int port;\n    char* host;\n} config = {8080, \"localhost\"};",
+        "startPosition": {
+          "row": 15,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 18,
+          "column": 31
+        }
+      },
+      {
+        "captureName": "name.definition.variable",
+        "type": "identifier",
+        "text": "config",
+        "startPosition": {
+          "row": 18,
+          "column": 2
+        },
+        "endPosition": {
+          "row": 18,
+          "column": 8
+        }
+      }
+    ],
+    "errors": [],
+    "timestamp": "2025-11-20T00:47:45.386Z"
+  },
+  "timestamp": "2025-11-20T00:47:45.387Z"
+}

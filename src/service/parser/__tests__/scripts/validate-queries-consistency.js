@@ -37,7 +37,8 @@ const TEST_CATEGORIES = {
     'functions',
     'structs',
     'concurrency',
-    'preprocessor'
+    'preprocessor',
+    'variables'
   ],
   python: [],
   javascript: [],
