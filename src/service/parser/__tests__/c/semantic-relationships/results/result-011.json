@@ -3,7 +3,7 @@
   "request": {
     "language": "c",
     "code": "#include <stdio.h>\n#include <stdlib.h>\n\nint main() {\n    // malloc测试\n    int* ptr1 = (int*)malloc(sizeof(int) * 10);\n    \n    // calloc测试\n    int* ptr2 = (int*)calloc(5, sizeof(int));\n    \n    // realloc测试\n    int* ptr3 = (int*)realloc(ptr1, sizeof(int) * 20);\n    \n    // 使用分配的内存\n    if (ptr3 != NULL) {\n        for (int i = 0; i < 20; i++) {\n            ptr3[i] = i;\n        }\n    }\n    \n    // free测试\n    free(ptr2);\n    free(ptr3);\n    \n    return 0;\n}",
-    "query": "(call_expression\n  function: (identifier) @memory.function\n  (#match? @memory.function \"^(malloc|calloc|realloc|free)$\")\n  arguments: (argument_list)) @semantic.relationship.memory.management"
+    "query": "(call_expression\r\n  function: (identifier) @memory.function\r\n  (#match? @memory.function \"^(malloc|calloc|realloc|free)$\")\r\n  arguments: (argument_list)) @semantic.relationship.memory.management"
   },
   "response": {
     "success": true,
@@ -140,7 +140,7 @@
       }
     ],
     "errors": [],
-    "timestamp": "2025-11-20T01:34:53.689Z"
+    "timestamp": "2025-11-20T06:55:10.886Z"
   },
-  "timestamp": "2025-11-20T01:34:53.690Z"
+  "timestamp": "2025-11-20T06:55:10.886Z"
 }

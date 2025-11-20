@@ -3,7 +3,7 @@
   "request": {
     "language": "c",
     "code": "#include <stdio.h>\n#include <stdlib.h>\n\nstruct Node {\n    int data;\n    struct Node* next;  // 指向相同类型的指针\n    char* name;         // 指向字符的指针\n};\n\nint main() {\n    struct Node node;\n    node.data = 42;\n    node.next = NULL;\n    node.name = \"test\";\n    \n    printf(\"Node data: %d\\n\", node.data);\n    \n    return 0;\n}",
-    "query": "[\n  (field_declaration\n    (struct_specifier\n      (type_identifier) @pointed.type)\n    (pointer_declarator\n      (field_identifier) @pointer.field)) @semantic.relationship.pointer.struct\n  (field_declaration\n    (primitive_type) @pointed.type\n    (pointer_declarator\n      (field_identifier) @pointer.field)) @semantic.relationship.pointer.primitive\n] @semantic.relationship.pointer.field"
+    "query": "[\r\n  (field_declaration\r\n    (struct_specifier\r\n      (type_identifier) @pointed.type)\r\n    (pointer_declarator\r\n      (field_identifier) @pointer.field)) @semantic.relationship.pointer.struct\r\n  (field_declaration\r\n    (primitive_type) @pointed.type\r\n    (pointer_declarator\r\n      (field_identifier) @pointer.field)) @semantic.relationship.pointer.primitive\r\n] @semantic.relationship.pointer.field"
   },
   "response": {
     "success": true,
@@ -114,7 +114,7 @@
       }
     ],
     "errors": [],
-    "timestamp": "2025-11-20T01:34:53.598Z"
+    "timestamp": "2025-11-20T06:55:10.808Z"
   },
-  "timestamp": "2025-11-20T01:34:53.599Z"
+  "timestamp": "2025-11-20T06:55:10.808Z"
 }

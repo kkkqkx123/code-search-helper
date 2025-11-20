@@ -3,7 +3,7 @@
   "request": {
     "language": "c",
     "code": "#include <stdio.h>\n\ntypedef void (*CallbackFunction)(int);\n\nvoid my_callback(int value) {\n    printf(\"Callback called with value: %d\\n\", value);\n}\n\nint main() {\n    // 回调函数赋值\n    CallbackFunction callback = my_callback;\n    \n    // 调用回调函数\n    callback(42);\n    \n    return 0;\n}",
-    "query": "[\n  (declaration\n    type: (type_identifier) @callback.type\n    declarator: (init_declarator\n      declarator: (identifier) @callback.variable\n      value: (identifier) @callback.function)) @semantic.relationship.callback.assignment\n  (init_declarator\n    declarator: (identifier) @callback.variable\n    value: (identifier) @callback.function) @semantic.relationship.callback.assignment\n  (type_definition\n    (function_declarator\n      (parenthesized_declarator\n        (pointer_declarator\n          (type_identifier) @callback.type)))) @semantic.relationship.callback.type\n] @semantic.relationship.callback.pattern"
+    "query": "[\r\n  (declaration\r\n    type: (type_identifier) @callback.type\r\n    declarator: (init_declarator\r\n      declarator: (identifier) @callback.variable\r\n      value: (identifier) @callback.function)) @semantic.relationship.callback.assignment\r\n  (init_declarator\r\n    declarator: (identifier) @callback.variable\r\n    value: (identifier) @callback.function) @semantic.relationship.callback.assignment\r\n  (type_definition\r\n    (function_declarator\r\n      (parenthesized_declarator\r\n        (pointer_declarator\r\n          (type_identifier) @callback.type)))) @semantic.relationship.callback.type\r\n] @semantic.relationship.callback.pattern"
   },
   "response": {
     "success": true,
@@ -166,7 +166,7 @@
       }
     ],
     "errors": [],
-    "timestamp": "2025-11-20T01:34:53.576Z"
+    "timestamp": "2025-11-20T06:55:10.788Z"
   },
-  "timestamp": "2025-11-20T01:34:53.577Z"
+  "timestamp": "2025-11-20T06:55:10.788Z"
 }

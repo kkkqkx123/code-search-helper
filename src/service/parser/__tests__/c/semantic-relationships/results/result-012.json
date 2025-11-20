@@ -3,7 +3,7 @@
   "request": {
     "language": "c",
     "code": "#include <stdio.h>\n#include <stdlib.h>\n\n#define ERROR -1\n#define INVALID -2\n#define NULL 0\n\nint divide(int a, int b) {\n    if (b == 0) {\n        return ERROR;  // 错误返回\n    }\n    return a / b;\n}\n\nint* allocate_memory(int size) {\n    int* ptr = (int*)malloc(sizeof(int) * size);\n    if (ptr == NULL) {  // 错误检查\n        printf(\"Memory allocation failed\\n\");\n        return NULL;\n    }\n    return ptr;\n}\n\nint main() {\n    int result = divide(10, 0);\n    if (result == ERROR) {\n        printf(\"Division by zero error\\n\");\n    }\n    \n    int* ptr = allocate_memory(100);\n    if (ptr == NULL) {  // 错误检查\n        printf(\"Failed to allocate memory\\n\");\n        return ERROR;  // 错误返回\n    }\n    \n    free(ptr);\n    return 0;\n}",
-    "query": "[\n  (return_statement\n    (identifier) @error.code\n    (#match? @error.code \"^(ERROR|FAIL|INVALID|NULL)$\")) @semantic.relationship.error.return\n  (if_statement\n    (parenthesized_expression\n      (binary_expression\n        (identifier) @checked.variable\n        [\"==\" \"!=\"]\n        (identifier) @error.value))\n    (compound_statement) @error.handling.block) @semantic.relationship.error.checking\n] @semantic.relationship.error.handling"
+    "query": "[\r\n  (return_statement\r\n    (identifier) @error.code\r\n    (#match? @error.code \"^(ERROR|FAIL|INVALID|NULL)$\")) @semantic.relationship.error.return\r\n  (if_statement\r\n    (parenthesized_expression\r\n      (binary_expression\r\n        (identifier) @checked.variable\r\n        [\"==\" \"!=\"]\r\n        (identifier) @error.value))\r\n    (compound_statement) @error.handling.block) @semantic.relationship.error.checking\r\n] @semantic.relationship.error.handling"
   },
   "response": {
     "success": true,
@@ -88,7 +88,7 @@
       }
     ],
     "errors": [],
-    "timestamp": "2025-11-20T01:34:53.700Z"
+    "timestamp": "2025-11-20T06:55:10.896Z"
   },
-  "timestamp": "2025-11-20T01:34:53.701Z"
+  "timestamp": "2025-11-20T06:55:10.896Z"
 }

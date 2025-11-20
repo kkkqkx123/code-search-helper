@@ -3,7 +3,7 @@
   "request": {
     "language": "c",
     "code": "#include <stdio.h>\n\n// 外部变量声明\nextern int external_counter;\nextern char* external_string;\n\nint main() {\n    // 使用外部变量\n    printf(\"External counter: %d\\n\", external_counter);\n    printf(\"External string: %s\\n\", external_string);\n    \n    return 0;\n}",
-    "query": "(declaration\n  (storage_class_specifier) @extern.specifier\n  type: [(type_identifier) (primitive_type)] @extern.variable.type\n  declarator: (identifier) @extern.variable.name) @semantic.relationship.extern.variable"
+    "query": "(declaration\r\n  (storage_class_specifier) @extern.specifier\r\n  type: [(type_identifier) (primitive_type)] @extern.variable.type\r\n  declarator: (identifier) @extern.variable.name) @semantic.relationship.extern.variable"
   },
   "response": {
     "success": true,
@@ -62,7 +62,7 @@
       }
     ],
     "errors": [],
-    "timestamp": "2025-11-20T01:34:53.682Z"
+    "timestamp": "2025-11-20T06:55:10.879Z"
   },
-  "timestamp": "2025-11-20T01:34:53.683Z"
+  "timestamp": "2025-11-20T06:55:10.879Z"
 }

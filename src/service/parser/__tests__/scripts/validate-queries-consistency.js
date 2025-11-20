@@ -39,7 +39,8 @@ const TEST_CATEGORIES = {
     'concurrency',
     'concurrency-relationships',
     'preprocessor',
-    'variables'
+    'variables',
+    'semantic-relationships'
   ],
   python: [],
   javascript: [],
@@ -71,16 +72,16 @@ function extractQueriesFromConstantFile(filePath) {
   }
 
   const content = fs.readFileSync(filePath, 'utf-8');
-  
+
   // 匹配 export default `...` 的内容
   const match = content.match(/export\s+default\s+`([^`]*)`/s);
-  
+
   if (!match) {
     return null;
   }
 
   const queryContent = match[1];
-  
+
   // 分割单个查询（以 ; 开头的行作为分隔符）
   const queries = [];
   let currentQuery = [];
@@ -88,7 +89,7 @@ function extractQueriesFromConstantFile(filePath) {
 
   queryContent.split('\n').forEach(line => {
     const trimmed = line.trim();
-    
+
     if (trimmed.startsWith(';') && currentQuery.length > 0) {
       // 新查询开始，保存前一个
       const normalized = normalizeQuery(currentQuery.join('\n'));
@@ -118,7 +119,7 @@ function extractQueriesFromConstantFile(filePath) {
 
   // 处理合并查询的交替模式还原和去重
   const processedQueries = processMergedQueries(queries);
-  
+
   return processedQueries;
 }
 
@@ -134,11 +135,11 @@ function processMergedQueries(queries) {
     if (isMergedQuery(query.content)) {
       // 还原为基础格式
       const baseQueries = expandMergedQuery(query.content, query.description);
-      
+
       baseQueries.forEach(baseQuery => {
         const normalized = normalizeQuery(baseQuery.content);
         const queryKey = generateQueryKey(normalized);
-        
+
         // 去重：只添加未见过的新查询
         if (!seenQueries.has(queryKey)) {
           seenQueries.add(queryKey);
@@ -154,7 +155,7 @@ function processMergedQueries(queries) {
       // 非合并查询，直接添加（去重）
       const normalized = normalizeQuery(query.content);
       const queryKey = generateQueryKey(normalized);
-      
+
       if (!seenQueries.has(queryKey)) {
         seenQueries.add(queryKey);
         processedQueries.push({
@@ -175,10 +176,10 @@ function processMergedQueries(queries) {
 function isMergedQuery(queryContent) {
   // 检查是否包含交替模式 [ ... ]
   const hasAlternation = /\[.*?\]/s.test(queryContent);
-  
+
   // 检查是否包含多个 match 模式（用 | 分隔）
   const hasMultipleMatches = /\(#match\?.*?\|.*?\)/.test(queryContent);
-  
+
   return hasAlternation || hasMultipleMatches;
 }
 
@@ -187,11 +188,11 @@ function isMergedQuery(queryContent) {
  */
 function expandMergedQuery(queryContent, description) {
   const baseQueries = [];
-  
+
   // 检查是否包含交替模式和多个match模式
   const hasAlternation = /\[.*?\]/s.test(queryContent);
   const hasMultipleMatches = /\(#match\?.*?\|.*?\)/.test(queryContent);
-  
+
   if (hasAlternation && hasMultipleMatches) {
     // 如果同时包含两种模式，先处理交替模式，然后对每个结果处理match模式
     const alternationQueries = expandAlternationQuery(queryContent, description);
@@ -212,7 +213,7 @@ function expandMergedQuery(queryContent, description) {
     const matchQueries = expandMatchQuery(queryContent, description);
     baseQueries.push(...matchQueries);
   }
-  
+
   // 如果没有特殊模式，返回原查询
   if (baseQueries.length === 0) {
     baseQueries.push({
@@ -220,7 +221,7 @@ function expandMergedQuery(queryContent, description) {
       description: description
     });
   }
-  
+
   return baseQueries;
 }
 
@@ -229,12 +230,12 @@ function expandMergedQuery(queryContent, description) {
  */
 function expandAlternationQuery(queryContent, description) {
   const queries = [];
-  
+
   // 找到所有交替模式块
   const alternationRegex = /(\[([^\]]*)\])/g;
   let match;
   const alternations = [];
-  
+
   while ((match = alternationRegex.exec(queryContent)) !== null) {
     // 正确解析交替模式选项
     const content = match[1];
@@ -242,10 +243,10 @@ function expandAlternationQuery(queryContent, description) {
     let currentOption = '';
     let braceLevel = 0;
     let parenLevel = 0;
-    
+
     for (let i = 0; i < content.length; i++) {
       const char = content[i];
-      
+
       if (char === '(') {
         parenLevel++;
       } else if (char === ')') {
@@ -255,14 +256,14 @@ function expandAlternationQuery(queryContent, description) {
       } else if (char === '}') {
         braceLevel--;
       }
-      
+
       currentOption += char;
-      
+
       // 当括号和花括号都平衡时，且遇到空白字符，认为是一个完整选项
       if ((parenLevel === 0 && braceLevel === 0) &&
-          (char === '\n' || char === ' ' || char === '\t') &&
-          currentOption.trim()) {
-        
+        (char === '\n' || char === ' ' || char === '\t') &&
+        currentOption.trim()) {
+
         const trimmed = currentOption.trim();
         if (trimmed && !options.includes(trimmed)) {
           options.push(trimmed);
@@ -270,49 +271,49 @@ function expandAlternationQuery(queryContent, description) {
         currentOption = '';
       }
     }
-    
+
     // 添加最后一个选项
     const lastOption = currentOption.trim();
     if (lastOption && !options.includes(lastOption)) {
       options.push(lastOption);
     }
-    
+
     // 过滤掉只有括号的选项
     const filteredOptions = options.filter(option =>
       option !== '[' && option !== ']' && option.trim().length > 0
     );
-    
+
     alternations.push({
       fullMatch: match[0],
       options: filteredOptions
     });
   }
-  
+
   if (alternations.length === 0) {
     return [{
       content: queryContent,
       description: description
     }];
   }
-  
+
   // 生成所有可能的组合
   const combinations = generateAlternationCombinations(alternations);
-  
+
   combinations.forEach(combination => {
     let expandedContent = queryContent;
-    
+
     // 从后往前替换，避免位置偏移问题
     for (let i = alternations.length - 1; i >= 0; i--) {
       const alternation = alternations[i];
       expandedContent = expandedContent.replace(alternation.fullMatch, combination[i]);
     }
-    
+
     queries.push({
       content: expandedContent,
       description: description + ` (展开: ${combination.join(', ')})`
     });
   });
-  
+
   return queries;
 }
 
@@ -321,12 +322,12 @@ function expandAlternationQuery(queryContent, description) {
  */
 function expandMatchQuery(queryContent, description) {
   const queries = [];
-  
+
   // 找到所有 match 模式
   const matchRegex = /\(#match\?\s*@(\w+)\s+"([^"]*(?:\|[^"]*)*)"\)/g;
   let match;
   const matches = [];
-  
+
   while ((match = matchRegex.exec(queryContent)) !== null) {
     const options = match[2].split('|').map(opt => opt.trim());
     matches.push({
@@ -335,33 +336,33 @@ function expandMatchQuery(queryContent, description) {
       options: options
     });
   }
-  
+
   if (matches.length === 0) {
     return [{
       content: queryContent,
       description: description
     }];
   }
-  
+
   // 为每个 match 选项生成单独的查询
   matches.forEach(matchItem => {
     matchItem.options.forEach(option => {
       let expandedContent = queryContent;
-      
+
       // 替换 match 模式为单个选项
       const singleMatch = matchItem.fullMatch.replace(
         /\|[^|]*/g, ''
       ).replace(matchItem.options[0], option);
-      
+
       expandedContent = expandedContent.replace(matchItem.fullMatch, singleMatch);
-      
+
       queries.push({
         content: expandedContent,
         description: description + ` (匹配: ${option})`
       });
     });
   });
-  
+
   return queries;
 }
 
@@ -372,15 +373,15 @@ function generateAlternationCombinations(alternations) {
   if (alternations.length === 0) {
     return [];
   }
-  
+
   const combinations = [];
-  
+
   function generateCombinations(index, current) {
     if (index === alternations.length) {
       combinations.push([...current]);
       return;
     }
-    
+
     const alternation = alternations[index];
     for (const option of alternation.options) {
       current.push(option);
@@ -388,7 +389,7 @@ function generateAlternationCombinations(alternations) {
       current.pop();
     }
   }
-  
+
   generateCombinations(0, []);
   return combinations;
 }
@@ -422,12 +423,27 @@ function extractQueriesFromTestFiles(testDir) {
         ? JSON.parse(fs.readFileSync(metadataPath, 'utf-8'))
         : {};
 
-      testQueries.push({
-        testName,
-        testId: metadata.id || testName,
-        content: normalizeQuery(query),
-        description: metadata.description || ''
-      });
+      // 展开测试用例中的查询（如果包含交替模式或多个match模式）
+      const normalizedQuery = normalizeQuery(query);
+      if (isMergedQuery(normalizedQuery)) {
+        // 展开合并查询为基础格式
+        const expandedQueries = expandMergedQuery(normalizedQuery, `Test: ${metadata.description || testName}`);
+        expandedQueries.forEach((expQuery, idx) => {
+          testQueries.push({
+            testName: `${testName}-expanded-${idx}`,
+            testId: `${metadata.id || testName}-expanded-${idx}`,
+            content: normalizeQuery(expQuery.content),
+            description: expQuery.description || metadata.description || ''
+          });
+        });
+      } else {
+        testQueries.push({
+          testName,
+          testId: metadata.id || testName,
+          content: normalizedQuery,
+          description: metadata.description || ''
+        });
+      }
     }
   });
 
@@ -446,7 +462,7 @@ function queriesEqual(query1, query2) {
  */
 function findSimilarQuery(targetQuery, queryList, threshold = 0.8) {
   const targetNorm = normalizeQuery(targetQuery);
-  
+
   let bestMatch = null;
   let bestSimilarity = 0;
 
@@ -515,14 +531,14 @@ function getEditDistance(str1, str2) {
 function validateCategory(language, category) {
   const categoryDir = path.join(TESTS_BASE_DIR, language, category);
   const testDir = path.join(categoryDir, 'tests');
-  
+
   // 获取常量文件路径
   const constantFile = path.join(QUERIES_CONST_DIR, language, `${category}.ts`);
-  
+
   // 提取查询
   const testQueries = extractQueriesFromTestFiles(testDir);
   const constQueries = extractQueriesFromConstantFile(constantFile);
-  
+
   if (!constQueries) {
     return {
       category,
@@ -615,7 +631,7 @@ function generateReport(results) {
       console.log(`    📊 查询统计: 原始常量查询 ${r.originalConstCount} → 展开后 ${r.constCount} (去重后)`);
       console.log(`    📋 测试用例统计: 总数 ${r.testCount}, ✓ 匹配 ${r.matchedCount}, ✗ 不匹配 ${r.mismatchedCount}`);
       console.log(`    🔍 展开查询使用情况: 已使用 ${r.constCount - r.unusedConstQueriesCount}, 未使用 ${r.unusedConstQueriesCount}`);
-      
+
       if (r.expandedCount > 0) {
         console.log(`    📈 测试用例匹配率: ${(r.matchedCount / r.testCount * 100).toFixed(1)}% (${r.matchedCount}/${r.testCount})`);
         console.log(`    📊 展开查询覆盖率: ${(r.matchedCount / r.constCount * 100).toFixed(1)}% (${r.matchedCount}/${r.constCount})`);
@@ -631,7 +647,7 @@ function generateReport(results) {
       console.log(`    📊 查询统计: 原始常量查询 ${r.originalConstCount} → 展开后 ${r.constCount} (去重后)`);
       console.log(`    📋 测试用例统计: 总数 ${r.testCount}, ✓ 匹配 ${r.matchedCount}, ✗ 不匹配 ${r.mismatchedCount}`);
       console.log(`    🔍 展开查询使用情况: 已使用 ${r.constCount - r.unusedConstQueriesCount}, 未使用 ${r.unusedConstQueriesCount}`);
-      
+
       if (r.expandedCount > 0) {
         console.log(`    📈 测试用例匹配率: ${(r.matchedCount / r.testCount * 100).toFixed(1)}% (${r.matchedCount}/${r.testCount})`);
         console.log(`    📊 展开查询覆盖率: ${(r.matchedCount / r.constCount * 100).toFixed(1)}% (${r.matchedCount}/${r.constCount})`);
@@ -652,20 +668,20 @@ function generateReport(results) {
   }
 
   // 总体统计
-  console.log('=' .repeat(70));
+  console.log('='.repeat(70));
   console.log(`总计: ${results.length} 个类别`);
   console.log(`  ✅ 通过: ${passed.length}`);
   console.log(`  ❌ 失败: ${failed.length}`);
   console.log(`  ⚠️  错误: ${errors.length}`);
-  
+
   // 展开统计
   const totalExpanded = results.reduce((sum, r) => sum + (r.expandedCount || 0), 0);
   const totalOriginal = results.reduce((sum, r) => sum + (r.originalConstCount || 0), 0);
   if (totalExpanded > 0) {
     console.log(`  📊 查询展开统计: 原始 ${totalOriginal} → 展开后 ${totalOriginal + totalExpanded} (去重后)`);
   }
-  
-  console.log('=' .repeat(70) + '\n');
+
+  console.log('='.repeat(70) + '\n');
 
   return {
     passed: passed.length,

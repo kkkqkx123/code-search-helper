@@ -3,7 +3,7 @@
   "request": {
     "language": "c",
     "code": "#include <stdio.h>\n\n// 函数指针类型定义\ntypedef int (*BinaryOperation)(int, int);\n\nint add(int a, int b) {\n    return a + b;\n}\n\nint multiply(int a, int b) {\n    return a * b;\n}\n\nint main() {\n    BinaryOperation op1 = add;\n    BinaryOperation op2 = multiply;\n    \n    int result1 = op1(5, 3);\n    int result2 = op2(5, 3);\n    \n    printf(\"Addition: %d\\n\", result1);\n    printf(\"Multiplication: %d\\n\", result2);\n    \n    return 0;\n}",
-    "query": "(type_definition\n  (function_declarator\n    (parenthesized_declarator\n      (pointer_declarator\n        (type_identifier) @function.pointer.type)))) @semantic.relationship.function.pointer.type"
+    "query": "(type_definition\r\n  (function_declarator\r\n    (parenthesized_declarator\r\n      (pointer_declarator\r\n        (type_identifier) @function.pointer.type)))) @semantic.relationship.function.pointer.type"
   },
   "response": {
     "success": true,
@@ -36,7 +36,7 @@
       }
     ],
     "errors": [],
-    "timestamp": "2025-11-20T01:34:53.626Z"
+    "timestamp": "2025-11-20T06:55:10.829Z"
   },
-  "timestamp": "2025-11-20T01:34:53.627Z"
+  "timestamp": "2025-11-20T06:55:10.829Z"
 }

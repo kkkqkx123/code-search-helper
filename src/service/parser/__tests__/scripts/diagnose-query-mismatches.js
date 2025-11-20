@@ -416,12 +416,25 @@ function readTestQuery(testDir, testName) {
     ? JSON.parse(fs.readFileSync(metadataPath, 'utf-8'))
     : {};
 
-  return {
-    content: normalizeQuery(rawContent),
-    rawContent,
-    description: metadata.description || '',
-    metadata
-  };
+  // 展开测试用例中的查询（如果包含交替模式或多个match模式）
+  const normalizedContent = normalizeQuery(rawContent);
+  if (isMergedQuery(normalizedContent)) {
+    // 展开合并查询为基础格式
+    const expandedQueries = expandMergedQueryWithLineInfo(normalizedContent, `Test: ${metadata.description || testName}`, 0, 0);
+    return expandedQueries.map((expQuery, idx) => ({
+      content: normalizeQuery(expQuery.content),
+      rawContent: expQuery.content,
+      description: expQuery.description || metadata.description || '',
+      metadata: { ...metadata, expandedIndex: idx }
+    }));
+  } else {
+    return [{
+      content: normalizedContent,
+      rawContent,
+      description: metadata.description || '',
+      metadata
+    }];
+  }
 }
 
 /**
@@ -475,18 +488,25 @@ function diagnose(language, category, specificTestId = null) {
 
   const testQueries = {};
   testDirs.forEach(testName => {
-    const testQuery = readTestQuery(testDir, testName);
-    if (testQuery) {
+    const testQueryArray = readTestQuery(testDir, testName);
+    if (testQueryArray) {
       const metadataPath = path.join(testDir, testName, 'metadata.json');
       const metadata = fs.existsSync(metadataPath)
         ? JSON.parse(fs.readFileSync(metadataPath, 'utf-8'))
         : {};
-      const testId = metadata.id || testName;
+      const baseTestId = metadata.id || testName;
       
-      testQueries[testId] = {
-        ...testQuery,
-        testName
-      };
+      // 如果是展开的查询数组，为每个查询创建独立的条目
+      testQueryArray.forEach((testQuery, idx) => {
+        const testId = testQuery.metadata.expandedIndex !== undefined ?
+          `${baseTestId}-expanded-${testQuery.metadata.expandedIndex}` : baseTestId;
+          
+        testQueries[testId] = {
+          ...testQuery,
+          testName: testQuery.metadata.expandedIndex !== undefined ?
+            `${testName}-expanded-${testQuery.metadata.expandedIndex}` : testName
+        };
+      });
     }
   });
 

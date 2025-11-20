@@ -3,7 +3,7 @@
   "request": {
     "language": "c",
     "code": "#include <stdio.h>\n\n// 基本结构体定义\nstruct Point {\n    int x;\n    int y;\n};\n\n// 嵌套结构体\nstruct Rectangle {\n    struct Point topLeft;\n    struct Point bottomRight;\n    int width;\n    int height;\n};\n\nint main() {\n    struct Point p = {10, 20};\n    struct Rectangle rect = {{0, 0}, {100, 100}, 100, 100};\n    \n    printf(\"Point: (%d, %d)\\n\", p.x, p.y);\n    printf(\"Rectangle: (%d, %d) to (%d, %d)\\n\", \n           rect.topLeft.x, rect.topLeft.y,\n           rect.bottomRight.x, rect.bottomRight.y);\n    \n    return 0;\n}",
-    "query": "[\n  (struct_specifier\n    (type_identifier) @struct.name\n    (field_declaration_list\n      (field_declaration\n        (_) @field.type\n        (field_identifier) @field.name))) @semantic.relationship.struct.definition\n  (struct_specifier\n    (type_identifier) @nested.struct\n    (field_declaration_list\n      (field_declaration\n        (struct_specifier\n          (type_identifier) @inner.struct)\n        (field_identifier) @field.name))) @semantic.relationship.struct.nesting\n] @semantic.relationship.struct"
+    "query": "[\r\n  (struct_specifier\r\n    (type_identifier) @struct.name\r\n    (field_declaration_list\r\n      (field_declaration\r\n        (_) @field.type\r\n        (field_identifier) @field.name))) @semantic.relationship.struct.definition\r\n  (struct_specifier\r\n    (type_identifier) @nested.struct\r\n    (field_declaration_list\r\n      (field_declaration\r\n        (struct_specifier\r\n          (type_identifier) @inner.struct)\r\n        (field_identifier) @field.name))) @semantic.relationship.struct.nesting\r\n] @semantic.relationship.struct"
   },
   "response": {
     "success": true,
@@ -530,7 +530,7 @@
       }
     ],
     "errors": [],
-    "timestamp": "2025-11-20T01:34:53.586Z"
+    "timestamp": "2025-11-20T06:55:10.798Z"
   },
-  "timestamp": "2025-11-20T01:34:53.588Z"
+  "timestamp": "2025-11-20T06:55:10.798Z"
 }
