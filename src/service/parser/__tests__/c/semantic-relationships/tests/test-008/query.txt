@@ -1,0 +1,10 @@
+[
+  (preproc_include
+    path: (string_literal
+      (string_content) @included.header)) @semantic.relationship.include
+  (preproc_def
+    name: (identifier) @macro.name
+    value: (identifier)? @macro.value) @semantic.relationship.macro.definition
+  (preproc_if
+    condition: (identifier) @conditional.symbol) @semantic.relationship.conditional.compilation
+] @semantic.relationship.preprocessor

@@ -86,11 +86,11 @@ async function testQuery(language, code, query, description) {
 async function main() {
     const testCaseId = process.argv[2];
     if (!testCaseId) {
-        console.error('请提供测试用例ID，例如: node test-pointer-query.js 005');
+        console.error('请提供测试用例ID，例如: node test-typedef-query.js 003');
         process.exit(1);
     }
 
-    console.log('开始测试指针查询模式...\n');
+    console.log('开始测试typedef查询模式...\n');
     
     // 构建路径
     const testDir = path.join(__dirname, '..', '..', '..', 'c', 'semantic-relationships', 'tests', `test-${testCaseId}`);
@@ -102,12 +102,12 @@ async function main() {
     console.log(`测试用例: ${testCaseId}`);
     console.log(`代码:\n${code}\n`);
     
-    // 测试指针相关的查询模式
-    await testQuery('c', code, '(field_declaration) @field', '测试field_declaration节点');
-    await testQuery('c', code, '(pointer_declarator) @ptr', '测试pointer_declarator节点');
-    await testQuery('c', code, '(field_declaration (pointer_declarator) @ptr)', '测试字段中的指针声明器');
-    await testQuery('c', code, '(field_declaration (pointer_declarator (field_identifier) @field))', '测试指针字段');
-    await testQuery('c', code, '(field_declaration (struct_specifier) @struct (pointer_declarator (field_identifier) @field))', '测试结构体指针字段');
+    // 测试typedef相关的查询模式
+    await testQuery('c', code, '(type_definition) @typedef', '测试type_definition节点');
+    await testQuery('c', code, '(type_definition (type_identifier) @type)', '测试type_definition + type_identifier');
+    await testQuery('c', code, '(type_definition (primitive_type) @prim)', '测试type_definition + primitive_type');
+    await testQuery('c', code, '(type_definition (function_declarator) @func)', '测试type_definition + function_declarator');
+    await testQuery('c', code, '(type_definition (function_declarator (type_identifier) @type))', '测试type_definition + function_declarator + type_identifier');
     
     console.log('\n测试完成!');
 }

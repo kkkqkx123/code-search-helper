@@ -1,0 +1,15 @@
+[
+  (struct_specifier
+    (type_identifier) @struct.name
+    (field_declaration_list
+      (field_declaration
+        (_) @field.type
+        (field_identifier) @field.name))) @semantic.relationship.struct.definition
+  (struct_specifier
+    (type_identifier) @nested.struct
+    (field_declaration_list
+      (field_declaration
+        (struct_specifier
+          (type_identifier) @inner.struct)
+        (field_identifier) @field.name))) @semantic.relationship.struct.nesting
+] @semantic.relationship.struct

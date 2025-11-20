@@ -13,20 +13,21 @@ const TESTS_BASE_DIR = path.join(__dirname, '../');
 const SUPPORTED_LANGUAGES = ['c', 'python', 'javascript', 'java', 'go', 'rust'];
 
 const TEST_CATEGORIES = {
-  c: [
-    'lifecycle-relationships',
-    'control-flow',
-    'control-flow-relationships',
-    'data-flow',
-    'functions',
-    'structs',
-    'concurrency',
-    'preprocessor',
-    'variables'
-  ],
-  python: [],  // 后续扩展
-  javascript: [],  // 后续扩展
-  // ... 其他语言
+    c: [
+        'lifecycle-relationships',
+        'control-flow',
+        'control-flow-relationships',
+        'data-flow',
+        'functions',
+        'structs',
+        'concurrency-relationships',
+        'preprocessor',
+        'variables',
+        'semantic-relationships'
+    ],
+    python: [],  // 后续扩展
+    javascript: [],  // 后续扩展
+    // ... 其他语言
 };
 
 /**
@@ -78,31 +79,31 @@ function sendPostRequest(data) {
  * 新架构：从tests/test-XXX/目录中读取code和query文件
  */
 function loadTestCaseFromFiles(testDir, testId) {
-  const queryPath = path.join(testDir, 'query.txt');
-  const metadataPath = path.join(testDir, 'metadata.json');
+    const queryPath = path.join(testDir, 'query.txt');
+    const metadataPath = path.join(testDir, 'metadata.json');
 
-  // 查找代码文件（支持多种扩展名）
-  const files = fs.readdirSync(testDir);
-  const codeFile = files.find(f => f.startsWith('code.'));
-  
-  if (!codeFile || !fs.existsSync(queryPath)) {
-    throw new Error(`Missing code or query file in ${testDir}`);
-  }
+    // 查找代码文件（支持多种扩展名）
+    const files = fs.readdirSync(testDir);
+    const codeFile = files.find(f => f.startsWith('code.'));
 
-  const code = fs.readFileSync(path.join(testDir, codeFile), 'utf-8');
-  const query = fs.readFileSync(queryPath, 'utf-8');
-  const metadata = fs.existsSync(metadataPath) 
-    ? JSON.parse(fs.readFileSync(metadataPath, 'utf-8'))
-    : {};
+    if (!codeFile || !fs.existsSync(queryPath)) {
+        throw new Error(`Missing code or query file in ${testDir}`);
+    }
 
-  return {
-    id: metadata.id || testId,
-    language: metadata.language || 'c',
-    code,
-    query,
-    description: metadata.description || '',
-    ...metadata
-  };
+    const code = fs.readFileSync(path.join(testDir, codeFile), 'utf-8');
+    const query = fs.readFileSync(queryPath, 'utf-8');
+    const metadata = fs.existsSync(metadataPath)
+        ? JSON.parse(fs.readFileSync(metadataPath, 'utf-8'))
+        : {};
+
+    return {
+        id: metadata.id || testId,
+        language: metadata.language || 'c',
+        code,
+        query,
+        description: metadata.description || '',
+        ...metadata
+    };
 }
 
 /**
@@ -127,7 +128,7 @@ async function processTestCategory(config, specificTestIndices = null) {
     const testRequests = indexData.requests || [];
 
     // 确定要处理的测试用例
-    let indicesToProcess = specificTestIndices 
+    let indicesToProcess = specificTestIndices
         ? specificTestIndices.filter(i => i < testRequests.length)
         : Array.from({ length: testRequests.length }, (_, i) => i);
 
@@ -140,7 +141,7 @@ async function processTestCategory(config, specificTestIndices = null) {
         try {
             // 从文件系统加载测试用例
             const testCase = loadTestCaseFromFiles(path.join(testDir, path.dirname(testRequest.codeFile).replace(/^tests\//, '')), testId);
-            
+
             // 组装API请求
             const apiRequest = {
                 language: testCase.language,
@@ -172,7 +173,7 @@ async function processTestCategory(config, specificTestIndices = null) {
             const errorMessage = error.message || '未知错误';
             const errorDetails = error.stack || '';
             console.error(`  ✗ 错误处理测试用例 ${testId}: ${errorMessage}`);
-            
+
             results.push({
                 testCaseIndex: i,
                 testId,
@@ -209,14 +210,14 @@ function generateReport(allResults) {
 
         console.log(`\n[${categoryKey}]`);
         console.log(`  总计: ${totalTests}, 通过: ${passedTests}, 失败: ${failedTests}`);
-        
+
         if (errorTests.length > 0) {
             console.log(`  ❌ 执行出错: ${errorTests.length}`);
             errorTests.forEach(t => {
                 console.log(`     - ${t.testId}: ${t.error}`);
             });
         }
-        
+
         if (emptyMatches.length > 0) {
             console.log(`  ⚠️  空匹配: ${emptyMatches.length} (查询无结果)`);
             emptyMatches.forEach(t => {
@@ -241,12 +242,12 @@ function parseArguments(args) {
     }
 
     const specs = [];
-    
+
     // 处理所有参数（保持原始参数结构，不按逗号分割）
     // 这样可以确保 c:lifecycle:001,002,003,004,005 被作为一个整体处理
     for (const arg of args) {
         const parts = arg.split(':').map(p => p.toLowerCase().trim());
-        
+
         if (parts.length === 0 || !parts[0]) continue;
 
         const language = parts[0];
@@ -271,7 +272,7 @@ function parseArguments(args) {
         } else if (parts.length >= 2) {
             // 指定类别（可能包含通配符）
             const categoryPattern = parts[1];
-            const matchedCategories = categories.filter(cat => 
+            const matchedCategories = categories.filter(cat =>
                 cat.includes(categoryPattern) || categoryPattern === 'all'
             );
 
@@ -326,7 +327,7 @@ function parseArguments(args) {
  */
 function buildFullConfig() {
     const specs = [];
-    
+
     for (const language of SUPPORTED_LANGUAGES) {
         const categories = TEST_CATEGORIES[language] || [];
         for (const category of categories) {
@@ -350,7 +351,7 @@ function buildConfigs(specs) {
     for (const spec of specs) {
         const { language, category, testIndices } = spec;
         const categoryDir = path.join(TESTS_BASE_DIR, language, category);
-        
+
         const config = {
             language,
             category,
@@ -426,7 +427,7 @@ async function main() {
     try {
         // 解析参数
         const specs = parseArguments(args);
-        
+
         if (specs.length === 0) {
             console.log('未指定任何测试');
             printUsage();
@@ -461,7 +462,7 @@ async function main() {
         generateReport(allResults);
 
         console.log('\n✓ 处理完成!');
-        
+
     } catch (error) {
         console.error('处理过程中出错:', error.message);
         process.exit(1);

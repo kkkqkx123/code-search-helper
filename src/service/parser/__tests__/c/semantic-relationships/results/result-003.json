@@ -1,0 +1,172 @@
+{
+  "testId": "semantic-003",
+  "request": {
+    "language": "c",
+    "code": "#include <stdio.h>\n\ntypedef void (*CallbackFunction)(int);\n\nvoid my_callback(int value) {\n    printf(\"Callback called with value: %d\\n\", value);\n}\n\nint main() {\n    // 回调函数赋值\n    CallbackFunction callback = my_callback;\n    \n    // 调用回调函数\n    callback(42);\n    \n    return 0;\n}",
+    "query": "[\n  (declaration\n    type: (type_identifier) @callback.type\n    declarator: (init_declarator\n      declarator: (identifier) @callback.variable\n      value: (identifier) @callback.function)) @semantic.relationship.callback.assignment\n  (init_declarator\n    declarator: (identifier) @callback.variable\n    value: (identifier) @callback.function) @semantic.relationship.callback.assignment\n  (type_definition\n    (function_declarator\n      (parenthesized_declarator\n        (pointer_declarator\n          (type_identifier) @callback.type)))) @semantic.relationship.callback.type\n] @semantic.relationship.callback.pattern"
+  },
+  "response": {
+    "success": true,
+    "data": [
+      {
+        "captureName": "semantic.relationship.callback.type",
+        "type": "type_definition",
+        "text": "typedef void (*CallbackFunction)(int);",
+        "startPosition": {
+          "row": 2,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 2,
+          "column": 38
+        }
+      },
+      {
+        "captureName": "semantic.relationship.callback.pattern",
+        "type": "type_definition",
+        "text": "typedef void (*CallbackFunction)(int);",
+        "startPosition": {
+          "row": 2,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 2,
+          "column": 38
+        }
+      },
+      {
+        "captureName": "callback.type",
+        "type": "type_identifier",
+        "text": "CallbackFunction",
+        "startPosition": {
+          "row": 2,
+          "column": 15
+        },
+        "endPosition": {
+          "row": 2,
+          "column": 31
+        }
+      },
+      {
+        "captureName": "semantic.relationship.callback.assignment",
+        "type": "declaration",
+        "text": "CallbackFunction callback = my_callback;",
+        "startPosition": {
+          "row": 10,
+          "column": 4
+        },
+        "endPosition": {
+          "row": 10,
+          "column": 44
+        }
+      },
+      {
+        "captureName": "semantic.relationship.callback.pattern",
+        "type": "declaration",
+        "text": "CallbackFunction callback = my_callback;",
+        "startPosition": {
+          "row": 10,
+          "column": 4
+        },
+        "endPosition": {
+          "row": 10,
+          "column": 44
+        }
+      },
+      {
+        "captureName": "callback.type",
+        "type": "type_identifier",
+        "text": "CallbackFunction",
+        "startPosition": {
+          "row": 10,
+          "column": 4
+        },
+        "endPosition": {
+          "row": 10,
+          "column": 20
+        }
+      },
+      {
+        "captureName": "callback.variable",
+        "type": "identifier",
+        "text": "callback",
+        "startPosition": {
+          "row": 10,
+          "column": 21
+        },
+        "endPosition": {
+          "row": 10,
+          "column": 29
+        }
+      },
+      {
+        "captureName": "callback.function",
+        "type": "identifier",
+        "text": "my_callback",
+        "startPosition": {
+          "row": 10,
+          "column": 32
+        },
+        "endPosition": {
+          "row": 10,
+          "column": 43
+        }
+      },
+      {
+        "captureName": "semantic.relationship.callback.assignment",
+        "type": "init_declarator",
+        "text": "callback = my_callback",
+        "startPosition": {
+          "row": 10,
+          "column": 21
+        },
+        "endPosition": {
+          "row": 10,
+          "column": 43
+        }
+      },
+      {
+        "captureName": "semantic.relationship.callback.pattern",
+        "type": "init_declarator",
+        "text": "callback = my_callback",
+        "startPosition": {
+          "row": 10,
+          "column": 21
+        },
+        "endPosition": {
+          "row": 10,
+          "column": 43
+        }
+      },
+      {
+        "captureName": "callback.variable",
+        "type": "identifier",
+        "text": "callback",
+        "startPosition": {
+          "row": 10,
+          "column": 21
+        },
+        "endPosition": {
+          "row": 10,
+          "column": 29
+        }
+      },
+      {
+        "captureName": "callback.function",
+        "type": "identifier",
+        "text": "my_callback",
+        "startPosition": {
+          "row": 10,
+          "column": 32
+        },
+        "endPosition": {
+          "row": 10,
+          "column": 43
+        }
+      }
+    ],
+    "errors": [],
+    "timestamp": "2025-11-20T01:34:53.576Z"
+  },
+  "timestamp": "2025-11-20T01:34:53.577Z"
+}

@@ -1,0 +1,536 @@
+{
+  "testId": "semantic-004",
+  "request": {
+    "language": "c",
+    "code": "#include <stdio.h>\n\n// 基本结构体定义\nstruct Point {\n    int x;\n    int y;\n};\n\n// 嵌套结构体\nstruct Rectangle {\n    struct Point topLeft;\n    struct Point bottomRight;\n    int width;\n    int height;\n};\n\nint main() {\n    struct Point p = {10, 20};\n    struct Rectangle rect = {{0, 0}, {100, 100}, 100, 100};\n    \n    printf(\"Point: (%d, %d)\\n\", p.x, p.y);\n    printf(\"Rectangle: (%d, %d) to (%d, %d)\\n\", \n           rect.topLeft.x, rect.topLeft.y,\n           rect.bottomRight.x, rect.bottomRight.y);\n    \n    return 0;\n}",
+    "query": "[\n  (struct_specifier\n    (type_identifier) @struct.name\n    (field_declaration_list\n      (field_declaration\n        (_) @field.type\n        (field_identifier) @field.name))) @semantic.relationship.struct.definition\n  (struct_specifier\n    (type_identifier) @nested.struct\n    (field_declaration_list\n      (field_declaration\n        (struct_specifier\n          (type_identifier) @inner.struct)\n        (field_identifier) @field.name))) @semantic.relationship.struct.nesting\n] @semantic.relationship.struct"
+  },
+  "response": {
+    "success": true,
+    "data": [
+      {
+        "captureName": "semantic.relationship.struct.definition",
+        "type": "struct_specifier",
+        "text": "struct Point {\n    int x;\n    int y;\n}",
+        "startPosition": {
+          "row": 3,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 6,
+          "column": 1
+        }
+      },
+      {
+        "captureName": "semantic.relationship.struct",
+        "type": "struct_specifier",
+        "text": "struct Point {\n    int x;\n    int y;\n}",
+        "startPosition": {
+          "row": 3,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 6,
+          "column": 1
+        }
+      },
+      {
+        "captureName": "struct.name",
+        "type": "type_identifier",
+        "text": "Point",
+        "startPosition": {
+          "row": 3,
+          "column": 7
+        },
+        "endPosition": {
+          "row": 3,
+          "column": 12
+        }
+      },
+      {
+        "captureName": "field.type",
+        "type": "primitive_type",
+        "text": "int",
+        "startPosition": {
+          "row": 4,
+          "column": 4
+        },
+        "endPosition": {
+          "row": 4,
+          "column": 7
+        }
+      },
+      {
+        "captureName": "field.name",
+        "type": "field_identifier",
+        "text": "x",
+        "startPosition": {
+          "row": 4,
+          "column": 8
+        },
+        "endPosition": {
+          "row": 4,
+          "column": 9
+        }
+      },
+      {
+        "captureName": "semantic.relationship.struct.definition",
+        "type": "struct_specifier",
+        "text": "struct Point {\n    int x;\n    int y;\n}",
+        "startPosition": {
+          "row": 3,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 6,
+          "column": 1
+        }
+      },
+      {
+        "captureName": "semantic.relationship.struct",
+        "type": "struct_specifier",
+        "text": "struct Point {\n    int x;\n    int y;\n}",
+        "startPosition": {
+          "row": 3,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 6,
+          "column": 1
+        }
+      },
+      {
+        "captureName": "struct.name",
+        "type": "type_identifier",
+        "text": "Point",
+        "startPosition": {
+          "row": 3,
+          "column": 7
+        },
+        "endPosition": {
+          "row": 3,
+          "column": 12
+        }
+      },
+      {
+        "captureName": "field.type",
+        "type": "primitive_type",
+        "text": "int",
+        "startPosition": {
+          "row": 5,
+          "column": 4
+        },
+        "endPosition": {
+          "row": 5,
+          "column": 7
+        }
+      },
+      {
+        "captureName": "field.name",
+        "type": "field_identifier",
+        "text": "y",
+        "startPosition": {
+          "row": 5,
+          "column": 8
+        },
+        "endPosition": {
+          "row": 5,
+          "column": 9
+        }
+      },
+      {
+        "captureName": "semantic.relationship.struct.nesting",
+        "type": "struct_specifier",
+        "text": "struct Rectangle {\n    struct Point topLeft;\n    struct Point bottomRight;\n    int width;\n    int height;\n}",
+        "startPosition": {
+          "row": 9,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 14,
+          "column": 1
+        }
+      },
+      {
+        "captureName": "semantic.relationship.struct",
+        "type": "struct_specifier",
+        "text": "struct Rectangle {\n    struct Point topLeft;\n    struct Point bottomRight;\n    int width;\n    int height;\n}",
+        "startPosition": {
+          "row": 9,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 14,
+          "column": 1
+        }
+      },
+      {
+        "captureName": "nested.struct",
+        "type": "type_identifier",
+        "text": "Rectangle",
+        "startPosition": {
+          "row": 9,
+          "column": 7
+        },
+        "endPosition": {
+          "row": 9,
+          "column": 16
+        }
+      },
+      {
+        "captureName": "inner.struct",
+        "type": "type_identifier",
+        "text": "Point",
+        "startPosition": {
+          "row": 10,
+          "column": 11
+        },
+        "endPosition": {
+          "row": 10,
+          "column": 16
+        }
+      },
+      {
+        "captureName": "field.name",
+        "type": "field_identifier",
+        "text": "topLeft",
+        "startPosition": {
+          "row": 10,
+          "column": 17
+        },
+        "endPosition": {
+          "row": 10,
+          "column": 24
+        }
+      },
+      {
+        "captureName": "semantic.relationship.struct.definition",
+        "type": "struct_specifier",
+        "text": "struct Rectangle {\n    struct Point topLeft;\n    struct Point bottomRight;\n    int width;\n    int height;\n}",
+        "startPosition": {
+          "row": 9,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 14,
+          "column": 1
+        }
+      },
+      {
+        "captureName": "semantic.relationship.struct",
+        "type": "struct_specifier",
+        "text": "struct Rectangle {\n    struct Point topLeft;\n    struct Point bottomRight;\n    int width;\n    int height;\n}",
+        "startPosition": {
+          "row": 9,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 14,
+          "column": 1
+        }
+      },
+      {
+        "captureName": "struct.name",
+        "type": "type_identifier",
+        "text": "Rectangle",
+        "startPosition": {
+          "row": 9,
+          "column": 7
+        },
+        "endPosition": {
+          "row": 9,
+          "column": 16
+        }
+      },
+      {
+        "captureName": "field.type",
+        "type": "struct_specifier",
+        "text": "struct Point",
+        "startPosition": {
+          "row": 10,
+          "column": 4
+        },
+        "endPosition": {
+          "row": 10,
+          "column": 16
+        }
+      },
+      {
+        "captureName": "field.name",
+        "type": "field_identifier",
+        "text": "topLeft",
+        "startPosition": {
+          "row": 10,
+          "column": 17
+        },
+        "endPosition": {
+          "row": 10,
+          "column": 24
+        }
+      },
+      {
+        "captureName": "semantic.relationship.struct.nesting",
+        "type": "struct_specifier",
+        "text": "struct Rectangle {\n    struct Point topLeft;\n    struct Point bottomRight;\n    int width;\n    int height;\n}",
+        "startPosition": {
+          "row": 9,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 14,
+          "column": 1
+        }
+      },
+      {
+        "captureName": "semantic.relationship.struct",
+        "type": "struct_specifier",
+        "text": "struct Rectangle {\n    struct Point topLeft;\n    struct Point bottomRight;\n    int width;\n    int height;\n}",
+        "startPosition": {
+          "row": 9,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 14,
+          "column": 1
+        }
+      },
+      {
+        "captureName": "nested.struct",
+        "type": "type_identifier",
+        "text": "Rectangle",
+        "startPosition": {
+          "row": 9,
+          "column": 7
+        },
+        "endPosition": {
+          "row": 9,
+          "column": 16
+        }
+      },
+      {
+        "captureName": "inner.struct",
+        "type": "type_identifier",
+        "text": "Point",
+        "startPosition": {
+          "row": 11,
+          "column": 11
+        },
+        "endPosition": {
+          "row": 11,
+          "column": 16
+        }
+      },
+      {
+        "captureName": "field.name",
+        "type": "field_identifier",
+        "text": "bottomRight",
+        "startPosition": {
+          "row": 11,
+          "column": 17
+        },
+        "endPosition": {
+          "row": 11,
+          "column": 28
+        }
+      },
+      {
+        "captureName": "semantic.relationship.struct.definition",
+        "type": "struct_specifier",
+        "text": "struct Rectangle {\n    struct Point topLeft;\n    struct Point bottomRight;\n    int width;\n    int height;\n}",
+        "startPosition": {
+          "row": 9,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 14,
+          "column": 1
+        }
+      },
+      {
+        "captureName": "semantic.relationship.struct",
+        "type": "struct_specifier",
+        "text": "struct Rectangle {\n    struct Point topLeft;\n    struct Point bottomRight;\n    int width;\n    int height;\n}",
+        "startPosition": {
+          "row": 9,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 14,
+          "column": 1
+        }
+      },
+      {
+        "captureName": "struct.name",
+        "type": "type_identifier",
+        "text": "Rectangle",
+        "startPosition": {
+          "row": 9,
+          "column": 7
+        },
+        "endPosition": {
+          "row": 9,
+          "column": 16
+        }
+      },
+      {
+        "captureName": "field.type",
+        "type": "struct_specifier",
+        "text": "struct Point",
+        "startPosition": {
+          "row": 11,
+          "column": 4
+        },
+        "endPosition": {
+          "row": 11,
+          "column": 16
+        }
+      },
+      {
+        "captureName": "field.name",
+        "type": "field_identifier",
+        "text": "bottomRight",
+        "startPosition": {
+          "row": 11,
+          "column": 17
+        },
+        "endPosition": {
+          "row": 11,
+          "column": 28
+        }
+      },
+      {
+        "captureName": "semantic.relationship.struct.definition",
+        "type": "struct_specifier",
+        "text": "struct Rectangle {\n    struct Point topLeft;\n    struct Point bottomRight;\n    int width;\n    int height;\n}",
+        "startPosition": {
+          "row": 9,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 14,
+          "column": 1
+        }
+      },
+      {
+        "captureName": "semantic.relationship.struct",
+        "type": "struct_specifier",
+        "text": "struct Rectangle {\n    struct Point topLeft;\n    struct Point bottomRight;\n    int width;\n    int height;\n}",
+        "startPosition": {
+          "row": 9,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 14,
+          "column": 1
+        }
+      },
+      {
+        "captureName": "struct.name",
+        "type": "type_identifier",
+        "text": "Rectangle",
+        "startPosition": {
+          "row": 9,
+          "column": 7
+        },
+        "endPosition": {
+          "row": 9,
+          "column": 16
+        }
+      },
+      {
+        "captureName": "field.type",
+        "type": "primitive_type",
+        "text": "int",
+        "startPosition": {
+          "row": 12,
+          "column": 4
+        },
+        "endPosition": {
+          "row": 12,
+          "column": 7
+        }
+      },
+      {
+        "captureName": "field.name",
+        "type": "field_identifier",
+        "text": "width",
+        "startPosition": {
+          "row": 12,
+          "column": 8
+        },
+        "endPosition": {
+          "row": 12,
+          "column": 13
+        }
+      },
+      {
+        "captureName": "semantic.relationship.struct.definition",
+        "type": "struct_specifier",
+        "text": "struct Rectangle {\n    struct Point topLeft;\n    struct Point bottomRight;\n    int width;\n    int height;\n}",
+        "startPosition": {
+          "row": 9,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 14,
+          "column": 1
+        }
+      },
+      {
+        "captureName": "semantic.relationship.struct",
+        "type": "struct_specifier",
+        "text": "struct Rectangle {\n    struct Point topLeft;\n    struct Point bottomRight;\n    int width;\n    int height;\n}",
+        "startPosition": {
+          "row": 9,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 14,
+          "column": 1
+        }
+      },
+      {
+        "captureName": "struct.name",
+        "type": "type_identifier",
+        "text": "Rectangle",
+        "startPosition": {
+          "row": 9,
+          "column": 7
+        },
+        "endPosition": {
+          "row": 9,
+          "column": 16
+        }
+      },
+      {
+        "captureName": "field.type",
+        "type": "primitive_type",
+        "text": "int",
+        "startPosition": {
+          "row": 13,
+          "column": 4
+        },
+        "endPosition": {
+          "row": 13,
+          "column": 7
+        }
+      },
+      {
+        "captureName": "field.name",
+        "type": "field_identifier",
+        "text": "height",
+        "startPosition": {
+          "row": 13,
+          "column": 8
+        },
+        "endPosition": {
+          "row": 13,
+          "column": 14
+        }
+      }
+    ],
+    "errors": [],
+    "timestamp": "2025-11-20T01:34:53.586Z"
+  },
+  "timestamp": "2025-11-20T01:34:53.588Z"
+}

@@ -1,0 +1,3 @@
+(call_expression
+  function: (identifier) @recursive.function
+  arguments: (argument_list)) @semantic.relationship.recursive.call

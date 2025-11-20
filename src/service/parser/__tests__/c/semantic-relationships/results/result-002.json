@@ -1,0 +1,94 @@
+{
+  "testId": "semantic-002",
+  "request": {
+    "language": "c",
+    "code": "#include <stdio.h>\n\nint factorial(int n) {\n    if (n <= 1) {\n        return 1;\n    }\n    // 递归调用\n    return n * factorial(n - 1);\n}\n\nint main() {\n    int result = factorial(5);\n    printf(\"Factorial of 5 is %d\\n\", result);\n    return 0;\n}",
+    "query": "(call_expression\n  function: (identifier) @recursive.function\n  arguments: (argument_list)) @semantic.relationship.recursive.call"
+  },
+  "response": {
+    "success": true,
+    "data": [
+      {
+        "captureName": "semantic.relationship.recursive.call",
+        "type": "call_expression",
+        "text": "factorial(n - 1)",
+        "startPosition": {
+          "row": 7,
+          "column": 15
+        },
+        "endPosition": {
+          "row": 7,
+          "column": 31
+        }
+      },
+      {
+        "captureName": "recursive.function",
+        "type": "identifier",
+        "text": "factorial",
+        "startPosition": {
+          "row": 7,
+          "column": 15
+        },
+        "endPosition": {
+          "row": 7,
+          "column": 24
+        }
+      },
+      {
+        "captureName": "semantic.relationship.recursive.call",
+        "type": "call_expression",
+        "text": "factorial(5)",
+        "startPosition": {
+          "row": 11,
+          "column": 17
+        },
+        "endPosition": {
+          "row": 11,
+          "column": 29
+        }
+      },
+      {
+        "captureName": "recursive.function",
+        "type": "identifier",
+        "text": "factorial",
+        "startPosition": {
+          "row": 11,
+          "column": 17
+        },
+        "endPosition": {
+          "row": 11,
+          "column": 26
+        }
+      },
+      {
+        "captureName": "semantic.relationship.recursive.call",
+        "type": "call_expression",
+        "text": "printf(\"Factorial of 5 is %d\\n\", result)",
+        "startPosition": {
+          "row": 12,
+          "column": 4
+        },
+        "endPosition": {
+          "row": 12,
+          "column": 44
+        }
+      },
+      {
+        "captureName": "recursive.function",
+        "type": "identifier",
+        "text": "printf",
+        "startPosition": {
+          "row": 12,
+          "column": 4
+        },
+        "endPosition": {
+          "row": 12,
+          "column": 10
+        }
+      }
+    ],
+    "errors": [],
+    "timestamp": "2025-11-20T01:34:53.555Z"
+  },
+  "timestamp": "2025-11-20T01:34:53.556Z"
+}

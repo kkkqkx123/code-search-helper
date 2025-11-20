@@ -1,0 +1,4 @@
+(call_expression
+  function: (identifier) @memory.function
+  (#match? @memory.function "^(malloc|calloc|realloc|free)$")
+  arguments: (argument_list)) @semantic.relationship.memory.management

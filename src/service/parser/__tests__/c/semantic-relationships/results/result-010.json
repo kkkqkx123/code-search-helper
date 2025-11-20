@@ -1,0 +1,68 @@
+{
+  "testId": "semantic-010",
+  "request": {
+    "language": "c",
+    "code": "#include <stdio.h>\n\n// 外部变量声明\nextern int external_counter;\nextern char* external_string;\n\nint main() {\n    // 使用外部变量\n    printf(\"External counter: %d\\n\", external_counter);\n    printf(\"External string: %s\\n\", external_string);\n    \n    return 0;\n}",
+    "query": "(declaration\n  (storage_class_specifier) @extern.specifier\n  type: [(type_identifier) (primitive_type)] @extern.variable.type\n  declarator: (identifier) @extern.variable.name) @semantic.relationship.extern.variable"
+  },
+  "response": {
+    "success": true,
+    "data": [
+      {
+        "captureName": "semantic.relationship.extern.variable",
+        "type": "declaration",
+        "text": "extern int external_counter;",
+        "startPosition": {
+          "row": 3,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 3,
+          "column": 28
+        }
+      },
+      {
+        "captureName": "extern.specifier",
+        "type": "storage_class_specifier",
+        "text": "extern",
+        "startPosition": {
+          "row": 3,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 3,
+          "column": 6
+        }
+      },
+      {
+        "captureName": "extern.variable.type",
+        "type": "primitive_type",
+        "text": "int",
+        "startPosition": {
+          "row": 3,
+          "column": 7
+        },
+        "endPosition": {
+          "row": 3,
+          "column": 10
+        }
+      },
+      {
+        "captureName": "extern.variable.name",
+        "type": "identifier",
+        "text": "external_counter",
+        "startPosition": {
+          "row": 3,
+          "column": 11
+        },
+        "endPosition": {
+          "row": 3,
+          "column": 27
+        }
+      }
+    ],
+    "errors": [],
+    "timestamp": "2025-11-20T01:34:53.682Z"
+  },
+  "timestamp": "2025-11-20T01:34:53.683Z"
+}

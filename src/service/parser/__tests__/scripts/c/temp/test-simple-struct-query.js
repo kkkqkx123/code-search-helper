@@ -86,11 +86,11 @@ async function testQuery(language, code, query, description) {
 async function main() {
     const testCaseId = process.argv[2];
     if (!testCaseId) {
-        console.error('请提供测试用例ID，例如: node test-pointer-query.js 005');
+        console.error('请提供测试用例ID，例如: node test-simple-struct-query.js 004');
         process.exit(1);
     }
 
-    console.log('开始测试指针查询模式...\n');
+    console.log('开始测试简化结构体查询模式...\n');
     
     // 构建路径
     const testDir = path.join(__dirname, '..', '..', '..', 'c', 'semantic-relationships', 'tests', `test-${testCaseId}`);
@@ -102,12 +102,10 @@ async function main() {
     console.log(`测试用例: ${testCaseId}`);
     console.log(`代码:\n${code}\n`);
     
-    // 测试指针相关的查询模式
-    await testQuery('c', code, '(field_declaration) @field', '测试field_declaration节点');
-    await testQuery('c', code, '(pointer_declarator) @ptr', '测试pointer_declarator节点');
-    await testQuery('c', code, '(field_declaration (pointer_declarator) @ptr)', '测试字段中的指针声明器');
-    await testQuery('c', code, '(field_declaration (pointer_declarator (field_identifier) @field))', '测试指针字段');
-    await testQuery('c', code, '(field_declaration (struct_specifier) @struct (pointer_declarator (field_identifier) @field))', '测试结构体指针字段');
+    // 测试逐步简化的查询
+    await testQuery('c', code, '(struct_specifier (type_identifier) @name (field_declaration_list)) @struct', '测试基本结构体定义');
+    await testQuery('c', code, '(struct_specifier (type_identifier) @name (field_declaration_list (field_declaration (_) @type (field_declarator (field_identifier) @field)))) @struct', '测试带字段的结构体定义');
+    await testQuery('c', code, '(struct_specifier (type_identifier) @name (field_declaration_list (field_declaration (struct_specifier (type_identifier) @inner) (field_declarator (field_identifier) @field)))) @nested', '测试嵌套结构体');
     
     console.log('\n测试完成!');
 }

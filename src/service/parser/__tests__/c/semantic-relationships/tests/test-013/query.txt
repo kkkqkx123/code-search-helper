@@ -1,0 +1,10 @@
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @resource.constructor)
+  body: (compound_statement
+    (declaration
+      type: (type_identifier) @resource.type
+      declarator: (init_declarator
+        declarator: (identifier) @resource.variable
+        value: (call_expression
+          function: (identifier) @allocation.function))))) @semantic.relationship.resource.initialization

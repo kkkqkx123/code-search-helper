@@ -1,0 +1,12 @@
+[
+  (return_statement
+    (identifier) @error.code
+    (#match? @error.code "^(ERROR|FAIL|INVALID|NULL)$")) @semantic.relationship.error.return
+  (if_statement
+    (parenthesized_expression
+      (binary_expression
+        (identifier) @checked.variable
+        ["==" "!="]
+        (identifier) @error.value))
+    (compound_statement) @error.handling.block) @semantic.relationship.error.checking
+] @semantic.relationship.error.handling

@@ -1,0 +1,94 @@
+{
+  "testId": "semantic-008",
+  "request": {
+    "language": "c",
+    "code": "#include <stdio.h>\n#include <stdlib.h>\n\n// 宏定义\n#define MAX(a, b) ((a) > (b) ? (a) : (b))\n#define BUFFER_SIZE 1024\n#define DEBUG\n\n#ifdef DEBUG\n#define LOG(msg) printf(\"DEBUG: %s\\n\", msg)\n#else\n#define LOG(msg)\n#endif\n\nint main() {\n    int x = 10;\n    int y = 20;\n    \n    int max_value = MAX(x, y);\n    char buffer[BUFFER_SIZE];\n    \n    printf(\"Max value: %d\\n\", max_value);\n    LOG(\"Program started\");\n    \n    return 0;\n}",
+    "query": "[\n  (preproc_include\n    path: (string_literal\n      (string_content) @included.header)) @semantic.relationship.include\n  (preproc_def\n    name: (identifier) @macro.name\n    value: (identifier)? @macro.value) @semantic.relationship.macro.definition\n  (preproc_if\n    condition: (identifier) @conditional.symbol) @semantic.relationship.conditional.compilation\n] @semantic.relationship.preprocessor"
+  },
+  "response": {
+    "success": true,
+    "data": [
+      {
+        "captureName": "semantic.relationship.macro.definition",
+        "type": "preproc_def",
+        "text": "#define BUFFER_SIZE 1024\n",
+        "startPosition": {
+          "row": 5,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 6,
+          "column": 0
+        }
+      },
+      {
+        "captureName": "semantic.relationship.preprocessor",
+        "type": "preproc_def",
+        "text": "#define BUFFER_SIZE 1024\n",
+        "startPosition": {
+          "row": 5,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 6,
+          "column": 0
+        }
+      },
+      {
+        "captureName": "macro.name",
+        "type": "identifier",
+        "text": "BUFFER_SIZE",
+        "startPosition": {
+          "row": 5,
+          "column": 8
+        },
+        "endPosition": {
+          "row": 5,
+          "column": 19
+        }
+      },
+      {
+        "captureName": "semantic.relationship.macro.definition",
+        "type": "preproc_def",
+        "text": "#define DEBUG\n",
+        "startPosition": {
+          "row": 6,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 7,
+          "column": 0
+        }
+      },
+      {
+        "captureName": "semantic.relationship.preprocessor",
+        "type": "preproc_def",
+        "text": "#define DEBUG\n",
+        "startPosition": {
+          "row": 6,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 7,
+          "column": 0
+        }
+      },
+      {
+        "captureName": "macro.name",
+        "type": "identifier",
+        "text": "DEBUG",
+        "startPosition": {
+          "row": 6,
+          "column": 8
+        },
+        "endPosition": {
+          "row": 6,
+          "column": 13
+        }
+      }
+    ],
+    "errors": [],
+    "timestamp": "2025-11-20T01:34:53.634Z"
+  },
+  "timestamp": "2025-11-20T01:34:53.635Z"
+}

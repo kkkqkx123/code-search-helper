@@ -1,0 +1,4 @@
+(declaration
+  (storage_class_specifier) @extern.specifier
+  type: [(type_identifier) (primitive_type)] @extern.variable.type
+  declarator: (identifier) @extern.variable.name) @semantic.relationship.extern.variable

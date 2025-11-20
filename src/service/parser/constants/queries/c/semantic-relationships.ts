@@ -14,64 +14,77 @@ export default `
   arguments: (argument_list
     (identifier)* @source.parameter)) @semantic.relationship.function.call
 
-; 递归调用关系 - 使用谓词过滤
+; 递归调用关系 - 简化模式
 (call_expression
   function: (identifier) @recursive.function
-  arguments: (argument_list))
-  (#eq? @recursive.function @current.function) @semantic.relationship.recursive.call
+  arguments: (argument_list)) @semantic.relationship.recursive.call
 
 ; 回调函数模式 - 使用锚点确保精确匹配
 [
-  (assignment_expression
-    left: (identifier) @callback.variable
-    right: (identifier) @callback.function) @semantic.relationship.callback.assignment
-  (field_declaration
-    type: (pointer_type
-      (function_type))
-    declarator: (field_declarator
-      declarator: (field_identifier) @callback.field)) @semantic.relationship.callback.field
+  (declaration
+    type: (type_identifier) @callback.type
+    declarator: (init_declarator
+      declarator: (identifier) @callback.variable
+      value: (identifier) @callback.function)) @semantic.relationship.callback.assignment
+  (init_declarator
+    declarator: (identifier) @callback.variable
+    value: (identifier) @callback.function) @semantic.relationship.callback.assignment
+  (type_definition
+    (function_declarator
+      (parenthesized_declarator
+        (pointer_declarator
+          (type_identifier) @callback.type)))) @semantic.relationship.callback.type
 ] @semantic.relationship.callback.pattern
 
 ; 结构体关系 - 使用交替模式
 [
   (struct_specifier
-    name: (type_identifier) @struct.name
-    body: (field_declaration_list
+    (type_identifier) @struct.name
+    (field_declaration_list
       (field_declaration
-        type: (type_identifier) @field.type
-        declarator: (field_declarator
-          declarator: (field_identifier) @field.name))*)) @semantic.relationship.struct.definition
+        (_) @field.type
+        (field_identifier) @field.name))) @semantic.relationship.struct.definition
   (struct_specifier
-    name: (type_identifier) @nested.struct
-    body: (field_declaration_list
+    (type_identifier) @nested.struct
+    (field_declaration_list
       (field_declaration
-        type: (struct_specifier
-          name: (type_identifier) @inner.struct)
-        declarator: (field_declarator
-          declarator: (field_identifier) @field.name)))) @semantic.relationship.struct.nesting
+        (struct_specifier
+          (type_identifier) @inner.struct)
+        (field_identifier) @field.name))) @semantic.relationship.struct.nesting
 ] @semantic.relationship.struct
 
 ; 指针关系 - 使用谓词过滤
-(field_declaration
-  type: (pointer_type
-    (type_identifier) @pointed.type)
-  declarator: (field_declarator
-    declarator: (field_identifier) @pointer.field)) @semantic.relationship.pointer.field
+[
+  (field_declaration
+    (struct_specifier
+      (type_identifier) @pointed.type)
+    (pointer_declarator
+      (field_identifier) @pointer.field)) @semantic.relationship.pointer.struct
+  (field_declaration
+    (primitive_type) @pointed.type
+    (pointer_declarator
+      (field_identifier) @pointer.field)) @semantic.relationship.pointer.primitive
+] @semantic.relationship.pointer.field
 
 ; 类型别名关系 - 简化模式
-(type_definition
-  type: (type_identifier) @original.type
-  declarator: (type_identifier) @alias.type) @semantic.relationship.type.alias
+[
+  (type_definition
+    (sized_type_specifier) @original.type
+    (type_identifier) @alias.type) @semantic.relationship.type.alias.sized
+  (type_definition
+    (struct_specifier) @original.type
+    (type_identifier) @alias.type) @semantic.relationship.type.alias.struct
+  (type_definition
+    (primitive_type) @original.type
+    (type_identifier) @alias.type) @semantic.relationship.type.alias.primitive
+] @semantic.relationship.type.alias
 
 ; 函数指针关系 - 使用锚点操作符
 (type_definition
-  type: (pointer_type
-    (function_type
-      parameters: (parameter_list
-        (parameter_declaration
-          type: (type_identifier) @param.type
-          declarator: (identifier) @param.name))))
-  declarator: (type_identifier) @function.pointer.type) @semantic.relationship.function.pointer.type
+  (function_declarator
+    (parenthesized_declarator
+      (pointer_declarator
+        (type_identifier) @function.pointer.type)))) @semantic.relationship.function.pointer.type
 
 ; 设计模式查询 - 参数化模式
 (class_specifier
@@ -100,23 +113,22 @@ export default `
 
 ; 全局变量关系 - 使用谓词过滤
 (declaration
-  type: (type_identifier) @global.variable.type
+  type: [(type_identifier) (primitive_type)] @global.variable.type
   declarator: (init_declarator
     declarator: (identifier) @global.variable.name)
   (#match? @global.variable.name "^[g_][a-zA-Z0-9_]*$")) @semantic.relationship.global.variable
 
 ; 外部变量关系 - 简化模式
 (declaration
-  storage_class_specifier: (storage_class_specifier) @extern.specifier
-  type: (type_identifier) @extern.variable.type
+  (storage_class_specifier) @extern.specifier
+  type: [(type_identifier) (primitive_type)] @extern.variable.type
   declarator: (identifier) @extern.variable.name) @semantic.relationship.extern.variable
 
 ; 内存管理关系 - 使用谓词过滤
 (call_expression
   function: (identifier) @memory.function
-  arguments: (argument_list
-    (identifier) @memory.argument))
-  (#match? @memory.function "^(malloc|calloc|realloc|free)$") @semantic.relationship.memory.management
+  (#match? @memory.function "^(malloc|calloc|realloc|free)$")
+  arguments: (argument_list)) @semantic.relationship.memory.management
 
 ; 错误处理模式 - 使用交替模式
 [
@@ -124,11 +136,12 @@ export default `
     (identifier) @error.code
     (#match? @error.code "^(ERROR|FAIL|INVALID|NULL)$")) @semantic.relationship.error.return
   (if_statement
-    condition: (binary_expression
-      left: (identifier) @checked.variable
-      operator: ["==" "!="]
-      right: (identifier) @error.value)
-    consequence: (statement) @error.handling.block) @semantic.relationship.error.checking
+    (parenthesized_expression
+      (binary_expression
+        (identifier) @checked.variable
+        ["==" "!="]
+        (identifier) @error.value))
+    (compound_statement) @error.handling.block) @semantic.relationship.error.checking
 ] @semantic.relationship.error.handling
 
 ; 资源管理模式 - 使用锚点确保精确匹配

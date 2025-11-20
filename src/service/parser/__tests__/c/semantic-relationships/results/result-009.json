@@ -1,0 +1,133 @@
+{
+  "testId": "semantic-009",
+  "request": {
+    "language": "c",
+    "code": "#include <stdio.h>\n\n// 全局变量（符合命名约定）\nint g_counter = 0;\nchar g_buffer[256];\ndouble g_precision = 0.001;\n\n// 普通全局变量（不符合命名约定，不应匹配）\nint global_var = 10;\n\nstatic int s_local_counter = 0;  // 静态变量\n\nint main() {\n    g_counter++;\n    sprintf(g_buffer, \"Counter: %d\", g_counter);\n    printf(\"%s\\n\", g_buffer);\n    printf(\"Precision: %.3f\\n\", g_precision);\n    \n    return 0;\n}",
+    "query": "(declaration\n  type: [(type_identifier) (primitive_type)] @global.variable.type\n  declarator: (init_declarator\n    declarator: (identifier) @global.variable.name)\n  (#match? @global.variable.name \"^[g_][a-zA-Z0-9_]*$\")) @semantic.relationship.global.variable"
+  },
+  "response": {
+    "success": true,
+    "data": [
+      {
+        "captureName": "semantic.relationship.global.variable",
+        "type": "declaration",
+        "text": "int g_counter = 0;",
+        "startPosition": {
+          "row": 3,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 3,
+          "column": 18
+        }
+      },
+      {
+        "captureName": "global.variable.type",
+        "type": "primitive_type",
+        "text": "int",
+        "startPosition": {
+          "row": 3,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 3,
+          "column": 3
+        }
+      },
+      {
+        "captureName": "global.variable.name",
+        "type": "identifier",
+        "text": "g_counter",
+        "startPosition": {
+          "row": 3,
+          "column": 4
+        },
+        "endPosition": {
+          "row": 3,
+          "column": 13
+        }
+      },
+      {
+        "captureName": "semantic.relationship.global.variable",
+        "type": "declaration",
+        "text": "double g_precision = 0.001;",
+        "startPosition": {
+          "row": 5,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 5,
+          "column": 27
+        }
+      },
+      {
+        "captureName": "global.variable.type",
+        "type": "primitive_type",
+        "text": "double",
+        "startPosition": {
+          "row": 5,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 5,
+          "column": 6
+        }
+      },
+      {
+        "captureName": "global.variable.name",
+        "type": "identifier",
+        "text": "g_precision",
+        "startPosition": {
+          "row": 5,
+          "column": 7
+        },
+        "endPosition": {
+          "row": 5,
+          "column": 18
+        }
+      },
+      {
+        "captureName": "semantic.relationship.global.variable",
+        "type": "declaration",
+        "text": "int global_var = 10;",
+        "startPosition": {
+          "row": 8,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 8,
+          "column": 20
+        }
+      },
+      {
+        "captureName": "global.variable.type",
+        "type": "primitive_type",
+        "text": "int",
+        "startPosition": {
+          "row": 8,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 8,
+          "column": 3
+        }
+      },
+      {
+        "captureName": "global.variable.name",
+        "type": "identifier",
+        "text": "global_var",
+        "startPosition": {
+          "row": 8,
+          "column": 4
+        },
+        "endPosition": {
+          "row": 8,
+          "column": 14
+        }
+      }
+    ],
+    "errors": [],
+    "timestamp": "2025-11-20T01:34:53.651Z"
+  },
+  "timestamp": "2025-11-20T01:34:53.652Z"
+}

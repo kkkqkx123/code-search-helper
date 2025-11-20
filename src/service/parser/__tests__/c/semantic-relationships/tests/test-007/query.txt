@@ -1,0 +1,5 @@
+(type_definition
+  (function_declarator
+    (parenthesized_declarator
+      (pointer_declarator
+        (type_identifier) @function.pointer.type)))) @semantic.relationship.function.pointer.type
