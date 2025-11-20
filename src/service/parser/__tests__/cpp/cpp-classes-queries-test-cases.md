@@ -5,7 +5,7 @@
 ## 1. 基本类定义
 
 ### 测试用例
-```c
+```cpp
 class MyClass {
 public:
     int x;
@@ -40,7 +40,7 @@ public:
 ```
 
 ### 测试用例
-```c
+```cpp
 struct Point {
     int x;
     int y;
@@ -59,7 +59,7 @@ struct Point {
 ```
 
 ### 测试用例
-```c
+```cpp
 union Data {
     int i;
     float f;
@@ -79,7 +79,7 @@ union Data {
 ```
 
 ### 测试用例
-```c
+```cpp
 template<typename T>
 class Vector {
 private:
@@ -108,7 +108,7 @@ public:
 ```
 
 ### 测试用例
-```c
+```cpp
 class Animal {
 public:
     virtual void speak() = 0;
@@ -130,7 +130,7 @@ public:
 ```
 
 ### 测试用例
-```c
+```cpp
 class AccessExample {
 private:
     int privateVar;
@@ -158,7 +158,7 @@ public:
 ```
 
 ### 测试用例
-```c
+```cpp
 class Lifecycle {
 private:
     int* data;
@@ -185,7 +185,7 @@ public:
 ```
 
 ### 测试用例
-```c
+```cpp
 class InitList {
 private:
     int x, y;
@@ -205,7 +205,7 @@ public:
 ```
 
 ### 测试用例
-```c
+```cpp
 class Fields {
 public:
     int publicField;
@@ -226,7 +226,7 @@ private:
 ```
 
 ### 测试用例
-```c
+```cpp
 class Methods {
 public:
     void method1() {
@@ -259,7 +259,7 @@ public:
 ```
 
 ### 测试用例
-```c
+```cpp
 class StaticMembers {
 public:
     static int staticVar;
@@ -280,7 +280,7 @@ public:
 ```
 
 ### 测试用例
-```c
+```cpp
 class Base {
 public:
     virtual void virtualMethod() {
@@ -303,7 +303,7 @@ public:
 ```
 
 ### 测试用例
-```c
+```cpp
 class Abstract {
 public:
     virtual void pureVirtual() = 0;
@@ -322,7 +322,7 @@ public:
 ```
 
 ### 测试用例
-```c
+```cpp
 template<typename T>
 class TemplateMember {
 public:
@@ -344,7 +344,7 @@ public:
 ```
 
 ### 测试用例
-```c
+```cpp
 class FriendClass {
 private:
     int value;
@@ -370,7 +370,7 @@ void friendFunction(FriendClass& obj) {
 ```
 
 ### 测试用例
-```c
+```cpp
 class MyClass {
 private:
     int value;
@@ -406,7 +406,7 @@ public:
 ```
 
 ### 测试用例
-```c
+```cpp
 class MyClass {
 public:
     int x;
@@ -438,7 +438,7 @@ union MyUnion {
 ```
 
 ### 测试用例
-```c
+```cpp
 class FriendExample {
 private:
     int value;
@@ -470,7 +470,7 @@ public:
 ```
 
 ### 测试用例
-```c
+```cpp
 class StaticExample {
 public:
     static int staticField;
@@ -496,7 +496,7 @@ int StaticExample::staticField = 0;
 ```
 
 ### 测试用例
-```c
+```cpp
 class LifecycleExample {
 private:
     int* data;

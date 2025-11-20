@@ -3,12 +3,86 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+// LANGUAGE_MAP 常量，用于将语言名称映射到扩展名
+const LANGUAGE_MAP: Record<string, string> = {
+  '.js': 'javascript',
+  '.ts': 'typescript',
+  '.jsx': 'javascript',
+  '.tsx': 'typescript',
+  '.py': 'python',
+  '.java': 'java',
+  '.cpp': 'cpp',
+  '.c': 'c',
+  '.h': 'cpp',
+  '.hpp': 'cpp',
+  '.cs': 'csharp',
+  '.go': 'go',
+  '.rs': 'rust',
+  '.php': 'php',
+  '.rb': 'ruby',
+  '.swift': 'swift',
+ '.kt': 'kotlin',
+  '.scala': 'scala',
+  '.md': 'markdown',
+  '.json': 'json',
+  '.xml': 'xml',
+ '.yaml': 'yaml',
+  '.yml': 'yaml',
+  '.sql': 'sql',
+  '.sh': 'shell',
+  '.bash': 'shell',
+  '.zsh': 'shell',
+  '.fish': 'shell',
+  '.html': 'html',
+  '.htm': 'html',
+  '.css': 'css',
+  '.scss': 'scss',
+  '.sass': 'sass',
+ '.less': 'less',
+  '.vue': 'vue',
+  '.svelte': 'svelte',
+  '.txt': 'text',
+  '.log': 'log',
+  '.ini': 'ini',
+  '.cfg': 'ini',
+  '.conf': 'ini',
+ '.toml': 'toml',
+  '.dockerfile': 'dockerfile',
+  '.makefile': 'makefile',
+  '.cmake': 'cmake',
+  '.pl': 'perl',
+  '.r': 'r',
+  '.m': 'matlab',
+  '.lua': 'lua',
+  '.dart': 'dart',
+  '.ex': 'elixir',
+  '.exs': 'elixir',
+  '.erl': 'erlang',
+  '.hs': 'haskell',
+ '.ml': 'ocaml',
+  '.fs': 'fsharp',
+  '.vb': 'visualbasic',
+  '.ps1': 'powershell',
+  '.bat': 'batch',
+  '.cmd': 'batch',
+  '.csv': 'csv',
+};
+
+// 反向映射：从语言名到扩展名
+const LANGUAGE_TO_EXTENSION: Record<string, string> = {};
+Object.entries(LANGUAGE_MAP).forEach(([ext, lang]) => {
+  if (!LANGUAGE_TO_EXTENSION[lang]) {
+    LANGUAGE_TO_EXTENSION[lang] = ext;  // 保留第一个映射
+  }
+});
+
 interface TestCase {
   id: string;
   section: string;
   code: string;
   query: string;
   description: string;
+  language: string; // 新增语言字段
 }
 
 interface IndexEntry {
@@ -27,45 +101,43 @@ function parseMarkdownFile(filePath: string): TestCase[] {
   const content = fs.readFileSync(filePath, 'utf-8');
   const testCases: TestCase[] = [];
 
-  // 匹配 ## 标题（如 "## 1. 线程创建并发关系"）
-  const sectionRegex = /^## (\d+)\.\s+(.+?)$/gm;
-  const codeBlockRegex = /```c\n([\s\S]*?)\n```/g;
-  const queryBlockRegex = /```\n([\s\S]*?)\n```(?!c)/g;
+  // 按 ## \d+. 标题分割文档
+  const sections = content.split(/^## \d+\.\s+/m);
 
-  let sectionMatch;
   let testIndex = 1;
-
-  // 按部分逐个处理
-  const sections = content.split(/^## \d+\./m);
 
   for (let i = 1; i < sections.length; i++) {
     const sectionContent = sections[i];
-    
-    // 提取section标题
-    const titleMatch = sectionContent.match(/^\s+(.+?)$/m);
+
+    // 提取section标题（第一行）
+    const titleMatch = sectionContent.match(/^([^\n]+)/);
     const sectionTitle = titleMatch ? titleMatch[1].trim() : `section-${i}`;
-    
-    // 提取代码块
-    const codeMatches = [...sectionContent.matchAll(/```c\n([\s\S]*?)\n```/g)];
+
+    // 提取代码块（支持多种语言标记）
+    const codeBlockRegex = /```(\w+)\n([\s\S]*?)\n```/g;
+    const codeMatches = [...sectionContent.matchAll(codeBlockRegex)];
     if (codeMatches.length === 0) continue;
-    
-    const codeBlock = codeMatches[0][1];
-    
-    // 提取查询块（在代码块之前的查询）
-    const preCodeContent = sectionContent.substring(0, sectionContent.indexOf('```c'));
-    const queryMatch = preCodeContent.match(/```\n([\s\S]*?)\n```/);
-    
-    // 或者从代码块后面提取查询
+
+    // 使用第一个代码块的语言标记
+    const language = codeMatches[0][1].toLowerCase();
+    const codeBlock = codeMatches[0][2];
+
+    // 查找查询块：先找代码块前的查询，再找代码块后的查询
     let query = '';
-    if (queryMatch) {
-      query = queryMatch[1];
+
+    // 在代码块之前查找查询
+    const preCodeContent = sectionContent.substring(0, sectionContent.indexOf(codeMatches[0][0]));
+    const preQueryMatches = [...preCodeContent.matchAll(/```\n([\s\S]*?)\n```/g)];
+
+    if (preQueryMatches.length > 0) {
+      query = preQueryMatches[preQueryMatches.length - 1][1]; // 使用最后一个匹配的查询块
     } else {
       // 从代码块后查找查询
       const postCodeStart = sectionContent.indexOf(codeMatches[0][0]) + codeMatches[0][0].length;
       const postCodeContent = sectionContent.substring(postCodeStart);
-      const postQueryMatch = postCodeContent.match(/```\n([\s\S]*?)\n```/);
-      if (postQueryMatch) {
-        query = postQueryMatch[1];
+      const postQueryMatches = [...postCodeContent.matchAll(/```\n([\s\S]*?)\n```/g)];
+      if (postQueryMatches.length > 0) {
+        query = postQueryMatches[0][1];
       }
     }
 
@@ -74,7 +146,8 @@ function parseMarkdownFile(filePath: string): TestCase[] {
       section: sectionTitle,
       code: codeBlock.trim(),
       query: query.trim(),
-      description: `Test case ${String(testIndex).padStart(3, '0')}: ${sectionTitle}`
+      description: `Test case ${String(testIndex).padStart(3, '0')}: ${sectionTitle}`,
+      language: language
     });
 
     testIndex++;
@@ -91,15 +164,33 @@ function extractLanguageAndCategory(filePath: string): { language: string; categ
   // 例: c-concurrency-queries-test-cases.md -> language: c, category: concurrency
   const filename = path.basename(filePath, '.md');
   const parts = filename.split('-');
-  
+
   if (parts.length < 3) {
     throw new Error(`Invalid filename format. Expected: {language}-{category}-queries-test-cases.md, got: ${filename}`);
   }
 
   const language = parts[0];
   const category = parts[1];
-  
+
   return { language, category };
+}
+/**
+ * 获取代码文件扩展名
+ */
+function getCodeFileExtension(language: string): string {
+  // 首先检查输入是否已经是扩展名格式（以点开头）
+  if (language.startsWith('.')) {
+    return language;
+  }
+  
+  // 尝试在LANGUAGE_TO_EXTENSION中查找对应的语言
+  const langLower = language.toLowerCase();
+  if (LANGUAGE_TO_EXTENSION[langLower]) {
+    return LANGUAGE_TO_EXTENSION[langLower];
+  }
+  
+  // 如果没有找到，返回原格式（可能无法识别）
+  return `.${language}`;
 }
 
 /**
@@ -126,13 +217,14 @@ function generateStructure(testCases: TestCase[], language: string, category: st
   // 处理每个测试用例
   testCases.forEach((testCase) => {
     const testDir = path.join(testsDir, `test-${testCase.id}`);
-    
+
     if (!fs.existsSync(testDir)) {
       fs.mkdirSync(testDir, { recursive: true });
     }
 
-    // 确定文件扩展名
-    const codeExt = language === 'c' ? '.c' : language === 'cpp' ? '.cpp' : `.${language}`;
+    // 确定文件扩展名，优先使用测试用例中检测到的语言
+    const actualLanguage = testCase.language || language;
+    const codeExt = getCodeFileExtension(actualLanguage);
     const codeFileName = `code${codeExt}`;
 
     // 创建代码文件
@@ -144,6 +236,7 @@ function generateStructure(testCases: TestCase[], language: string, category: st
     // 创建元数据文件
     const metadata = {
       id: `${category}-${testCase.id}`,
+      language: actualLanguage, // 在元数据中记录实际语言
       section: testCase.section,
       description: testCase.description,
       timestamp: new Date().toISOString()
@@ -153,7 +246,7 @@ function generateStructure(testCases: TestCase[], language: string, category: st
     // 记录索引条目
     indexEntries.push({
       id: `${category}-${testCase.id}`,
-      language,
+      language: actualLanguage,
       codeFile: `tests/test-${testCase.id}/${codeFileName}`,
       queryFile: `tests/test-${testCase.id}/query.txt`,
       metadataFile: `tests/test-${testCase.id}/metadata.json`,
@@ -167,7 +260,7 @@ function generateStructure(testCases: TestCase[], language: string, category: st
     totalTests: testCases.length,
     requests: indexEntries
   };
-  
+
   fs.writeFileSync(path.join(outputDir, `${category}.json`), JSON.stringify(indexFile, null, 2));
 
   console.log(`✓ Successfully converted ${testCases.length} test cases`);
@@ -202,10 +295,10 @@ function main(): void {
 
   try {
     console.log(`Parsing: ${sourceFile}`);
-    
+
     // 解析Markdown文件
     const testCases = parseMarkdownFile(sourceFile);
-    
+
     if (testCases.length === 0) {
       console.error('Error: No test cases found in the markdown file');
       process.exit(1);
