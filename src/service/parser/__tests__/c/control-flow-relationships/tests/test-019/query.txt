@@ -1,12 +1,5 @@
-[
-  (binary_expression
-    left: (_)? @source.left.operand
-    operator: "&&"
-    right: (call_expression
-      function: (identifier) @target.short.circuit.function)) @control.flow.short.circuit.and
-  (binary_expression
-    left: (_)? @source.left.operand
-    operator: "||"
-    right: (call_expression
-      function: (identifier) @target.short.circuit.function)) @control.flow.short.circuit.or
-] @control.flow.short.circuit
+(binary_expression
+  left: (_)? @source.left.operand
+  operator: "||"
+  right: (call_expression
+    function: (identifier) @target.short.circuit.function)) @control.flow.short.circuit

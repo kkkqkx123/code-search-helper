@@ -1,0 +1,5 @@
+(binary_expression
+  left: (_)? @source.left.operand
+ operator: "||"
+  right: (call_expression
+    function: (identifier) @target.short.circuit.function)) @control.flow.short.circuit

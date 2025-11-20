@@ -1,0 +1,7 @@
+{
+  "id": "control-flow-relationships-034",
+  "language": "c",
+  "description": "Label reference test for @control.flow.function.call",
+  "category": "control-flow-relationships",
+  "expectedMatches": 1
+}

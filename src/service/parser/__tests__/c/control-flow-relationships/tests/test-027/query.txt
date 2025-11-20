@@ -1,0 +1,4 @@
+(call_expression
+  function: (_) @source.function.pointer
+  arguments: (argument_list
+    (_)* @source.parameter)) @control.flow.function.pointer.call

@@ -1,5 +1,5 @@
 (call_expression) @concurrency.relationship.rwlock.operation
   function: (identifier) @rwlock.operation.function
-  (#match? @rwlock.operation.function "^(pthread_rwlock_unlock)$")
-  arguments: (argument_list
+  (#match? @rwlock.operation.function "^(pthread_rwlock_init|pthread_rwlock_rdlock|pthread_rwlock_wrlock|pthread_rwlock_unlock|pthread_rwlock_destroy)$")
+  (argument_list
     (pointer_expression argument: (identifier) @rwlock.handle))

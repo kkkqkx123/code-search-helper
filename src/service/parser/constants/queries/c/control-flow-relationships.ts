@@ -123,8 +123,7 @@ export default `
 
 ; 函数指针调用控制流
 (call_expression
-  function: (pointer_expression
-    argument: (identifier) @source.function.pointer)
+  function: (_) @source.function.pointer
   arguments: (argument_list
     (_)* @source.parameter)) @control.flow.function.pointer.call
 

@@ -1,0 +1,7 @@
+{
+  "id": "control-flow-relationships-037",
+  "language": "c",
+  "description": "Label reference test for @control.flow.short.circuit.or",
+  "category": "control-flow-relationships",
+  "expectedMatches": 1
+}

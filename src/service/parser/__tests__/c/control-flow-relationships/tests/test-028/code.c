@@ -2,9 +2,10 @@
 
 int main() {
     int x = 5;
-    int y = -x;
     
-    printf("x: %d, y: %d\n", x, y);
+    if (x > 0) {
+        printf("Positive\n");
+    }
     
     return 0;
 }

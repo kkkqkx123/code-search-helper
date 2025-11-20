@@ -1,17 +1,17 @@
 #include <stdio.h>
 
 int main() {
-    int choice = 2;
+    int x = 5;
     
-    switch (choice) {
+    switch (x) {
         case 1:
-            printf("Choice is 1\n");
+            printf("One\n");
             break;
         case 2:
-            printf("Choice is 2\n");
+            printf("Two\n");
             break;
         default:
-            printf("Choice is not 1 or 2\n");
+            printf("Default case\n");
             break;
     }
     

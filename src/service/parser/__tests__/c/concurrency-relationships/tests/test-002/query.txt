@@ -1,5 +1,5 @@
 (call_expression) @concurrency.relationship.mutex.operation
   function: (identifier) @mutex.operation.function
-  (#match? @mutex.operation.function "^(pthread_mutex_destroy)$")
-  arguments: (argument_list
+  (#match? @mutex.operation.function "^(pthread_mutex_init|pthread_mutex_lock|pthread_mutex_trylock|pthread_mutex_unlock|pthread_mutex_destroy)$")
+  (argument_list
     (pointer_expression argument: (identifier) @mutex.handle))

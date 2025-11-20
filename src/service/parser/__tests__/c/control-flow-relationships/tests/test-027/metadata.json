@@ -1,0 +1,7 @@
+{
+  "id": "control-flow-relationships-027",
+  "language": "c",
+  "description": "Function pointer call control flow test",
+  "category": "control-flow-relationships",
+  "expectedMatches": 1
+}

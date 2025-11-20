@@ -1,0 +1,7 @@
+{
+  "id": "control-flow-relationships-035",
+  "language": "c",
+  "description": "Label reference test for @control.flow.recursive.call",
+  "category": "control-flow-relationships",
+  "expectedMatches": 1
+}

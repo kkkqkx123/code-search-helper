@@ -1,6 +1,6 @@
 {
   "category": "control-flow-relationships",
-  "totalTests": 23,
+  "totalTests": 38,
   "requests": [
     {
       "id": "control-flow-relationships-001",
@@ -185,6 +185,126 @@
       "queryFile": "tests/test-023/query.txt",
       "metadataFile": "tests/test-023/metadata.json",
       "description": "Test case 023"
+    },
+    {
+      "id": "control-flow-relationships-024",
+      "language": "c",
+      "codeFile": "tests/test-024/code.c",
+      "queryFile": "tests/test-024/query.txt",
+      "metadataFile": "tests/test-024/metadata.json",
+      "description": "Switch default control flow test"
+    },
+    {
+      "id": "control-flow-relationships-025",
+      "language": "c",
+      "codeFile": "tests/test-025/code.c",
+      "queryFile": "tests/test-025/query.txt",
+      "metadataFile": "tests/test-025/metadata.json",
+      "description": "Recursive function call control flow test"
+    },
+    {
+      "id": "control-flow-relationships-026",
+      "language": "c",
+      "codeFile": "tests/test-026/code.c",
+      "queryFile": "tests/test-026/query.txt",
+      "metadataFile": "tests/test-026/metadata.json",
+      "description": "Logical operator OR control flow test"
+    },
+    {
+      "id": "control-flow-relationships-027",
+      "language": "c",
+      "codeFile": "tests/test-027/code.c",
+      "queryFile": "tests/test-027/query.txt",
+      "metadataFile": "tests/test-027/metadata.json",
+      "description": "Function pointer call control flow test"
+    },
+    {
+      "id": "control-flow-relationships-028",
+      "language": "c",
+      "codeFile": "tests/test-028/code.c",
+      "queryFile": "tests/test-028/query.txt",
+      "metadataFile": "tests/test-028/metadata.json",
+      "description": "Label reference test for @control.flow.if"
+    },
+    {
+      "id": "control-flow-relationships-029",
+      "language": "c",
+      "codeFile": "tests/test-029/code.c",
+      "queryFile": "tests/test-029/query.txt",
+      "metadataFile": "tests/test-029/metadata.json",
+      "description": "Label reference test for @control.flow.if.else"
+    },
+    {
+      "id": "control-flow-relationships-030",
+      "language": "c",
+      "codeFile": "tests/test-030/code.c",
+      "queryFile": "tests/test-030/query.txt",
+      "metadataFile": "tests/test-030/metadata.json",
+      "description": "Label reference test for @control.flow.nested.if"
+    },
+    {
+      "id": "control-flow-relationships-031",
+      "language": "c",
+      "codeFile": "tests/test-031/code.c",
+      "queryFile": "tests/test-031/query.txt",
+      "metadataFile": "tests/test-031/metadata.json",
+      "description": "Label reference test for @control.flow.else.if"
+    },
+    {
+      "id": "control-flow-relationships-032",
+      "language": "c",
+      "codeFile": "tests/test-032/code.c",
+      "queryFile": "tests/test-032/query.txt",
+      "metadataFile": "tests/test-032/metadata.json",
+      "description": "Label reference test for @control.flow.loop.break"
+    },
+    {
+      "id": "control-flow-relationships-033",
+      "language": "c",
+      "codeFile": "tests/test-033/code.c",
+      "queryFile": "tests/test-033/query.txt",
+      "metadataFile": "tests/test-033/metadata.json",
+      "description": "Label reference test for @control.flow.loop.continue"
+    },
+    {
+      "id": "control-flow-relationships-034",
+      "language": "c",
+      "codeFile": "tests/test-034/code.c",
+      "queryFile": "tests/test-034/query.txt",
+      "metadataFile": "tests/test-034/metadata.json",
+      "description": "Label reference test for @control.flow.function.call"
+    },
+    {
+      "id": "control-flow-relationships-035",
+      "language": "c",
+      "codeFile": "tests/test-035/code.c",
+      "queryFile": "tests/test-035/query.txt",
+      "metadataFile": "tests/test-035/metadata.json",
+      "description": "Label reference test for @control.flow.recursive.call"
+    },
+    {
+      "id": "control-flow-relationships-036",
+      "language": "c",
+      "codeFile": "tests/test-036/code.c",
+      "queryFile": "tests/test-036/query.txt",
+      "metadataFile": "tests/test-036/metadata.json",
+      "description": "Label reference test for @control.flow.short.circuit.and"
+    },
+    {
+      "id": "control-flow-relationships-037",
+      "language": "c",
+      "codeFile": "tests/test-037/code.c",
+      "queryFile": "tests/test-037/query.txt",
+      "metadataFile": "tests/test-037/metadata.json",
+      "description": "Label reference test for @control.flow.short.circuit.or"
+    },
+    {
+      "id": "control-flow-relationships-038",
+      "language": "c",
+      "codeFile": "tests/test-038/code.c",
+      "queryFile": "tests/test-038/query.txt",
+      "metadataFile": "tests/test-038/metadata.json",
+      "description": "Recursive function call control flow test (duplicate)"
     }
   ]
 }

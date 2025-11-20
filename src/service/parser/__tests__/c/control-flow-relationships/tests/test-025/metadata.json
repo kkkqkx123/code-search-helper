@@ -1,0 +1,7 @@
+{
+  "id": "control-flow-relationships-025",
+  "language": "c",
+  "description": "Recursive function call control flow test",
+  "category": "control-flow-relationships",
+  "expectedMatches": 1
+}

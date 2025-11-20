@@ -5,8 +5,8 @@ int add(int a, int b) {
 }
 
 int main() {
-    int result = add(3, 4);
+    int (*func_ptr)(int, int) = add;
+    int result = func_ptr(5, 3);
     printf("Result: %d\n", result);
-    
     return 0;
 }
