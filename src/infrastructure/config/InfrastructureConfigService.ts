@@ -139,23 +139,23 @@ export class InfrastructureConfigService {
           enableDetailedLogging: EnvUtils.getEnvBooleanValue('INFRA_NEBULA_PERFORMANCE_LOGGING_ENABLED', true),
           performanceThresholds: {
             queryExecutionTime: EnvUtils.getEnvNumberValue('INFRA_NEBULA_PERFORMANCE_QUERY_TIMEOUT', 1000),
-            memoryUsage: EnvUtils.getEnvNumberValue('INFRA_NEBULA_PERFORMANCE_MEMORY_THRESHOLD', 80),
+            memoryUsage: EnvUtils.getEnvFloatValue('INFRA_NEBULA_PERFORMANCE_MEMORY_THRESHOLD', 0.80),
             responseTime: EnvUtils.getEnvNumberValue('INFRA_NEBULA_PERFORMANCE_RESPONSE_THRESHOLD', 500),
           },
           databaseSpecific: {}
         },
         batch: {
-          maxConcurrentOperations: 5,
-          defaultBatchSize: 50,
-          maxBatchSize: 100,
-          minBatchSize: 10,
-          memoryThreshold: 80,
-          processingTimeout: 300000,
-          retryAttempts: 3,
-          retryDelay: 1000,
-          adaptiveBatchingEnabled: true,
-          performanceThreshold: 90,
-          adjustmentFactor: 0.8,
+          maxConcurrentOperations: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_CONCURRENCY', 5),
+          defaultBatchSize: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_SIZE_DEFAULT', 50),
+          maxBatchSize: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_SIZE_MAX', 500),
+          minBatchSize: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_SIZE_MIN', 10),
+          memoryThreshold: EnvUtils.getEnvFloatValue('INFRA_NEBULA_BATCH_MEMORY_THRESHOLD', 0.80),
+          processingTimeout: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_PROCESSING_TIMEOUT', 300000),
+          retryAttempts: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_RETRY_ATTEMPTS', 3),
+          retryDelay: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_RETRY_DELAY', 1000),
+          adaptiveBatchingEnabled: EnvUtils.getEnvBooleanValue('INFRA_NEBULA_BATCH_ADAPTIVE_ENABLED', true),
+          performanceThreshold: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_PERFORMANCE_THRESHOLD', 1000),
+          adjustmentFactor: EnvUtils.getEnvFloatValue('INFRA_NEBULA_BATCH_ADJUSTMENT_FACTOR', 0.1),
           databaseSpecific: {}
         },
         graph: {
@@ -328,7 +328,7 @@ export class InfrastructureConfigService {
           enableDetailedLogging: false,
           performanceThresholds: {
             queryExecutionTime: 1000,
-            memoryUsage: 80,
+            memoryUsage: 0.80,
             responseTime: 500
           },
           databaseSpecific: {}
@@ -338,13 +338,13 @@ export class InfrastructureConfigService {
           defaultBatchSize: 50,
           maxBatchSize: 100,
           minBatchSize: 10,
-          memoryThreshold: 80,
+          memoryThreshold: 0.80,
           processingTimeout: 300000,
           retryAttempts: 3,
           retryDelay: 1000,
           adaptiveBatchingEnabled: true,
-          performanceThreshold: 90,
-          adjustmentFactor: 0.8,
+          performanceThreshold: 100,
+          adjustmentFactor: 0.1,
           databaseSpecific: {}
         },
         graph: {
@@ -442,8 +442,8 @@ export class InfrastructureConfigService {
           metricsRetentionPeriod: 3600000,
           enableDetailedLogging: false,
           performanceThresholds: {
-            queryExecutionTime: 5000,
-            memoryUsage: 90,
+            queryExecutionTime: 500,
+            memoryUsage: 0.90,
             responseTime: 2000
           },
           databaseSpecific: {}
@@ -453,13 +453,13 @@ export class InfrastructureConfigService {
           defaultBatchSize: 50,
           maxBatchSize: 100,
           minBatchSize: 10,
-          memoryThreshold: 80,
+          memoryThreshold: 0.80,
           processingTimeout: 300000,
           retryAttempts: 3,
           retryDelay: 1000,
           adaptiveBatchingEnabled: true,
-          performanceThreshold: 90,
-          adjustmentFactor: 0.8,
+          performanceThreshold: 100,
+          adjustmentFactor: 0.1,
           databaseSpecific: {}
         },
         graph: {

@@ -171,8 +171,14 @@ export class ConfigValidator {
       if (typeof thresholds.queryExecutionTime !== 'number' || thresholds.queryExecutionTime < 100) {
         errors.push(`${service} performance query execution time threshold must be a number and at least 100ms`);
       }
-      if (typeof thresholds.memoryUsage !== 'number' || thresholds.memoryUsage < 0 || thresholds.memoryUsage > 100) {
-        errors.push(`${service} performance memory usage threshold must be a number between 0 and 100`);
+      if (typeof thresholds.memoryUsage !== 'number' || thresholds.memoryUsage < 0 || thresholds.memoryUsage > 1) {
+        // 检查是否在0-100范围内，如果是，则认为是百分比格式，但需要使用0-1格式
+        if (thresholds.memoryUsage >= 0 && thresholds.memoryUsage <= 100) {
+          // 提供警告信息而不是错误，因为百分比格式也是合理的
+          errors.push(`${service} performance memory usage threshold must be a number between 0 and 1 (e.g., 0.80 for 80%)`);
+        } else {
+          errors.push(`${service} performance memory usage threshold must be a number between 0 and 1 (e.g., 0.80 for 80%)`);
+        }
       }
       if (typeof thresholds.responseTime !== 'number' || thresholds.responseTime < 1) {
         errors.push(`${service} performance response time threshold must be a number and at least 1ms`);
