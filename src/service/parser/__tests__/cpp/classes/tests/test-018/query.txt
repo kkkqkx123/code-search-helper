@@ -1,9 +1,8 @@
 [
   (friend_declaration
-    (function_definition
+    (declaration
       declarator: (function_declarator
         declarator: (identifier) @friend.function))) @definition.friend.function
- (friend_declaration
-    (class_specifier
-      name: (type_identifier) @friend.class)) @definition.friend.class
+  (friend_declaration
+    (type_identifier) @friend.class) @definition.friend.class
 ] @definition.friend

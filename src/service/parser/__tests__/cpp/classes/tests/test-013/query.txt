@@ -1,5 +1,4 @@
-(function_definition
-  (virtual_specifier) @virtual.specifier
+(field_declaration
  declarator: (function_declarator
-    declarator: (field_identifier) @pure.virtual.method)
-  body: (pure_virtual_clause)) @definition.pure.virtual.method
+    declarator: (field_identifier) @pure.virtual.method)) @definition.pure.virtual.method
+ (#match? @pure.virtual.method "pureVirtualMethod")
