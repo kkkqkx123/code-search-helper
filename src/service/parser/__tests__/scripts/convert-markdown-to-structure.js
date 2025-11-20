@@ -146,6 +146,7 @@ function generateStructure(testCases, language, category, outputDir) {
     // 创建元数据文件
     const metadata = {
       id: `${category}-${testCase.id}`,
+      language: language,
       section: testCase.section,
       description: testCase.description,
       timestamp: new Date().toISOString()

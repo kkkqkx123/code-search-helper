@@ -406,6 +406,9 @@ function printUsage() {
 C语言支持的类别:
     ${TEST_CATEGORIES.c.join(', ')}
 
+C++语言支持的类别:
+    ${TEST_CATEGORIES.cpp.join(', ')}
+
 示例:
     node process-test-cases.js                          # 运行全部
     node process-test-cases.js c                        # 运行所有C语言
