@@ -154,7 +154,7 @@ async function processTestCategory(config, specificTestIndices = null) {
             const apiRequest = {
                 language: testCase.language,
                 code: testCase.code,
-                query: testCase.query
+                queries: [testCase.query]
             };
 
             // 发送请求
