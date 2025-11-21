@@ -1,5 +1,5 @@
 (call_expression
-  function: (qualified_identifier
-    scope: (identifier) @transaction.scope
-    name: (identifier) @transaction.function))
-  (#match? @transaction.function "^(atomic|atomic_noexcept|atomic_cancel|atomic_commit)$") @concurrency.relationship.transactional.memory
+ function: (field_expression
+    (identifier) @future.object
+    (field_identifier) @future.method))
+  (#match? @future.method "then") @concurrency.relationship.task.dependency

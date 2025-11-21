@@ -12,38 +12,37 @@ export default `
 ; 线程加入
 (call_expression
   function: (field_expression
-    object: (identifier) @thread.object
-    field: (field_identifier) @thread.method))
-  (#match? @thread.method "join") @concurrency.relationship.thread.join
-
+    (identifier) @thread.object
+    (field_identifier) @thread.method)
+  (#eq? @thread.method "join")) @concurrency.relationship.thread.join
+   
 ; 线程分离
 (call_expression
   function: (field_expression
-    object: (identifier) @thread.object
-    field: (field_identifier) @thread.method))
-  (#match? @thread.method "detach") @concurrency.relationship.thread.detach
+    (identifier) @thread.object
+    (field_identifier) @thread.method)
+  (#eq? @thread.method "detach")) @concurrency.relationship.thread.detach
 
 ; 互斥锁锁定
 (call_expression
   function: (field_expression
-    object: (identifier) @mutex.object
-    field: (field_identifier) @mutex.method))
-  (#match? @mutex.method "lock") @concurrency.relationship.mutex.lock
+    (identifier) @mutex.object
+    (field_identifier) @mutex.method)
+  (#eq? @mutex.method "lock")) @concurrency.relationship.mutex.lock
 
 ; 互斥锁解锁
 (call_expression
   function: (field_expression
-    object: (identifier) @mutex.object
-    field: (field_identifier) @mutex.method))
-  (#match? @mutex.method "unlock") @concurrency.relationship.mutex.unlock
+    (identifier) @mutex.object
+    (field_identifier) @mutex.method)
+  (#eq? @mutex.method "unlock")) @concurrency.relationship.mutex.unlock
 
 ; 互斥锁尝试锁定
 (call_expression
   function: (field_expression
-    object: (identifier) @mutex.object
-    field: (field_identifier) @mutex.method))
-  (#match? @mutex.method "try_lock") @concurrency.relationship.mutex.try_lock
-
+    (identifier) @mutex.object
+    (field_identifier) @mutex.method)
+  (#eq? @mutex.method "try_lock")) @concurrency.relationship.mutex.try_lock
 ; 锁守卫（RAII锁）
 (declaration
   type: (qualified_identifier
@@ -58,8 +57,8 @@ export default `
 ; 条件变量等待
 (call_expression
   function: (field_expression
-    object: (identifier) @condition.variable
-    field: (field_identifier) @condition.method)
+    (identifier) @condition.variable
+    (field_identifier) @condition.method)
   arguments: (argument_list
     (identifier) @locked.mutex))
   (#match? @condition.method "wait") @concurrency.relationship.condition.wait
@@ -67,22 +66,22 @@ export default `
 ; 条件变量通知
 (call_expression
   function: (field_expression
-    object: (identifier) @condition.variable
-    field: (field_identifier) @condition.method))
+    (identifier) @condition.variable
+    (field_identifier) @condition.method))
   (#match? @condition.method "^(notify_one|notify_all)$") @concurrency.relationship.condition.notify
 
 ; 原子操作
 (call_expression
   function: (field_expression
-    object: (identifier) @atomic.variable
-    field: (field_identifier) @atomic.method))
+    (identifier) @atomic.variable
+    (field_identifier) @atomic.method))
   (#match? @atomic.method "^(store|load|exchange|fetch_add|fetch_sub|fetch_and|fetch_or|fetch_xor)$") @concurrency.relationship.atomic.operation
 
 ; 原子比较交换
 (call_expression
   function: (field_expression
-    object: (identifier) @atomic.variable
-    field: (field_identifier) @atomic.method)
+    (identifier) @atomic.variable
+    (field_identifier) @atomic.method)
   arguments: (argument_list
     (identifier) @expected.value
     (identifier) @desired.value))
@@ -91,54 +90,54 @@ export default `
 ; 原子标志
 (call_expression
   function: (field_expression
-    object: (identifier) @atomic.flag
-    field: (field_identifier) @flag.method))
+    (identifier) @atomic.flag
+    (field_identifier) @flag.method))
   (#match? @flag.method "^(test_and_set|clear)$") @concurrency.relationship.atomic.flag
 
 ; 信号量获取（C++20）
 (call_expression
   function: (field_expression
-    object: (identifier) @semaphore.object
-    field: (field_identifier) @semaphore.method))
+    (identifier) @semaphore.object
+    (field_identifier) @semaphore.method))
   (#match? @semaphore.method "acquire") @concurrency.relationship.semaphore.acquire
 
 ; 信号量释放（C++20）
 (call_expression
   function: (field_expression
-    object: (identifier) @semaphore.object
-    field: (field_identifier) @semaphore.method)
+    (identifier) @semaphore.object
+    (field_identifier) @semaphore.method)
   arguments: (argument_list))
   (#match? @semaphore.method "release") @concurrency.relationship.semaphore.release
 
 ; 闩器等待（C++20）
 (call_expression
   function: (field_expression
-    object: (identifier) @latch.object
-    field: (field_identifier) @latch.method)
+    (identifier) @latch.object
+    (field_identifier) @latch.method)
   arguments: (argument_list))
   (#match? @latch.method "wait") @concurrency.relationship.latch.wait
 
 ; 闩器倒计时（C++20）
 (call_expression
   function: (field_expression
-    object: (identifier) @latch.object
-    field: (field_identifier) @latch.method)
+    (identifier) @latch.object
+    (field_identifier) @latch.method)
   arguments: (argument_list))
   (#match? @latch.method "count_down") @concurrency.relationship.latch.count_down
 
 ; 屏障同步（C++20）
 (call_expression
   function: (field_expression
-    object: (identifier) @barrier.object
-    field: (field_identifier) @barrier.method)
+    (identifier) @barrier.object
+    (field_identifier) @barrier.method)
   arguments: (argument_list))
   (#match? @barrier.method "arrive_and_wait") @concurrency.relationship.barrier.sync
 
 ; 共享互斥锁（读写锁）
 (call_expression
   function: (field_expression
-    object: (identifier) @shared.mutex
-    field: (field_identifier) @shared.method))
+    (identifier) @shared.mutex
+    (field_identifier) @shared.method))
   (#match? @shared.method "^(lock_shared|unlock_shared)$") @concurrency.relationship.shared.mutex
 
 ; 异步任务创建
@@ -153,29 +152,29 @@ export default `
 ; 异步任务等待
 (call_expression
   function: (field_expression
-    object: (identifier) @future.object
-    field: (field_identifier) @future.method))
+    (identifier) @future.object
+    (field_identifier) @future.method))
   (#match? @future.method "wait") @concurrency.relationship.future.wait
 
 ; 异步任务获取结果
 (call_expression
   function: (field_expression
-    object: (identifier) @future.object
-    field: (field_identifier) @future.method))
+    (identifier) @future.object
+    (field_identifier) @future.method))
   (#match? @future.method "get") @concurrency.relationship.future.get
 
 ; 共享异步任务获取结果
 (call_expression
   function: (field_expression
-    object: (identifier) @shared.future.object
-    field: (field_identifier) @shared.future.method))
+    (identifier) @shared.future.object
+    (field_identifier) @shared.future.method))
   (#match? @shared.future.method "get") @concurrency.relationship.shared.future.get
 
 ; 承诺设置值
 (call_expression
   function: (field_expression
-    object: (identifier) @promise.object
-    field: (field_identifier) @promise.method)
+    (identifier) @promise.object
+    (field_identifier) @promise.method)
   arguments: (argument_list
     (identifier) @promise.value))
   (#match? @promise.method "set_value") @concurrency.relationship.promise.set_value
@@ -208,20 +207,20 @@ export default `
 ; 竞态条件检测
 (assignment_expression
   left: (field_expression
-    object: (identifier) @shared.variable
-    field: (field_identifier) @shared.field)
+    (identifier) @shared.variable
+    (field_identifier) @shared.field)
   right: (binary_expression
     left: (field_expression
-      object: (identifier) @shared.variable
-      field: (field_identifier) @shared.field)
+      (identifier) @shared.variable
+      (field_identifier) @shared.field)
     operator: (identifier) @operator
     right: (identifier) @increment.value)) @concurrency.relationship.race.condition
 
 ; 死锁模式（多个锁获取）
 (call_expression
   function: (field_expression
-    object: (identifier) @first.lock
-    field: (field_identifier) @lock.method)
+    (identifier) @first.lock
+    (field_identifier) @lock.method)
   arguments: (argument_list))
   (#match? @lock.method "lock") @concurrency.relationship.deadlock.pattern
 
@@ -310,10 +309,9 @@ export default `
 ; 内存顺序指定
 (call_expression
   function: (field_expression
-    object: (identifier) @atomic.variable
-    field: (field_identifier) @atomic.method)
+    (identifier) @atomic.variable
+    (field_identifier) @atomic.method)
   arguments: (argument_list
     (identifier) @memory.order))
   (#match? @memory.order "^(memory_order_relaxed|memory_order_acquire|memory_order_release|memory_order_acq_rel|memory_order_seq_cst)$") @concurrency.relationship.memory.order
-
 `;

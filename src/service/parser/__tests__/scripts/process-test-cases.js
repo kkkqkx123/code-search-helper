@@ -10,7 +10,6 @@ const PROTOCOL = 'http';
 const TESTS_BASE_DIR = path.join(__dirname, '../');
 
 // 支持的语言和测试类别
-// 支持的语言和测试类别
 const SUPPORTED_LANGUAGES = ['c', 'python', 'javascript', 'java', 'go', 'rust', 'cpp'];
 
 const TEST_CATEGORIES = {
@@ -62,9 +61,14 @@ function sendPostRequest(data) {
             res.on('end', () => {
                 try {
                     const result = JSON.parse(responseData);
+                    // 检查HTTP状态码
+                    if (res.statusCode !== 200) {
+                        reject(new Error(`HTTP ${res.statusCode}: ${result.message || responseData}`));
+                        return;
+                    }
                     resolve(result);
                 } catch (error) {
-                    reject(new Error(`Failed to parse response: ${error.message}`));
+                    reject(new Error(`Failed to parse response: ${error.message}. Raw response: ${responseData}`));
                 }
             });
         });
@@ -156,6 +160,33 @@ async function processTestCategory(config, specificTestIndices = null) {
             // 发送请求
             const response = await sendPostRequest(apiRequest);
 
+            // 检查API响应中的错误
+            if (!response.success) {
+                const errorMessages = response.errors && response.errors.length > 0
+                    ? response.errors.join('; ')
+                    : '未知API错误';
+                
+                // 保存错误结果到单独的JSON文件
+                const resultFile = path.join(resultsDir, `result-${String(i + 1).padStart(3, '0')}.json`);
+                fs.writeFileSync(resultFile, JSON.stringify({
+                    testId,
+                    request: apiRequest,
+                    response: response,
+                    timestamp: new Date().toISOString()
+                }, null, 2));
+
+                results.push({
+                    testCaseIndex: i,
+                    testId,
+                    request: apiRequest,
+                    response: response,
+                    apiError: errorMessages
+                });
+
+                console.log(`  ✗ ${testId} - API错误: ${errorMessages}`);
+                continue;
+            }
+
             // 保存结果到单独的JSON文件
             const resultFile = path.join(resultsDir, `result-${String(i + 1).padStart(3, '0')}.json`);
             fs.writeFileSync(resultFile, JSON.stringify({
@@ -176,12 +207,36 @@ async function processTestCategory(config, specificTestIndices = null) {
         } catch (error) {
             const errorMessage = error.message || '未知错误';
             const errorDetails = error.stack || '';
-            console.error(`  ✗ 错误处理测试用例 ${testId}: ${errorMessage}`);
+            
+            // 尝试从错误消息中提取更多有用信息
+            let detailedError = errorMessage;
+            if (errorMessage.includes('HTTP')) {
+                // HTTP错误，可能包含API返回的错误信息
+                detailedError = `网络请求失败: ${errorMessage}`;
+            } else if (errorMessage.includes('ECONNREFUSED')) {
+                detailedError = `连接被拒绝: 请确保API服务正在运行 (端口 ${PORT})`;
+            } else if (errorMessage.includes('timeout')) {
+                detailedError = `请求超时: API服务响应时间过长`;
+            } else if (errorMessage.includes('Failed to parse response')) {
+                detailedError = `响应解析失败: ${errorMessage}`;
+            }
+            
+            console.error(`  ✗ 错误处理测试用例 ${testId}: ${detailedError}`);
+
+            // 保存错误结果到单独的JSON文件
+            const resultFile = path.join(resultsDir, `result-${String(i + 1).padStart(3, '0')}.json`);
+            fs.writeFileSync(resultFile, JSON.stringify({
+                testId,
+                request: apiRequest,
+                error: detailedError,
+                errorDetails: errorDetails,
+                timestamp: new Date().toISOString()
+            }, null, 2));
 
             results.push({
                 testCaseIndex: i,
                 testId,
-                error: errorMessage,
+                error: detailedError,
                 errorDetails: errorDetails
             });
         }
@@ -210,7 +265,8 @@ function generateReport(allResults) {
         const passedTests = results.filter(r => !r.error && r.response?.success).length;
         const failedTests = totalTests - passedTests;
         const errorTests = results.filter(r => r.error);
-        const emptyMatches = results.filter(r => !r.error && r.response?.success && (!r.response?.data || r.response.data.length === 0));
+        const apiErrorTests = results.filter(r => r.apiError);
+        const emptyMatches = results.filter(r => !r.error && !r.apiError && r.response?.success && (!r.response?.data || r.response.data.length === 0));
 
         console.log(`\n[${categoryKey}]`);
         console.log(`  总计: ${totalTests}, 通过: ${passedTests}, 失败: ${failedTests}`);
@@ -219,6 +275,13 @@ function generateReport(allResults) {
             console.log(`  ❌ 执行出错: ${errorTests.length}`);
             errorTests.forEach(t => {
                 console.log(`     - ${t.testId}: ${t.error}`);
+            });
+        }
+
+        if (apiErrorTests.length > 0) {
+            console.log(`  🔴 API错误: ${apiErrorTests.length}`);
+            apiErrorTests.forEach(t => {
+                console.log(`     - ${t.testId}: ${t.apiError}`);
             });
         }
 

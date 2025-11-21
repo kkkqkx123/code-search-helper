@@ -1,9 +1,9 @@
 {
-  "category": "concurrency",
+  "category": "concurrency-relationships",
   "totalTests": 39,
   "requests": [
     {
-      "id": "concurrency-001",
+      "id": "concurrency-relationships-001",
       "language": "cpp",
       "codeFile": "tests/test-001/code.cpp",
       "queryFile": "tests/test-001/query.txt",
@@ -11,7 +11,7 @@
       "description": "Test case 001: 线程创建"
     },
     {
-      "id": "concurrency-002",
+      "id": "concurrency-relationships-002",
       "language": "cpp",
       "codeFile": "tests/test-002/code.cpp",
       "queryFile": "tests/test-002/query.txt",
@@ -19,7 +19,7 @@
       "description": "Test case 002: 线程加入"
     },
     {
-      "id": "concurrency-003",
+      "id": "concurrency-relationships-003",
       "language": "cpp",
       "codeFile": "tests/test-003/code.cpp",
       "queryFile": "tests/test-003/query.txt",
@@ -27,7 +27,7 @@
       "description": "Test case 003: 线程分离"
     },
     {
-      "id": "concurrency-004",
+      "id": "concurrency-relationships-004",
       "language": "cpp",
       "codeFile": "tests/test-004/code.cpp",
       "queryFile": "tests/test-004/query.txt",
@@ -35,7 +35,7 @@
       "description": "Test case 004: 互斥锁锁定"
     },
     {
-      "id": "concurrency-005",
+      "id": "concurrency-relationships-005",
       "language": "cpp",
       "codeFile": "tests/test-005/code.cpp",
       "queryFile": "tests/test-005/query.txt",
@@ -43,7 +43,7 @@
       "description": "Test case 005: 互斥锁解锁"
     },
     {
-      "id": "concurrency-006",
+      "id": "concurrency-relationships-006",
       "language": "cpp",
       "codeFile": "tests/test-006/code.cpp",
       "queryFile": "tests/test-006/query.txt",
@@ -51,7 +51,7 @@
       "description": "Test case 006: 互斥锁尝试锁定"
     },
     {
-      "id": "concurrency-007",
+      "id": "concurrency-relationships-007",
       "language": "cpp",
       "codeFile": "tests/test-007/code.cpp",
       "queryFile": "tests/test-007/query.txt",
@@ -59,7 +59,7 @@
       "description": "Test case 007: 锁守卫（RAII锁）"
     },
     {
-      "id": "concurrency-008",
+      "id": "concurrency-relationships-008",
       "language": "cpp",
       "codeFile": "tests/test-008/code.cpp",
       "queryFile": "tests/test-008/query.txt",
@@ -67,7 +67,7 @@
       "description": "Test case 008: 条件变量等待"
     },
     {
-      "id": "concurrency-009",
+      "id": "concurrency-relationships-009",
       "language": "cpp",
       "codeFile": "tests/test-009/code.cpp",
       "queryFile": "tests/test-009/query.txt",
@@ -75,7 +75,7 @@
       "description": "Test case 009: 条件变量通知"
     },
     {
-      "id": "concurrency-010",
+      "id": "concurrency-relationships-010",
       "language": "cpp",
       "codeFile": "tests/test-010/code.cpp",
       "queryFile": "tests/test-010/query.txt",
@@ -83,7 +83,7 @@
       "description": "Test case 010: 原子操作"
     },
     {
-      "id": "concurrency-011",
+      "id": "concurrency-relationships-011",
       "language": "cpp",
       "codeFile": "tests/test-011/code.cpp",
       "queryFile": "tests/test-011/query.txt",
@@ -91,7 +91,7 @@
       "description": "Test case 011: 原子比较交换"
     },
     {
-      "id": "concurrency-012",
+      "id": "concurrency-relationships-012",
       "language": "cpp",
       "codeFile": "tests/test-012/code.cpp",
       "queryFile": "tests/test-012/query.txt",
@@ -99,7 +99,7 @@
       "description": "Test case 012: 原子标志"
     },
     {
-      "id": "concurrency-013",
+      "id": "concurrency-relationships-013",
       "language": "cpp",
       "codeFile": "tests/test-013/code.cpp",
       "queryFile": "tests/test-013/query.txt",
@@ -107,7 +107,7 @@
       "description": "Test case 013: 信号量获取（C++20）"
     },
     {
-      "id": "concurrency-014",
+      "id": "concurrency-relationships-014",
       "language": "cpp",
       "codeFile": "tests/test-014/code.cpp",
       "queryFile": "tests/test-014/query.txt",
@@ -115,7 +115,7 @@
       "description": "Test case 014: 信号量释放（C++20）"
     },
     {
-      "id": "concurrency-015",
+      "id": "concurrency-relationships-015",
       "language": "cpp",
       "codeFile": "tests/test-015/code.cpp",
       "queryFile": "tests/test-015/query.txt",
@@ -123,7 +123,7 @@
       "description": "Test case 015: 闩器等待（C++20）"
     },
     {
-      "id": "concurrency-016",
+      "id": "concurrency-relationships-016",
       "language": "cpp",
       "codeFile": "tests/test-016/code.cpp",
       "queryFile": "tests/test-016/query.txt",
@@ -131,7 +131,7 @@
       "description": "Test case 016: 闩器倒计时（C++20）"
     },
     {
-      "id": "concurrency-017",
+      "id": "concurrency-relationships-017",
       "language": "cpp",
       "codeFile": "tests/test-017/code.cpp",
       "queryFile": "tests/test-017/query.txt",
@@ -139,7 +139,7 @@
       "description": "Test case 017: 屏障同步（C++20）"
     },
     {
-      "id": "concurrency-018",
+      "id": "concurrency-relationships-018",
       "language": "cpp",
       "codeFile": "tests/test-018/code.cpp",
       "queryFile": "tests/test-018/query.txt",
@@ -147,7 +147,7 @@
       "description": "Test case 018: 共享互斥锁（读写锁）"
     },
     {
-      "id": "concurrency-019",
+      "id": "concurrency-relationships-019",
       "language": "cpp",
       "codeFile": "tests/test-019/code.cpp",
       "queryFile": "tests/test-019/query.txt",
@@ -155,7 +155,7 @@
       "description": "Test case 019: 异步任务创建"
     },
     {
-      "id": "concurrency-020",
+      "id": "concurrency-relationships-020",
       "language": "cpp",
       "codeFile": "tests/test-020/code.cpp",
       "queryFile": "tests/test-020/query.txt",
@@ -163,7 +163,7 @@
       "description": "Test case 020: 异步任务等待"
     },
     {
-      "id": "concurrency-021",
+      "id": "concurrency-relationships-021",
       "language": "cpp",
       "codeFile": "tests/test-021/code.cpp",
       "queryFile": "tests/test-021/query.txt",
@@ -171,7 +171,7 @@
       "description": "Test case 021: 异步任务获取结果"
     },
     {
-      "id": "concurrency-022",
+      "id": "concurrency-relationships-022",
       "language": "cpp",
       "codeFile": "tests/test-022/code.cpp",
       "queryFile": "tests/test-022/query.txt",
@@ -179,7 +179,7 @@
       "description": "Test case 022: 共享异步任务获取结果"
     },
     {
-      "id": "concurrency-023",
+      "id": "concurrency-relationships-023",
       "language": "cpp",
       "codeFile": "tests/test-023/code.cpp",
       "queryFile": "tests/test-023/query.txt",
@@ -187,7 +187,7 @@
       "description": "Test case 023: 承诺设置值"
     },
     {
-      "id": "concurrency-024",
+      "id": "concurrency-relationships-024",
       "language": "cpp",
       "codeFile": "tests/test-024/code.cpp",
       "queryFile": "tests/test-024/query.txt",
@@ -195,7 +195,7 @@
       "description": "Test case 024: 打包任务"
     },
     {
-      "id": "concurrency-025",
+      "id": "concurrency-relationships-025",
       "language": "cpp",
       "codeFile": "tests/test-025/code.cpp",
       "queryFile": "tests/test-025/query.txt",
@@ -203,7 +203,7 @@
       "description": "Test case 025: 线程本地存储"
     },
     {
-      "id": "concurrency-026",
+      "id": "concurrency-relationships-026",
       "language": "cpp",
       "codeFile": "tests/test-026/code.cpp",
       "queryFile": "tests/test-026/query.txt",
@@ -211,7 +211,7 @@
       "description": "Test case 026: 内存屏障"
     },
     {
-      "id": "concurrency-027",
+      "id": "concurrency-relationships-027",
       "language": "cpp",
       "codeFile": "tests/test-027/code.cpp",
       "queryFile": "tests/test-027/query.txt",
@@ -219,7 +219,7 @@
       "description": "Test case 027: 竞态条件检测"
     },
     {
-      "id": "concurrency-028",
+      "id": "concurrency-relationships-028",
       "language": "cpp",
       "codeFile": "tests/test-028/code.cpp",
       "queryFile": "tests/test-028/query.txt",
@@ -227,7 +227,7 @@
       "description": "Test case 028: 死锁模式（多个锁获取）"
     },
     {
-      "id": "concurrency-029",
+      "id": "concurrency-relationships-029",
       "language": "cpp",
       "codeFile": "tests/test-029/code.cpp",
       "queryFile": "tests/test-029/query.txt",
@@ -235,7 +235,7 @@
       "description": "Test case 029: 生产者-消费者模式"
     },
     {
-      "id": "concurrency-030",
+      "id": "concurrency-relationships-030",
       "language": "cpp",
       "codeFile": "tests/test-030/code.cpp",
       "queryFile": "tests/test-030/query.txt",
@@ -243,7 +243,7 @@
       "description": "Test case 030: 读写锁模式"
     },
     {
-      "id": "concurrency-031",
+      "id": "concurrency-relationships-031",
       "language": "cpp",
       "codeFile": "tests/test-031/code.cpp",
       "queryFile": "tests/test-031/query.txt",
@@ -251,7 +251,7 @@
       "description": "Test case 031: 线程池模式"
     },
     {
-      "id": "concurrency-032",
+      "id": "concurrency-relationships-032",
       "language": "cpp",
       "codeFile": "tests/test-032/code.cpp",
       "queryFile": "tests/test-032/query.txt",
@@ -259,7 +259,7 @@
       "description": "Test case 032: 并行算法"
     },
     {
-      "id": "concurrency-033",
+      "id": "concurrency-relationships-033",
       "language": "cpp",
       "codeFile": "tests/test-033/code.cpp",
       "queryFile": "tests/test-033/query.txt",
@@ -267,7 +267,7 @@
       "description": "Test case 033: 执行策略"
     },
     {
-      "id": "concurrency-034",
+      "id": "concurrency-relationships-034",
       "language": "cpp",
       "codeFile": "tests/test-034/code.cpp",
       "queryFile": "tests/test-034/query.txt",
@@ -275,7 +275,7 @@
       "description": "Test case 034: 协程创建（C++20）"
     },
     {
-      "id": "concurrency-035",
+      "id": "concurrency-relationships-035",
       "language": "cpp",
       "codeFile": "tests/test-035/code.cpp",
       "queryFile": "tests/test-035/query.txt",
@@ -283,7 +283,7 @@
       "description": "Test case 035: 协程等待（C++20）"
     },
     {
-      "id": "concurrency-036",
+      "id": "concurrency-relationships-036",
       "language": "cpp",
       "codeFile": "tests/test-036/code.cpp",
       "queryFile": "tests/test-036/query.txt",
@@ -291,7 +291,7 @@
       "description": "Test case 036: 协程让出（C++20）"
     },
     {
-      "id": "concurrency-037",
+      "id": "concurrency-relationships-037",
       "language": "cpp",
       "codeFile": "tests/test-037/code.cpp",
       "queryFile": "tests/test-037/query.txt",
@@ -299,7 +299,7 @@
       "description": "Test case 037: 无锁数据结构"
     },
     {
-      "id": "concurrency-038",
+      "id": "concurrency-relationships-038",
       "language": "cpp",
       "codeFile": "tests/test-038/code.cpp",
       "queryFile": "tests/test-038/query.txt",
@@ -307,12 +307,12 @@
       "description": "Test case 038: 内存顺序指定"
     },
     {
-      "id": "concurrency-039",
+      "id": "concurrency-relationships-039",
       "language": "cpp",
       "codeFile": "tests/test-039/code.cpp",
       "queryFile": "tests/test-039/query.txt",
       "metadataFile": "tests/test-039/metadata.json",
-      "description": "Test case 039: 事务内存（C++事务内存扩展）"
+      "description": "Test case 039: 任务依赖关系"
     }
   ]
 }

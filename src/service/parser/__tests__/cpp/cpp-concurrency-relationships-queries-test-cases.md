@@ -38,8 +38,8 @@ int main() {
 ```
 (call_expression
   function: (field_expression
-    object: (identifier) @thread.object
-    field: (field_identifier) @thread.method))
+    (identifier) @thread.object
+    (field_identifier) @thread.method))
   (#match? @thread.method "join") @concurrency.relationship.thread.join
 ```
 
@@ -65,8 +65,8 @@ int main() {
 ```
 (call_expression
   function: (field_expression
-    object: (identifier) @thread.object
-    field: (field_identifier) @thread.method))
+    (identifier) @thread.object
+    (field_identifier) @thread.method))
   (#match? @thread.method "detach") @concurrency.relationship.thread.detach
 ```
 
@@ -92,8 +92,8 @@ int main() {
 ```
 (call_expression
   function: (field_expression
-    object: (identifier) @mutex.object
-    field: (field_identifier) @mutex.method))
+    (identifier) @mutex.object
+    (field_identifier) @mutex.method))
   (#match? @mutex.method "lock") @concurrency.relationship.mutex.lock
 ```
 
@@ -128,8 +128,8 @@ int main() {
 ```
 (call_expression
   function: (field_expression
-    object: (identifier) @mutex.object
-    field: (field_identifier) @mutex.method))
+    (identifier) @mutex.object
+    (field_identifier) @mutex.method))
   (#match? @mutex.method "unlock") @concurrency.relationship.mutex.unlock
 ```
 
@@ -164,8 +164,8 @@ int main() {
 ```
 (call_expression
   function: (field_expression
-    object: (identifier) @mutex.object
-    field: (field_identifier) @mutex.method))
+    (identifier) @mutex.object
+    (field_identifier) @mutex.method))
   (#match? @mutex.method "try_lock") @concurrency.relationship.mutex.try_lock
 ```
 
@@ -242,8 +242,8 @@ int main() {
 ```
 (call_expression
   function: (field_expression
-    object: (identifier) @condition.variable
-    field: (field_identifier) @condition.method)
+    (identifier) @condition.variable
+    (field_identifier) @condition.method)
   arguments: (argument_list
     (identifier) @locked.mutex))
   (#match? @condition.method "wait") @concurrency.relationship.condition.wait
@@ -286,8 +286,8 @@ int main() {
 ```
 (call_expression
   function: (field_expression
-    object: (identifier) @condition.variable
-    field: (field_identifier) @condition.method))
+    (identifier) @condition.variable
+    (field_identifier) @condition.method))
   (#match? @condition.method "^(notify_one|notify_all)$") @concurrency.relationship.condition.notify
 ```
 
@@ -334,8 +334,8 @@ int main() {
 ```
 (call_expression
   function: (field_expression
-    object: (identifier) @atomic.variable
-    field: (field_identifier) @atomic.method))
+    (identifier) @atomic.variable
+    (field_identifier) @atomic.method))
   (#match? @atomic.method "^(store|load|exchange|fetch_add|fetch_sub|fetch_and|fetch_or|fetch_xor)$") @concurrency.relationship.atomic.operation
 ```
 
@@ -374,9 +374,9 @@ int main() {
 ### 查询规则
 ```
 (call_expression
-  function: (field_expression
-    object: (identifier) @atomic.variable
-    field: (field_identifier) @atomic.method)
+ function: (field_expression
+    (identifier) @atomic.variable
+    (field_identifier) @atomic.method)
   arguments: (argument_list
     (identifier) @expected.value
     (identifier) @desired.value))
@@ -413,8 +413,8 @@ int main() {
 ```
 (call_expression
   function: (field_expression
-    object: (identifier) @atomic.flag
-    field: (field_identifier) @flag.method))
+    (identifier) @atomic.flag
+    (field_identifier) @flag.method))
   (#match? @flag.method "^(test_and_set|clear)$") @concurrency.relationship.atomic.flag
 ```
 
@@ -458,8 +458,8 @@ int main() {
 ```
 (call_expression
   function: (field_expression
-    object: (identifier) @semaphore.object
-    field: (field_identifier) @semaphore.method))
+    (identifier) @semaphore.object
+    (field_identifier) @semaphore.method))
   (#match? @semaphore.method "acquire") @concurrency.relationship.semaphore.acquire
 ```
 
@@ -485,8 +485,8 @@ void acquireSemaphore() {
 ```
 (call_expression
   function: (field_expression
-    object: (identifier) @semaphore.object
-    field: (field_identifier) @semaphore.method)
+    (identifier) @semaphore.object
+    (field_identifier) @semaphore.method)
   arguments: (argument_list))
   (#match? @semaphore.method "release") @concurrency.relationship.semaphore.release
 ```
@@ -526,9 +526,9 @@ int main() {
 ```
 (call_expression
   function: (field_expression
-    object: (identifier) @latch.object
-    field: (field_identifier) @latch.method)
-  arguments: (argument_list))
+    (identifier) @latch.object
+    (field_identifier) @latch.method)
+ arguments: (argument_list))
   (#match? @latch.method "wait") @concurrency.relationship.latch.wait
 ```
 
@@ -571,8 +571,8 @@ int main() {
 ```
 (call_expression
   function: (field_expression
-    object: (identifier) @latch.object
-    field: (field_identifier) @latch.method)
+    (identifier) @latch.object
+    (field_identifier) @latch.method)
   arguments: (argument_list))
   (#match? @latch.method "count_down") @concurrency.relationship.latch.count_down
 ```
@@ -614,8 +614,8 @@ int main() {
 ```
 (call_expression
   function: (field_expression
-    object: (identifier) @barrier.object
-    field: (field_identifier) @barrier.method)
+    (identifier) @barrier.object
+    (field_identifier) @barrier.method)
   arguments: (argument_list))
   (#match? @barrier.method "arrive_and_wait") @concurrency.relationship.barrier.sync
 ```
@@ -653,8 +653,8 @@ int main() {
 ```
 (call_expression
   function: (field_expression
-    object: (identifier) @shared.mutex
-    field: (field_identifier) @shared.method))
+    (identifier) @shared.mutex
+    (field_identifier) @shared.method))
   (#match? @shared.method "^(lock_shared|unlock_shared)$") @concurrency.relationship.shared.mutex
 ```
 
@@ -734,8 +734,8 @@ int main() {
 ```
 (call_expression
   function: (field_expression
-    object: (identifier) @future.object
-    field: (field_identifier) @future.method))
+    (identifier) @future.object
+    (field_identifier) @future.method))
   (#match? @future.method "wait") @concurrency.relationship.future.wait
 ```
 
@@ -766,9 +766,9 @@ int main() {
 ### 查询规则
 ```
 (call_expression
-  function: (field_expression
-    object: (identifier) @future.object
-    field: (field_identifier) @future.method))
+ function: (field_expression
+    (identifier) @future.object
+    (field_identifier) @future.method))
   (#match? @future.method "get") @concurrency.relationship.future.get
 ```
 
@@ -799,8 +799,8 @@ int main() {
 ```
 (call_expression
   function: (field_expression
-    object: (identifier) @shared.future.object
-    field: (field_identifier) @shared.future.method))
+    (identifier) @shared.future.object
+    (field_identifier) @shared.future.method))
   (#match? @shared.future.method "get") @concurrency.relationship.shared.future.get
 ```
 
@@ -840,9 +840,9 @@ int main() {
 ### 查询规则
 ```
 (call_expression
-  function: (field_expression
-    object: (identifier) @promise.object
-    field: (field_identifier) @promise.method)
+ function: (field_expression
+    (identifier) @promise.object
+    (field_identifier) @promise.method)
   arguments: (argument_list
     (identifier) @promise.value))
   (#match? @promise.method "set_value") @concurrency.relationship.promise.set_value
@@ -1001,12 +1001,12 @@ int main() {
 ```
 (assignment_expression
   left: (field_expression
-    object: (identifier) @shared.variable
-    field: (field_identifier) @shared.field)
+    (identifier) @shared.variable
+    (field_identifier) @shared.field)
   right: (binary_expression
     left: (field_expression
-      object: (identifier) @shared.variable
-      field: (field_identifier) @shared.field)
+      (identifier) @shared.variable
+      (field_identifier) @shared.field)
     operator: (identifier) @operator
     right: (identifier) @increment.value)) @concurrency.relationship.race.condition
 ```
@@ -1046,8 +1046,8 @@ int main() {
 ```
 (call_expression
   function: (field_expression
-    object: (identifier) @first.lock
-    field: (field_identifier) @lock.method)
+    (identifier) @first.lock
+    (field_identifier) @lock.method)
   arguments: (argument_list))
   (#match? @lock.method "lock") @concurrency.relationship.deadlock.pattern
 ```
@@ -1397,7 +1397,7 @@ int main() {
 ### 查询规则
 ```
 (function_definition
-  declarator: (function_declarator
+ declarator: (function_declarator
     declarator: (identifier) @coroutine.function)
   return_type: (type_identifier) @coroutine.return.type)
   (#match? @coroutine.return.type "^(task|generator|lazy)$") @concurrency.relationship.coroutine
@@ -1509,41 +1509,27 @@ struct Generator {
         }
         std::suspend_always initial_suspend() { return {}; }
         std::suspend_always final_suspend() noexcept { return {}; }
+        void return_void() {}
         std::suspend_always yield_value(int value) {
             current_value = value;
             return {};
         }
-        void return_void() {}
         void unhandled_exception() {}
     };
     
     std::coroutine_handle<promise_type> h;
     Generator(std::coroutine_handle<promise_type> handle) : h(handle) {}
     ~Generator() { if (h) h.destroy(); }
-    
-    bool next() {
-        h.resume();
-        return !h.done();
-    }
-    
-    int value() {
-        return h.promise().current_value;
-    }
 };
 
 Generator numberGenerator() {
-    for (int i = 0; i < 5; ++i) {
-        co_yield i;
-    }
+    co_yield 1;
+    co_yield 2;
+    co_yield 3;
 }
 
 int main() {
     auto gen = numberGenerator();
-    
-    while (gen.next()) {
-        std::cout << "Generated: " << gen.value() << std::endl;
-    }
-    
     return 0;
 }
 ```
@@ -1566,55 +1552,32 @@ int main() {
 ### 测试用例
 ```cpp
 #include <atomic>
-#include <iostream>
+#include <memory>
 
 template<typename T>
 class LockFreeStack {
 private:
     struct Node {
         T data;
-        Node* next;
+        std::atomic<Node*> next;
+        
+        Node(T const& data_) : data(data_) {}
     };
     
     std::atomic<Node*> head;
     
 public:
-    LockFreeStack() : head(nullptr) {}
-    
-    void push(const T& value) {
-        Node* newNode = new Node{value, head.load()};
-        while (!head.compare_exchange_weak(newNode->next, newNode)) {
-            // 重试直到成功
-        }
-    }
-    
-    bool pop(T& result) {
-        Node* oldHead = head.load();
-        while (oldHead && !head.compare_exchange_weak(oldHead, oldHead->next)) {
-            // 重试直到成功
-        }
-        
-        if (oldHead) {
-            result = oldHead->data;
-            delete oldHead;
-            return true;
-        }
-        return false;
+    void push(T const& data) {
+        Node* new_node = new Node(data);
+        new_node->next = head.load();
+        while(!head.compare_exchange_weak(new_node->next, new_node));
     }
 };
 
 int main() {
     LockFreeStack<int> stack;
-    
-    stack.push(10);
-    stack.push(20);
-    stack.push(30);
-    
-    int value;
-    while (stack.pop(value)) {
-        std::cout << "Popped: " << value << std::endl;
-    }
-    
+    stack.push(1);
+    stack.push(2);
     return 0;
 }
 ```
@@ -1625,8 +1588,8 @@ int main() {
 ```
 (call_expression
   function: (field_expression
-    object: (identifier) @atomic.variable
-    field: (field_identifier) @atomic.method)
+    (identifier) @atomic.variable
+    (field_identifier) @atomic.method)
   arguments: (argument_list
     (identifier) @memory.order))
   (#match? @memory.order "^(memory_order_relaxed|memory_order_acquire|memory_order_release|memory_order_acq_rel|memory_order_seq_cst)$") @concurrency.relationship.memory.order
@@ -1638,28 +1601,24 @@ int main() {
 #include <thread>
 #include <iostream>
 
-std::atomic<int> x(0);
-std::atomic<int> y(0);
+std::atomic<int> data(0);
+std::atomic<bool> ready(false);
 
-void write_x_then_y() {
-    x.store(1, std::memory_order_relaxed);
-    y.store(1, std::memory_order_release);
+void writer() {
+    data.store(42, std::memory_order_relaxed);
+    ready.store(true, std::memory_order_release);
 }
 
-void read_y_then_x() {
-    while (y.load(std::memory_order_acquire) == 0) {
+void reader() {
+    while (!ready.load(std::memory_order_acquire)) {
         // 等待
     }
-    if (x.load(std::memory_order_relaxed) == 0) {
-        std::cout << "Reordering detected!" << std::endl;
-    } else {
-        std::cout << "No reordering" << std::endl;
-    }
+    std::cout << "Data: " << data.load(std::memory_order_relaxed) << std::endl;
 }
 
 int main() {
-    std::thread t1(write_x_then_y);
-    std::thread t2(read_y_then_x);
+    std::thread t1(writer);
+    std::thread t2(reader);
     
     t1.join();
     t2.join();
@@ -1668,77 +1627,100 @@ int main() {
 }
 ```
 
-## 39. 事务内存（C++事务内存扩展）
+## 39. 任务依赖关系
 
 ### 查询规则
 ```
 (call_expression
-  function: (qualified_identifier
-    scope: (identifier) @transaction.scope
-    name: (identifier) @transaction.function))
-  (#match? @transaction.function "^(atomic|atomic_noexcept|atomic_cancel|atomic_commit)$") @concurrency.relationship.transactional.memory
+ function: (field_expression
+    (identifier) @future.object
+    (field_identifier) @future.method))
+  (#match? @future.method "then") @concurrency.relationship.task.dependency
 ```
 
 ### 测试用例
 ```cpp
-// 注意：这是一个假设性的示例，因为C++事务内存扩展尚未标准化
+#include <future>
 #include <iostream>
-#include <transaction>
-
-int sharedData = 0;
-
-void transactionalUpdate() {
-    try {
-        atomic {
-            sharedData += 10;
-            if (sharedData > 100) {
-                atomic_cancel; // 取消事务
-            }
-        }
-    } catch (const std::exception& e) {
-        std::cout << "Transaction failed: " << e.what() << std::endl;
-    }
-}
 
 int main() {
-    transactionalUpdate();
-    std::cout << "Final sharedData: " << sharedData << std::endl;
+    // 模拟任务依赖
+    auto future1 = std::async(std::launch::async, []() {
+        std::cout << "Task 1 completed" << std::endl;
+        return 10;
+    });
+    
+    auto result1 = future1.get();
+    std::cout << "Result 1: " << result1 << std::endl;
+    
+    auto future2 = std::async(std::launch::async, [result1]() {
+        std::cout << "Task 2 depends on result: " << result1 << std::endl;
+        return result1 * 2;
+    });
+    
+    auto result2 = future2.get();
+    std::cout << "Result 2: " << result2 << std::endl;
+    
     return 0;
 }
 ```
 
-## 40. 信号量等待（C++20）
+## 40. 并发容器访问
 
 ### 查询规则
 ```
 (call_expression
   function: (field_expression
-    object: (identifier) @semaphore.object
-    field: (field_identifier) @semaphore.method))
-  (#match? @semaphore.method "try_acquire") @concurrency.relationship.semaphore.try_acquire
+    (identifier) @container.object
+    (field_identifier) @container.method))
+  (#match? @container.method "^(push_back|pop_back|insert|erase|find)$") @concurrency.relationship.concurrent.container
 ```
 
 ### 测试用例
 ```cpp
-#include <semaphore>
+#include <vector>
+#include <mutex>
 #include <thread>
 #include <iostream>
 
-std::counting_semaphore<2> sem(1);
-
-void tryAcquire() {
-    if (sem.try_acquire()) {
-        std::cout << "Semaphore acquired successfully" << std::endl;
-        // 模拟工作
-        sem.release();
-    } else {
-        std::cout << "Failed to acquire semaphore" << std::endl;
+class ThreadSafeVector {
+private:
+    std::vector<int> data;
+    mutable std::mutex mtx;
+    
+public:
+    void push_back(int value) {
+        std::lock_guard<std::mutex> lock(mtx);
+        data.push_back(value);
     }
-}
+    
+    bool find(int value) {
+        std::lock_guard<std::mutex> lock(mtx);
+        for (int item : data) {
+            if (item == value) {
+                return true;
+            }
+        }
+        return false;
+    }
+};
 
 int main() {
-    std::thread t1(tryAcquire);
-    std::thread t2(tryAcquire);
+    ThreadSafeVector tsVector;
+    
+    std::thread t1([&tsVector]() {
+        for (int i = 0; i < 5; ++i) {
+            tsVector.push_back(i);
+        }
+    });
+    
+    std::thread t2([&tsVector]() {
+        for (int i = 0; i < 5; ++i) {
+            if (tsVector.find(i)) {
+                std::cout << "Found " << i << std::endl;
+            }
+        }
+    });
     
     t1.join();
     t2.join();
