@@ -7,7 +7,9 @@ export default `
 (declaration
   type: (qualified_identifier
     scope: (namespace_identifier) @std.scope
-    name: (type_identifier) @thread.constructor)) @concurrency.relationship.thread.creation
+    name: (type_identifier) @thread.constructor)
+  (#eq? @std.scope "std")
+  (#match? @thread.constructor "^(thread|jthread)$")) @concurrency.relationship.thread.creation
 
 ; 线程加入
 (call_expression
@@ -189,12 +191,7 @@ export default `
   (#match? @promise.method "set_value"))@concurrency.relationship.promise.set_value
 
 ; 打包任务
-(call_expression
-  function: (qualified_identifier
-    scope: (namespace_identifier) @std.scope
-    name: (identifier) @packaged.task)
-  arguments: (argument_list
-    (identifier) @task.function)) @concurrency.relationship.packaged.task
+;; 已废弃
 
 ; 线程本地存储
 (declaration
@@ -212,24 +209,32 @@ export default `
     (identifier) @memory.order)
   (#match? @atomic.function "atomic_thread_fence")) @concurrency.relationship.memory.fence
 
-; 竞态条件检测
+; 竞态条件更新变量检测
 (assignment_expression
   left: (field_expression
-    (identifier) @shared.variable
-    (field_identifier) @shared.field)
+    argument: (identifier) @shared.variable
+    field: (field_identifier) @shared.field)
+
   right: (binary_expression
     left: (field_expression
-      (identifier) @shared.variable
-      (field_identifier) @shared.field)
-    operator: (identifier) @operator
-    right: (identifier) @increment.value)) @concurrency.relationship.race.condition
+      argument: (identifier) @shared.variable.read
+      field: (field_identifier) @shared.field.read)
+    right: (number_literal) @increment.value)
+
+  ; 谓词确保被读取的变量和被写入的变量是同一个
+  ; 1. 对象名必须相同 (e.g., "counter" == "counter")
+  (#eq? @shared.variable @shared.variable.read)
+  ; 2. 字段名必须相同 (e.g., "value" == "value")
+  (#eq? @shared.field @shared.field.read)
+) @concurrency.relationship.race.condition
+
 
 ; 死锁模式（多个锁获取）
 (call_expression
   function: (field_expression
     (identifier) @first.lock
     (field_identifier) @lock.method)
-  arguments: (argument_list))
+  arguments: (argument_list)
   (#match? @lock.method "lock")) @concurrency.relationship.deadlock.pattern
 
 ; 生产者-消费者模式
@@ -269,7 +274,10 @@ export default `
         declarator: (field_identifier) @tasks.field))
     (field_declaration
       declarator: (field_declarator
-        declarator: (field_identifier) @queue.mutex)))) @concurrency.relationship.thread.pool
+        declarator: (field_identifier) @queue.mutex)))
+  (#match? @workers.field "^(workers|threads|pool)$")
+  (#match? @tasks.field "^(tasks|jobs|queue)$")
+  (#match? @queue.mutex "^(mutex|lock|queue_mutex)$")) @concurrency.relationship.thread.pool
 
 ; 并行算法
 (call_expression
@@ -297,11 +305,16 @@ export default `
 
 ; 协程等待（C++20）
 (await_expression
-  (call_expression) @awaited.call) @concurrency.relationship.coroutine.await
+  (call_expression
+    function: (field_expression
+      argument: (identifier) @coroutine.object
+      field: (field_identifier) @coroutine.method))
+  (#match? @coroutine.method "^(get|wait|resume)$")) @concurrency.relationship.coroutine.await
 
 ; 协程让出（C++20）
 (yield_statement
-  (identifier) @yielded.value) @concurrency.relationship.coroutine.yield
+  (identifier) @yielded.value)
+  (#match? @yielded.value "^(value|result|data)$")) @concurrency.relationship.coroutine.yield
 
 ; 无锁数据结构
 (class_specifier
@@ -312,7 +325,10 @@ export default `
         scope: (namespace_identifier) @std.scope
         name: (type_identifier) @atomic.type)
       declarator: (field_declarator
-        declarator: (field_identifier) @atomic.field)))) @concurrency.relationship.lockfree.structure
+        declarator: (field_identifier) @atomic.field)))
+  (#eq? @std.scope "std")
+  (#match? @atomic.type "^(atomic|atomic_flag)$")
+  (#match? @atomic.field "^(value|data|flag|counter)$")) @concurrency.relationship.lockfree.structure
 
 ; 内存顺序指定
 (call_expression

@@ -192,7 +192,7 @@
       "codeFile": "tests/test-024/code.cpp",
       "queryFile": "tests/test-024/query.txt",
       "metadataFile": "tests/test-024/metadata.json",
-      "description": "Test case 024: 打包任务"
+      "description": "Test case 024: 打包任务(已废弃)"
     },
     {
       "id": "concurrency-relationships-025",
