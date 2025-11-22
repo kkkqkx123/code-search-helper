@@ -47,13 +47,15 @@ export default `
 ; 锁守卫（RAII锁）
 (declaration
   type: (qualified_identifier
-    scope: (identifier) @std.scope
-    name: (type_identifier) @lock.guard.type)
-  declarator: (init_declarator
-    declarator: (identifier) @lock.guard.variable
-    value: (call_expression
-      function: (identifier) @locked.mutex)))
-  (#match? @lock.guard.type "^(lock_guard|unique_lock|shared_lock)$") @concurrency.relationship.lock.guard
+    scope: (namespace_identifier) @std.scope
+    name: (template_type
+      name: (type_identifier) @lock_guard.type))
+  declarator: (function_declarator
+    declarator: (identifier) @lock_guard.variable
+    parameters: (parameter_list
+      (parameter_declaration
+        (type_identifier) @locked.mutex)))@concurrency_relationship_lock_guard
+  (#match? @lock_guard.type "^(lock_guard|unique_lock|shared_lock)$")) 
 
 ; 条件变量等待
 (call_expression
@@ -61,22 +63,22 @@ export default `
     (identifier) @condition.variable
     (field_identifier) @condition.method)
   arguments: (argument_list
-    (identifier) @locked.mutex))
-  (#match? @condition.method "wait") @concurrency.relationship.condition.wait
+    (identifier) @locked.mutex))@concurrency.relationship.condition.wait
+  (#match? @condition.method "wait")) 
 
 ; 条件变量通知
 (call_expression
   function: (field_expression
     (identifier) @condition.variable
-    (field_identifier) @condition.method))
-  (#match? @condition.method "^(notify_one|notify_all)$") @concurrency.relationship.condition.notify
+    (field_identifier) @condition.method))@concurrency.relationship.condition.notify
+  (#match? @condition.method "^(notify_one|notify_all)$")) 
 
 ; 原子操作
 (call_expression
   function: (field_expression
     (identifier) @atomic.variable
-    (field_identifier) @atomic.method))
-  (#match? @atomic.method "^(store|load|exchange|fetch_add|fetch_sub|fetch_and|fetch_or|fetch_xor)$") @concurrency.relationship.atomic.operation
+    (field_identifier) @atomic.method))@concurrency.relationship.atomic.operation
+  (#match? @atomic.method "^(store|load|exchange|fetch_add|fetch_sub|fetch_and|fetch_or|fetch_xor)$")) 
 
 ; 原子比较交换
 (call_expression
@@ -85,91 +87,91 @@ export default `
     (field_identifier) @atomic.method)
   arguments: (argument_list
     (identifier) @expected.value
-    (identifier) @desired.value))
-  (#match? @atomic.method "compare_exchange") @concurrency.relationship.atomic.compare_exchange
+    (identifier) @desired.value))@concurrency.relationship.atomic.compare_exchange
+  (#match? @atomic.method "compare_exchange")) 
 
 ; 原子标志
 (call_expression
   function: (field_expression
     (identifier) @atomic.flag
-    (field_identifier) @flag.method))
-  (#match? @flag.method "^(test_and_set|clear)$") @concurrency.relationship.atomic.flag
+    (field_identifier) @flag.method))@concurrency.relationship.atomic.flag
+  (#match? @flag.method "^(test_and_set|clear)$")) 
 
 ; 信号量获取（C++20）
 (call_expression
   function: (field_expression
     (identifier) @semaphore.object
-    (field_identifier) @semaphore.method))
-  (#match? @semaphore.method "acquire") @concurrency.relationship.semaphore.acquire
+    (field_identifier) @semaphore.method)) @concurrency.relationship.semaphore.acquire
+  (#match? @semaphore.method "acquire"))
 
 ; 信号量释放（C++20）
 (call_expression
   function: (field_expression
     (identifier) @semaphore.object
     (field_identifier) @semaphore.method)
-  arguments: (argument_list))
-  (#match? @semaphore.method "release") @concurrency.relationship.semaphore.release
+  arguments: (argument_list))@concurrency.relationship.semaphore.release
+  (#match? @semaphore.method "release") 
 
 ; 闩器等待（C++20）
 (call_expression
   function: (field_expression
     (identifier) @latch.object
     (field_identifier) @latch.method)
-  arguments: (argument_list))
-  (#match? @latch.method "wait") @concurrency.relationship.latch.wait
+  arguments: (argument_list)) @concurrency.relationship.latch.wait
+  (#match? @latch.method "wait")
 
 ; 闩器倒计时（C++20）
 (call_expression
   function: (field_expression
     (identifier) @latch.object
     (field_identifier) @latch.method)
-  arguments: (argument_list))
-  (#match? @latch.method "count_down") @concurrency.relationship.latch.count_down
+  arguments: (argument_list))@concurrency.relationship.latch.count_down
+  (#match? @latch.method "count_down") 
 
 ; 屏障同步（C++20）
 (call_expression
   function: (field_expression
     (identifier) @barrier.object
     (field_identifier) @barrier.method)
-  arguments: (argument_list))
-  (#match? @barrier.method "arrive_and_wait") @concurrency.relationship.barrier.sync
+  arguments: (argument_list))@concurrency.relationship.barrier.sync
+  (#match? @barrier.method "arrive_and_wait") 
 
 ; 共享互斥锁（读写锁）
 (call_expression
   function: (field_expression
     (identifier) @shared.mutex
     (field_identifier) @shared.method))
-  (#match? @shared.method "^(lock_shared|unlock_shared)$") @concurrency.relationship.shared.mutex
+  (#match? @shared.method "^(lock_shared|unlock_shared)$")) @concurrency.relationship.shared.mutex
 
 ; 异步任务创建
 (call_expression
   function: (qualified_identifier
-    scope: (identifier) @std.scope
+    scope: (namespace_identifier) @std.scope
     name: (identifier) @async.function)
   arguments: (argument_list
     (identifier) @async.task))
-  (#match? @async.function "async") @concurrency.relationship.async.task
+  (#match? @async.function "async")) @concurrency.relationship.async.task
 
 ; 异步任务等待
 (call_expression
   function: (field_expression
     (identifier) @future.object
     (field_identifier) @future.method))
-  (#match? @future.method "wait") @concurrency.relationship.future.wait
+  (#match? @future.method "wait")) @concurrency.relationship.future.wait
 
 ; 异步任务获取结果
 (call_expression
   function: (field_expression
     (identifier) @future.object
     (field_identifier) @future.method))
-  (#match? @future.method "get") @concurrency.relationship.future.get
+  (#match? @future.method "get")) @concurrency.relationship.future.get
 
 ; 共享异步任务获取结果
 (call_expression
   function: (field_expression
     (identifier) @shared.future.object
     (field_identifier) @shared.future.method))
-  (#match? @shared.future.method "get") @concurrency.relationship.shared.future.get
+  (#match? @shared.future.method "get")) @concurrency.relationship.shared.future.get
 
 ; 承诺设置值
 (call_expression
@@ -177,33 +179,33 @@ export default `
     (identifier) @promise.object
     (field_identifier) @promise.method)
   arguments: (argument_list
-    (identifier) @promise.value))
-  (#match? @promise.method "set_value") @concurrency.relationship.promise.set_value
+    (identifier) @promise.value)) @concurrency.relationship.promise.set_value
+  (#match? @promise.method "set_value")
 
 ; 打包任务
 (call_expression
   function: (qualified_identifier
-    scope: (identifier) @std.scope
+    scope: (namespace_identifier) @std.scope
     name: (identifier) @packaged.task)
   arguments: (argument_list
     (identifier) @task.function))
-  (#match? @packaged.task "packaged_task") @concurrency.relationship.packaged.task
+  (#match? @packaged.task "packaged_task")) @concurrency.relationship.packaged.task
 
 ; 线程本地存储
 (declaration
   (storage_class_specifier) @thread.local.specifier
   declarator: (init_declarator
     declarator: (identifier) @thread.local.variable))
-  (#match? @thread.local.specifier "thread_local") @concurrency.relationship.thread.local
+  (#match? @thread.local.specifier "thread_local")) @concurrency.relationship.thread.local
 
 ; 内存屏障
 (call_expression
   function: (qualified_identifier
-    scope: (identifier) @std.scope
+    scope: (namespace_identifier) @std.scope
     name: (identifier) @atomic.function)
   arguments: (argument_list
     (identifier) @memory.order))
-  (#match? @atomic.function "atomic_thread_fence") @concurrency.relationship.memory.fence
+  (#match? @atomic.function "atomic_thread_fence")) @concurrency.relationship.memory.fence
 
 ; 竞态条件检测
 (assignment_expression
@@ -223,7 +225,7 @@ export default `
     (identifier) @first.lock
     (field_identifier) @lock.method)
   arguments: (argument_list))
-  (#match? @lock.method "lock") @concurrency.relationship.deadlock.pattern
+  (#match? @lock.method "lock")) @concurrency.relationship.deadlock.pattern
 
 ; 生产者-消费者模式
 (class_specifier
@@ -267,26 +269,26 @@ export default `
 ; 并行算法
 (call_expression
   function: (qualified_identifier
-    scope: (identifier) @std.scope
+    scope: (namespace_identifier) @std.scope
     name: (identifier) @parallel.algorithm)
   arguments: (argument_list
     (identifier) @execution.policy
     (identifier) @algorithm.args))
-  (#match? @parallel.algorithm "^(for_each|sort|transform|reduce)$") @concurrency.relationship.parallel.algorithm
+  (#match? @parallel.algorithm "^(for_each|sort|transform|reduce)$")) @concurrency.relationship.parallel.algorithm
 
 ; 执行策略
 (call_expression
   function: (qualified_identifier
-    scope: (identifier) @execution.scope
+    scope: (namespace_identifier) @execution.scope
     name: (identifier) @execution.policy))
-  (#match? @execution.policy "^(par|par_unseq|seq|unseq)$") @concurrency.relationship.execution.policy
+  (#match? @execution.policy "^(par|par_unseq|seq|unseq)$")) @concurrency.relationship.execution.policy
 
 ; 协程创建（C++20）
 (function_definition
   declarator: (function_declarator
     declarator: (identifier) @coroutine.function)
   return_type: (type_identifier) @coroutine.return.type)
-  (#match? @coroutine.return.type "^(task|generator|lazy)$") @concurrency.relationship.coroutine
+  (#match? @coroutine.return.type "^(task|generator|lazy)$")) @concurrency.relationship.coroutine
 
 ; 协程等待（C++20）
 (await_expression
@@ -302,7 +304,7 @@ export default `
   body: (field_declaration_list
     (field_declaration
       type: (qualified_identifier
-        scope: (identifier) @std.scope
+        scope: (namespace_identifier) @std.scope
         name: (type_identifier) @atomic.type)
       declarator: (field_declarator
         declarator: (field_identifier) @atomic.field)))) @concurrency.relationship.lockfree.structure
@@ -314,5 +316,5 @@ export default `
     (field_identifier) @atomic.method)
   arguments: (argument_list
     (identifier) @memory.order))
-  (#match? @memory.order "^(memory_order_relaxed|memory_order_acquire|memory_order_release|memory_order_acq_rel|memory_order_seq_cst)$") @concurrency.relationship.memory.order
+  (#match? @memory.order "^(memory_order_relaxed|memory_order_acquire|memory_order_release|memory_order_acq_rel|memory_order_seq_cst)$")) @concurrency.relationship.memory.order
 `;

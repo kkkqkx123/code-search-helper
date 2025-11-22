@@ -208,7 +208,7 @@ int main() {
     declarator: (identifier) @lock.guard.variable
     value: (call_expression
       function: (identifier) @locked.mutex)))
-  (#match? @lock.guard.type "^(lock_guard|unique_lock|shared_lock)$") @concurrency.relationship.lock.guard
+  (#match? @lock.guard.type "^(lock_guard|unique_lock|shared_lock)$")) @concurrency.relationship.lock.guard
 ```
 
 ### 测试用例
@@ -246,7 +246,7 @@ int main() {
     (field_identifier) @condition.method)
   arguments: (argument_list
     (identifier) @locked.mutex))
-  (#match? @condition.method "wait") @concurrency.relationship.condition.wait
+  (#match? @condition.method "wait")) @concurrency.relationship.condition.wait
 ```
 
 ### 测试用例
@@ -288,7 +288,7 @@ int main() {
   function: (field_expression
     (identifier) @condition.variable
     (field_identifier) @condition.method))
-  (#match? @condition.method "^(notify_one|notify_all)$") @concurrency.relationship.condition.notify
+  (#match? @condition.method "^(notify_one|notify_all)$")) @concurrency.relationship.condition.notify
 ```
 
 ### 测试用例
@@ -336,7 +336,7 @@ int main() {
   function: (field_expression
     (identifier) @atomic.variable
     (field_identifier) @atomic.method))
-  (#match? @atomic.method "^(store|load|exchange|fetch_add|fetch_sub|fetch_and|fetch_or|fetch_xor)$") @concurrency.relationship.atomic.operation
+  (#match? @atomic.method "^(store|load|exchange|fetch_add|fetch_sub|fetch_and|fetch_or|fetch_xor)$")) @concurrency.relationship.atomic.operation
 ```
 
 ### 测试用例
@@ -415,7 +415,7 @@ int main() {
   function: (field_expression
     (identifier) @atomic.flag
     (field_identifier) @flag.method))
-  (#match? @flag.method "^(test_and_set|clear)$") @concurrency.relationship.atomic.flag
+  (#match? @flag.method "^(test_and_set|clear)$")) @concurrency.relationship.atomic.flag
 ```
 
 ### 测试用例
@@ -460,7 +460,7 @@ int main() {
   function: (field_expression
     (identifier) @semaphore.object
     (field_identifier) @semaphore.method))
-  (#eq? @semaphore.method "acquire") @concurrency.relationship.semaphore.acquire
+  (#match? @semaphore.method "acquire")) @concurrency.relationship.semaphore.acquire
 ```
 
 ### 测试用例
@@ -488,7 +488,7 @@ void acquireSemaphore() {
     (identifier) @semaphore.object
     (field_identifier) @semaphore.method)
   arguments: (argument_list))
-  (#eq? @semaphore.method "release") @concurrency.relationship.semaphore.release
+  (#match? @semaphore.method "release")) @concurrency.relationship.semaphore.release
 ```
 
 ### 测试用例
@@ -529,7 +529,7 @@ int main() {
     (identifier) @latch.object
     (field_identifier) @latch.method)
  arguments: (argument_list))
-  (#eq? @latch.method "wait") @concurrency.relationship.latch.wait
+  (#match? @latch.method "wait")) @concurrency.relationship.latch.wait
 ```
 
 ### 测试用例
@@ -574,7 +574,7 @@ int main() {
     (identifier) @latch.object
     (field_identifier) @latch.method)
   arguments: (argument_list))
-  (#eq? @latch.method "count_down") @concurrency.relationship.latch.count_down
+  (#match? @latch.method "count_down")) @concurrency.relationship.latch.count_down
 ```
 
 ### 测试用例
@@ -617,7 +617,7 @@ int main() {
     (identifier) @barrier.object
     (field_identifier) @barrier.method)
   arguments: (argument_list))
-  (#eq? @barrier.method "arrive_and_wait") @concurrency.relationship.barrier.sync
+  (#match? @barrier.method "arrive_and_wait")) @concurrency.relationship.barrier.sync
 ```
 
 ### 测试用例
@@ -655,12 +655,7 @@ int main() {
   function: (field_expression
     (identifier) @shared.mutex
     (field_identifier) @shared.method))
-  (#eq? @shared.method "lock_shared") @concurrency.relationship.shared.mutex
-(call_expression
-  function: (field_expression
-    (identifier) @shared.mutex
-    (field_identifier) @shared.method))
-  (#eq? @shared.method "unlock_shared") @concurrency.relationship.shared.mutex
+  (#match? @shared.method "^(lock_shared|unlock_shared)$")) @concurrency.relationship.shared.mutex
 ```
 
 ### 测试用例
@@ -708,7 +703,7 @@ int main() {
     name: (identifier) @async.function)
   arguments: (argument_list
     (identifier) @async.task))
-  (#match? @async.function "async") @concurrency.relationship.async.task
+  (#match? @async.function "async")) @concurrency.relationship.async.task
 ```
 
 ### 测试用例
@@ -741,7 +736,7 @@ int main() {
   function: (field_expression
     (identifier) @future.object
     (field_identifier) @future.method))
-  (#eq? @future.method "wait") @concurrency.relationship.future.wait
+  (#match? @future.method "wait")) @concurrency.relationship.future.wait
 ```
 
 ### 测试用例
@@ -889,7 +884,7 @@ int main() {
     name: (identifier) @packaged.task)
   arguments: (argument_list
     (identifier) @task.function))
-  (#match? @packaged.task "packaged_task") @concurrency.relationship.packaged.task
+  (#match? @packaged.task "packaged_task")) @concurrency.relationship.packaged.task
 ```
 
 ### 测试用例
@@ -925,7 +920,7 @@ int main() {
   (storage_class_specifier) @thread.local.specifier
   declarator: (init_declarator
     declarator: (identifier) @thread.local.variable))
-  (#match? @thread.local.specifier "thread_local") @concurrency.relationship.thread.local
+  (#match? @thread.local.specifier "thread_local")) @concurrency.relationship.thread.local
 ```
 
 ### 测试用例
@@ -963,7 +958,7 @@ int main() {
     name: (identifier) @atomic.function)
   arguments: (argument_list
     (identifier) @memory.order))
-  (#match? @atomic.function "atomic_thread_fence") @concurrency.relationship.memory.fence
+  (#match? @atomic.function "atomic_thread_fence")) @concurrency.relationship.memory.fence
 ```
 
 ### 测试用例
@@ -1717,7 +1712,7 @@ int main() {
  function: (field_expression
     (identifier) @future.object
     (field_identifier) @future.method))
-  (#match? @future.method "then") @concurrency.relationship.task.dependency
+  (#match? @future.method "then")) @concurrency.relationship.task.dependency
 ```
 
 ### 测试用例
@@ -1755,7 +1750,7 @@ int main() {
   function: (field_expression
     (identifier) @container.object
     (field_identifier) @container.method))
-  (#match? @container.method "^(push_back|pop_back|insert|erase|find)$") @concurrency.relationship.concurrent.container
+  (#match? @container.method "^(push_back|pop_back|insert|erase|find)$")) @concurrency.relationship.concurrent.container
 ```
 
 ### 测试用例
