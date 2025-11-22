@@ -1,6 +1,0 @@
-(call_expression
-  function: (identifier) @mutex.destroy.function
-  (#match? @mutex.destroy.function "^(pthread_mutex_destroy|DeleteCriticalSection)$")
-  arguments: (argument_list
-    (pointer_expression argument: (identifier) @mutex.handle))
-  (#set! "operation" "destroy")) @lifecycle.relationship.mutex.destroy

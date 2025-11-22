@@ -1,5 +1,0 @@
-(for_statement
-  initializer: (_)? @source.for.init
-  condition: (_) @source.for.condition
-  update: (_)? @source.for.update
-  body: (_) @target.for.block) @control.flow.for

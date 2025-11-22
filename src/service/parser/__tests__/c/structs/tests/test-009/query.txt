@@ -1,3 +1,0 @@
-(field_expression
-  argument: (identifier) @object.name
-  field: (field_identifier) @field.name) @definition.access

@@ -1,3 +1,0 @@
-(case_statement
-  value: (_)? @source.case.value
-  (statement)? @target.case.block) @control.flow.switch.case

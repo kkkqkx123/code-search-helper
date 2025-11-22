@@ -1,3 +1,0 @@
-(do_statement
-  body: (_) @do.body
-  condition: (_) @do.condition) @definition.control_statement

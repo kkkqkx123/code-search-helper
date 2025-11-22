@@ -1,6 +1,0 @@
-(if_statement
-  condition: (_) @source.outer.condition
-  consequence: (compound_statement
-    (if_statement
-      condition: (_) @source.inner.condition
-      consequence: (statement) @target.inner.block))) @control.flow.if.statement

@@ -1,2 +1,0 @@
-(union_specifier
-  name: (type_identifier) @forward.union.name) @definition.forward

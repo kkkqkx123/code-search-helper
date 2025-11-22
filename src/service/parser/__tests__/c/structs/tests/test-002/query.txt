@@ -1,5 +1,0 @@
-(struct_specifier
-  body: (field_declaration_list
-    (field_declaration
-      type: (struct_specifier)
-      declarator: (field_identifier) @nested.field.name))) @definition.nested.struct

@@ -1,5 +1,0 @@
-(call_expression
-  function: (qualified_identifier
-    scope: (identifier) @execution.scope
-    name: (identifier) @execution.policy))
-  (#match? @execution.policy "^(par|par_unseq|seq|unseq)$") @concurrency.relationship.execution.policy

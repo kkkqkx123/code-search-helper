@@ -1,9 +1,0 @@
-(assignment_expression
-  left: (identifier) @target.variable
-  right: [
-    (identifier) @source.variable1
-    (binary_expression
-      left: (identifier) @source.variable1
-      operator: ["+" "-" "*" "/" "%" "&" "|" "^" "<<" ">>"] @compound.operator
-      right: (identifier) @source.variable2)
-  ]) @data.flow.compound.assignment

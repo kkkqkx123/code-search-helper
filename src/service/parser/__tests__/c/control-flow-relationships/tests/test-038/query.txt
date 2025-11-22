@@ -1,4 +1,0 @@
-(call_expression
-  function: (identifier) @target.recursive.function
-  arguments: (argument_list
-    (_)* @source.parameter)) @control.flow.recursive.call

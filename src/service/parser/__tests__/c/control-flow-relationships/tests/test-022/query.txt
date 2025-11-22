@@ -1,3 +1,0 @@
-(declaration
-  (function_declarator
-    declarator: (identifier) @source.function.name)) @control.flow.function.declaration

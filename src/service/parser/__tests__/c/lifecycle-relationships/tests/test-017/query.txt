@@ -1,8 +1,0 @@
-(call_expression
-  function: (identifier) @socket.create.function
-  (#match? @socket.create.function "^(socket|socket|WSASocket)$")
-  arguments: (argument_list
-    (identifier) @socket.domain
-    (identifier) @socket.type
-    (identifier) @socket.protocol)
-  (#set! "operation" "create")) @lifecycle.relationship.socket.create

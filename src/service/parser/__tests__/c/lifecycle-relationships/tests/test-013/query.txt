@@ -1,7 +1,0 @@
-(call_expression
-  function: (identifier) @mutex.init.function
-  (#match? @mutex.init.function "^(pthread_mutex_init|InitializeCriticalSection)$")
-  arguments: (argument_list
-    (pointer_expression argument: (identifier) @mutex.handle)
-    (null)? @mutex.attributes)
-  (#set! "operation" "init")) @lifecycle.relationship.mutex.init

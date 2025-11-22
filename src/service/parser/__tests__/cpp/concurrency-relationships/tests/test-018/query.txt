@@ -1,5 +1,0 @@
-(call_expression
-  function: (field_expression
-    object: (identifier) @shared.mutex
-    field: (field_identifier) @shared.method))
-  (#match? @shared.method "^(lock_shared|unlock_shared)$") @concurrency.relationship.shared.mutex

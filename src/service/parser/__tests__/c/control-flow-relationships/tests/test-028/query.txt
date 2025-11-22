@@ -1,3 +1,0 @@
-(if_statement
-  condition: (_) @source.condition
-  consequence: (statement) @target.if.block) @control.flow.if.statement

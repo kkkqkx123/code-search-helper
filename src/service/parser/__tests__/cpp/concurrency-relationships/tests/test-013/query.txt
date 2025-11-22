@@ -1,5 +1,0 @@
-(call_expression
-  function: (field_expression
-    object: (identifier) @semaphore.object
-    field: (field_identifier) @semaphore.method))
-  (#match? @semaphore.method "acquire") @concurrency.relationship.semaphore.acquire

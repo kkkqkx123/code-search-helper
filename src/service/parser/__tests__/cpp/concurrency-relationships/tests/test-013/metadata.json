@@ -1,7 +1,0 @@
-{
-  "id": "concurrency-013",
-  "language": "cpp",
-  "section": "信号量获取（C++20）",
-  "description": "Test case 013: 信号量获取（C++20）",
-  "timestamp": "2025-11-20T10:25:38.041Z"
-}

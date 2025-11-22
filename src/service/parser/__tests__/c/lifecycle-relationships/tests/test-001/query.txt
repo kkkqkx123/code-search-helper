@@ -1,6 +1,0 @@
-(call_expression
-  function: (identifier) @allocation.function
-  (#match? @allocation.function "^(malloc|calloc|realloc|alloca)$")
-  arguments: (argument_list
-    (identifier) @allocation.size)
-  (#set! "operation" "allocate")) @lifecycle.relationship.memory.allocation

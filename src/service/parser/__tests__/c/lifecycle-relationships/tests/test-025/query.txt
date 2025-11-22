@@ -1,9 +1,0 @@
-(function_definition
-  declarator: (function_declarator
-    declarator: (identifier) @resource.cleanup.function
-    parameters: (parameter_list
-      (parameter_declaration
-        type: (type_identifier)
-        declarator: (pointer_declarator declarator: (identifier)) @resource.pointer)))
-  body: (compound_statement)
-  (#set! "operation" "cleanup")) @lifecycle.relationship.resource.cleanup

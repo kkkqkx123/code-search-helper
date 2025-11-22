@@ -1,6 +1,0 @@
-(call_expression
-  function: (identifier) @file.read.function
-  (#match? @file.read.function "^(fread|read|fgets|getline)$")
-  arguments: (argument_list
-    (identifier) @file.handle)
-  (#set! "operation" "read")) @lifecycle.relationship.file.read

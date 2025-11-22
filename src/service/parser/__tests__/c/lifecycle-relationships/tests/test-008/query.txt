@@ -1,6 +1,0 @@
-(call_expression
-  function: (identifier) @file.write.function
-  (#match? @file.write.function "^(fwrite|write|fputs|fprintf)$")
-  arguments: (argument_list
-    (identifier) @file.handle)
-  (#set! "operation" "write")) @lifecycle.relationship.file.write

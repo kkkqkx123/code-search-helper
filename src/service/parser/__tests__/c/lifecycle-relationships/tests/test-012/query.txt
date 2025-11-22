@@ -1,6 +1,0 @@
-(call_expression
-  function: (identifier) @thread.detach.function
-  (#match? @thread.detach.function "^(pthread_detach)$")
-  arguments: (argument_list
-    (identifier) @thread.handle)
-  (#set! "operation" "detach")) @lifecycle.relationship.thread.detach

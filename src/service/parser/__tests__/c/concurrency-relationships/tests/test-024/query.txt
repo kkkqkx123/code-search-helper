@@ -1,4 +1,0 @@
-(call_expression) @concurrency.relationship.thread.id
-  function: (identifier) @thread.id.function
-  (#match? @thread.id.function "^(pthread_self)$")
-  arguments: (argument_list)

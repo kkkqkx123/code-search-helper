@@ -1,4 +1,0 @@
-(binary_expression
-    left: (_) @binary.left
-    operator: _ @binary.operator
-    right: (_) @binary.right) @definition.binary_expression

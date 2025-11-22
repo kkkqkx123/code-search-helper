@@ -1,6 +1,0 @@
-(call_expression
-  function: (field_expression
-    object: (identifier) @barrier.object
-    field: (field_identifier) @barrier.method)
-  arguments: (argument_list))
-  (#match? @barrier.method "arrive_and_wait") @concurrency.relationship.barrier.sync

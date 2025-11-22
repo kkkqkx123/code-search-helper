@@ -1,4 +1,0 @@
-(binary_expression
-  left: (_)? @source.left.operand
-  operator: ["&&" "||"]
-  right: (_)? @source.right.operand) @control.flow.logical.operator

@@ -1,2 +1,0 @@
-(preproc_if
-  condition: (_) @name.definition.preproc_condition) @definition.preproc_condition

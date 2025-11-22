@@ -1,6 +1,0 @@
-(function_definition
-  (storage_class_specifier) @func.type
-  declarator: (function_declarator
-    declarator: (identifier) @inline.function)
-  body: (compound_statement) @inline.body
-  (#match? @func.type "inline|static")) @definition.inline.function

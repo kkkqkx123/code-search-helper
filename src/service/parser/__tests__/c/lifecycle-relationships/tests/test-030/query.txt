@@ -1,7 +1,0 @@
-(function_definition
-  declarator: (function_declarator
-    parameters: (parameter_list
-      (parameter_declaration
-        type: (primitive_type) @parameter.type
-        declarator: (identifier) @parameter.name)))
-  body: (compound_statement)) @lifecycle.relationship.scope.parameter

@@ -1,3 +1,0 @@
-(while_statement
-  condition: (_) @while.condition
-  body: (_) @while.body) @definition.control_statement

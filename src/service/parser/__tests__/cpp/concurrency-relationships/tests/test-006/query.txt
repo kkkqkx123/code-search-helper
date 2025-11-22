@@ -1,5 +1,0 @@
-(call_expression
-  function: (field_expression
-    object: (identifier) @mutex.object
-    field: (field_identifier) @mutex.method))
-  (#match? @mutex.method "try_lock") @concurrency.relationship.mutex.try_lock

@@ -1,3 +1,0 @@
-(comma_expression
-  left: (_)? @source.left.expression
-  right: (_)? @source.right.expression) @control.flow.comma.expression

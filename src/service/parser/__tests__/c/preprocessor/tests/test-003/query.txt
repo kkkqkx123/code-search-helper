@@ -1,2 +1,0 @@
-(preproc_include
-  path: (system_lib_string) @name.definition.include) @definition.include

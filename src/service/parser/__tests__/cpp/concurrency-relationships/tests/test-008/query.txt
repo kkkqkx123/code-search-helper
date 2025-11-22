@@ -1,7 +1,0 @@
-(call_expression
-  function: (field_expression
-    object: (identifier) @condition.variable
-    field: (field_identifier) @condition.method)
-  arguments: (argument_list
-    (identifier) @locked.mutex))
-  (#match? @condition.method "wait") @concurrency.relationship.condition.wait

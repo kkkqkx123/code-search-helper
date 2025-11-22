@@ -1,5 +1,0 @@
-(call_expression
-  function: (field_expression
-    object: (identifier) @atomic.variable
-    field: (field_identifier) @atomic.method))
-  (#match? @atomic.method "^(store|load|exchange|fetch_add|fetch_sub|fetch_and|fetch_or|fetch_xor)$") @concurrency.relationship.atomic.operation

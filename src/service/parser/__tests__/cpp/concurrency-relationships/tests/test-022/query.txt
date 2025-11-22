@@ -1,5 +1,0 @@
-(call_expression
-  function: (field_expression
-    object: (identifier) @shared.future.object
-    field: (field_identifier) @shared.future.method))
-  (#match? @shared.future.method "get") @concurrency.relationship.shared.future.get

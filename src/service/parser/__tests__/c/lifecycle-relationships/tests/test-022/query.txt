@@ -1,9 +1,0 @@
-(function_definition
-  body: (compound_statement
-    (declaration
-      (init_declarator
-        value: (cast_expression
-          value: (call_expression
-            function: (identifier) @resource.allocation.function)))))
-  (#match? @resource.allocation.function "^(malloc|calloc|realloc)$")
-  (#set! "operation" "construct")) @lifecycle.relationship.resource.constructor

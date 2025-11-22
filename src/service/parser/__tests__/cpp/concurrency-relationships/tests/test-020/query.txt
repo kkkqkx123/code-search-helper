@@ -1,5 +1,0 @@
-(call_expression
-  function: (field_expression
-    object: (identifier) @future.object
-    field: (field_identifier) @future.method))
-  (#match? @future.method "wait") @concurrency.relationship.future.wait

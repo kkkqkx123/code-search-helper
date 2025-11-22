@@ -1,8 +1,0 @@
-(call_expression
-  function: [
-    (identifier) @target.function
-    (pointer_expression
-      argument: (identifier) @function.pointer)
-  ]
-  arguments: (argument_list
-    (identifier)* @source.parameter)) @semantic.relationship.function.call

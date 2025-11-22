@@ -1,7 +1,0 @@
-{
-  "id": "control-flow-relationships-026",
-  "language": "c",
-  "description": "Logical operator OR control flow test",
-  "category": "control-flow-relationships",
-  "expectedMatches": 1
-}

@@ -1,6 +1,0 @@
-(call_expression) @concurrency.relationship.thread.wait
-  function: (identifier) @thread.wait.function
-  (#match? @thread.wait.function "^(pthread_join)$")
-  arguments: (argument_list
-    (identifier) @thread.handle
-    (identifier)? @thread.return.value)

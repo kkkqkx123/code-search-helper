@@ -1,4 +1,0 @@
-(if_statement
-  condition: (_) @if.condition
-  consequence: (compound_statement) @if.body
-  alternative: (_)? @if.else) @definition.control_statement

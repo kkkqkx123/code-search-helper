@@ -1,6 +1,0 @@
-(call_expression
-  function: (identifier) @thread.join.function
-  (#match? @thread.join.function "^(pthread_join|WaitForSingleObject)$")
-  arguments: (argument_list
-    (identifier) @thread.handle)
-  (#set! "operation" "join")) @lifecycle.relationship.thread.join

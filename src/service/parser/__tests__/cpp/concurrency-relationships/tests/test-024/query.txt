@@ -1,7 +1,0 @@
-(call_expression
- function: (qualified_identifier
-    scope: (identifier) @std.scope
-    name: (identifier) @packaged.task)
-  arguments: (argument_list
-    (identifier) @task.function))
-  (#match? @packaged.task "packaged_task") @concurrency.relationship.packaged.task

@@ -1,7 +1,0 @@
-(call_expression
-  function: (field_expression
-    (identifier) @atomic.variable
-    (field_identifier) @atomic.method)
-  arguments: (argument_list
-    (identifier) @memory.order))
-  (#match? @memory.order "^(memory_order_relaxed|memory_order_acquire|memory_order_release|memory_order_acq_rel|memory_order_seq_cst)$") @concurrency.relationship.memory.order

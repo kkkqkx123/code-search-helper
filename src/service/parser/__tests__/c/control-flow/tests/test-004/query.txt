@@ -1,5 +1,0 @@
-(for_statement
-  initializer: (_)? @for.init
-  condition: (_)? @for.condition
-  update: (_)? @for.update
-  body: (_) @for.body) @definition.control_statement

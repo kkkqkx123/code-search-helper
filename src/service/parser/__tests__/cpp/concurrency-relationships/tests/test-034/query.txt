@@ -1,5 +1,0 @@
-(function_definition
-  declarator: (function_declarator
-    declarator: (identifier) @coroutine.function)
-  return_type: (type_identifier) @coroutine.return.type)
-  (#match? @coroutine.return.type "^(task|generator|lazy)$") @concurrency.relationship.coroutine

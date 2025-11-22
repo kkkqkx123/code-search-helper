@@ -1,9 +1,0 @@
-(class_specifier
-  name: (type_identifier) @read.write.lock.class
-  body: (field_declaration_list
-    (function_definition
-      declarator: (function_declarator
-        declarator: (field_identifier) @read.lock.method))
-    (function_definition
-      declarator: (function_declarator
-        declarator: (field_identifier) @write.lock.method)))) @concurrency.relationship.read.write.lock

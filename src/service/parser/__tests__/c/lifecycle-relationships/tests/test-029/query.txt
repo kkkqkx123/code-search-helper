@@ -1,5 +1,0 @@
-(declaration
-  (storage_class_specifier) @static.specifier
-  type: (primitive_type) @static.variable.type
-  declarator: (init_declarator
-    declarator: (identifier) @static.variable.name)) @lifecycle.relationship.scope.static

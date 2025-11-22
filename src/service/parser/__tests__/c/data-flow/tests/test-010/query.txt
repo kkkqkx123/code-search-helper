@@ -1,3 +1,0 @@
-(cast_expression
-  type: (type_descriptor) @target.type
-  value: (identifier) @source.variable) @data.flow.type.conversion

@@ -1,7 +1,0 @@
-{
-  "id": "control-flow-relationships-024",
-  "language": "c",
-  "description": "Switch default control flow test",
-  "category": "control-flow-relationships",
-  "expectedMatches": 1
-}

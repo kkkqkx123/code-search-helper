@@ -1,4 +1,0 @@
-(function_definition
-  declarator: (function_declarator
-    declarator: (identifier) @source.function.name)
-  body: (compound_statement) @target.function.body) @control.flow.function.definition

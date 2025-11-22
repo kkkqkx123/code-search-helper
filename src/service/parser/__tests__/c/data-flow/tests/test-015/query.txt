@@ -1,3 +1,0 @@
-(init_declarator
-  declarator: (identifier) @target.variable
-  value: (identifier) @macro.value) @data.flow.macro.assignment

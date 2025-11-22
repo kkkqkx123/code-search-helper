@@ -1,8 +1,0 @@
-(call_expression) @concurrency.relationship.thread.creation
-  function: (identifier) @thread.create.function
-  (#match? @thread.create.function "^(pthread_create|CreateThread|_beginthreadex)$")
-  arguments: (argument_list
-    (identifier) @thread.handle
-    (identifier) @thread.attributes
-    (identifier) @thread.start.function
-    (identifier) @thread.argument)

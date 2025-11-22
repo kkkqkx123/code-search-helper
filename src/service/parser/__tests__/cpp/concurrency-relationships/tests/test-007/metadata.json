@@ -1,7 +1,0 @@
-{
-  "id": "concurrency-007",
-  "language": "cpp",
-  "section": "锁守卫（RAII锁）",
-  "description": "Test case 007: 锁守卫（RAII锁）",
-  "timestamp": "2025-11-20T10:25:38.030Z"
-}

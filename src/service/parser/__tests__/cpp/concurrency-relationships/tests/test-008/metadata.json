@@ -1,7 +1,0 @@
-{
-  "id": "concurrency-008",
-  "language": "cpp",
-  "section": "条件变量等待",
-  "description": "Test case 008: 条件变量等待",
-  "timestamp": "2025-11-20T10:25:38.031Z"
-}

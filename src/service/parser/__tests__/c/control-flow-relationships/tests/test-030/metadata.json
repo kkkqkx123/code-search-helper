@@ -1,7 +1,0 @@
-{
-  "id": "control-flow-relationships-030",
-  "language": "c",
-  "description": "Label reference test for @control.flow.nested.if",
-  "category": "control-flow-relationships",
-  "expectedMatches": 1
-}

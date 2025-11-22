@@ -1,7 +1,0 @@
-(compound_statement
-  (declaration
-    type: (primitive_type) @local.variable.type
-    declarator: (init_declarator
-      declarator: (identifier) @local.variable.name))
-  .
-  (#set! "operation" "scope.end")) @lifecycle.relationship.scope.local.end

@@ -1,3 +1,0 @@
-(switch_statement
-  condition: (_) @source.switch.variable
-  body: (compound_statement) @target.switch.block) @control.flow.switch

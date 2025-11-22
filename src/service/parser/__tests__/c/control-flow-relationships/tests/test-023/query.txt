@@ -1,5 +1,0 @@
-(expression_statement
-  (call_expression
-    function: (identifier) @target.function
-    arguments: (argument_list
-      (_)* @source.parameter))) @control.flow.function.invocation

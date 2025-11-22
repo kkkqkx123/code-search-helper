@@ -1,6 +1,0 @@
-(call_expression
-  function: (field_expression
-    object: (identifier) @semaphore.object
-    field: (field_identifier) @semaphore.method)
-  arguments: (argument_list))
-  (#match? @semaphore.method "release") @concurrency.relationship.semaphore.release

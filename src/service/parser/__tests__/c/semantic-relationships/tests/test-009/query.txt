@@ -1,5 +1,0 @@
-(declaration
-  type: [(type_identifier) (primitive_type)] @global.variable.type
-  declarator: (init_declarator
-    declarator: (identifier) @global.variable.name)
-  (#match? @global.variable.name "^[g_][a-zA-Z0-9_]*$")) @semantic.relationship.global.variable

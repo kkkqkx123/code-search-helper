@@ -1,7 +1,0 @@
-{
-  "id": "concurrency-027",
-  "language": "cpp",
-  "section": "竞态条件检测",
-  "description": "Test case 027: 竞态条件检测",
-  "timestamp": "2025-11-20T10:25:38.068Z"
-}

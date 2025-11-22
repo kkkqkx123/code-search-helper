@@ -1,7 +1,0 @@
-(call_expression
-  function: (identifier) @file.open.function
-  (#match? @file.open.function "^(fopen|open|fopen_s|open_s)$")
-  arguments: (argument_list
-    (string_literal) @file.path
-    (string_literal) @file.mode)
-  (#set! "operation" "open")) @lifecycle.relationship.file.open

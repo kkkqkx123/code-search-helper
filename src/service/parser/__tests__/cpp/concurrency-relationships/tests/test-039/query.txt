@@ -1,5 +1,0 @@
-(call_expression
- function: (field_expression
-    (identifier) @future.object
-    (field_identifier) @future.method))
-  (#match? @future.method "then") @concurrency.relationship.task.dependency

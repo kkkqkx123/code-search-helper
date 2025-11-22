@@ -1,2 +1,0 @@
-(preproc_elif
-  condition: (_) @name.definition.preproc_condition) @definition.preproc_condition

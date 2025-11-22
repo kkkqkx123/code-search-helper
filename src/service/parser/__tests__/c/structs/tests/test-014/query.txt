@@ -1,3 +1,0 @@
-(subscript_expression
-  argument: (identifier) @array.name
-  index: (_) @index) @definition.array.access

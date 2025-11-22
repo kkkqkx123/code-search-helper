@@ -1,2 +1,0 @@
-(yield_statement
-  (identifier) @yielded.value) @concurrency.relationship.coroutine.yield

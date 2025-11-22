@@ -1,2 +1,0 @@
-(struct_specifier
-  name: (type_identifier) @forward.struct.name) @definition.forward

@@ -1,7 +1,0 @@
-{
-  "id": "concurrency-006",
-  "language": "cpp",
-  "section": "互斥锁尝试锁定",
-  "description": "Test case 006: 互斥锁尝试锁定",
-  "timestamp": "2025-11-20T10:25:38.027Z"
-}

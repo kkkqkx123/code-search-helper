@@ -1,9 +1,0 @@
-(class_specifier
-  name: (type_identifier) @lockfree.class
-  body: (field_declaration_list
-    (field_declaration
-      type: (qualified_identifier
-        scope: (identifier) @std.scope
-        name: (type_identifier) @atomic.type)
-      declarator: (field_declarator
-        declarator: (field_identifier) @atomic.field)))) @concurrency.relationship.lockfree.structure

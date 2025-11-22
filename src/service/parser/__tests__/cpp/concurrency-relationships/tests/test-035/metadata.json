@@ -1,7 +1,0 @@
-{
-  "id": "concurrency-035",
-  "language": "cpp",
-  "section": "协程等待（C++20）",
-  "description": "Test case 035: 协程等待（C++20）",
-  "timestamp": "2025-11-20T10:25:38.085Z"
-}

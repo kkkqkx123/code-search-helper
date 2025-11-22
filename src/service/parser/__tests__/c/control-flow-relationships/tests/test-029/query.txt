@@ -1,5 +1,0 @@
-(if_statement
-  condition: (_) @source.condition
-  consequence: (statement) @target.if.block
-  alternative: (else_clause
-    (statement) @target.else.block)) @control.flow.if.statement
