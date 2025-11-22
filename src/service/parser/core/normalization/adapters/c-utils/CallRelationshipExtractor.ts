@@ -23,7 +23,7 @@ export class CallRelationshipExtractor {
       callType: CHelperMethods.determineCallType(astNode, null),
       callContext,
       location: {
-        filePath: symbolTable?.filePath || 'current_file.c',
+        filePath: symbolTable?.filePath,
         lineNumber: astNode.startPosition.row + 1,
         columnNumber: astNode.startPosition.column,
       }

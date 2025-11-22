@@ -124,7 +124,7 @@ export default `
       argument: (identifier) @source.variable)) @data.flow.address.assignment
 ] @data.flow.pointer.operation
 
-; 类型转换数据流 - 简化模式
+; 类型转换数据流 - 简化模式【待实现】
 (cast_expression
   type: (type_descriptor) @target.type
   value: (identifier) @source.variable) @data.flow.type.conversion

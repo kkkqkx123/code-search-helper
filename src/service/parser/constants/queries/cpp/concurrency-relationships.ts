@@ -143,7 +143,7 @@ export default `
 (call_expression
   function: (field_expression
     (identifier) @shared.mutex
-    (field_identifier) @shared.method))
+    (field_identifier) @shared.method)
   (#match? @shared.method "^(lock_shared|unlock_shared)$")) @concurrency.relationship.shared.mutex
 
 ; 异步任务创建
@@ -237,19 +237,8 @@ export default `
   arguments: (argument_list)
   (#match? @lock.method "lock")) @concurrency.relationship.deadlock.pattern
 
-; 生产者-消费者模式
-(class_specifier
-  name: (type_identifier) @producer.consumer.class
-  body: (field_declaration_list
-    (field_declaration
-      declarator: (field_declarator
-        declarator: (field_identifier) @queue.field))
-    (field_declaration
-      declarator: (field_declarator
-        declarator: (field_identifier) @mutex.field))
-    (field_declaration
-      declarator: (field_declarator
-        declarator: (field_identifier) @condition.field)))) @concurrency.relationship.producer.consumer
+; 类似生产者-消费者模式的同步模式
+;; 已弃用
 
 ; 读写锁模式
 (class_specifier
@@ -260,24 +249,12 @@ export default `
         declarator: (field_identifier) @read.lock.method))
     (function_definition
       declarator: (function_declarator
-        declarator: (field_identifier) @write.lock.method)))) @concurrency.relationship.read.write.lock
+        declarator: (field_identifier) @write.lock.method)))
+  (#match? @read.lock.method "^(read|read_lock|acquire_read|lock_read|shared_lock|lock_shared)$")
+  (#match? @write.lock.method "^(write|write_lock|acquire_write|lock_write|exclusive_lock|lock_exclusive)$")) @concurrency.relationship.read.write.lock
 
 ; 线程池模式
-(class_specifier
-  name: (type_identifier) @thread.pool.class
-  body: (field_declaration_list
-    (field_declaration
-      declarator: (field_declarator
-        declarator: (field_identifier) @workers.field))
-    (field_declaration
-      declarator: (field_declarator
-        declarator: (field_identifier) @tasks.field))
-    (field_declaration
-      declarator: (field_declarator
-        declarator: (field_identifier) @queue.mutex)))
-  (#match? @workers.field "^(workers|threads|pool)$")
-  (#match? @tasks.field "^(tasks|jobs|queue)$")
-  (#match? @queue.mutex "^(mutex|lock|queue_mutex)$")) @concurrency.relationship.thread.pool
+; 已弃用
 
 ; 并行算法
 (call_expression
@@ -310,32 +287,4 @@ export default `
       argument: (identifier) @coroutine.object
       field: (field_identifier) @coroutine.method))
   (#match? @coroutine.method "^(get|wait|resume)$")) @concurrency.relationship.coroutine.await
-
-; 协程让出（C++20）
-(yield_statement
-  (identifier) @yielded.value)
-  (#match? @yielded.value "^(value|result|data)$")) @concurrency.relationship.coroutine.yield
-
-; 无锁数据结构
-(class_specifier
-  name: (type_identifier) @lockfree.class
-  body: (field_declaration_list
-    (field_declaration
-      type: (qualified_identifier
-        scope: (namespace_identifier) @std.scope
-        name: (type_identifier) @atomic.type)
-      declarator: (field_declarator
-        declarator: (field_identifier) @atomic.field)))
-  (#eq? @std.scope "std")
-  (#match? @atomic.type "^(atomic|atomic_flag)$")
-  (#match? @atomic.field "^(value|data|flag|counter)$")) @concurrency.relationship.lockfree.structure
-
-; 内存顺序指定
-(call_expression
-  function: (field_expression
-    (identifier) @atomic.variable
-    (field_identifier) @atomic.method)
-  arguments: (argument_list
-    (identifier) @memory.order))
-  (#match? @memory.order "^(memory_order_relaxed|memory_order_acquire|memory_order_release|memory_order_acq_rel|memory_order_seq_cst)$")) @concurrency.relationship.memory.order
 `;
