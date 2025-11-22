@@ -39,8 +39,8 @@ int main() {
 (call_expression
   function: (field_expression
     (identifier) @thread.object
-    (field_identifier) @thread.method))
-  (#match? @thread.method "join") @concurrency.relationship.thread.join
+    (field_identifier) @thread.method)@concurrency.relationship.thread.join
+  (#eq? @thread.method "join"))
 ```
 
 ### 测试用例
@@ -66,8 +66,8 @@ int main() {
 (call_expression
   function: (field_expression
     (identifier) @thread.object
-    (field_identifier) @thread.method))
-  (#match? @thread.method "detach") @concurrency.relationship.thread.detach
+    (field_identifier) @thread.method)@concurrency.relationship.thread.detach
+  (#eq? @thread.method "detach"))
 ```
 
 ### 测试用例
@@ -93,8 +93,8 @@ int main() {
 (call_expression
   function: (field_expression
     (identifier) @mutex.object
-    (field_identifier) @mutex.method))
-  (#match? @mutex.method "lock") @concurrency.relationship.mutex.lock
+    (field_identifier) @mutex.method)@concurrency.relationship.mutex.lock
+  (#eq? @mutex.method "lock"))
 ```
 
 ### 测试用例
@@ -129,8 +129,8 @@ int main() {
 (call_expression
   function: (field_expression
     (identifier) @mutex.object
-    (field_identifier) @mutex.method))
-  (#match? @mutex.method "unlock") @concurrency.relationship.mutex.unlock
+    (field_identifier) @mutex.method)@concurrency.relationship.mutex.unlock
+  (#eq? @mutex.method "unlock"))
 ```
 
 ### 测试用例
@@ -165,8 +165,8 @@ int main() {
 (call_expression
   function: (field_expression
     (identifier) @mutex.object
-    (field_identifier) @mutex.method))
-  (#match? @mutex.method "try_lock") @concurrency.relationship.mutex.try_lock
+    (field_identifier) @mutex.method)@concurrency.relationship.mutex.try_lock
+  (#eq? @mutex.method "try_lock"))
 ```
 
 ### 测试用例
@@ -380,7 +380,7 @@ int main() {
   arguments: (argument_list
     (identifier) @expected.value
     (identifier) @desired.value))
-  (#match? @atomic.method "compare_exchange") @concurrency.relationship.atomic.compare_exchange
+  (#eq? @atomic.method "compare_exchange") @concurrency.relationship.atomic.compare_exchange
 ```
 
 ### 测试用例
@@ -460,7 +460,7 @@ int main() {
   function: (field_expression
     (identifier) @semaphore.object
     (field_identifier) @semaphore.method))
-  (#match? @semaphore.method "acquire") @concurrency.relationship.semaphore.acquire
+  (#eq? @semaphore.method "acquire") @concurrency.relationship.semaphore.acquire
 ```
 
 ### 测试用例
@@ -488,7 +488,7 @@ void acquireSemaphore() {
     (identifier) @semaphore.object
     (field_identifier) @semaphore.method)
   arguments: (argument_list))
-  (#match? @semaphore.method "release") @concurrency.relationship.semaphore.release
+  (#eq? @semaphore.method "release") @concurrency.relationship.semaphore.release
 ```
 
 ### 测试用例
@@ -529,7 +529,7 @@ int main() {
     (identifier) @latch.object
     (field_identifier) @latch.method)
  arguments: (argument_list))
-  (#match? @latch.method "wait") @concurrency.relationship.latch.wait
+  (#eq? @latch.method "wait") @concurrency.relationship.latch.wait
 ```
 
 ### 测试用例
@@ -574,7 +574,7 @@ int main() {
     (identifier) @latch.object
     (field_identifier) @latch.method)
   arguments: (argument_list))
-  (#match? @latch.method "count_down") @concurrency.relationship.latch.count_down
+  (#eq? @latch.method "count_down") @concurrency.relationship.latch.count_down
 ```
 
 ### 测试用例
@@ -617,7 +617,7 @@ int main() {
     (identifier) @barrier.object
     (field_identifier) @barrier.method)
   arguments: (argument_list))
-  (#match? @barrier.method "arrive_and_wait") @concurrency.relationship.barrier.sync
+  (#eq? @barrier.method "arrive_and_wait") @concurrency.relationship.barrier.sync
 ```
 
 ### 测试用例
@@ -655,7 +655,12 @@ int main() {
   function: (field_expression
     (identifier) @shared.mutex
     (field_identifier) @shared.method))
-  (#match? @shared.method "^(lock_shared|unlock_shared)$") @concurrency.relationship.shared.mutex
+  (#eq? @shared.method "lock_shared") @concurrency.relationship.shared.mutex
+(call_expression
+  function: (field_expression
+    (identifier) @shared.mutex
+    (field_identifier) @shared.method))
+  (#eq? @shared.method "unlock_shared") @concurrency.relationship.shared.mutex
 ```
 
 ### 测试用例
@@ -736,7 +741,7 @@ int main() {
   function: (field_expression
     (identifier) @future.object
     (field_identifier) @future.method))
-  (#match? @future.method "wait") @concurrency.relationship.future.wait
+  (#eq? @future.method "wait") @concurrency.relationship.future.wait
 ```
 
 ### 测试用例
@@ -769,7 +774,7 @@ int main() {
  function: (field_expression
     (identifier) @future.object
     (field_identifier) @future.method))
-  (#match? @future.method "get") @concurrency.relationship.future.get
+  (#eq? @future.method "get") @concurrency.relationship.future.get
 ```
 
 ### 测试用例
@@ -801,7 +806,7 @@ int main() {
   function: (field_expression
     (identifier) @shared.future.object
     (field_identifier) @shared.future.method))
-  (#match? @shared.future.method "get") @concurrency.relationship.shared.future.get
+  (#eq? @shared.future.method "get") @concurrency.relationship.shared.future.get
 ```
 
 ### 测试用例
@@ -845,7 +850,7 @@ int main() {
     (field_identifier) @promise.method)
   arguments: (argument_list
     (identifier) @promise.value))
-  (#match? @promise.method "set_value") @concurrency.relationship.promise.set_value
+  (#eq? @promise.method "set_value") @concurrency.relationship.promise.set_value
 ```
 
 ### 测试用例
@@ -1049,7 +1054,7 @@ int main() {
     (identifier) @first.lock
     (field_identifier) @lock.method)
   arguments: (argument_list))
-  (#match? @lock.method "lock") @concurrency.relationship.deadlock.pattern
+  (#eq? @lock.method "lock") @concurrency.relationship.deadlock.pattern
 ```
 
 ### 测试用例
@@ -1319,7 +1324,31 @@ int main() {
   arguments: (argument_list
     (identifier) @execution.policy
     (identifier) @algorithm.args))
-  (#match? @parallel.algorithm "^(for_each|sort|transform|reduce)$") @concurrency.relationship.parallel.algorithm
+  (#eq? @parallel.algorithm "for_each") @concurrency.relationship.parallel.algorithm
+(call_expression
+  function: (qualified_identifier
+    scope: (identifier) @std.scope
+    name: (identifier) @parallel.algorithm)
+  arguments: (argument_list
+    (identifier) @execution.policy
+    (identifier) @algorithm.args))
+  (#eq? @parallel.algorithm "sort") @concurrency.relationship.parallel.algorithm
+(call_expression
+  function: (qualified_identifier
+    scope: (identifier) @std.scope
+    name: (identifier) @parallel.algorithm)
+  arguments: (argument_list
+    (identifier) @execution.policy
+    (identifier) @algorithm.args))
+  (#eq? @parallel.algorithm "transform") @concurrency.relationship.parallel.algorithm
+(call_expression
+  function: (qualified_identifier
+    scope: (identifier) @std.scope
+    name: (identifier) @parallel.algorithm)
+  arguments: (argument_list
+    (identifier) @execution.policy
+    (identifier) @algorithm.args))
+  (#eq? @parallel.algorithm "reduce") @concurrency.relationship.parallel.algorithm
 ```
 
 ### 测试用例
@@ -1363,7 +1392,22 @@ int main() {
   function: (qualified_identifier
     scope: (identifier) @execution.scope
     name: (identifier) @execution.policy))
-  (#match? @execution.policy "^(par|par_unseq|seq|unseq)$") @concurrency.relationship.execution.policy
+  (#eq? @execution.policy "par") @concurrency.relationship.execution.policy
+(call_expression
+  function: (qualified_identifier
+    scope: (identifier) @execution.scope
+    name: (identifier) @execution.policy))
+  (#eq? @execution.policy "par_unseq") @concurrency.relationship.execution.policy
+(call_expression
+  function: (qualified_identifier
+    scope: (identifier) @execution.scope
+    name: (identifier) @execution.policy))
+  (#eq? @execution.policy "seq") @concurrency.relationship.execution.policy
+(call_expression
+  function: (qualified_identifier
+    scope: (identifier) @execution.scope
+    name: (identifier) @execution.policy))
+  (#eq? @execution.policy "unseq") @concurrency.relationship.execution.policy
 ```
 
 ### 测试用例
@@ -1400,7 +1444,17 @@ int main() {
  declarator: (function_declarator
     declarator: (identifier) @coroutine.function)
   return_type: (type_identifier) @coroutine.return.type)
-  (#match? @coroutine.return.type "^(task|generator|lazy)$") @concurrency.relationship.coroutine
+  (#eq? @coroutine.return.type "task") @concurrency.relationship.coroutine
+(function_definition
+ declarator: (function_declarator
+    declarator: (identifier) @coroutine.function)
+  return_type: (type_identifier) @coroutine.return.type)
+  (#eq? @coroutine.return.type "generator") @concurrency.relationship.coroutine
+(function_definition
+ declarator: (function_declarator
+    declarator: (identifier) @coroutine.function)
+  return_type: (type_identifier) @coroutine.return.type)
+  (#eq? @coroutine.return.type "lazy") @concurrency.relationship.coroutine
 ```
 
 ### 测试用例
@@ -1592,7 +1646,35 @@ int main() {
     (field_identifier) @atomic.method)
   arguments: (argument_list
     (identifier) @memory.order))
-  (#match? @memory.order "^(memory_order_relaxed|memory_order_acquire|memory_order_release|memory_order_acq_rel|memory_order_seq_cst)$") @concurrency.relationship.memory.order
+  (#eq? @memory.order "memory_order_relaxed") @concurrency.relationship.memory.order
+(call_expression
+  function: (field_expression
+    (identifier) @atomic.variable
+    (field_identifier) @atomic.method)
+  arguments: (argument_list
+    (identifier) @memory.order))
+  (#eq? @memory.order "memory_order_acquire") @concurrency.relationship.memory.order
+(call_expression
+  function: (field_expression
+    (identifier) @atomic.variable
+    (field_identifier) @atomic.method)
+  arguments: (argument_list
+    (identifier) @memory.order))
+  (#eq? @memory.order "memory_order_release") @concurrency.relationship.memory.order
+(call_expression
+  function: (field_expression
+    (identifier) @atomic.variable
+    (field_identifier) @atomic.method)
+  arguments: (argument_list
+    (identifier) @memory.order))
+  (#eq? @memory.order "memory_order_acq_rel") @concurrency.relationship.memory.order
+(call_expression
+  function: (field_expression
+    (identifier) @atomic.variable
+    (field_identifier) @atomic.method)
+  arguments: (argument_list
+    (identifier) @memory.order))
+  (#eq? @memory.order "memory_order_seq_cst") @concurrency.relationship.memory.order
 ```
 
 ### 测试用例

@@ -13,36 +13,37 @@ export default `
 (call_expression
   function: (field_expression
     (identifier) @thread.object
-    (field_identifier) @thread.method)
-  (#eq? @thread.method "join")) @concurrency.relationship.thread.join
+    (field_identifier) @thread.method)@concurrency.relationship.thread.join
+  (#eq? @thread.method "join")) 
    
 ; 线程分离
 (call_expression
   function: (field_expression
     (identifier) @thread.object
-    (field_identifier) @thread.method)
-  (#eq? @thread.method "detach")) @concurrency.relationship.thread.detach
+    (field_identifier) @thread.method)@concurrency.relationship.thread.detach
+  (#eq? @thread.method "detach")) 
 
 ; 互斥锁锁定
 (call_expression
   function: (field_expression
     (identifier) @mutex.object
-    (field_identifier) @mutex.method)
-  (#eq? @mutex.method "lock")) @concurrency.relationship.mutex.lock
+    (field_identifier) @mutex.method)@concurrency.relationship.mutex.lock
+  (#eq? @mutex.method "lock")) 
 
 ; 互斥锁解锁
 (call_expression
   function: (field_expression
     (identifier) @mutex.object
-    (field_identifier) @mutex.method)
-  (#eq? @mutex.method "unlock")) @concurrency.relationship.mutex.unlock
+    (field_identifier) @mutex.method)@concurrency.relationship.mutex.unlock
+  (#eq? @mutex.method "unlock")) 
 
 ; 互斥锁尝试锁定
 (call_expression
   function: (field_expression
     (identifier) @mutex.object
-    (field_identifier) @mutex.method)
-  (#eq? @mutex.method "try_lock")) @concurrency.relationship.mutex.try_lock
+    (field_identifier) @mutex.method) @concurrency.relationship.mutex.try_lock
+  (#eq? @mutex.method "try_lock"))
+
 ; 锁守卫（RAII锁）
 (declaration
   type: (qualified_identifier
