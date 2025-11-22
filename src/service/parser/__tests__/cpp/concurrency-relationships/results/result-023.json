@@ -1,0 +1,17 @@
+{
+  "testId": "concurrency-relationships-023",
+  "request": {
+    "language": "cpp",
+    "code": "#include <future>\n#include <iostream>\n#include <thread>\n\nvoid setValueTask(std::promise<int> prom) {\n    std::cout << \"Setting promise value\" << std::endl;\n    prom.set_value(300);\n}\n\nint main() {\n    std::promise<int> prom;\n    std::future<int> fut = prom.get_future();\n    \n    std::thread t(setValueTask, std::move(prom));\n    \n    std::cout << \"Waiting for promise value\" << std::endl;\n    int value = fut.get();\n    std::cout << \"Promise value: \" << value << std::endl;\n    \n    t.join();\n    return 0;\n}",
+    "queries": [
+      "(call_expression\r\n  function: (field_expression\r\n    object: (identifier) @promise.object\r\n    field: (field_identifier) @promise.method)\r\n  arguments: (argument_list\r\n    (identifier) @promise.value))\r\n  (#match? @promise.method \"set_value\") @concurrency.relationship.promise.set_value"
+    ]
+  },
+  "response": {
+    "success": true,
+    "data": [],
+    "errors": [],
+    "timestamp": "2025-11-21T08:47:10.950Z"
+  },
+  "timestamp": "2025-11-21T08:47:10.950Z"
+}

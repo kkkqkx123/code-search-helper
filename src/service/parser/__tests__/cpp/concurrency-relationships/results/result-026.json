@@ -1,0 +1,17 @@
+{
+  "testId": "concurrency-relationships-026",
+  "request": {
+    "language": "cpp",
+    "code": "#include <atomic>\n#include <thread>\n#include <iostream>\n\nstd::atomic<bool> flag(false);\nint data = 0;\n\nvoid writer() {\n    data = 42;\n    std::atomic_thread_fence(std::memory_order_release);\n    flag.store(true, std::memory_order_relaxed);\n}\n\nvoid reader() {\n    while (!flag.load(std::memory_order_relaxed)) {\n        // 等待\n    }\n    std::atomic_thread_fence(std::memory_order_acquire);\n    std::cout << \"Data read: \" << data << std::endl;\n}\n\nint main() {\n    std::thread t1(writer);\n    std::thread t2(reader);\n    \n    t1.join();\n    t2.join();\n    \n    return 0;\n}",
+    "queries": [
+      "(call_expression\n  function: (qualified_identifier\n    scope: (identifier) @std.scope\n    name: (identifier) @atomic.function)\n  arguments: (argument_list\n    (identifier) @memory.order))\n  (#match? @atomic.function \"atomic_thread_fence\") @concurrency.relationship.memory.fence"
+    ]
+  },
+  "response": {
+    "success": true,
+    "data": [],
+    "errors": [],
+    "timestamp": "2025-11-21T08:47:10.964Z"
+  },
+  "timestamp": "2025-11-21T08:47:10.965Z"
+}

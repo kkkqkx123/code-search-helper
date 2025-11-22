@@ -1,0 +1,17 @@
+{
+  "testId": "concurrency-relationships-012",
+  "request": {
+    "language": "cpp",
+    "code": "#include <atomic>\n#include <thread>\n#include <iostream>\n\nstd::atomic_flag flag = ATOMIC_FLAG_INIT;\n\nvoid trySetFlag() {\n    if (!flag.test_and_set()) {\n        std::cout << \"Flag was unset, now set\" << std::endl;\n    } else {\n        std::cout << \"Flag was already set\" << std::endl;\n    }\n}\n\nvoid clearFlag() {\n    flag.clear();\n    std::cout << \"Flag cleared\" << std::endl;\n}\n\nint main() {\n    std::thread t1(trySetFlag);\n    std::thread t2(trySetFlag);\n    std::thread t3(clearFlag);\n    \n    t1.join();\n    t2.join();\n    t3.join();\n    \n    return 0;\n}",
+    "queries": [
+      "(call_expression\r\n  function: (field_expression\r\n    object: (identifier) @atomic.flag\r\n    field: (field_identifier) @flag.method))\r\n  (#match? @flag.method \"^(test_and_set|clear)$\") @concurrency.relationship.atomic.flag"
+    ]
+  },
+  "response": {
+    "success": true,
+    "data": [],
+    "errors": [],
+    "timestamp": "2025-11-21T08:47:10.896Z"
+  },
+  "timestamp": "2025-11-21T08:47:10.896Z"
+}

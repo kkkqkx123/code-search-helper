@@ -1,5 +1,0 @@
-(template_declaration
-  parameters: (template_parameter_list)
-  (function_definition
-    declarator: (function_declarator
-      declarator: (identifier) @template.method.name))) @definition.template.method

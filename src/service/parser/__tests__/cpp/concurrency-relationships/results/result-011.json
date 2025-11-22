@@ -1,0 +1,17 @@
+{
+  "testId": "concurrency-relationships-011",
+  "request": {
+    "language": "cpp",
+    "code": "#include <atomic>\n#include <iostream>\n\nstd::atomic<int> value(0);\n\nvoid compareExchangeExample() {\n    int expected = 0;\n    int desired = 42;\n    \n    if (value.compare_exchange(expected, desired)) {\n        std::cout << \"Exchange successful\" << std::endl;\n    } else {\n        std::cout << \"Exchange failed, current value: \" << expected << std::endl;\n    }\n}\n\nint main() {\n    compareExchangeExample();\n    return 0;\n}",
+    "queries": [
+      "(call_expression\r\n  function: (field_expression\r\n    object: (identifier) @atomic.variable\r\n    field: (field_identifier) @atomic.method)\r\n  arguments: (argument_list\r\n    (identifier) @expected.value\r\n    (identifier) @desired.value))\r\n  (#match? @atomic.method \"compare_exchange\") @concurrency.relationship.atomic.compare_exchange"
+    ]
+  },
+  "response": {
+    "success": true,
+    "data": [],
+    "errors": [],
+    "timestamp": "2025-11-21T08:47:10.890Z"
+  },
+  "timestamp": "2025-11-21T08:47:10.891Z"
+}

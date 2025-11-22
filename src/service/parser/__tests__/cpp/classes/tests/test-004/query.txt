@@ -1,5 +1,0 @@
-(template_declaration
-  parameters: (template_parameter_list)
-  (class_specifier
-    name: (type_identifier) @template.class.name
-    body: (field_declaration_list) @template.class.body)) @definition.template.type

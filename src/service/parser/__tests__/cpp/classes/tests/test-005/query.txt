@@ -1,5 +1,0 @@
-(class_specifier
-  name: (type_identifier) @class.name
-  (base_class_clause
-    (type_identifier) @base.class)
-  body: (field_declaration_list) @class.body) @definition.class.with_inheritance

@@ -1,0 +1,17 @@
+{
+  "testId": "concurrency-relationships-031",
+  "request": {
+    "language": "cpp",
+    "code": "#include <vector>\n#include <thread>\n#include <queue>\n#include <mutex>\n#include <functional>\n#include <iostream>\n\nclass ThreadPool {\nprivate:\n    std::vector<std::thread> workers;\n    std::queue<std::function<void()>> tasks;\n    std::mutex queueMutex;\n    \npublic:\n    ThreadPool(size_t threads) {\n        for (size_t i = 0; i < threads; ++i) {\n            workers.emplace_back([this] {\n                while (true) {\n                    std::function<void()> task;\n                    {\n                        std::unique_lock<std::mutex> lock(queueMutex);\n                        if (tasks.empty()) {\n                            break;\n                        }\n                        task = tasks.front();\n                        tasks.pop();\n                    }\n                    task();\n                }\n            });\n        }\n    }\n    \n    ~ThreadPool() {\n        for (std::thread &worker : workers) {\n            worker.join();\n        }\n    }\n    \n    void enqueue(std::function<void()> task) {\n        {\n            std::unique_lock<std::mutex> lock(queueMutex);\n            tasks.push(task);\n        }\n    }\n};\n\nint main() {\n    ThreadPool pool(4);\n    \n    for (int i = 0; i < 8; ++i) {\n        pool.enqueue([i] {\n            std::cout << \"Task \" << i << \" executed\" << std::endl;\n        });\n    }\n    \n    return 0;\n}",
+    "queries": [
+      "(class_specifier\n  name: (type_identifier) @thread.pool.class\n  body: (field_declaration_list\n    (field_declaration\n      declarator: (field_declarator\n        declarator: (field_identifier) @workers.field))\n    (field_declaration\n      declarator: (field_declarator\n        declarator: (field_identifier) @tasks.field))\n    (field_declaration\n      declarator: (field_declarator\n        declarator: (field_identifier) @queue.mutex)))) @concurrency.relationship.thread.pool"
+    ]
+  },
+  "response": {
+    "success": true,
+    "data": [],
+    "errors": [],
+    "timestamp": "2025-11-21T08:47:11.012Z"
+  },
+  "timestamp": "2025-11-21T08:47:11.012Z"
+}

@@ -1,3 +1,0 @@
-(field_initializer
-    (field_identifier) @member.name
-    (_) @member.value) @definition.constructor_initializer

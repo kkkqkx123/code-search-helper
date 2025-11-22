@@ -1,0 +1,17 @@
+{
+  "testId": "concurrency-relationships-034",
+  "request": {
+    "language": "cpp",
+    "code": "#include <coroutine>\n#include <iostream>\n\n// 简化的协程返回类型\nstruct Task {\n    struct promise_type {\n        Task get_return_object() {\n            return Task{std::coroutine_handle<promise_type>::from_promise(*this)};\n        }\n        std::suspend_never initial_suspend() { return {}; }\n        std::suspend_never final_suspend() noexcept { return {}; }\n        void return_void() {}\n        void unhandled_exception() {}\n    };\n    \n    std::coroutine_handle<promise_type> h;\n    Task(std::coroutine_handle<promise_type> handle) : h(handle) {}\n    ~Task() { if (h) h.destroy(); }\n};\n\nTask coroutineFunction() {\n    std::cout << \"Coroutine started\" << std::endl;\n    co_return;\n}\n\nint main() {\n    auto task = coroutineFunction();\n    return 0;\n}",
+    "queries": [
+      "(function_definition\r\n  declarator: (function_declarator\r\n    declarator: (identifier) @coroutine.function)\r\n  return_type: (type_identifier) @coroutine.return.type)\r\n  (#match? @coroutine.return.type \"^(task|generator|lazy)$\") @concurrency.relationship.coroutine"
+    ]
+  },
+  "response": {
+    "success": true,
+    "data": [],
+    "errors": [],
+    "timestamp": "2025-11-21T08:47:11.031Z"
+  },
+  "timestamp": "2025-11-21T08:47:11.032Z"
+}

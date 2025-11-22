@@ -1,0 +1,17 @@
+{
+  "testId": "concurrency-relationships-022",
+  "request": {
+    "language": "cpp",
+    "code": "#include <future>\n#include <iostream>\n#include <thread>\n\nint sharedTask() {\n    std::cout << \"Shared task executing\" << std::endl;\n    return 200;\n}\n\nint main() {\n    std::shared_future<int> sharedFuture = std::async(sharedTask);\n    \n    std::thread t1([&]() {\n        int result = sharedFuture.get();\n        std::cout << \"Thread 1 got result: \" << result << std::endl;\n    });\n    \n    std::thread t2([&]() {\n        int result = sharedFuture.get();\n        std::cout << \"Thread 2 got result: \" << result << std::endl;\n    });\n    \n    t1.join();\n    t2.join();\n    \n    return 0;\n}",
+    "queries": [
+      "(call_expression\r\n  function: (field_expression\r\n    object: (identifier) @shared.future.object\r\n    field: (field_identifier) @shared.future.method))\r\n  (#match? @shared.future.method \"get\") @concurrency.relationship.shared.future.get"
+    ]
+  },
+  "response": {
+    "success": true,
+    "data": [],
+    "errors": [],
+    "timestamp": "2025-11-21T08:47:10.946Z"
+  },
+  "timestamp": "2025-11-21T08:47:10.946Z"
+}

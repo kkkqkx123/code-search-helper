@@ -1,0 +1,17 @@
+{
+  "testId": "concurrency-relationships-033",
+  "request": {
+    "language": "cpp",
+    "code": "#include <vector>\n#include <algorithm>\n#include <execution>\n#include <iostream>\n\nint main() {\n    std::vector<int> data = {1, 2, 3, 4, 5};\n    \n    // 使用并行执行策略\n    auto policy = std::execution::par;\n    \n    std::for_each(policy, data.begin(), data.end(), \n                  [](int& x) { x *= x; });\n    \n    std::cout << \"Squared values: \";\n    for (int val : data) {\n        std::cout << val << \" \";\n    }\n    std::cout << std::endl;\n    \n    return 0;\n}",
+    "queries": [
+      "(call_expression\n  function: (qualified_identifier\n    scope: (identifier) @execution.scope\n    name: (identifier) @execution.policy))\n  (#match? @execution.policy \"^(par|par_unseq|seq|unseq)$\") @concurrency.relationship.execution.policy"
+    ]
+  },
+  "response": {
+    "success": true,
+    "data": [],
+    "errors": [],
+    "timestamp": "2025-11-21T08:47:11.025Z"
+  },
+  "timestamp": "2025-11-21T08:47:11.026Z"
+}

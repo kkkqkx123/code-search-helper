@@ -1,4 +1,0 @@
-(field_declaration
- declarator: (function_declarator
-    declarator: (field_identifier) @pure.virtual.method)) @definition.pure.virtual.method
- (#match? @pure.virtual.method "pureVirtualMethod")

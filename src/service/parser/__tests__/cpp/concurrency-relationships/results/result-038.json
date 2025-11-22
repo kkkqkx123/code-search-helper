@@ -1,0 +1,17 @@
+{
+  "testId": "concurrency-relationships-038",
+  "request": {
+    "language": "cpp",
+    "code": "#include <atomic>\r\n#include <thread>\r\n#include <iostream>\r\n\r\nstd::atomic<int> x(0);\r\nstd::atomic<int> y(0);\r\n\r\nvoid write_x_then_y() {\r\n    x.store(1, std::memory_order_relaxed);\r\n    y.store(1, std::memory_order_release);\r\n}\r\n\r\nvoid read_y_then_x() {\r\n    while (y.load(std::memory_order_acquire) == 0) {\r\n        // 等待\r\n    }\r\n    if (x.load(std::memory_order_relaxed) == 0) {\r\n        std::cout << \"Reordering detected!\" << std::endl;\r\n    } else {\r\n        std::cout << \"No reordering\" << std::endl;\r\n    }\r\n}\r\n\r\nint main() {\r\n    std::thread t1(write_x_then_y);\r\n    std::thread t2(read_y_then_x);\r\n    \r\n    t1.join();\r\n    t2.join();\r\n    \r\n    return 0;\r\n}",
+    "queries": [
+      "(call_expression\n  function: (field_expression\n    (identifier) @atomic.variable\n    (field_identifier) @atomic.method)\n  arguments: (argument_list\n    (identifier) @memory.order))\n  (#match? @memory.order \"^(memory_order_relaxed|memory_order_acquire|memory_order_release|memory_order_acq_rel|memory_order_seq_cst)$\") @concurrency.relationship.memory.order"
+    ]
+  },
+  "response": {
+    "success": true,
+    "data": [],
+    "errors": [],
+    "timestamp": "2025-11-21T08:47:11.054Z"
+  },
+  "timestamp": "2025-11-21T08:47:11.055Z"
+}

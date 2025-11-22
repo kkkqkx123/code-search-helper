@@ -1,3 +1,0 @@
-(field_declaration
-  type: (_) @field.type
-  declarator: (field_identifier) @field.name) @definition.field

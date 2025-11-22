@@ -1,0 +1,17 @@
+{
+  "testId": "concurrency-relationships-003",
+  "request": {
+    "language": "cpp",
+    "code": "#include <thread>\n#include <iostream>\n\nvoid backgroundTask() {\n    std::cout << \"Background task running\" << std::endl;\n}\n\nint main() {\n    std::thread t(backgroundTask);\n    t.detach();  // 分离线程，让其独立运行\n    return 0;\n}",
+    "queries": [
+      "(call_expression\r\n  function: (field_expression\r\n    object: (identifier) @thread.object\r\n    field: (field_identifier) @thread.method))\r\n  (#match? @thread.method \"detach\") @concurrency.relationship.thread.detach"
+    ]
+  },
+  "response": {
+    "success": true,
+    "data": [],
+    "errors": [],
+    "timestamp": "2025-11-21T08:47:10.844Z"
+  },
+  "timestamp": "2025-11-21T08:47:10.845Z"
+}

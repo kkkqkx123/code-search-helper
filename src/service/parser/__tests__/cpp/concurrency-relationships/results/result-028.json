@@ -1,0 +1,17 @@
+{
+  "testId": "concurrency-relationships-028",
+  "request": {
+    "language": "cpp",
+    "code": "#include <mutex>\n#include <thread>\n#include <iostream>\n\nstd::mutex mutex1, mutex2;\n\nvoid thread1() {\n    mutex1.lock();\n    std::cout << \"Thread 1 acquired mutex1\" << std::endl;\n    // 模拟一些工作\n    mutex2.lock();\n    std::cout << \"Thread 1 acquired mutex2\" << std::endl;\n    \n    mutex2.unlock();\n    mutex1.unlock();\n}\n\nvoid thread2() {\n    mutex2.lock();\n    std::cout << \"Thread 2 acquired mutex2\" << std::endl;\n    // 模拟一些工作\n    mutex1.lock();\n    std::cout << \"Thread 2 acquired mutex1\" << std::endl;\n    \n    mutex1.unlock();\n    mutex2.unlock();\n}\n\nint main() {\n    std::thread t1(thread1);\n    std::thread t2(thread2);\n    \n    t1.join();\n    t2.join();\n    \n    return 0;\n}",
+    "queries": [
+      "(call_expression\r\n  function: (field_expression\r\n    object: (identifier) @first.lock\r\n    field: (field_identifier) @lock.method)\r\n  arguments: (argument_list))\r\n  (#match? @lock.method \"lock\") @concurrency.relationship.deadlock.pattern"
+    ]
+  },
+  "response": {
+    "success": true,
+    "data": [],
+    "errors": [],
+    "timestamp": "2025-11-21T08:47:10.974Z"
+  },
+  "timestamp": "2025-11-21T08:47:10.974Z"
+}

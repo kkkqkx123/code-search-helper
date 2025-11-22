@@ -1,0 +1,17 @@
+{
+  "testId": "concurrency-relationships-021",
+  "request": {
+    "language": "cpp",
+    "code": "#include <future>\n#include <iostream>\n\nint computeResult() {\n    return 100;\n}\n\nint main() {\n    auto future = std::async(std::launch::async, computeResult);\n    \n    std::cout << \"Doing other work...\" << std::endl;\n    \n    int result = future.get();\n    std::cout << \"Computed result: \" << result << std::endl;\n    \n    return 0;\n}",
+    "queries": [
+      "(call_expression\r\n  function: (field_expression\r\n    object: (identifier) @future.object\r\n    field: (field_identifier) @future.method))\r\n  (#match? @future.method \"get\") @concurrency.relationship.future.get"
+    ]
+  },
+  "response": {
+    "success": true,
+    "data": [],
+    "errors": [],
+    "timestamp": "2025-11-21T08:47:10.941Z"
+  },
+  "timestamp": "2025-11-21T08:47:10.942Z"
+}

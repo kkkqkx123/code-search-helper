@@ -1,0 +1,17 @@
+{
+  "testId": "concurrency-relationships-037",
+  "request": {
+    "language": "cpp",
+    "code": "#include <atomic>\r\n#include <iostream>\r\n\r\ntemplate<typename T>\r\nclass LockFreeStack {\r\nprivate:\r\n    struct Node {\r\n        T data;\r\n        Node* next;\r\n    };\r\n    \r\n    std::atomic<Node*> head;\r\n    \r\npublic:\r\n    LockFreeStack() : head(nullptr) {}\r\n    \r\n    void push(const T& value) {\r\n        Node* newNode = new Node{value, head.load()};\r\n        while (!head.compare_exchange_weak(newNode->next, newNode)) {\r\n            // 重试直到成功\r\n        }\r\n    }\r\n    \r\n    bool pop(T& result) {\r\n        Node* oldHead = head.load();\r\n        while (oldHead && !head.compare_exchange_weak(oldHead, oldHead->next)) {\r\n            // 重试直到成功\r\n        }\r\n        \r\n        if (oldHead) {\r\n            result = oldHead->data;\r\n            delete oldHead;\r\n            return true;\r\n        }\r\n        return false;\r\n    }\r\n};\r\n\r\nint main() {\r\n    LockFreeStack<int> stack;\r\n    \r\n    stack.push(10);\r\n    stack.push(20);\r\n    stack.push(30);\r\n    \r\n    int value;\r\n    while (stack.pop(value)) {\r\n        std::cout << \"Popped: \" << value << std::endl;\r\n    }\r\n    \r\n    return 0;\r\n}",
+    "queries": [
+      "(class_specifier\n  name: (type_identifier) @lockfree.class\n  body: (field_declaration_list\n    (field_declaration\n      type: (qualified_identifier\n        scope: (identifier) @std.scope\n        name: (type_identifier) @atomic.type)\n      declarator: (field_declarator\n        declarator: (field_identifier) @atomic.field)))) @concurrency.relationship.lockfree.structure"
+    ]
+  },
+  "response": {
+    "success": true,
+    "data": [],
+    "errors": [],
+    "timestamp": "2025-11-21T08:47:11.049Z"
+  },
+  "timestamp": "2025-11-21T08:47:11.050Z"
+}

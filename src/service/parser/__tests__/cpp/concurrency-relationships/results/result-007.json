@@ -1,0 +1,17 @@
+{
+  "testId": "concurrency-relationships-007",
+  "request": {
+    "language": "cpp",
+    "code": "#include <mutex>\n#include <iostream>\n\nstd::mutex mtx;\nint sharedData = 0;\n\nvoid safeIncrement() {\n    std::lock_guard<std::mutex> lock(mtx);\n    sharedData++;\n    std::cout << \"Data incremented to: \" << sharedData << std::endl;\n}\n\nint main() {\n    std::thread t1(safeIncrement);\n    std::thread t2(safeIncrement);\n    \n    t1.join();\n    t2.join();\n    \n    return 0;\n}",
+    "queries": [
+      "(declaration\n  type: (qualified_identifier\n    scope: (identifier) @std.scope\n    name: (type_identifier) @lock.guard.type)\n declarator: (init_declarator\n    declarator: (identifier) @lock.guard.variable\n    value: (call_expression\n      function: (identifier) @locked.mutex)))\n  (#match? @lock.guard.type \"^(lock_guard|unique_lock|shared_lock)$\") @concurrency.relationship.lock.guard"
+    ]
+  },
+  "response": {
+    "success": true,
+    "data": [],
+    "errors": [],
+    "timestamp": "2025-11-21T08:47:10.865Z"
+  },
+  "timestamp": "2025-11-21T08:47:10.866Z"
+}

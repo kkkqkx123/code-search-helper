@@ -1,0 +1,17 @@
+{
+  "testId": "concurrency-relationships-004",
+  "request": {
+    "language": "cpp",
+    "code": "#include <mutex>\n#include <thread>\n\nstd::mutex mtx;\nint sharedData = 0;\n\nvoid incrementData() {\n    mtx.lock();\n    sharedData++;\n    mtx.unlock();\n}\n\nint main() {\n    std::thread t1(incrementData);\n    std::thread t2(incrementData);\n    \n    t1.join();\n    t2.join();\n    \n    return 0;\n}",
+    "queries": [
+      "(call_expression\r\n  function: (field_expression\r\n    object: (identifier) @mutex.object\r\n    field: (field_identifier) @mutex.method))\r\n  (#match? @mutex.method \"lock\") @concurrency.relationship.mutex.lock"
+    ]
+  },
+  "response": {
+    "success": true,
+    "data": [],
+    "errors": [],
+    "timestamp": "2025-11-21T08:47:10.850Z"
+  },
+  "timestamp": "2025-11-21T08:47:10.850Z"
+}

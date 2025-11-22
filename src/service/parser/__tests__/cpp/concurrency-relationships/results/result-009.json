@@ -1,0 +1,17 @@
+{
+  "testId": "concurrency-relationships-009",
+  "request": {
+    "language": "cpp",
+    "code": "#include <mutex>\n#include <condition_variable>\n#include <thread>\n#include <iostream>\n\nstd::mutex mtx;\nstd::condition_variable cv;\nbool dataReady = false;\n\nvoid waitForData() {\n    std::unique_lock<std::mutex> lock(mtx);\n    cv.wait(lock, []{ return dataReady; });\n    std::cout << \"Data received, processing...\" << std::endl;\n}\n\nvoid prepareData() {\n    {\n        std::lock_guard<std::mutex> lock(mtx);\n        dataReady = true;\n    }\n    cv.notify_one();\n    std::cout << \"Data prepared, notification sent\" << std::endl;\n}\n\nint main() {\n    std::thread t1(waitForData);\n    std::thread t2(prepareData);\n    \n    t1.join();\n    t2.join();\n    \n    return 0;\n}",
+    "queries": [
+      "(call_expression\r\n  function: (field_expression\r\n    object: (identifier) @condition.variable\r\n    field: (field_identifier) @condition.method))\r\n  (#match? @condition.method \"^(notify_one|notify_all)$\") @concurrency.relationship.condition.notify"
+    ]
+  },
+  "response": {
+    "success": true,
+    "data": [],
+    "errors": [],
+    "timestamp": "2025-11-21T08:47:10.877Z"
+  },
+  "timestamp": "2025-11-21T08:47:10.878Z"
+}

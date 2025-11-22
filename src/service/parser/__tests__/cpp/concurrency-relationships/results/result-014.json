@@ -1,0 +1,17 @@
+{
+  "testId": "concurrency-relationships-014",
+  "request": {
+    "language": "cpp",
+    "code": "#include <semaphore>\n#include <thread>\n#include <iostream>\n\nstd::counting_semaphore<1> sem(0);\n\nvoid waitForSemaphore() {\n    sem.acquire();\n    std::cout << \"Resource accessed\" << std::endl;\n}\n\nvoid releaseSemaphore() {\n    sem.release();\n    std::cout << \"Resource released\" << std::endl;\n}\n\nint main() {\n    std::thread t1(waitForSemaphore);\n    std::thread t2(releaseSemaphore);\n    \n    t1.join();\n    t2.join();\n    \n    return 0;\n}",
+    "queries": [
+      "(call_expression\r\n  function: (field_expression\r\n    object: (identifier) @semaphore.object\r\n    field: (field_identifier) @semaphore.method)\r\n  arguments: (argument_list))\r\n  (#match? @semaphore.method \"release\") @concurrency.relationship.semaphore.release"
+    ]
+  },
+  "response": {
+    "success": true,
+    "data": [],
+    "errors": [],
+    "timestamp": "2025-11-21T08:47:10.906Z"
+  },
+  "timestamp": "2025-11-21T08:47:10.907Z"
+}

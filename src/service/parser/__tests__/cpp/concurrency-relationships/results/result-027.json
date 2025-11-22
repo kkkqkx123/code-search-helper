@@ -1,0 +1,17 @@
+{
+  "testId": "concurrency-relationships-027",
+  "request": {
+    "language": "cpp",
+    "code": "#include <thread>\n#include <iostream>\n\nstruct Counter {\n    int value;\n};\n\nvoid incrementCounter(Counter* counter) {\n    // 这是一个潜在的竞态条件\n    counter->value = counter->value + 1;\n}\n\nint main() {\n    Counter counter{0};\n    \n    std::thread t1(incrementCounter, &counter);\n    std::thread t2(incrementCounter, &counter);\n    \n    t1.join();\n    t2.join();\n    \n    std::cout << \"Final counter value: \" << counter.value << std::endl;\n    \n    return 0;\n}",
+    "queries": [
+      "(assignment_expression\r\n  left: (field_expression\r\n    object: (identifier) @shared.variable\r\n    field: (field_identifier) @shared.field)\r\n  right: (binary_expression\r\n    left: (field_expression\r\n      object: (identifier) @shared.variable\r\n      field: (field_identifier) @shared.field)\r\n    operator: (identifier) @operator\r\n    right: (identifier) @increment.value)) @concurrency.relationship.race.condition"
+    ]
+  },
+  "response": {
+    "success": true,
+    "data": [],
+    "errors": [],
+    "timestamp": "2025-11-21T08:47:10.969Z"
+  },
+  "timestamp": "2025-11-21T08:47:10.969Z"
+}

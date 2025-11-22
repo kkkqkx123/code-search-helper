@@ -1,0 +1,17 @@
+{
+  "testId": "concurrency-relationships-008",
+  "request": {
+    "language": "cpp",
+    "code": "#include <mutex>\n#include <condition_variable>\n#include <thread>\n#include <iostream>\n\nstd::mutex mtx;\nstd::condition_variable cv;\nbool ready = false;\n\nvoid worker() {\n    std::unique_lock<std::mutex> lock(mtx);\n    cv.wait(lock, []{ return ready; });\n    std::cout << \"Worker thread proceeding\" << std::endl;\n}\n\nint main() {\n    std::thread t(worker);\n    \n    {\n        std::lock_guard<std::mutex> lock(mtx);\n        ready = true;\n    }\n    cv.notify_one();\n    \n    t.join();\n    return 0;\n}",
+    "queries": [
+      "(call_expression\r\n  function: (field_expression\r\n    object: (identifier) @condition.variable\r\n    field: (field_identifier) @condition.method)\r\n  arguments: (argument_list\r\n    (identifier) @locked.mutex))\r\n  (#match? @condition.method \"wait\") @concurrency.relationship.condition.wait"
+    ]
+  },
+  "response": {
+    "success": true,
+    "data": [],
+    "errors": [],
+    "timestamp": "2025-11-21T08:47:10.871Z"
+  },
+  "timestamp": "2025-11-21T08:47:10.871Z"
+}

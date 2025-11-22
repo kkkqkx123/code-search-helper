@@ -1,0 +1,17 @@
+{
+  "testId": "concurrency-relationships-025",
+  "request": {
+    "language": "cpp",
+    "code": "#include <iostream>\n#include <thread>\n\nthread_local int threadLocalVar = 0;\n\nvoid threadFunction(int id) {\n    threadLocalVar = id;\n    std::cout << \"Thread \" << id << \" threadLocalVar = \" << threadLocalVar << std::endl;\n}\n\nint main() {\n    std::thread t1(threadFunction, 1);\n    std::thread t2(threadFunction, 2);\n    \n    t1.join();\n    t2.join();\n    \n    std::cout << \"Main thread threadLocalVar = \" << threadLocalVar << std::endl;\n    \n    return 0;\n}",
+    "queries": [
+      "(declaration\n  (storage_class_specifier) @thread.local.specifier\n  declarator: (init_declarator\n    declarator: (identifier) @thread.local.variable))\n  (#match? @thread.local.specifier \"thread_local\") @concurrency.relationship.thread.local"
+    ]
+  },
+  "response": {
+    "success": true,
+    "data": [],
+    "errors": [],
+    "timestamp": "2025-11-21T08:47:10.960Z"
+  },
+  "timestamp": "2025-11-21T08:47:10.960Z"
+}

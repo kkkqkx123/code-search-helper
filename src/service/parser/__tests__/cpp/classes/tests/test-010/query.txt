@@ -1,4 +1,0 @@
-(function_definition
- declarator: (function_declarator
-    declarator: (field_identifier) @method.name)
-  body: (compound_statement) @method.body) @definition.method

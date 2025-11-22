@@ -1,0 +1,17 @@
+{
+  "testId": "concurrency-relationships-019",
+  "request": {
+    "language": "cpp",
+    "code": "#include <future>\n#include <iostream>\n\nint asyncTask() {\n    std::cout << \"Async task running\" << std::endl;\n    return 42;\n}\n\nint main() {\n    auto future = std::async(asyncTask);\n    \n    std::cout << \"Main thread continues\" << std::endl;\n    \n    int result = future.get();\n    std::cout << \"Async task result: \" << result << std::endl;\n    \n    return 0;\n}",
+    "queries": [
+      "(call_expression\n  function: (qualified_identifier\n    scope: (identifier) @std.scope\n    name: (identifier) @async.function)\n  arguments: (argument_list\n    (identifier) @async.task))\n  (#match? @async.function \"async\") @concurrency.relationship.async.task"
+    ]
+  },
+  "response": {
+    "success": true,
+    "data": [],
+    "errors": [],
+    "timestamp": "2025-11-21T08:47:10.932Z"
+  },
+  "timestamp": "2025-11-21T08:47:10.932Z"
+}

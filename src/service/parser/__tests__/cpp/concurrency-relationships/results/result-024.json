@@ -1,0 +1,17 @@
+{
+  "testId": "concurrency-relationships-024",
+  "request": {
+    "language": "cpp",
+    "code": "#include <future>\n#include <iostream>\n#include <functional>\n\nint multiply(int a, int b) {\n    return a * b;\n}\n\nint main() {\n    std::packaged_task<int(int, int)> task(multiply);\n    std::future<int> result = task.get_future();\n    \n    std::thread t(std::move(task), 6, 7);\n    \n    std::cout << \"Waiting for packaged task result\" << std::endl;\n    int value = result.get();\n    std::cout << \"Packaged task result: \" << value << std::endl;\n    \n    t.join();\n    return 0;\n}",
+    "queries": [
+      "(call_expression\n function: (qualified_identifier\n    scope: (identifier) @std.scope\n    name: (identifier) @packaged.task)\n  arguments: (argument_list\n    (identifier) @task.function))\n  (#match? @packaged.task \"packaged_task\") @concurrency.relationship.packaged.task"
+    ]
+  },
+  "response": {
+    "success": true,
+    "data": [],
+    "errors": [],
+    "timestamp": "2025-11-21T08:47:10.955Z"
+  },
+  "timestamp": "2025-11-21T08:47:10.955Z"
+}

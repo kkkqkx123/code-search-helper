@@ -1,0 +1,17 @@
+{
+  "testId": "concurrency-relationships-018",
+  "request": {
+    "language": "cpp",
+    "code": "#include <shared_mutex>\n#include <thread>\n#include <iostream>\n\nstd::shared_mutex rwMutex;\nint sharedData = 0;\n\nvoid reader() {\n    rwMutex.lock_shared();\n    std::cout << \"Reading data: \" << sharedData << std::endl;\n    rwMutex.unlock_shared();\n}\n\nvoid writer() {\n    rwMutex.lock();\n    sharedData++;\n    std::cout << \"Writing data: \" << sharedData << std::endl;\n    rwMutex.unlock();\n}\n\nint main() {\n    std::thread t1(reader);\n    std::thread t2(reader);\n    std::thread t3(writer);\n    \n    t1.join();\n    t2.join();\n    t3.join();\n    \n    return 0;\n}",
+    "queries": [
+      "(call_expression\r\n  function: (field_expression\r\n    object: (identifier) @shared.mutex\r\n    field: (field_identifier) @shared.method))\r\n  (#match? @shared.method \"^(lock_shared|unlock_shared)$\") @concurrency.relationship.shared.mutex"
+    ]
+  },
+  "response": {
+    "success": true,
+    "data": [],
+    "errors": [],
+    "timestamp": "2025-11-21T08:47:10.927Z"
+  },
+  "timestamp": "2025-11-21T08:47:10.927Z"
+}

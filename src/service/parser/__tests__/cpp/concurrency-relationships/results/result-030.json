@@ -1,0 +1,330 @@
+{
+  "testId": "concurrency-relationships-030",
+  "request": {
+    "language": "cpp",
+    "code": "#include <shared_mutex>\n#include <iostream>\n\nclass ReadWriteLock {\nprivate:\n    std::shared_mutex rwMutex;\n    \npublic:\n    void readLock() {\n        rwMutex.lock_shared();\n        std::cout << \"Read lock acquired\" << std::endl;\n    }\n    \n    void readUnlock() {\n        rwMutex.unlock_shared();\n        std::cout << \"Read lock released\" << std::endl;\n    }\n    \n    void writeLock() {\n        rwMutex.lock();\n        std::cout << \"Write lock acquired\" << std::endl;\n    }\n    \n    void writeUnlock() {\n        rwMutex.unlock();\n        std::cout << \"Write lock released\" << std::endl;\n    }\n};\n\nint main() {\n    ReadWriteLock rwLock;\n    \n    rwLock.readLock();\n    rwLock.readUnlock();\n    \n    rwLock.writeLock();\n    rwLock.writeUnlock();\n    \n    return 0;\n}",
+    "queries": [
+      "(class_specifier\n  name: (type_identifier) @read.write.lock.class\n  body: (field_declaration_list\n    (function_definition\n      declarator: (function_declarator\n        declarator: (field_identifier) @read.lock.method))\n    (function_definition\n      declarator: (function_declarator\n        declarator: (field_identifier) @write.lock.method)))) @concurrency.relationship.read.write.lock"
+    ]
+  },
+  "response": {
+    "success": true,
+    "data": [
+      {
+        "captureName": "concurrency.relationship.read.write.lock",
+        "type": "class_specifier",
+        "text": "class ReadWriteLock {\nprivate:\n    std::shared_mutex rwMutex;\n    \npublic:\n    void readLock() {\n        rwMutex.lock_shared();\n        std::cout << \"Read lock acquired\" << std::endl;\n    }\n    \n    void readUnlock() {\n        rwMutex.unlock_shared();\n        std::cout << \"Read lock released\" << std::endl;\n    }\n    \n    void writeLock() {\n        rwMutex.lock();\n        std::cout << \"Write lock acquired\" << std::endl;\n    }\n    \n    void writeUnlock() {\n        rwMutex.unlock();\n        std::cout << \"Write lock released\" << std::endl;\n    }\n}",
+        "startPosition": {
+          "row": 3,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 27,
+          "column": 1
+        }
+      },
+      {
+        "captureName": "read.write.lock.class",
+        "type": "type_identifier",
+        "text": "ReadWriteLock",
+        "startPosition": {
+          "row": 3,
+          "column": 6
+        },
+        "endPosition": {
+          "row": 3,
+          "column": 19
+        }
+      },
+      {
+        "captureName": "read.lock.method",
+        "type": "field_identifier",
+        "text": "readLock",
+        "startPosition": {
+          "row": 8,
+          "column": 9
+        },
+        "endPosition": {
+          "row": 8,
+          "column": 17
+        }
+      },
+      {
+        "captureName": "write.lock.method",
+        "type": "field_identifier",
+        "text": "readUnlock",
+        "startPosition": {
+          "row": 13,
+          "column": 9
+        },
+        "endPosition": {
+          "row": 13,
+          "column": 19
+        }
+      },
+      {
+        "captureName": "concurrency.relationship.read.write.lock",
+        "type": "class_specifier",
+        "text": "class ReadWriteLock {\nprivate:\n    std::shared_mutex rwMutex;\n    \npublic:\n    void readLock() {\n        rwMutex.lock_shared();\n        std::cout << \"Read lock acquired\" << std::endl;\n    }\n    \n    void readUnlock() {\n        rwMutex.unlock_shared();\n        std::cout << \"Read lock released\" << std::endl;\n    }\n    \n    void writeLock() {\n        rwMutex.lock();\n        std::cout << \"Write lock acquired\" << std::endl;\n    }\n    \n    void writeUnlock() {\n        rwMutex.unlock();\n        std::cout << \"Write lock released\" << std::endl;\n    }\n}",
+        "startPosition": {
+          "row": 3,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 27,
+          "column": 1
+        }
+      },
+      {
+        "captureName": "read.write.lock.class",
+        "type": "type_identifier",
+        "text": "ReadWriteLock",
+        "startPosition": {
+          "row": 3,
+          "column": 6
+        },
+        "endPosition": {
+          "row": 3,
+          "column": 19
+        }
+      },
+      {
+        "captureName": "read.lock.method",
+        "type": "field_identifier",
+        "text": "readLock",
+        "startPosition": {
+          "row": 8,
+          "column": 9
+        },
+        "endPosition": {
+          "row": 8,
+          "column": 17
+        }
+      },
+      {
+        "captureName": "write.lock.method",
+        "type": "field_identifier",
+        "text": "writeLock",
+        "startPosition": {
+          "row": 18,
+          "column": 9
+        },
+        "endPosition": {
+          "row": 18,
+          "column": 18
+        }
+      },
+      {
+        "captureName": "concurrency.relationship.read.write.lock",
+        "type": "class_specifier",
+        "text": "class ReadWriteLock {\nprivate:\n    std::shared_mutex rwMutex;\n    \npublic:\n    void readLock() {\n        rwMutex.lock_shared();\n        std::cout << \"Read lock acquired\" << std::endl;\n    }\n    \n    void readUnlock() {\n        rwMutex.unlock_shared();\n        std::cout << \"Read lock released\" << std::endl;\n    }\n    \n    void writeLock() {\n        rwMutex.lock();\n        std::cout << \"Write lock acquired\" << std::endl;\n    }\n    \n    void writeUnlock() {\n        rwMutex.unlock();\n        std::cout << \"Write lock released\" << std::endl;\n    }\n}",
+        "startPosition": {
+          "row": 3,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 27,
+          "column": 1
+        }
+      },
+      {
+        "captureName": "read.write.lock.class",
+        "type": "type_identifier",
+        "text": "ReadWriteLock",
+        "startPosition": {
+          "row": 3,
+          "column": 6
+        },
+        "endPosition": {
+          "row": 3,
+          "column": 19
+        }
+      },
+      {
+        "captureName": "read.lock.method",
+        "type": "field_identifier",
+        "text": "readUnlock",
+        "startPosition": {
+          "row": 13,
+          "column": 9
+        },
+        "endPosition": {
+          "row": 13,
+          "column": 19
+        }
+      },
+      {
+        "captureName": "write.lock.method",
+        "type": "field_identifier",
+        "text": "writeLock",
+        "startPosition": {
+          "row": 18,
+          "column": 9
+        },
+        "endPosition": {
+          "row": 18,
+          "column": 18
+        }
+      },
+      {
+        "captureName": "concurrency.relationship.read.write.lock",
+        "type": "class_specifier",
+        "text": "class ReadWriteLock {\nprivate:\n    std::shared_mutex rwMutex;\n    \npublic:\n    void readLock() {\n        rwMutex.lock_shared();\n        std::cout << \"Read lock acquired\" << std::endl;\n    }\n    \n    void readUnlock() {\n        rwMutex.unlock_shared();\n        std::cout << \"Read lock released\" << std::endl;\n    }\n    \n    void writeLock() {\n        rwMutex.lock();\n        std::cout << \"Write lock acquired\" << std::endl;\n    }\n    \n    void writeUnlock() {\n        rwMutex.unlock();\n        std::cout << \"Write lock released\" << std::endl;\n    }\n}",
+        "startPosition": {
+          "row": 3,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 27,
+          "column": 1
+        }
+      },
+      {
+        "captureName": "read.write.lock.class",
+        "type": "type_identifier",
+        "text": "ReadWriteLock",
+        "startPosition": {
+          "row": 3,
+          "column": 6
+        },
+        "endPosition": {
+          "row": 3,
+          "column": 19
+        }
+      },
+      {
+        "captureName": "read.lock.method",
+        "type": "field_identifier",
+        "text": "readLock",
+        "startPosition": {
+          "row": 8,
+          "column": 9
+        },
+        "endPosition": {
+          "row": 8,
+          "column": 17
+        }
+      },
+      {
+        "captureName": "write.lock.method",
+        "type": "field_identifier",
+        "text": "writeUnlock",
+        "startPosition": {
+          "row": 23,
+          "column": 9
+        },
+        "endPosition": {
+          "row": 23,
+          "column": 20
+        }
+      },
+      {
+        "captureName": "concurrency.relationship.read.write.lock",
+        "type": "class_specifier",
+        "text": "class ReadWriteLock {\nprivate:\n    std::shared_mutex rwMutex;\n    \npublic:\n    void readLock() {\n        rwMutex.lock_shared();\n        std::cout << \"Read lock acquired\" << std::endl;\n    }\n    \n    void readUnlock() {\n        rwMutex.unlock_shared();\n        std::cout << \"Read lock released\" << std::endl;\n    }\n    \n    void writeLock() {\n        rwMutex.lock();\n        std::cout << \"Write lock acquired\" << std::endl;\n    }\n    \n    void writeUnlock() {\n        rwMutex.unlock();\n        std::cout << \"Write lock released\" << std::endl;\n    }\n}",
+        "startPosition": {
+          "row": 3,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 27,
+          "column": 1
+        }
+      },
+      {
+        "captureName": "read.write.lock.class",
+        "type": "type_identifier",
+        "text": "ReadWriteLock",
+        "startPosition": {
+          "row": 3,
+          "column": 6
+        },
+        "endPosition": {
+          "row": 3,
+          "column": 19
+        }
+      },
+      {
+        "captureName": "read.lock.method",
+        "type": "field_identifier",
+        "text": "readUnlock",
+        "startPosition": {
+          "row": 13,
+          "column": 9
+        },
+        "endPosition": {
+          "row": 13,
+          "column": 19
+        }
+      },
+      {
+        "captureName": "write.lock.method",
+        "type": "field_identifier",
+        "text": "writeUnlock",
+        "startPosition": {
+          "row": 23,
+          "column": 9
+        },
+        "endPosition": {
+          "row": 23,
+          "column": 20
+        }
+      },
+      {
+        "captureName": "concurrency.relationship.read.write.lock",
+        "type": "class_specifier",
+        "text": "class ReadWriteLock {\nprivate:\n    std::shared_mutex rwMutex;\n    \npublic:\n    void readLock() {\n        rwMutex.lock_shared();\n        std::cout << \"Read lock acquired\" << std::endl;\n    }\n    \n    void readUnlock() {\n        rwMutex.unlock_shared();\n        std::cout << \"Read lock released\" << std::endl;\n    }\n    \n    void writeLock() {\n        rwMutex.lock();\n        std::cout << \"Write lock acquired\" << std::endl;\n    }\n    \n    void writeUnlock() {\n        rwMutex.unlock();\n        std::cout << \"Write lock released\" << std::endl;\n    }\n}",
+        "startPosition": {
+          "row": 3,
+          "column": 0
+        },
+        "endPosition": {
+          "row": 27,
+          "column": 1
+        }
+      },
+      {
+        "captureName": "read.write.lock.class",
+        "type": "type_identifier",
+        "text": "ReadWriteLock",
+        "startPosition": {
+          "row": 3,
+          "column": 6
+        },
+        "endPosition": {
+          "row": 3,
+          "column": 19
+        }
+      },
+      {
+        "captureName": "read.lock.method",
+        "type": "field_identifier",
+        "text": "writeLock",
+        "startPosition": {
+          "row": 18,
+          "column": 9
+        },
+        "endPosition": {
+          "row": 18,
+          "column": 18
+        }
+      },
+      {
+        "captureName": "write.lock.method",
+        "type": "field_identifier",
+        "text": "writeUnlock",
+        "startPosition": {
+          "row": 23,
+          "column": 9
+        },
+        "endPosition": {
+          "row": 23,
+          "column": 20
+        }
+      }
+    ],
+    "errors": [],
+    "timestamp": "2025-11-21T08:47:11.006Z"
+  },
+  "timestamp": "2025-11-21T08:47:11.006Z"
+}

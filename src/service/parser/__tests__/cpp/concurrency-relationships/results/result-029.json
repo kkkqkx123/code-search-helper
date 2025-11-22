@@ -1,0 +1,17 @@
+{
+  "testId": "concurrency-relationships-029",
+  "request": {
+    "language": "cpp",
+    "code": "#include <queue>\n#include <mutex>\n#include <condition_variable>\n#include <thread>\n#include <iostream>\n\ntemplate<typename T>\nclass ProducerConsumerQueue {\nprivate:\n    std::queue<T> queue;\n    std::mutex mtx;\n    std::condition_variable cv;\n    \npublic:\n    void push(const T& item) {\n        std::lock_guard<std::mutex> lock(mtx);\n        queue.push(item);\n        cv.notify_one();\n    }\n    \n    T pop() {\n        std::unique_lock<std::mutex> lock(mtx);\n        cv.wait(lock, [this]{ return !queue.empty(); });\n        T item = queue.front();\n        queue.pop();\n        return item;\n    }\n};\n\nint main() {\n    ProducerConsumerQueue<int> pcQueue;\n    \n    auto producer = [&]() {\n        for (int i = 0; i < 5; ++i) {\n            pcQueue.push(i);\n            std::cout << \"Produced: \" << i << std::endl;\n        }\n    };\n    \n    auto consumer = [&]() {\n        for (int i = 0; i < 5; ++i) {\n            int item = pcQueue.pop();\n            std::cout << \"Consumed: \" << item << std::endl;\n        }\n    };\n    \n    std::thread t1(producer);\n    std::thread t2(consumer);\n    \n    t1.join();\n    t2.join();\n    \n    return 0;\n}",
+    "queries": [
+      "(class_specifier\n  name: (type_identifier) @producer.consumer.class\n body: (field_declaration_list\n    (field_declaration\n      declarator: (field_declarator\n        declarator: (field_identifier) @queue.field))\n    (field_declaration\n      declarator: (field_declarator\n        declarator: (field_identifier) @mutex.field))\n    (field_declaration\n      declarator: (field_declarator\n        declarator: (field_identifier) @condition.field)))) @concurrency.relationship.producer.consumer"
+    ]
+  },
+  "response": {
+    "success": true,
+    "data": [],
+    "errors": [],
+    "timestamp": "2025-11-21T08:47:10.979Z"
+  },
+  "timestamp": "2025-11-21T08:47:10.979Z"
+}
