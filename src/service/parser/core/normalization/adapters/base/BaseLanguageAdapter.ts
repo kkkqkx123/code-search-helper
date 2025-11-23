@@ -3,7 +3,7 @@
  * 提供通用的标准化逻辑和模板方法
  */
 
-import { ILanguageAdapter, StandardizedQueryResult } from '../../types';
+import { ILanguageAdapter, StandardizedQueryResult, SymbolInfo, SymbolTable } from '../../types';
 type StandardType = StandardizedQueryResult['type'];
 import { LoggerService } from '../../../../../../utils/LoggerService';
 import { LRUCache } from '../../../../../../utils/cache/LRUCache';
@@ -14,6 +14,8 @@ import { ContentHashUtils } from '../../../../../../utils/cache/ContentHashUtils
 import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { CommentAdapterFactory } from '../../comments/adapters/AdapterFactory';
 import { QueryResult as CommentQueryResult } from '../../comments/types';
+import { RelationshipExtractorManager } from './RelationshipExtractorManager';
+import Parser from 'tree-sitter';
 
 /**
  * 适配器选项接口
@@ -59,6 +61,8 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
   protected performanceMonitor?: PerformanceMonitor;
   protected cache?: LRUCache<string, StandardizedQueryResult[]>;
   private complexityCache?: LRUCache<string, number>;
+  protected relationshipExtractorManager?: RelationshipExtractorManager;
+  protected symbolTable: SymbolTable | null = null;
 
   constructor(options: AdapterOptions = {}) {
     this.logger = new LoggerService();
@@ -84,10 +88,28 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
       this.cache = new LRUCache(this.options.cacheSize, { enableStats: true });
       this.complexityCache = new LRUCache(this.options.cacheSize, { enableStats: true });
     }
+
+    // 初始化关系提取器管理器
+    this.initializeRelationshipExtractorManager();
   }
 
   /**
-   * 主标准化方法 - 模板方法模式
+   * 初始化关系提取器管理器
+   */
+  protected initializeRelationshipExtractorManager(): void {
+    const language = this.getLanguage();
+    if (language) {
+      this.relationshipExtractorManager = new RelationshipExtractorManager(language);
+    }
+  }
+
+  /**
+   * 获取语言标识符
+   */
+  protected abstract getLanguage(): string;
+
+  /**
+   * 主标准化方法 - 增强的模板方法模式
    */
   async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
     const startTime = Date.now();
@@ -100,21 +122,29 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
     }
 
     try {
-      // 1. 预处理查询结果
+      // 1. 初始化符号表和处理上下文
+      this.initializeProcessingContext(language);
+
+      // 2. 预处理查询结果
       const preprocessedResults = this.preprocessResults(queryResults);
 
-      // 2. 转换为标准化结果
-      const standardizedResults = this.convertToStandardizedResults(preprocessedResults, queryType, language);
+      // 3. 使用增强的标准化流程
+      const standardizedResults = await this.processResultsWithEnhancedFlow(
+        preprocessedResults,
+        queryType,
+        language,
+        startTime
+      );
 
-      // 3. 后处理（去重、排序等）
+      // 4. 后处理（去重、排序等）
       const finalResults = this.postProcessResults(standardizedResults);
 
-      // 4. 缓存结果
+      // 5. 缓存结果
       if (this.cache) {
         this.cache.set(cacheKey, finalResults);
       }
 
-      // 5. 性能监控
+      // 6. 性能监控
       if (this.performanceMonitor) {
         this.performanceMonitor.recordQueryExecution(Date.now() - startTime);
         this.performanceMonitor.updateCacheHitRate(false);
@@ -130,6 +160,309 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
 
       throw error;
     }
+  }
+
+  /**
+   * 初始化处理上下文
+   */
+  protected initializeProcessingContext(language: string): void {
+    const filePath = this.generateFilePath(language);
+    this.symbolTable = {
+      filePath,
+      globalScope: { symbols: new Map() },
+      imports: new Map()
+    };
+  }
+
+  /**
+   * 生成文件路径
+   */
+  protected generateFilePath(language: string): string {
+    const extension = this.getLanguageExtension();
+    return `current_file.${extension}`;
+  }
+
+  /**
+   * 获取语言扩展名
+   */
+  protected abstract getLanguageExtension(): string;
+
+  /**
+   * 增强的结果处理流程
+   */
+  protected async processResultsWithEnhancedFlow(
+    preprocessedResults: any[],
+    queryType: string,
+    language: string,
+    processingStartTime: number
+  ): Promise<StandardizedQueryResult[]> {
+    const results: StandardizedQueryResult[] = [];
+
+    for (const result of preprocessedResults) {
+      try {
+        const standardizedResult = await this.processSingleResult(
+          result,
+          queryType,
+          language,
+          processingStartTime
+        );
+        results.push(standardizedResult);
+      } catch (error) {
+        this.logger.warn(`Failed to process result for ${queryType}:`, error);
+        
+        if (!this.options.enableErrorRecovery) {
+          throw error;
+        }
+        
+        // 创建错误结果
+        const errorResult = this.createErrorResult(error, queryType, language);
+        results.push(errorResult);
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * 处理单个结果
+   */
+  protected async processSingleResult(
+    result: any,
+    queryType: string,
+    language: string,
+    processingStartTime: number
+  ): Promise<StandardizedQueryResult> {
+    const standardType = this.mapQueryTypeToStandardType(queryType);
+    const name = this.extractName(result);
+    const content = this.extractContent(result);
+    const complexity = this.calculateComplexity(result);
+    const dependencies = this.extractDependencies(result);
+    const modifiers = this.extractModifiers(result);
+    const extra = this.extractLanguageSpecificMetadata(result);
+
+    // 获取AST节点以生成确定性ID
+    const astNode = result.captures?.[0]?.node;
+    const nodeId = NodeIdGenerator.safeForAstNode(astNode, standardType, name);
+
+    // 使用 MetadataBuilder 创建增强的元数据
+    const builder = this.createMetadataBuilder(result, language)
+      .setProcessingStartTime(processingStartTime)
+      .addDependencies(dependencies)
+      .addModifiers(modifiers)
+      .addCustomFields(extra);
+
+    // 如果是关系类型，添加关系元数据
+    if (this.isRelationshipType(standardType)) {
+      const relationshipMetadata = await this.extractRelationshipMetadata(result, standardType, astNode);
+      if (relationshipMetadata) {
+        builder.addCustomFields(relationshipMetadata);
+      }
+    }
+
+    // 创建符号信息（如果需要）
+    let symbolInfo: SymbolInfo | null = null;
+    if (this.shouldCreateSymbolInfo(standardType)) {
+      symbolInfo = this.createSymbolInfo(astNode, name, standardType, this.symbolTable!.filePath);
+      if (this.symbolTable && symbolInfo) {
+        this.symbolTable.globalScope.symbols.set(name, symbolInfo);
+      }
+    }
+
+    return {
+      nodeId,
+      type: standardType,
+      name,
+      startLine: result.startLine || 1,
+      endLine: result.endLine || 1,
+      content,
+      metadata: builder.build(),
+      symbolInfo: symbolInfo || undefined
+    };
+  }
+
+  /**
+   * 检查是否为关系类型
+   */
+  protected isRelationshipType(type: string): boolean {
+    const relationshipTypes = [
+      'call', 'data-flow', 'inheritance', 'concurrency', 'lifecycle',
+      'semantic', 'control-flow', 'dependency', 'reference', 'creation', 'annotation'
+    ];
+    return relationshipTypes.includes(type);
+  }
+
+  /**
+   * 提取关系元数据
+   */
+  protected async extractRelationshipMetadata(
+    result: any,
+    standardType: string,
+    astNode: Parser.SyntaxNode | undefined
+  ): Promise<any> {
+    if (!astNode || !this.relationshipExtractorManager) {
+      return null;
+    }
+
+    return await this.relationshipExtractorManager.extractMetadata(
+      result,
+      standardType,
+      astNode,
+      this.symbolTable
+    );
+  }
+
+  /**
+   * 判断是否应该创建符号信息
+   */
+  protected shouldCreateSymbolInfo(standardType: string): boolean {
+    const entityTypes = ['function', 'class', 'method', 'variable', 'import', 'interface', 'type'];
+    return entityTypes.includes(standardType);
+  }
+
+  /**
+   * 创建符号信息
+   */
+  protected createSymbolInfo(
+    node: Parser.SyntaxNode | undefined,
+    name: string,
+    standardType: string,
+    filePath: string
+  ): SymbolInfo | null {
+    if (!name || !node) return null;
+
+    const symbolType = this.mapToSymbolType(standardType);
+
+    const symbolInfo: SymbolInfo = {
+      name,
+      type: symbolType,
+      filePath,
+      location: {
+        startLine: node.startPosition.row + 1,
+        startColumn: node.startPosition.column,
+        endLine: node.endPosition.row + 1,
+        endColumn: node.endPosition.column,
+      },
+      scope: this.determineScope(node)
+    };
+
+    // 添加参数信息
+    if (symbolType === 'function' || symbolType === 'method') {
+      symbolInfo.parameters = this.extractParameters(node);
+    }
+
+    // 添加导入路径
+    if (symbolType === 'import') {
+      symbolInfo.sourcePath = this.extractImportPath(node);
+    }
+
+    return symbolInfo;
+  }
+
+  /**
+   * 映射到符号类型
+   */
+  protected mapToSymbolType(standardType: string): SymbolInfo['type'] {
+    const mapping: Record<string, SymbolInfo['type']> = {
+      'function': 'function',
+      'method': 'method',
+      'class': 'class',
+      'interface': 'interface',
+      'variable': 'variable',
+      'import': 'import'
+    };
+    return mapping[standardType] || 'variable';
+  }
+
+  /**
+   * 确定作用域
+   */
+  protected determineScope(node: Parser.SyntaxNode): SymbolInfo['scope'] {
+    // 默认作用域确定逻辑，子类可以重写
+    let current = node.parent;
+    while (current) {
+      if (this.isFunctionScope(current)) {
+        return 'function';
+      }
+      if (this.isClassScope(current)) {
+        return 'class';
+      }
+      current = current.parent;
+    }
+    return 'global';
+  }
+
+  /**
+   * 检查是否为函数作用域
+   */
+  protected isFunctionScope(node: Parser.SyntaxNode): boolean {
+    const functionTypes = [
+      'function_declaration', 'function_expression', 'arrow_function',
+      'method_definition', 'constructor_definition'
+    ];
+    return functionTypes.includes(node.type);
+  }
+
+  /**
+   * 检查是否为类作用域
+   */
+  protected isClassScope(node: Parser.SyntaxNode): boolean {
+    const classTypes = [
+      'class_declaration', 'class_definition', 'interface_declaration',
+      'struct_specifier', 'enum_specifier'
+    ];
+    return classTypes.includes(node.type);
+  }
+
+  /**
+   * 提取参数
+   */
+  protected extractParameters(node: Parser.SyntaxNode): string[] {
+    const parameters: string[] = [];
+    const parameterList = node.childForFieldName?.('parameters');
+    if (parameterList) {
+      for (const child of parameterList.children) {
+        if (child.type === 'identifier' || child.type === 'formal_parameter') {
+          const declarator = child.childForFieldName?.('declarator') || child;
+          if (declarator?.text) {
+            parameters.push(declarator.text);
+          }
+        }
+      }
+    }
+    return parameters;
+  }
+
+  /**
+   * 提取导入路径
+   */
+  protected extractImportPath(node: Parser.SyntaxNode): string | undefined {
+    // 默认导入路径提取逻辑，子类可以重写
+    if (node.type === 'import_statement' || node.type === 'import_declaration') {
+      const pathNode = node.childForFieldName('source') || node.childForFieldName('name');
+      return pathNode ? pathNode.text.replace(/['"]/g, '') : undefined;
+    }
+    return undefined;
+  }
+
+  /**
+   * 创建错误结果
+   */
+  protected createErrorResult(error: any, queryType: string, language: string): StandardizedQueryResult {
+    const errorForMetadata = error instanceof Error ? error : new Error(String(error));
+    const filePath = this.symbolTable?.filePath || 'unknown';
+    const errorBuilder = new MetadataBuilder()
+      .setLanguage(language)
+      .setError(errorForMetadata, { phase: 'normalization', queryType, filePath });
+
+    return {
+      nodeId: NodeIdGenerator.forError(`${language}_normalization`),
+      type: 'expression',
+      name: 'error',
+      startLine: 0,
+      endLine: 0,
+      content: '',
+      metadata: errorBuilder.build()
+    };
   }
 
   /**
@@ -597,34 +930,103 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
   abstract extractDependencies(result: any): string[];
   abstract extractModifiers(result: any): string[];
 
-  // 高级关系提取方法 - 可选实现
-  extractDataFlowRelationships?(result: any): Array<{
+  // 高级关系提取方法 - 默认实现，委托给关系提取器管理器
+  async extractDataFlowRelationships(result: any): Promise<Array<{
     source: string;
     target: string;
     type: 'assignment' | 'parameter' | 'return';
-  }>;
+  }>> {
+    if (!this.relationshipExtractorManager) return [];
+    return await this.relationshipExtractorManager.extractDataFlowRelationships(result);
+  }
 
-  extractControlFlowRelationships?(result: any): Array<{
+  async extractControlFlowRelationships(result: any): Promise<Array<{
     source: string;
     target: string;
     type: 'conditional' | 'loop' | 'exception' | 'callback';
-  }>;
+  }>> {
+    if (!this.relationshipExtractorManager) return [];
+    return await this.relationshipExtractorManager.extractControlFlowRelationships(result);
+  }
 
-  extractSemanticRelationships?(result: any): Array<{
+  async extractSemanticRelationships(result: any): Promise<Array<{
     source: string;
     target: string;
     type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
-  }>;
+  }>> {
+    if (!this.relationshipExtractorManager) return [];
+    return await this.relationshipExtractorManager.extractSemanticRelationships(result);
+  }
 
-  extractLifecycleRelationships?(result: any): Array<{
+  async extractLifecycleRelationships(result: any): Promise<Array<{
     source: string;
     target: string;
     type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
-  }>;
+  }>> {
+    if (!this.relationshipExtractorManager) return [];
+    return await this.relationshipExtractorManager.extractLifecycleRelationships(result);
+  }
 
-  extractConcurrencyRelationships?(result: any): Array<{
+  async extractConcurrencyRelationships(result: any): Promise<Array<{
     source: string;
     target: string;
     type: 'synchronizes' | 'locks' | 'communicates' | 'races';
-  }>;
+  }>> {
+    if (!this.relationshipExtractorManager) return [];
+    return await this.relationshipExtractorManager.extractConcurrencyRelationships(result);
+  }
+
+  async extractCallRelationships(result: any): Promise<Array<{
+    source: string;
+    target: string;
+    type: 'function' | 'method' | 'constructor' | 'static' | 'callback' | 'decorator';
+  }>> {
+    if (!this.relationshipExtractorManager) return [];
+    return await this.relationshipExtractorManager.extractCallRelationships(result);
+  }
+
+  async extractAnnotationRelationships(result: any): Promise<Array<{
+    source: string;
+    target: string;
+    type: 'comment' | 'jsdoc' | 'directive' | 'decorator' | 'type_annotation' | 'docstring' | 'struct_tag';
+  }>> {
+    if (!this.relationshipExtractorManager) return [];
+    return await this.relationshipExtractorManager.extractAnnotationRelationships(result);
+  }
+
+  async extractCreationRelationships(result: any): Promise<Array<{
+    source: string;
+    target: string;
+    type: 'object_instance' | 'array' | 'function' | 'class_instance' | 'promise' | 'instantiation' | 'function_object' | 'comprehension' | 'generator' | 'closure' | 'struct_instance' | 'slice' | 'map' | 'channel' | 'function' | 'goroutine_instance';
+  }>> {
+    if (!this.relationshipExtractorManager) return [];
+    return await this.relationshipExtractorManager.extractCreationRelationships(result);
+  }
+
+  async extractDependencyRelationships(result: any): Promise<Array<{
+    source: string;
+    target: string;
+    type: 'import' | 'export' | 'require' | 'dynamic_import' | 'from_import' | 'relative_import' | 'wildcard_import' | 'package' | 'qualified_identifier';
+  }>> {
+    if (!this.relationshipExtractorManager) return [];
+    return await this.relationshipExtractorManager.extractDependencyRelationships(result);
+  }
+
+  async extractInheritanceRelationships(result: any): Promise<Array<{
+    source: string;
+    target: string;
+    type: 'extends' | 'implements' | 'mixin' | 'enum_member' | 'contains' | 'embedded_struct' | 'class_inheritance' | 'interface_implementation' | 'mixin' | 'protocol';
+  }>> {
+    if (!this.relationshipExtractorManager) return [];
+    return await this.relationshipExtractorManager.extractInheritanceRelationships(result);
+  }
+
+  async extractReferenceRelationships(result: any): Promise<Array<{
+    source: string;
+    target: string;
+    type: 'read' | 'write' | 'declaration' | 'usage' | 'attribute' | 'import';
+  }>> {
+    if (!this.relationshipExtractorManager) return [];
+    return await this.relationshipExtractorManager.extractReferenceRelationships(result);
+  }
 }
