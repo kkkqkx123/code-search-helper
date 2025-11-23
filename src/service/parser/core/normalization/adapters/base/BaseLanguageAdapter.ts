@@ -10,12 +10,44 @@ import { LRUCache } from '../../../../../../utils/cache/LRUCache';
 import { PerformanceMonitor } from '../../../../../../infrastructure/monitoring/PerformanceMonitor';
 import { InfrastructureConfigService } from '../../../../../../infrastructure/config/InfrastructureConfigService';
 import { MetadataBuilder } from '../../utils/MetadataBuilder';
-import { ContentHashUtils } from '../../../../../../utils/cache/ContentHashUtils';
 import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { CommentAdapterFactory } from '../../comments/adapters/AdapterFactory';
 import { QueryResult as CommentQueryResult } from '../../comments/types';
 import { RelationshipExtractorManager } from './RelationshipExtractorManager';
 import Parser from 'tree-sitter';
+import {
+  extractStartLine,
+  extractEndLine,
+  extractContent,
+  extractStartColumn,
+  extractEndColumn,
+  isRelationshipType,
+  shouldCreateSymbolInfo,
+  mapToSymbolType,
+  determineScope,
+  isFunctionScope,
+  isClassScope,
+  extractParameters,
+  extractImportPath,
+  preprocessResults,
+  createStandardizedResult,
+  createMetadataBuilder,
+  generateUniqueKey,
+  mergeMetadata,
+  calculateNestingDepthIterative,
+  isBlockNode,
+  calculateNodeComplexity,
+  getNodeCacheKey,
+  findTypeReferences,
+  hashResults,
+  simpleHash
+} from '../utils/QueryResultUtils';
+import {
+  deduplicateResults,
+  postProcessResults,
+  createErrorResult,
+  fallbackNormalization as utilsFallbackNormalization
+} from '../utils/PostProcessingUtils';
 
 /**
  * 适配器选项接口
@@ -209,11 +241,11 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
         results.push(standardizedResult);
       } catch (error) {
         this.logger.warn(`Failed to process result for ${queryType}:`, error);
-        
+
         if (!this.options.enableErrorRecovery) {
           throw error;
         }
-        
+
         // 创建错误结果
         const errorResult = this.createErrorResult(error, queryType, language);
         results.push(errorResult);
@@ -283,13 +315,7 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
   /**
    * 检查是否为关系类型
    */
-  protected isRelationshipType(type: string): boolean {
-    const relationshipTypes = [
-      'call', 'data-flow', 'inheritance', 'concurrency', 'lifecycle',
-      'semantic', 'control-flow', 'dependency', 'reference', 'creation', 'annotation'
-    ];
-    return relationshipTypes.includes(type);
-  }
+  protected isRelationshipType = isRelationshipType;
 
   /**
    * 提取关系元数据
@@ -314,10 +340,7 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
   /**
    * 判断是否应该创建符号信息
    */
-  protected shouldCreateSymbolInfo(standardType: string): boolean {
-    const entityTypes = ['function', 'class', 'method', 'variable', 'import', 'interface', 'type'];
-    return entityTypes.includes(standardType);
-  }
+  protected shouldCreateSymbolInfo = shouldCreateSymbolInfo;
 
   /**
    * 创建符号信息
@@ -361,122 +384,42 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
   /**
    * 映射到符号类型
    */
-  protected mapToSymbolType(standardType: string): SymbolInfo['type'] {
-    const mapping: Record<string, SymbolInfo['type']> = {
-      'function': 'function',
-      'method': 'method',
-      'class': 'class',
-      'interface': 'interface',
-      'variable': 'variable',
-      'import': 'import'
-    };
-    return mapping[standardType] || 'variable';
-  }
+  protected mapToSymbolType = mapToSymbolType;
 
   /**
    * 确定作用域
    */
-  protected determineScope(node: Parser.SyntaxNode): SymbolInfo['scope'] {
-    // 默认作用域确定逻辑，子类可以重写
-    let current = node.parent;
-    while (current) {
-      if (this.isFunctionScope(current)) {
-        return 'function';
-      }
-      if (this.isClassScope(current)) {
-        return 'class';
-      }
-      current = current.parent;
-    }
-    return 'global';
-  }
+  protected determineScope = determineScope;
 
   /**
    * 检查是否为函数作用域
    */
-  protected isFunctionScope(node: Parser.SyntaxNode): boolean {
-    const functionTypes = [
-      'function_declaration', 'function_expression', 'arrow_function',
-      'method_definition', 'constructor_definition'
-    ];
-    return functionTypes.includes(node.type);
-  }
+  protected isFunctionScope = isFunctionScope;
 
   /**
    * 检查是否为类作用域
    */
-  protected isClassScope(node: Parser.SyntaxNode): boolean {
-    const classTypes = [
-      'class_declaration', 'class_definition', 'interface_declaration',
-      'struct_specifier', 'enum_specifier'
-    ];
-    return classTypes.includes(node.type);
-  }
+  protected isClassScope = isClassScope;
 
   /**
    * 提取参数
    */
-  protected extractParameters(node: Parser.SyntaxNode): string[] {
-    const parameters: string[] = [];
-    const parameterList = node.childForFieldName?.('parameters');
-    if (parameterList) {
-      for (const child of parameterList.children) {
-        if (child.type === 'identifier' || child.type === 'formal_parameter') {
-          const declarator = child.childForFieldName?.('declarator') || child;
-          if (declarator?.text) {
-            parameters.push(declarator.text);
-          }
-        }
-      }
-    }
-    return parameters;
-  }
+  protected extractParameters = extractParameters;
 
   /**
    * 提取导入路径
    */
-  protected extractImportPath(node: Parser.SyntaxNode): string | undefined {
-    // 默认导入路径提取逻辑，子类可以重写
-    if (node.type === 'import_statement' || node.type === 'import_declaration') {
-      const pathNode = node.childForFieldName('source') || node.childForFieldName('name');
-      return pathNode ? pathNode.text.replace(/['"]/g, '') : undefined;
-    }
-    return undefined;
-  }
+  protected extractImportPath = extractImportPath;
 
   /**
    * 创建错误结果
    */
-  protected createErrorResult(error: any, queryType: string, language: string): StandardizedQueryResult {
-    const errorForMetadata = error instanceof Error ? error : new Error(String(error));
-    const filePath = this.symbolTable?.filePath || 'unknown';
-    const errorBuilder = new MetadataBuilder()
-      .setLanguage(language)
-      .setError(errorForMetadata, { phase: 'normalization', queryType, filePath });
-
-    return {
-      nodeId: NodeIdGenerator.forError(`${language}_normalization`),
-      type: 'expression',
-      name: 'error',
-      startLine: 0,
-      endLine: 0,
-      content: '',
-      metadata: errorBuilder.build()
-    };
-  }
+  protected createErrorResult = createErrorResult;
 
   /**
    * 预处理查询结果
    */
-  protected preprocessResults(queryResults: any[]): any[] {
-    return queryResults.filter(result =>
-      result &&
-      result.captures &&
-      Array.isArray(result.captures) &&
-      result.captures.length > 0 &&
-      result.captures[0]?.node
-    );
-  }
+  protected preprocessResults = preprocessResults;
 
   /**
     * 转换为标准化结果
@@ -536,65 +479,46 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
   /**
    * 创建标准化结果
    */
+  /**
+   * 创建标准化结果
+   */
   protected createStandardizedResult(result: any, queryType: string, language: string): StandardizedQueryResult {
-    const astNode = result.captures?.[0]?.node;
-    const nodeId = NodeIdGenerator.safeForAstNode(astNode, queryType, this.extractName(result) || 'unknown');
-
-    // Use MetadataBuilder to create enhanced metadata
-    const metadataBuilder = this.createMetadataBuilder(result, language);
-
-    return {
-      nodeId,
-      type: this.mapQueryTypeToStandardType(queryType),
-      name: this.extractName(result),
-      startLine: this.extractStartLine(result),
-      endLine: this.extractEndLine(result),
-      content: this.extractContent(result),
-      metadata: metadataBuilder.build()
-    };
+    return createStandardizedResult(
+      result,
+      queryType,
+      language,
+      this.mapQueryTypeToStandardType.bind(this),
+      this.extractName.bind(this),
+      this.extractDependencies.bind(this),
+      this.extractModifiers.bind(this),
+      this.extractLanguageSpecificMetadata.bind(this),
+      this.calculateComplexity.bind(this)
+    );
   }
 
   /**
    * 创建增强的元数据构建器
    */
   protected createMetadataBuilder(result: any, language: string): MetadataBuilder {
-    const builder = new MetadataBuilder()
-      .setLanguage(language)
-      .setComplexity(this.calculateComplexity(result))
-      .addDependencies(this.extractDependencies(result))
-      .addModifiers(this.extractModifiers(result))
-      .setLocation(result.filePath || '', this.extractStartLine(result), this.extractStartColumn(result) || 0)
-      .setRange(
-        this.extractStartLine(result),
-        this.extractEndLine(result),
-        this.extractStartColumn(result) || 0,
-        this.extractEndColumn(result) || 0
-      )
-      .setCodeSnippet(this.extractContent(result));
-
-    const languageSpecificMetadata = this.extractLanguageSpecificMetadata(result);
-
-    // Add language-specific metadata as custom fields
-    builder.addCustomFields(languageSpecificMetadata);
-
-    return builder;
+    return createMetadataBuilder(
+      result,
+      language,
+      this.calculateComplexity.bind(this),
+      this.extractDependencies.bind(this),
+      this.extractModifiers.bind(this),
+      this.extractLanguageSpecificMetadata.bind(this)
+    );
   }
 
   /**
    * 提取起始列号
    */
-  protected extractStartColumn(result: any): number {
-    const mainNode = result.captures?.[0]?.node;
-    return mainNode?.startPosition?.column || 0;
-  }
+  protected extractStartColumn = extractStartColumn;
 
   /**
    * 提取结束列号
    */
-  protected extractEndColumn(result: any): number {
-    const mainNode = result.captures?.[0]?.node;
-    return mainNode?.endPosition?.column || 0;
-  }
+  protected extractEndColumn = extractEndColumn;
 
   /**
    * 创建元数据
@@ -618,84 +542,31 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
    * 后处理结果
    */
   protected postProcessResults(results: StandardizedQueryResult[]): StandardizedQueryResult[] {
-    let processedResults = results;
-
-    // 1. 去重
-    if (this.options.enableDeduplication) {
-      processedResults = this.deduplicateResults(processedResults);
-    }
-
-    // 2. 按行号排序
-    processedResults = processedResults.sort((a, b) => a.startLine - b.startLine);
-
-    // 3. 过滤无效结果
-    processedResults = processedResults.filter(result =>
-      result &&
-      result.name &&
-      result.name !== 'unnamed' &&
-      result.startLine > 0 &&
-      result.endLine >= result.startLine
-    );
-
-    return processedResults;
+    return postProcessResults(results, this.options.enableDeduplication);
   }
 
   /**
    * 智能去重
    */
-  protected deduplicateResults(results: StandardizedQueryResult[]): StandardizedQueryResult[] {
-    const seen = new Map<string, StandardizedQueryResult>();
-
-    for (const result of results) {
-      const key = this.generateUniqueKey(result);
-
-      if (!seen.has(key)) {
-        seen.set(key, result);
-      } else {
-        this.mergeMetadata(seen.get(key)!, result);
-      }
-    }
-
-    return Array.from(seen.values());
-  }
+  protected deduplicateResults = deduplicateResults;
 
   /**
    * 生成唯一键
    */
-  protected generateUniqueKey(result: StandardizedQueryResult): string {
-    return `${result.type}:${result.name}:${result.startLine}:${result.endLine}`;
-  }
+  protected generateUniqueKey = generateUniqueKey;
 
   /**
    * 合并元数据
    */
-  protected mergeMetadata(existing: StandardizedQueryResult, newResult: StandardizedQueryResult): void {
-    // Use MetadataBuilder to properly merge metadata
-    const existingBuilder = MetadataBuilder.fromComplete(existing.metadata);
-    const newBuilder = MetadataBuilder.fromComplete(newResult.metadata);
-
-    // Merge the metadata using the builder's merge method
-    existingBuilder.merge(newBuilder);
-
-    // Update the existing result with merged metadata
-    existing.metadata = existingBuilder.build();
-  }
+  protected mergeMetadata = mergeMetadata;
 
   // 通用工具方法
-  protected extractStartLine(result: any): number {
-    const mainNode = result.captures?.[0]?.node;
-    return (mainNode?.startPosition?.row || 0) + 1;
-  }
+  // 通用工具方法 - 现在使用工具函数
+  protected extractStartLine = extractStartLine;
 
-  protected extractEndLine(result: any): number {
-    const mainNode = result.captures?.[0]?.node;
-    return (mainNode?.endPosition?.row || 0) + 1;
-  }
+  protected extractEndLine = extractEndLine;
 
-  public extractContent(result: any): string {
-    const mainNode = result.captures?.[0]?.node;
-    return mainNode?.text || '';
-  }
+  public extractContent = extractContent;
 
   protected calculateBaseComplexity(result: any): number {
     const mainNode = result.captures?.[0]?.node;
@@ -741,100 +612,20 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
    * 使用广度优先迭代算法计算嵌套深度
    * 替代原有的递归实现，避免栈溢出
    */
-  protected calculateNestingDepthIterative(startNode: any): number {
-    if (!startNode || !startNode.children) {
-      return 0;
-    }
+  protected calculateNestingDepthIterative = calculateNestingDepthIterative;
 
-    let maxDepth = 0;
-    const queue: Array<{ node: any, depth: number }> = [];
-    queue.push({ node: startNode, depth: 0 });
-
-    while (queue.length > 0) {
-      const { node, depth } = queue.shift()!;
-      maxDepth = Math.max(maxDepth, depth);
-
-      if (node.children && depth < 15) { // 设置合理的深度上限
-        for (const child of node.children) {
-          if (this.isBlockNode(child)) {
-            queue.push({ node: child, depth: depth + 1 });
-          }
-        }
-      }
-    }
-
-    return maxDepth;
-  }
-
-  protected isBlockNode(node: any): boolean {
-    const blockTypes = [
-      'block', 'statement_block', 'class_body', 'interface_body', 'suite',
-      'function_definition', 'method_definition', 'class_definition',
-      'if_statement', 'for_statement', 'while_statement',
-      'switch_statement', 'try_statement', 'catch_clause',
-      'object_expression', 'array_expression'
-    ];
-
-    return blockTypes.includes(node.type);
-  }
+  protected isBlockNode = isBlockNode;
 
   /**
    * 计算节点结构复杂度
    * 考虑：块节点数量、嵌套模式复杂度
    */
-  private calculateNodeComplexity(node: any): number {
-    let nodeScore = 0;
-    let blockNodeCount = 0;
-
-    // 使用迭代方式统计块节点数量
-    const nodeQueue: any[] = [node];
-    const visited = new Set<any>();
-
-    while (nodeQueue.length > 0) {
-      const currentNode = nodeQueue.shift()!;
-
-      if (visited.has(currentNode)) {
-        continue;
-      }
-      visited.add(currentNode);
-
-      if (this.isBlockNode(currentNode)) {
-        blockNodeCount++;
-      }
-
-      if (currentNode.children) {
-        for (const child of currentNode.children) {
-          if (!visited.has(child)) {
-            nodeQueue.push(child);
-          }
-        }
-      }
-    }
-
-    // 基于块节点数量的复杂度加成
-    if (blockNodeCount > 20) {
-      nodeScore += 3;
-    } else if (blockNodeCount > 10) {
-      nodeScore += 2;
-    } else if (blockNodeCount > 5) {
-      nodeScore += 1;
-    }
-
-    return nodeScore;
-  }
+  private calculateNodeComplexity = calculateNodeComplexity;
 
   /**
     * 生成节点缓存键
     */
-  private getNodeCacheKey(node: any): string {
-    if (node.id) {
-      return `${node.type}:${node.id}`;
-    }
-    if (node.startPosition && node.endPosition) {
-      return `${node.type}:${node.startPosition.row}:${node.startPosition.column}-${node.endPosition.row}:${node.endPosition.column}`;
-    }
-    return `${node.type}:${Math.random().toString(36).substr(2, 9)}`;
-  }
+  private getNodeCacheKey = getNodeCacheKey;
 
   protected extractBaseDependencies(result: any): string[] {
     const dependencies: string[] = [];
@@ -850,22 +641,7 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
     return [...new Set(dependencies)];
   }
 
-  protected findTypeReferences(node: any, dependencies: string[]): void {
-    if (!node || !node.children) {
-      return;
-    }
-
-    for (const child of node.children) {
-      if (child.type === 'type_identifier' || child.type === 'identifier') {
-        const text = child.text;
-        if (text && text[0] === text[0].toUpperCase()) {
-          dependencies.push(text);
-        }
-      }
-
-      this.findTypeReferences(child, dependencies);
-    }
-  }
+  protected findTypeReferences = findTypeReferences;
 
   /**
    * 生成缓存键
@@ -878,46 +654,18 @@ export abstract class BaseLanguageAdapter implements ILanguageAdapter {
   /**
    * 哈希查询结果
    */
-  protected hashResults(queryResults: any[]): string {
-    const content = queryResults.map(r => r?.captures?.[0]?.node?.text || '').join('|');
-    return this.simpleHash(content);
-  }
+  protected hashResults = hashResults;
 
   /**
    * 简单哈希函数
    */
-  protected simpleHash(str: string): string {
-    return ContentHashUtils.generateContentHash(str);
-  }
+  protected simpleHash = simpleHash;
 
   /**
    * 降级标准化
    */
   protected fallbackNormalization(queryResults: any[], queryType: string, language: string): StandardizedQueryResult[] {
-    this.logger.warn(`Using fallback normalization for ${language}.${queryType}`);
-
-    return queryResults.slice(0, 10).map((result, index) => {
-      // 确保result不为null或undefined
-      const safeResult = result || {};
-      const nodeId = NodeIdGenerator.forFallback(language, `result_${index}`);
-      const builder = new MetadataBuilder()
-        .setLanguage(language)
-        .setComplexity(1)
-        .addDependencies([])
-        .addModifiers([])
-        .setFlag('isFallback', true)  // 添加标记表示这是降级的结果
-        .setTimestamp('fallbackTime', Date.now()); // 添加时间戳
-
-      return {
-        nodeId,
-        type: 'expression',
-        name: `fallback_${index}`,
-        startLine: this.extractStartLine(safeResult),
-        endLine: this.extractEndLine(safeResult),
-        content: this.extractContent(safeResult),
-        metadata: builder.build()
-      };
-    });
+    return utilsFallbackNormalization(queryResults, queryType, language);
   }
 
   // 抽象方法 - 由子类实现
