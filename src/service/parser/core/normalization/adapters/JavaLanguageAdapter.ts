@@ -1,4 +1,4 @@
-import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
+import { BaseLanguageAdapter, AdapterOptions } from './base/BaseLanguageAdapter';
 import { StandardizedQueryResult, SymbolInfo, SymbolTable } from '../types';
 import { NodeIdGenerator } from '../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';

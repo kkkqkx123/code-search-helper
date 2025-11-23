@@ -9,7 +9,7 @@ export * from './types';
 export { QueryResultNormalizer } from './QueryResultNormalizer';
 
 // 基础架构
-export { BaseLanguageAdapter } from './BaseLanguageAdapter';
+export { BaseLanguageAdapter } from './adapters/base/BaseLanguageAdapter';
 export { LanguageAdapterFactory } from './LanguageAdapterFactory';
 export { QueryTypeMapper } from './QueryTypeMappings';
 
@@ -38,7 +38,7 @@ export async function getLanguageAdapter(language: string) {
  * 注册语言适配器的便捷函数
  */
 export function registerLanguageAdapter(
-  language: string, 
+  language: string,
   adapterFactory: () => import('./types').ILanguageAdapter
 ) {
   console.warn('registerLanguageAdapter is deprecated, please use LanguageAdapterFactory.registerCustomAdapter');

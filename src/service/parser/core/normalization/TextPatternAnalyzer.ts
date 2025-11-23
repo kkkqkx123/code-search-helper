@@ -1,7 +1,7 @@
 
 import { TopLevelStructure, NestedStructure, InternalStructure, LanguagePattern } from '../../../../utils/types/ContentTypes';
 import { QueryResultNormalizer } from './QueryResultNormalizer';
-import { BaseLanguageAdapter } from './BaseLanguageAdapter';
+import { BaseLanguageAdapter } from './adapters/base/BaseLanguageAdapter';
 import { TreeSitterCoreService } from '../parse/TreeSitterCoreService';
 import { LRUCache } from '../../../../utils/cache/LRUCache';
 import { PerformanceMonitor } from '../../../../infrastructure/monitoring/PerformanceMonitor';
@@ -282,7 +282,7 @@ export class TextPatternAnalyzer {
         if (adapter) {
           // 使用适配器进行增强的复杂度分析
           const complexityValue = await adapter.calculateComplexity({ content });
-          
+
           // 将适配器返回的复杂度值转换为标准格式
           const complexity = {
             cyclomaticComplexity: complexityValue,

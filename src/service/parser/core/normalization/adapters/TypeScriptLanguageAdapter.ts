@@ -1,5 +1,5 @@
 import { JavaScriptLanguageAdapter } from './JavaScriptLanguageAdapter';
-import { AdapterOptions } from '../BaseLanguageAdapter';
+import { AdapterOptions } from './base/BaseLanguageAdapter';
 import { JS_SUPPORTED_QUERY_TYPES } from './js-utils';
 
 /**
@@ -119,42 +119,42 @@ export class TypeScriptLanguageAdapter extends JavaScriptLanguageAdapter {
   }
 
   calculateComplexity(result: any): number {
-  // 调用父类方法获取基础复杂度
-  let complexity = super.calculateComplexity(result);
+    // 调用父类方法获取基础复杂度
+    let complexity = super.calculateComplexity(result);
 
-  const mainNode = result.captures?.[0]?.node;
-  if (!mainNode) {
-  return complexity;
-  }
+    const mainNode = result.captures?.[0]?.node;
+    if (!mainNode) {
+      return complexity;
+    }
 
-  // 添加TypeScript特有的复杂度因素
-  const text = mainNode.text || '';
-  if (text.includes('decorator') || text.includes('@')) complexity += 1; // 装饰器
-  if (text.includes('implements')) complexity += 1; // 接口实现
-  if (text.includes('generic') || text.includes('<')) complexity += 1; // 泛型
+    // 添加TypeScript特有的复杂度因素
+    const text = mainNode.text || '';
+    if (text.includes('decorator') || text.includes('@')) complexity += 1; // 装饰器
+    if (text.includes('implements')) complexity += 1; // 接口实现
+    if (text.includes('generic') || text.includes('<')) complexity += 1; // 泛型
 
-  return complexity;
+    return complexity;
   }
 
   extractModifiers(result: any): string[] {
-  // 调用父类方法获取基础修饰符
-  const modifiers = super.extractModifiers(result);
-  const mainNode = result.captures?.[0]?.node;
+    // 调用父类方法获取基础修饰符
+    const modifiers = super.extractModifiers(result);
+    const mainNode = result.captures?.[0]?.node;
 
-  if (!mainNode) {
-    return modifiers;
+    if (!mainNode) {
+      return modifiers;
     }
 
-  // 添加TypeScript特有的修饰符
-  const text = mainNode.text || '';
+    // 添加TypeScript特有的修饰符
+    const text = mainNode.text || '';
 
-  if (text.includes('public')) modifiers.push('public');
-  if (text.includes('private')) modifiers.push('private');
+    if (text.includes('public')) modifiers.push('public');
+    if (text.includes('private')) modifiers.push('private');
     if (text.includes('protected')) modifiers.push('protected');
-  if (text.includes('readonly')) modifiers.push('readonly');
-  if (text.includes('abstract')) modifiers.push('abstract');
+    if (text.includes('readonly')) modifiers.push('readonly');
+    if (text.includes('abstract')) modifiers.push('abstract');
 
-  return modifiers;
+    return modifiers;
   }
 
   // TypeScript特定的辅助方法
@@ -166,24 +166,24 @@ export class TypeScriptLanguageAdapter extends JavaScriptLanguageAdapter {
       return decorators;
     }
 
-  for (const child of node.children) {
-    if (child.type === 'decorator' && child.text) {
-      decorators.push(child.text.trim());
-  }
-    decorators.push(...this.extractDecorators(child));
+    for (const child of node.children) {
+      if (child.type === 'decorator' && child.text) {
+        decorators.push(child.text.trim());
+      }
+      decorators.push(...this.extractDecorators(child));
     }
 
-  return decorators;
+    return decorators;
   }
 
   // 重写isBlockNode方法以支持TypeScript特定的块节点类型
   protected isBlockNode(node: any): boolean {
-  const tsBlockTypes = ['interface_body'];
-  return tsBlockTypes.includes(node.type) || super.isBlockNode(node);
+    const tsBlockTypes = ['interface_body'];
+    return tsBlockTypes.includes(node.type) || super.isBlockNode(node);
   }
 
   // 高级关系提取方法 - TypeScript特定的实现
-  
+
   extractDataFlowRelationships(result: any): Array<{
     source: string;
     target: string;
@@ -191,13 +191,13 @@ export class TypeScriptLanguageAdapter extends JavaScriptLanguageAdapter {
   }> {
     // 先调用父类方法获取基础关系
     const relationships = super.extractDataFlowRelationships(result);
-    
+
     // 添加TypeScript特有的数据流关系
     this.extractTypeScriptDataFlowRelationships(result, relationships);
-    
+
     return relationships;
   }
-  
+
   private extractTypeScriptDataFlowRelationships(result: any, relationships: Array<{
     source: string;
     target: string;
@@ -207,9 +207,9 @@ export class TypeScriptLanguageAdapter extends JavaScriptLanguageAdapter {
     if (!mainNode) {
       return;
     }
-    
+
     // TypeScript特有的数据流关系
-    
+
     // 类型注解变量赋值数据流
     if (mainNode.type === 'lexical_declaration') {
       for (const child of mainNode.children || []) {
@@ -217,7 +217,7 @@ export class TypeScriptLanguageAdapter extends JavaScriptLanguageAdapter {
           const name = child.childForFieldName('name');
           const type = child.childForFieldName('type');
           const value = child.childForFieldName('value');
-          
+
           if (name?.text && value?.text) {
             relationships.push({
               source: value.text,
@@ -228,12 +228,12 @@ export class TypeScriptLanguageAdapter extends JavaScriptLanguageAdapter {
         }
       }
     }
-    
+
     // 类型断言数据流
     if (mainNode.type === 'as_expression') {
       const value = mainNode.childForFieldName('value');
       const type = mainNode.childForFieldName('type');
-      
+
       if (value?.text && type?.text) {
         relationships.push({
           source: value.text,
@@ -242,7 +242,7 @@ export class TypeScriptLanguageAdapter extends JavaScriptLanguageAdapter {
         });
       }
     }
-    
+
     // 非空断言数据流
     if (mainNode.type === 'non_null_expression') {
       const value = mainNode.childForFieldName('value');
@@ -254,14 +254,14 @@ export class TypeScriptLanguageAdapter extends JavaScriptLanguageAdapter {
         });
       }
     }
-    
+
     // 空值合并数据流
     if (mainNode.type === 'binary_expression') {
       const operator = mainNode.childForFieldName('operator');
       if (operator?.text === '??') {
         const left = mainNode.childForFieldName('left');
         const right = mainNode.childForFieldName('right');
-        
+
         if (left?.text && right?.text) {
           relationships.push({
             source: left.text,
@@ -271,14 +271,14 @@ export class TypeScriptLanguageAdapter extends JavaScriptLanguageAdapter {
         }
       }
     }
-    
+
     // Promise异步数据流
     if (mainNode.type === 'assignment_expression') {
       const right = mainNode.childForFieldName('right');
       if (right?.type === 'await_expression') {
         const awaitValue = right.childForFieldName('value');
         const left = mainNode.childForFieldName('left');
-        
+
         if (awaitValue?.text && left?.text) {
           relationships.push({
             source: awaitValue.text,
@@ -288,12 +288,12 @@ export class TypeScriptLanguageAdapter extends JavaScriptLanguageAdapter {
         }
       }
     }
-    
+
     // 枚举成员数据流
     if (mainNode.type === 'member_expression') {
       const object = mainNode.childForFieldName('object');
       const property = mainNode.childForFieldName('property');
-      
+
       if (object?.text && property?.text) {
         relationships.push({
           source: object.text,
@@ -302,12 +302,12 @@ export class TypeScriptLanguageAdapter extends JavaScriptLanguageAdapter {
         });
       }
     }
-    
+
     // 命名空间成员数据流
     if (mainNode.type === 'member_expression') {
       const object = mainNode.childForFieldName('object');
       const property = mainNode.childForFieldName('property');
-      
+
       if (object?.text && property?.text) {
         relationships.push({
           source: object.text,
@@ -325,13 +325,13 @@ export class TypeScriptLanguageAdapter extends JavaScriptLanguageAdapter {
   }> {
     // 先调用父类方法获取基础关系
     const relationships = super.extractControlFlowRelationships(result);
-    
+
     // 添加TypeScript特有的控制流关系
     this.extractTypeScriptControlFlowRelationships(result, relationships);
-    
+
     return relationships;
   }
-  
+
   private extractTypeScriptControlFlowRelationships(result: any, relationships: Array<{
     source: string;
     target: string;
@@ -341,9 +341,9 @@ export class TypeScriptLanguageAdapter extends JavaScriptLanguageAdapter {
     if (!mainNode) {
       return;
     }
-    
+
     // TypeScript特有的控制流关系
-    
+
     // 泛型约束控制流
     if (mainNode.type === 'type_parameters') {
       for (const child of mainNode.children || []) {
@@ -359,12 +359,12 @@ export class TypeScriptLanguageAdapter extends JavaScriptLanguageAdapter {
         }
       }
     }
-    
+
     // 类型守卫控制流
     if (mainNode.type === 'type_predicate') {
       const parameter = mainNode.childForFieldName('parameter');
       const type = mainNode.childForFieldName('type');
-      
+
       if (parameter?.text && type?.text) {
         relationships.push({
           source: parameter.text,
@@ -373,7 +373,7 @@ export class TypeScriptLanguageAdapter extends JavaScriptLanguageAdapter {
         });
       }
     }
-    
+
     // 异步/等待控制流
     if (mainNode.type === 'await_expression') {
       const value = mainNode.childForFieldName('value');
@@ -385,7 +385,7 @@ export class TypeScriptLanguageAdapter extends JavaScriptLanguageAdapter {
         });
       }
     }
-    
+
     // Promise链式调用控制流
     if (mainNode.type === 'call_expression') {
       const func = mainNode.childForFieldName('function');
@@ -409,7 +409,7 @@ export class TypeScriptLanguageAdapter extends JavaScriptLanguageAdapter {
   }> {
     // 先调用父类方法获取基础语义关系
     const relationships = super.extractSemanticRelationships(result);
-    
+
     const mainNode = result.captures?.[0]?.node;
     if (!mainNode) {
       return relationships;
@@ -417,7 +417,7 @@ export class TypeScriptLanguageAdapter extends JavaScriptLanguageAdapter {
 
     // 添加TypeScript特有的语义关系
     const text = mainNode.text || '';
-    
+
     // 检查TypeScript接口实现
     if (text.includes('implements')) {
       relationships.push({

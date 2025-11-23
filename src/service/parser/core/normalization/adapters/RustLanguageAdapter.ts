@@ -1,4 +1,4 @@
-import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
+import { BaseLanguageAdapter, AdapterOptions } from './base/BaseLanguageAdapter';
 import { StandardizedQueryResult, SymbolInfo, SymbolTable } from '../types';
 import { NodeIdGenerator } from '../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
@@ -32,7 +32,7 @@ import {
 export class RustLanguageAdapter extends BaseLanguageAdapter {
   // In-memory symbol table for the current file
   private symbolTable: SymbolTable | null = null;
-  
+
   // 关系提取器实例
   private callExtractor: CallRelationshipExtractor;
   private dataFlowExtractor: DataFlowRelationshipExtractor;
@@ -48,7 +48,7 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
 
   constructor(options: AdapterOptions = {}) {
     super(options);
-    
+
     // 初始化关系提取器
     this.callExtractor = new CallRelationshipExtractor();
     this.dataFlowExtractor = new DataFlowRelationshipExtractor();
@@ -82,7 +82,7 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
           if (name) {
             return name;
           }
-          
+
           // 如果特定字段没有找到，使用节点文本
           if (capture.node.text) {
             return capture.node.text;
@@ -93,13 +93,13 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
       // 如果没有找到名称捕获，尝试从主节点提取
       if (result.captures?.[0]?.node) {
         const mainNode = result.captures[0].node;
-        
+
         // 使用RustHelperMethods提取名称
         const name = RustHelperMethods.extractNameFromNode(mainNode);
         if (name) {
           return name;
         }
-        
+
         // 如果以上都失败，返回节点文本
         if (mainNode.text) {
           return mainNode.text;
@@ -116,7 +116,7 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
   extractLanguageSpecificMetadata(result: any): Record<string, any> {
     const extra: Record<string, any> = {};
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return extra;
     }
@@ -180,7 +180,7 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
   calculateComplexity(result: any): number {
     try {
       let complexity = this.calculateBaseComplexity(result);
-      
+
       const mainNode = result.captures?.[0]?.node;
       if (!mainNode) {
         return complexity;
@@ -213,7 +213,7 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
     try {
       const dependencies: string[] = [];
       const mainNode = result.captures?.[0]?.node;
-      
+
       if (!mainNode) {
         return dependencies;
       }
@@ -238,20 +238,20 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
     try {
       const modifiers: string[] = [];
       const mainNode = result.captures?.[0]?.node;
-      
+
       if (!mainNode) {
         return modifiers;
       }
 
       // 使用RUST_MODIFIERS检查修饰符
       const text = mainNode.text || '';
-      
+
       for (const modifier of RUST_MODIFIERS) {
         if (text.includes(modifier)) {
           modifiers.push(modifier);
         }
       }
-      
+
       // 检查是否是trait实现
       if (text.includes('impl')) {
         if (text.includes('for')) {

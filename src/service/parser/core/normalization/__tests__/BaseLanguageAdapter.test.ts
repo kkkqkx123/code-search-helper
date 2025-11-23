@@ -2,7 +2,7 @@
  * BaseLanguageAdapter 测试
  */
 
-import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
+import { BaseLanguageAdapter, AdapterOptions } from '../adapters/base/BaseLanguageAdapter';
 import { StandardizedQueryResult } from '../types';
 
 /**
@@ -97,7 +97,7 @@ describe('BaseLanguageAdapter', () => {
 
   beforeEach(() => {
     adapter = new TestLanguageAdapter();
-    
+
     mockResult = {
       captures: [{
         node: {
@@ -109,14 +109,14 @@ describe('BaseLanguageAdapter', () => {
         }
       }]
     };
-    
+
     mockQueryResults = [mockResult];
   });
 
   describe('normalize', () => {
     it('should normalize query results successfully', async () => {
       const results = await adapter.normalize(mockQueryResults, 'functions', 'test');
-      
+
       expect(results).toHaveLength(1);
       expect(results[0].type).toBe('function');
       expect(results[0].name).toBe('test');
@@ -141,28 +141,28 @@ describe('BaseLanguageAdapter', () => {
         { captures: [] },
         { captures: [{}] }
       ];
-      
+
       const results = await adapter.normalize(invalidResults, 'functions', 'test');
       expect(results).toHaveLength(0);
     });
 
     it('should use caching when enabled', async () => {
       const cachingAdapter = new TestLanguageAdapter({ enableCaching: true });
-      
+
       const results1 = await cachingAdapter.normalize(mockQueryResults, 'functions', 'test');
       const results2 = await cachingAdapter.normalize(mockQueryResults, 'functions', 'test');
-      
+
       expect(results1).toEqual(results2);
     });
 
     it('should handle errors with fallback when enabled', async () => {
       const errorAdapter = new TestLanguageAdapter({ enableErrorRecovery: true });
-      
+
       // 模拟错误 - 需要模拟createStandardizedResult方法而不是extractName
       jest.spyOn(errorAdapter as any, 'createStandardizedResult').mockImplementation(() => {
         throw new Error('Test error');
       });
-      
+
       const results = await errorAdapter.normalize(mockQueryResults, 'functions', 'test');
       expect(results).toHaveLength(1);
       expect(results[0].name).toBe('fallback_0');
@@ -170,12 +170,12 @@ describe('BaseLanguageAdapter', () => {
 
     it('should throw errors when recovery is disabled', async () => {
       const errorAdapter = new TestLanguageAdapter({ enableErrorRecovery: false });
-      
+
       // 模拟错误
       jest.spyOn(errorAdapter, 'extractName').mockImplementation(() => {
         throw new Error('Test error');
       });
-      
+
       await expect(errorAdapter.normalize(mockQueryResults, 'functions', 'test'))
         .rejects.toThrow('Test error');
     });
@@ -184,7 +184,7 @@ describe('BaseLanguageAdapter', () => {
   describe('deduplication', () => {
     it('should remove duplicate results', async () => {
       const duplicateResults = [mockResult, mockResult];
-      
+
       const results = await adapter.normalize(duplicateResults, 'functions', 'test');
       expect(results).toHaveLength(1);
     });
@@ -194,16 +194,16 @@ describe('BaseLanguageAdapter', () => {
         ...mockResult,
         name: 'test1'
       };
-      
+
       const result2 = {
         ...mockResult,
         name: 'test2'
       };
-      
+
       jest.spyOn(adapter, 'extractName')
         .mockReturnValueOnce('test1')
         .mockReturnValueOnce('test2');
-      
+
       const results = await adapter.normalize([result1, result2], 'functions', 'test');
       expect(results).toHaveLength(2);
     });
@@ -275,7 +275,7 @@ describe('BaseLanguageAdapter', () => {
         cacheSize: 50,
         customTypeMappings: { 'custom': 'expression' }
       };
-      
+
       const customAdapter = new TestLanguageAdapter(customOptions);
       expect(customAdapter).toBeInstanceOf(TestLanguageAdapter);
     });

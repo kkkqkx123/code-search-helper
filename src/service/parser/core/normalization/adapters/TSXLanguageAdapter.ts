@@ -1,5 +1,5 @@
 import { TypeScriptLanguageAdapter } from './TypeScriptLanguageAdapter';
-import { AdapterOptions } from '../BaseLanguageAdapter';
+import { AdapterOptions } from './base/BaseLanguageAdapter';
 import { JS_SUPPORTED_QUERY_TYPES } from './js-utils';
 
 /**

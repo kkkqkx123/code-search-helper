@@ -1,4 +1,4 @@
-import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
+import { BaseLanguageAdapter, AdapterOptions } from './base/BaseLanguageAdapter';
 import { StandardizedQueryResult } from '../types';
 type StandardType = StandardizedQueryResult['type'];
 
@@ -49,7 +49,7 @@ export class DefaultLanguageAdapter extends BaseLanguageAdapter {
       'assignment_expression': 'variable',
       'local_variable_declaration': 'variable'
     };
-    
+
     return typeMapping[nodeType] || nodeType;
   }
 
@@ -57,7 +57,7 @@ export class DefaultLanguageAdapter extends BaseLanguageAdapter {
     // 尝试从不同的捕获中提取名称
     const nameCaptures = [
       'name.definition.function',
-      'name.definition.method', 
+      'name.definition.method',
       'name.definition.class',
       'name.definition.interface',
       'name.definition.type',
@@ -89,7 +89,7 @@ export class DefaultLanguageAdapter extends BaseLanguageAdapter {
   extractLanguageSpecificMetadata(result: any): Record<string, any> {
     const extra: Record<string, any> = {};
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return extra;
     }
@@ -102,8 +102,8 @@ export class DefaultLanguageAdapter extends BaseLanguageAdapter {
 
     // 提取继承信息
     const heritageClause = mainNode.childForFieldName('heritage_clause') ||
-                          mainNode.childForFieldName('superclasses') ||
-                          mainNode.childForFieldName('base_class');
+      mainNode.childForFieldName('superclasses') ||
+      mainNode.childForFieldName('base_class');
     if (heritageClause) {
       extra.hasInheritance = true;
       extra.inheritance = heritageClause.text;
@@ -131,13 +131,13 @@ export class DefaultLanguageAdapter extends BaseLanguageAdapter {
       'types': 'type',
       'properties': 'variable'  // 将properties映射到variable，因为StandardizedQueryResult不支持property类型
     };
-    
+
     return mapping[queryType] || 'expression';
   }
 
   calculateComplexity(result: any): number {
     let complexity = this.calculateBaseComplexity(result);
-    
+
     const mainNode = result.captures?.[0]?.node;
     if (!mainNode) {
       return complexity;
@@ -167,14 +167,14 @@ export class DefaultLanguageAdapter extends BaseLanguageAdapter {
   extractDependencies(result: any): string[] {
     const dependencies: string[] = [];
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return dependencies;
     }
 
     // 查找标识符引用
     this.findIdentifiers(mainNode, dependencies);
-    
+
     // 查找类型引用
     this.findTypeReferences(mainNode, dependencies);
 
@@ -184,13 +184,13 @@ export class DefaultLanguageAdapter extends BaseLanguageAdapter {
   extractModifiers(result: any): string[] {
     const modifiers: string[] = [];
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return modifiers;
     }
 
     const text = mainNode.text || '';
-    
+
     // 通用的修饰符检查
     const commonModifiers = [
       'public', 'private', 'protected', 'static', 'final', 'abstract',
@@ -239,7 +239,7 @@ export class DefaultLanguageAdapter extends BaseLanguageAdapter {
       if (child.type === 'identifier' && child.text) {
         dependencies.push(child.text);
       }
-      
+
       this.findIdentifiers(child, dependencies);
     }
   }
@@ -251,11 +251,11 @@ export class DefaultLanguageAdapter extends BaseLanguageAdapter {
 
     for (const child of node.children) {
       // 查找可能的类型引用（通常以大写字母开头）
-      if (child.type === 'type_identifier' || 
-          (child.type === 'identifier' && child.text && child.text[0] === child.text[0].toUpperCase())) {
+      if (child.type === 'type_identifier' ||
+        (child.type === 'identifier' && child.text && child.text[0] === child.text[0].toUpperCase())) {
         dependencies.push(child.text);
       }
-      
+
       this.findTypeReferences(child, dependencies);
     }
   }

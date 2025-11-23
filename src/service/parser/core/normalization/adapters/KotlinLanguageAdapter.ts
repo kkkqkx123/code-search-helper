@@ -1,4 +1,4 @@
-import { BaseLanguageAdapter, AdapterOptions } from '../BaseLanguageAdapter';
+import { BaseLanguageAdapter, AdapterOptions } from './base/BaseLanguageAdapter';
 import { StandardizedQueryResult } from '../types';
 type StandardType = StandardizedQueryResult['type'];
 
@@ -32,7 +32,7 @@ export class KotlinLanguageAdapter extends BaseLanguageAdapter {
       'primary_constructor': 'method',
       'class_parameter': 'variable',
       'variable_declaration': 'variable',
-      
+
       // Modifiers
       'class_modifier': 'type',
       'function_modifier': 'type',
@@ -41,21 +41,21 @@ export class KotlinLanguageAdapter extends BaseLanguageAdapter {
       'parameter_modifier': 'type',
       'type_modifier': 'type',
       'visibility_modifier': 'type',
-      
+
       // Types
       'type_identifier': 'type',
       'user_type': 'type',
       'simple_identifier': 'type',
       'type_parameters': 'type',
       'type_argument': 'type',
-      
+
       // Expressions
       'call_expression': 'expression',
       'binary_expression': 'expression',
       'unary_expression': 'expression',
       'property_access_expression': 'expression',
       'safe_access_expression': 'expression',
-      
+
       // Control flow
       'if_statement': 'control-flow',
       'when_statement': 'control-flow',
@@ -67,7 +67,7 @@ export class KotlinLanguageAdapter extends BaseLanguageAdapter {
       'catch_clause': 'control-flow',
       'finally_clause': 'control-flow'
     };
-    
+
     return typeMapping[nodeType] || nodeType;
   }
 
@@ -118,7 +118,7 @@ export class KotlinLanguageAdapter extends BaseLanguageAdapter {
         }
         return 'Companion';
       }
-      
+
       // 处理primary_constructor - 尝试从父类获取名称
       if (mainNode.type === 'primary_constructor') {
         const parentClass = mainNode.parent;
@@ -127,16 +127,16 @@ export class KotlinLanguageAdapter extends BaseLanguageAdapter {
         }
         return 'constructor';
       }
-      
+
       // 如果没有找到名称捕获，尝试从主节点提取
       if (mainNode.childForFieldName?.('name')?.text) {
         return mainNode.childForFieldName('name').text;
       }
-      
+
       // 尝试获取标识符
       const identifier = mainNode.childForFieldName?.('identifier') ||
-                        mainNode.childForFieldName?.('type_identifier') ||
-                        mainNode.childForFieldName?.('simple_identifier');
+        mainNode.childForFieldName?.('type_identifier') ||
+        mainNode.childForFieldName?.('simple_identifier');
       if (identifier?.text) {
         return identifier.text;
       }
@@ -148,7 +148,7 @@ export class KotlinLanguageAdapter extends BaseLanguageAdapter {
   extractLanguageSpecificMetadata(result: any): Record<string, any> {
     const extra: Record<string, any> = {};
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return extra;
     }
@@ -223,14 +223,14 @@ export class KotlinLanguageAdapter extends BaseLanguageAdapter {
     }
 
     // 检查是否是挂起函数
-    if (mainNode.type === 'suspend_function' || 
-        (mainNode.text && mainNode.text.includes('suspend'))) {
+    if (mainNode.type === 'suspend_function' ||
+      (mainNode.text && mainNode.text.includes('suspend'))) {
       extra.isSuspend = true;
     }
 
     // 检查是否是扩展函数
-    if (mainNode.type === 'extension_function' || 
-        (mainNode.text && mainNode.text.includes('extension'))) {
+    if (mainNode.type === 'extension_function' ||
+      (mainNode.text && mainNode.text.includes('extension'))) {
       extra.isExtension = true;
     }
 
@@ -244,13 +244,13 @@ export class KotlinLanguageAdapter extends BaseLanguageAdapter {
       'methods-variables': 'function',
       'control-flow-patterns': 'control-flow'
     };
-    
+
     return mapping[queryType] || 'expression';
   }
 
   calculateComplexity(result: any): number {
     let complexity = this.calculateBaseComplexity(result);
-    
+
     const mainNode = result.captures?.[0]?.node;
     if (!mainNode) {
       return complexity;
@@ -301,7 +301,7 @@ export class KotlinLanguageAdapter extends BaseLanguageAdapter {
   extractDependencies(result: any): string[] {
     const dependencies: string[] = [];
     const mainNode = result.captures?.[0]?.node;
-    
+
     if (!mainNode) {
       return dependencies;
     }
@@ -323,7 +323,7 @@ export class KotlinLanguageAdapter extends BaseLanguageAdapter {
 
     // 查找类型引用
     this.findTypeReferences(mainNode, dependencies);
-    
+
     // 查找函数调用引用
     this.findFunctionCalls(mainNode, dependencies);
 
@@ -332,16 +332,16 @@ export class KotlinLanguageAdapter extends BaseLanguageAdapter {
 
   extractModifiers(result: any): string[] {
     const modifiers: string[] = [];
-    
+
     // 使用extractContent方法获取内容，这样可以正确处理mock的情况
     const text = this.extractContent(result);
-    
+
     // 检查常见的修饰符
     if (text.includes('public')) modifiers.push('public');
     if (text.includes('private')) modifiers.push('private');
     if (text.includes('protected')) modifiers.push('protected');
     if (text.includes('internal')) modifiers.push('internal');
-    
+
     // Kotlin特定修饰符
     if (text.includes('suspend')) modifiers.push('suspend');
     if (text.includes('inline')) modifiers.push('inline');
@@ -354,7 +354,7 @@ export class KotlinLanguageAdapter extends BaseLanguageAdapter {
     if (text.includes('external')) modifiers.push('external');
     if (text.includes('expect')) modifiers.push('expect');
     if (text.includes('actual')) modifiers.push('actual');
-    
+
     // 类修饰符
     if (text.includes('data')) modifiers.push('data');
     if (text.includes('sealed')) modifiers.push('sealed');
@@ -365,20 +365,20 @@ export class KotlinLanguageAdapter extends BaseLanguageAdapter {
     if (text.includes('annotation')) modifiers.push('annotation');
     if (text.includes('inner')) modifiers.push('inner');
     if (text.includes('value')) modifiers.push('value'); // Value class
-    
+
     // 成员修饰符
     if (text.includes('override')) modifiers.push('override');
     if (text.includes('lateinit')) modifiers.push('lateinit');
     if (text.includes('const')) modifiers.push('const');
-    
+
     // 参数修饰符
     if (text.includes('vararg')) modifiers.push('vararg');
     if (text.includes('noinline')) modifiers.push('noinline');
     if (text.includes('crossinline')) modifiers.push('crossinline');
-    
+
     // 其他修饰符
     if (text.includes('companion')) modifiers.push('companion');
-    
+
     // 注解
     if (text.includes('@Override')) modifiers.push('override');
     if (text.includes('@Deprecated')) modifiers.push('deprecated');
@@ -402,7 +402,7 @@ export class KotlinLanguageAdapter extends BaseLanguageAdapter {
           dependencies.push(functionNode.text);
         }
       }
-      
+
       this.findFunctionCalls(child, dependencies);
     }
   }

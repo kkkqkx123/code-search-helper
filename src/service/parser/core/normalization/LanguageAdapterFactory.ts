@@ -4,7 +4,7 @@
  */
 
 import { ILanguageAdapter } from './types';
-import { AdapterOptions } from './BaseLanguageAdapter';
+import { AdapterOptions } from './adapters/base/BaseLanguageAdapter';
 import { QueryTypeMapper } from './QueryTypeMappings';
 
 // 导入所有语言适配器

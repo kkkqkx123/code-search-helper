@@ -3,17 +3,17 @@
  * 提供通用的标准化逻辑和模板方法
  */
 
-import { ILanguageAdapter, StandardizedQueryResult } from './types';
+import { ILanguageAdapter, StandardizedQueryResult } from '../../types';
 type StandardType = StandardizedQueryResult['type'];
-import { LoggerService } from '../../../../utils/LoggerService';
-import { LRUCache } from '../../../../utils/cache/LRUCache';
-import { PerformanceMonitor } from '../../../../infrastructure/monitoring/PerformanceMonitor';
-import { InfrastructureConfigService } from '../../../../infrastructure/config/InfrastructureConfigService';
-import { MetadataBuilder } from './utils/MetadataBuilder';
-import { ContentHashUtils } from '../../../../utils/cache/ContentHashUtils';
-import { NodeIdGenerator } from '../../../../utils/deterministic-node-id';
-import { CommentAdapterFactory } from './comments/adapters/AdapterFactory';
-import { QueryResult as CommentQueryResult } from './comments/types';
+import { LoggerService } from '../../../../../../utils/LoggerService';
+import { LRUCache } from '../../../../../../utils/cache/LRUCache';
+import { PerformanceMonitor } from '../../../../../../infrastructure/monitoring/PerformanceMonitor';
+import { InfrastructureConfigService } from '../../../../../../infrastructure/config/InfrastructureConfigService';
+import { MetadataBuilder } from '../../utils/MetadataBuilder';
+import { ContentHashUtils } from '../../../../../../utils/cache/ContentHashUtils';
+import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
+import { CommentAdapterFactory } from '../../comments/adapters/AdapterFactory';
+import { QueryResult as CommentQueryResult } from '../../comments/types';
 
 /**
  * 适配器选项接口
