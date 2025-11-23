@@ -27,3 +27,6 @@ export {
   C_MODIFIERS,
   C_COMPLEXITY_KEYWORDS
 } from './constants';
+
+// 导出通用工具
+export { BaseRelationshipExtractor, RelationshipMetadata, SymbolTable, RelationshipExtractorUtils } from '../utils';

@@ -1,15 +1,16 @@
 import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
+import { BaseRelationshipExtractor, RelationshipMetadata } from '../utils';
 
 /**
  * C语言继承关系提取器
  * 在C语言中，继承关系主要通过结构体嵌套和函数指针模拟
  */
-export class InheritanceRelationshipExtractor {
+export class InheritanceRelationshipExtractor extends BaseRelationshipExtractor {
   /**
    * 提取继承关系元数据
    */
-  extractInheritanceMetadata(result: any, astNode: Parser.SyntaxNode, symbolTable: any): any {
+  extractInheritanceMetadata(result: any, astNode: Parser.SyntaxNode, symbolTable: any): RelationshipMetadata | null {
     const inheritanceType = this.determineInheritanceType(astNode);
 
     if (!inheritanceType) {
@@ -35,24 +36,12 @@ export class InheritanceRelationshipExtractor {
    * 提取继承关系数组
    */
   extractInheritanceRelationships(result: any): Array<any> {
-    const relationships: Array<any> = [];
-    const astNode = result.captures?.[0]?.node;
-
-    if (!astNode) {
-      return relationships;
-    }
-
-    // 检查是否为继承相关的节点类型
-    if (!this.isInheritanceNode(astNode)) {
-      return relationships;
-    }
-
-    const inheritanceMetadata = this.extractInheritanceMetadata(result, astNode, null);
-    if (inheritanceMetadata) {
-      relationships.push(inheritanceMetadata);
-    }
-
-    return relationships;
+    return this.extractRelationships(
+      result,
+      (node: Parser.SyntaxNode) => this.isInheritanceNode(node),
+      (result: any, astNode: Parser.SyntaxNode, symbolTable: any) =>
+        this.extractInheritanceMetadata(result, astNode, symbolTable)
+    );
   }
 
   /**

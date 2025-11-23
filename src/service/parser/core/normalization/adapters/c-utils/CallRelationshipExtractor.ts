@@ -1,15 +1,16 @@
 import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
 import { CHelperMethods } from '.';
+import { BaseRelationshipExtractor, RelationshipMetadata } from '../utils';
 
 /**
  * C语言调用关系提取器
  */
-export class CallRelationshipExtractor {
+export class CallRelationshipExtractor extends BaseRelationshipExtractor {
   /**
    * 提取调用关系元数据
    */
-  extractCallMetadata(result: any, astNode: Parser.SyntaxNode, symbolTable: any): any {
+  extractCallMetadata(result: any, astNode: Parser.SyntaxNode, symbolTable: any): RelationshipMetadata | null {
     const functionNode = astNode.childForFieldName('function');
     const callerNode = CHelperMethods.findCallerFunctionContext(astNode);
     const calleeName = CHelperMethods.extractCalleeName(astNode);
@@ -34,18 +35,11 @@ export class CallRelationshipExtractor {
    * 提取调用关系数组
    */
   extractCallRelationships(result: any): Array<any> {
-    const relationships: Array<any> = [];
-    const astNode = result.captures?.[0]?.node;
-
-    if (!astNode || astNode.type !== 'call_expression') {
-      return relationships;
-    }
-
-    const callMetadata = this.extractCallMetadata(result, astNode, null);
-    if (callMetadata) {
-      relationships.push(callMetadata);
-    }
-
-    return relationships;
+    return this.extractRelationships(
+      result,
+      (node: Parser.SyntaxNode) => node.type === 'call_expression',
+      (result: any, astNode: Parser.SyntaxNode, symbolTable: any) =>
+        this.extractCallMetadata(result, astNode, symbolTable)
+    );
   }
 }

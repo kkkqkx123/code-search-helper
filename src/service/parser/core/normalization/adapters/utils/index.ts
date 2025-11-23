@@ -10,3 +10,9 @@ export {
   createErrorResult,
   fallbackNormalization
 } from './PostProcessingUtils';
+export {
+  BaseRelationshipExtractor,
+  RelationshipMetadata,
+  SymbolTable,
+  RelationshipExtractorUtils
+} from './RelationshipExtractorUtils';

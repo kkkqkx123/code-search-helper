@@ -1,15 +1,16 @@
 import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import Parser from 'tree-sitter';
+import { BaseRelationshipExtractor, RelationshipMetadata, RelationshipExtractorUtils } from '../utils';
 
 /**
  * C语言注解关系提取器
  * 处理C11属性说明符和类型注解
  */
-export class AnnotationRelationshipExtractor {
+export class AnnotationRelationshipExtractor extends BaseRelationshipExtractor {
   /**
    * 提取注解关系元数据
    */
-  extractAnnotationMetadata(result: any, astNode: Parser.SyntaxNode, symbolTable: any): any {
+  extractAnnotationMetadata(result: any, astNode: Parser.SyntaxNode, symbolTable: any): RelationshipMetadata | null {
     const annotationType = this.determineAnnotationType(astNode);
 
     if (!annotationType) {
@@ -39,24 +40,12 @@ export class AnnotationRelationshipExtractor {
    * 提取注解关系数组
    */
   extractAnnotationRelationships(result: any): Array<any> {
-    const relationships: Array<any> = [];
-    const astNode = result.captures?.[0]?.node;
-
-    if (!astNode) {
-      return relationships;
-    }
-
-    // 检查是否为注解相关的节点类型
-    if (!this.isAnnotationNode(astNode)) {
-      return relationships;
-    }
-
-    const annotationMetadata = this.extractAnnotationMetadata(result, astNode, null);
-    if (annotationMetadata) {
-      relationships.push(annotationMetadata);
-    }
-
-    return relationships;
+    return this.extractRelationships(
+      result,
+      (node: Parser.SyntaxNode) => this.isAnnotationNode(node),
+      (result: any, astNode: Parser.SyntaxNode, symbolTable: any) =>
+        this.extractAnnotationMetadata(result, astNode, symbolTable)
+    );
   }
 
   /**
@@ -174,10 +163,4 @@ export class AnnotationRelationshipExtractor {
     return annotationNodeTypes.includes(astNode.type);
   }
 
-  /**
-   * 生成节点ID
-   */
-  private generateNodeId(name: string, type: string, filePath: string): string {
-    return `${type}_${Buffer.from(`${filePath}_${name}`).toString('hex')}`;
-  }
 }
