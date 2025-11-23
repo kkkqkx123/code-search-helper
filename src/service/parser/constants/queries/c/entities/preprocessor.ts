@@ -20,7 +20,7 @@ export default `
 ] @definition.include
 
 ; Preprocessor conditionals - important for conditional compilation
-(preproc_if
+[(preproc_if
   condition: (_) @name.definition.preproc_condition) @definition.preproc_condition
 
 ; Preprocessor elif - important for conditional compilation
@@ -32,5 +32,5 @@ export default `
   name: (identifier) @name.definition.preproc_ifdef) @definition.preproc_ifdef
 
 ; Preprocessor else - important for conditional compilation
-(preproc_else) @definition.preproc_else
+(preproc_else)@definition.preproc_else] 
 `;

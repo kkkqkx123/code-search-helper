@@ -61,14 +61,22 @@ export default `
 
 ; 数组访问查询 - 一维和二维数组访问合并
 [
+  ; 一维数组访问: arr[i]
   (subscript_expression
     argument: (identifier) @array.name
-    index: (_) @index) @definition.array.access
+    indices: (subscript_argument_list
+      (_) @index)) @definition.array.access
+
+  ; 二维数组访问: matrix[i][j]
   (subscript_expression
     argument: (subscript_expression
       argument: (identifier) @array.name
-      index: (_))
-    index: (_) @index) @definition.array.access
+      indices: (subscript_argument_list _))
+    indices: (subscript_argument_list
+      (_) @index)) @definition.array.access
+
+  ; 支持表达式作为索引的情况，比如 matrix[i+1][j-1]
+  ; 上面两条已经能捕获，只要 @index 能匹配任意表达式即可
 ] @definition.array.access
 
 ; 嵌套结构体查询 - 简化版本
@@ -77,14 +85,4 @@ export default `
     (field_declaration
       type: (struct_specifier)
       declarator: (field_identifier) @nested.field.name))) @definition.nested.struct
-
-; 前向声明查询 - 结构体、联合体和枚举的前向声明合并（这会与完整定义有重叠，但这是预期的）
-[
-  (struct_specifier
-    name: (type_identifier) @forward.struct.name) @definition.forward.struct
-  (union_specifier
-    name: (type_identifier) @forward.union.name) @definition.forward.union
-  (enum_specifier
-    name: (type_identifier) @forward.enum.name) @definition.forward.enum
-] @definition.forward
 `;

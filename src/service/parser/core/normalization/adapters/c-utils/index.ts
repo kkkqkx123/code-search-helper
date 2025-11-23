@@ -8,9 +8,6 @@ export { CHelperMethods } from './HelperMethods';
 export { CallRelationshipExtractor } from './CallRelationshipExtractor';
 export { DataFlowRelationshipExtractor } from './DataFlowRelationshipExtractor';
 export { InheritanceRelationshipExtractor } from './InheritanceRelationshipExtractor';
-export { ConcurrencyRelationshipExtractor } from './ConcurrencyRelationshipExtractor';
-export { LifecycleRelationshipExtractor } from './LifecycleRelationshipExtractor';
-export { SemanticRelationshipExtractor } from './SemanticRelationshipExtractor';
 export { ControlFlowRelationshipExtractor } from './ControlFlowRelationshipExtractor';
 
 // 新增的关系提取器
