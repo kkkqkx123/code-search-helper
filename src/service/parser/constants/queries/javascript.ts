@@ -2,6 +2,6 @@
 JavaScript Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
 */
-import javascriptQueries from './javascript/index';
+import { JAVASCRIPT_QUERIES } from './javascript/index';
 
-export default javascriptQueries;
+export default JAVASCRIPT_QUERIES;

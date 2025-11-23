@@ -2,6 +2,6 @@
 Kotlin Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
 */
-import kotlinQueries from './kotlin/index';
+import { KOTLIN_QUERIES } from './kotlin/index';
 
-export default kotlinQueries;
+export default KOTLIN_QUERIES;

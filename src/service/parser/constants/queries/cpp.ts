@@ -2,6 +2,6 @@
 C++ Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
 */
-import cppQueries from './cpp/index';
+import { CPP_QUERIES } from './cpp/index';
 
-export default cppQueries;
+export default CPP_QUERIES;

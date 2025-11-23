@@ -45,9 +45,6 @@ export default `
     left: (_) @binary.left
     right: (_) @binary.right
     operator: (_) @binary.operator)
-  (call
-    function: (_) @call.function
-    arguments: (_) @call.arguments)
   (attribute
     object: (_) @attribute.object
     attribute: (_) @attribute.name)

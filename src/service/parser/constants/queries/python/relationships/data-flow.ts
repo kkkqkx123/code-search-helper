@@ -16,8 +16,6 @@ export default `
   ]
   right: [
     (identifier) @source.variable
-    (call
-      function: (identifier) @source.function)
     (attribute
       object: (identifier) @source.object
       attribute: (identifier) @source.property)
@@ -54,14 +52,7 @@ export default `
 ] @data.flow.comprehension.assignment
 
 ; Parameter passing data flow using alternation
-(call
-  function: [
-    (identifier) @target.function
-    (attribute
-      object: (identifier) @target.object
-      attribute: (identifier) @target.method)
-  ]
-  arguments: (argument_list
+(arguments: (argument_list
     (identifier) @source.parameter)) @data.flow.parameter.passing
 
 ; Return value data flow with anchor for precise matching
@@ -69,8 +60,6 @@ export default `
   .
   [
     (identifier) @source.variable
-    (call
-      function: (identifier) @source.function)
     (attribute
       object: (identifier) @source.object
       attribute: (identifier) @source.property)

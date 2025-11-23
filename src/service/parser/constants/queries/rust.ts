@@ -2,9 +2,9 @@
 Rust Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
 */
-import rustQueries from './rust/index';
+import { RUST_QUERIES } from './rust/index';
 
-export default rustQueries;
+export default RUST_QUERIES;
 
 // Rust-specific query type mappings for normalization
 export const rustQueryTypeMappings = {
@@ -14,7 +14,7 @@ export const rustQueryTypeMappings = {
     'async_function',
     'closure_expression'
   ],
- classes: [  // In Rust context: struct, enum, union
+  classes: [  // In Rust context: struct, enum, union
     'struct_item',
     'unit_struct_item',
     'tuple_struct_item',
@@ -24,7 +24,7 @@ export const rustQueryTypeMappings = {
   interfaces: [  // Rust traits
     'trait_item'
   ],
- methods: [  // functions inside impl blocks
+  methods: [  // functions inside impl blocks
     'impl_item'
   ],
   imports: [

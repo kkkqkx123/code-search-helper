@@ -25,28 +25,6 @@ export default `
     (type) @union.type.element)
 ] @definition.complex.type
 
-; Decorators with predicate filtering for specific types
-[
-  (decorator
-    (identifier) @decorator.name)
-  (decorator
-    (call
-      function: (identifier) @decorator.function))
-] @definition.decorator
-
-; Method types using alternation for similar patterns
-[
-  (function_definition
-    name: (identifier) @method.name
-    (#match? @method.name "^__(.*)__$")) @definition.dunder.method
-  (function_definition
-    name: (identifier) @method.name
-    (#match? @method.name "^_")) @definition.private.method
-  (function_definition
-    name: (identifier) @test.name
-    (#match? @test.name "^(test_|.*_test$)")) @definition.test.function
-] @definition.special.method
-
 ; Documentation elements
 [
   (comment) @documentation.comment

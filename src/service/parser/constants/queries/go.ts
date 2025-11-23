@@ -2,6 +2,6 @@
 Go Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
 */
-import goQueries from './go/index';
+import { GO_QUERIES } from './go/index';
 
-export default goQueries;
+export default GO_QUERIES;
