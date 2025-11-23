@@ -1,41 +1,11 @@
 /*
-Java Class and Interface-specific Tree-Sitter Query Patterns
+Java Class-specific Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
 */
 export default `
-; 统一的类型声明查询 - 使用交替模式
-[
-  (class_declaration
-    name: (identifier) @class.name)
-  (interface_declaration
-    name: (identifier) @interface.name)
-  (enum_declaration
-    name: (identifier) @enum.name)
-  (record_declaration
-    name: (identifier) @record.name)
-  (annotation_type_declaration
-    name: (identifier) @annotation.name)
-] @definition.type
-
-; 模块和包声明查询 - 使用交替模式
-[
-  (module_declaration
-    name: (scoped_identifier) @module.name)
-  (package_declaration
-    name: (scoped_identifier) @package.name)
-] @definition.namespace
-
-; 字段声明查询 - 使用量词操作符
-(field_declaration
-  declarator: (variable_declarator
-    name: (identifier) @field.name)
-  type: (_) @field.type) @definition.field
-
-; 枚举常量查询
-(enum_declaration
-  body: (enum_body
-    (enum_constant
-      name: (identifier) @enum.constant))) @definition.enum.constant
+; 统一的类声明查询 - 使用交替模式
+(class_declaration
+  name: (identifier) @class.name) @definition.class
 
 ; 继承关系查询 - 使用锚点和谓词过滤
 (class_declaration
@@ -50,13 +20,6 @@ export default `
   super_interfaces: (super_interfaces
     (type_list
       (type_identifier) @implemented.interface)+)) @interface.implementation
-
-; 接口继承关系查询
-(interface_declaration
-  name: (identifier) @subinterface.interface
-  super_interfaces: (super_interfaces
-    (type_list
-      (type_identifier) @superinterface.interface)+)) @interface.inheritance
 
 ; 泛型类型参数查询 - 使用量词操作符
 (class_declaration
@@ -121,22 +84,10 @@ export default `
     (class_declaration
       name: (identifier) @inner.class)))) @class.inner.type
 
-; 类型体查询 - 使用交替模式
-[
-  (class_body) @body.class
-  (interface_body) @body.interface
-  (enum_body) @body.enum
-  (annotation_type_body) @body.annotation
-] @definition.type.body
+; 类型体查询
+(class_body) @body.class
 
 ; 修饰符查询
 (modifiers
   (modifier) @modifier.name) @definition.modifiers
-
-; 类型标识符查询 - 使用交替模式
-[
-  (type_identifier) @type.simple
-  (scoped_identifier) @type.qualified
-  (generic_type) @type.generic
-] @definition.type.identifier
 `;

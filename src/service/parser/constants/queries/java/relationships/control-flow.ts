@@ -115,34 +115,4 @@ export default `
   (block) @structure.block
   (expression_statement) @statement.expression
 ] @definition.structure
-
-; 字符串相关查询 - 使用交替模式
-[
-  (string_literal) @literal.string
-  (string_fragment) @string.fragment
-  (escape_sequence) @string.escape
-] @definition.string.literal
-
-; 数值字面量查询 - 使用交替模式
-[
-  (decimal_integer_literal) @literal.decimal.int
-  (hex_integer_literal) @literal.hex.int
-  (octal_integer_literal) @literal.octal.int
-  (binary_integer_literal) @literal.binary.int
-  (decimal_floating_point_literal) @literal.decimal.float
-  (hex_floating_point_literal) @literal.hex.float
-] @definition.numeric.literal
-
-; 布尔和空值字面量查询 - 使用交替模式
-[
-  (true) @literal.true
-  (false) @literal.false
-  (null_literal) @literal.null
-] @definition.boolean.literal
-
-; 字符字面量查询
-(character_literal) @literal.character
-
-; 标识符查询
-(identifier) @definition.identifier
 `;

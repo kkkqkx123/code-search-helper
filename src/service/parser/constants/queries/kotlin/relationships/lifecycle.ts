@@ -1,6 +1,6 @@
 /*
-Kotlin Control Flow Relationships-specific Tree-Sitter Query Patterns
-用于扩展控制流关系分析，包括异常处理、嵌套控制流等
+Kotlin Lifecycle Relationships-specific Tree-Sitter Query Patterns
+用于识别对象实例化、初始化、销毁、生命周期管理等关系
 */
 export default `
 ; 异常处理流关系 - 使用锚点确保精确匹配

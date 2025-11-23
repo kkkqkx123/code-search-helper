@@ -1,8 +1,14 @@
 /*
-JavaScript Export-specific Tree-Sitter Query Patterns
-Optimized for code chunking and vector embedding
+JavaScript Import/Export Tree-Sitter Query Patterns
+Shared queries for module imports and exports
 */
 export default `
+; Import statements - important for understanding dependencies
+(import_statement) @name.definition.import
+
+; Export statements - important for understanding public API
+(export_statement) @name.definition.export
+
 ; Export statements with function declarations
 (export_statement
   (function_declaration
