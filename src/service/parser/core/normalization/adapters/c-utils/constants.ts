@@ -94,7 +94,11 @@ export const C_QUERY_TYPE_MAPPING: Record<string, string> = {
   'calls': 'call',
   'data-flows': 'data-flow',
   'inheritance': 'inheritance',
-  'comments': 'comment'
+  'comments': 'comment',
+  // 新增的高级关系查询类型
+  'concurrency': 'concurrency',
+  'lifecycle': 'lifecycle',
+  'semantic': 'semantic'
 };
 
 export const C_SUPPORTED_QUERY_TYPES = [

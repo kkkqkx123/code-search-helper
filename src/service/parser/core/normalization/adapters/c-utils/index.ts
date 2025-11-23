@@ -2,7 +2,7 @@
  * C语言工具模块统一导出
  */
 
-export { CHelperMethods } from './HelperMethods';
+export { CHelperMethods } from './CHelperMethods';
 
 // 关系提取器
 export { CallRelationshipExtractor } from './CallRelationshipExtractor';
@@ -15,6 +15,11 @@ export { AnnotationRelationshipExtractor } from './AnnotationRelationshipExtract
 export { CreationRelationshipExtractor } from './CreationRelationshipExtractor';
 export { DependencyRelationshipExtractor } from './DependencyRelationshipExtractor';
 export { ReferenceRelationshipExtractor } from './ReferenceRelationshipExtractor';
+
+// 高级语义关系提取器
+export { ConcurrencyRelationshipExtractor } from './ConcurrencyRelationshipExtractor';
+export { LifecycleRelationshipExtractor } from './LifecycleRelationshipExtractor';
+export { SemanticRelationshipExtractor } from './SemanticRelationshipExtractor';
 
 // 查询分流器
 export { QueryDispatcher } from './QueryDispatcher';
