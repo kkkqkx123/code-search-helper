@@ -102,7 +102,7 @@ public:
 ```
 (class_specifier
   name: (type_identifier) @class.name
-  base_class_clause: (base_class_clause
+  (base_class_clause
     (type_identifier) @base.class)
   body: (field_declaration_list) @class.body) @definition.class.with_inheritance
 ```
@@ -179,9 +179,9 @@ public:
 
 ### 查询规则
 ```
-(member_initializer
-  name: (field_identifier) @member.name
-  value: (_) @member.value) @definition.member_initializer
+(field_initializer
+  (field_identifier) @member.name
+  (argument_list (_) @member.value)) @definition.member_initializer
 ```
 
 ### 测试用例

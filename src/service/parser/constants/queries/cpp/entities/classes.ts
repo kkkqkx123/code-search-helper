@@ -53,8 +53,8 @@ export default `
 
 ; 构造函数初始化列表查询 - 使用锚点确保精确匹配
 (field_initializer
-    (field_identifier) @member.name
-    (_) @member.value) @definition.constructor_initializer
+  (field_identifier) @member.name
+  (argument_list (_) @member.value)) @definition.member_initializer
 
 ; 成员初始化列表查询 - 使用量词操作符
 (member_initializer

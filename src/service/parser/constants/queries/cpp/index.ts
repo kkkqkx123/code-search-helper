@@ -2,18 +2,18 @@
 C++ Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
 */
-import classes from './classes';
-import functions from './functions';
-import variables from './variables';
-import types from './types';
-import namespaces from './namespaces';
-import preprocessor from './preprocessor';
-import controlFlow from './control-flow';
-import modernFeatures from './modern-features';
-import dataFlow from './data-flow';
-import semanticRelationships from './semantic-relationships';
-import lifecycleRelationships from './lifecycle-relationships';
-import concurrencyRelationships from './concurrency-relationships';
+import classes from './entities/classes';
+import functions from './entities/functions';
+import variables from './entities/variables';
+import types from './entities/types';
+import namespaces from './entities/namespaces';
+import preprocessor from './entities/preprocessor';
+import controlFlow from './relationships/control-flow';
+import modernFeatures from './entities/modern-features';
+import dataFlow from './relationships/data-flow';
+import semanticRelationships from './relationships/semantic-relationships';
+import lifecycleRelationships from './relationships/lifecycle-relationships';
+import concurrencyRelationships from './relationships/concurrency-relationships';
 
 const comments = `
 ; 注释查询
