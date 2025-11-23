@@ -1,28 +1,13 @@
 import { BaseLanguageAdapter, AdapterOptions } from './base/BaseLanguageAdapter';
-import { StandardizedQueryResult, SymbolInfo, SymbolTable } from '../types';
-import { NodeIdGenerator } from '../../../../../utils/deterministic-node-id';
-import Parser from 'tree-sitter';
-import { MetadataBuilder } from '../utils/MetadataBuilder';
+import { StandardizedQueryResult } from '../types';
 import {
-  CallRelationshipExtractor,
-  DataFlowRelationshipExtractor,
-  InheritanceRelationshipExtractor,
-  ConcurrencyRelationshipExtractor,
-  LifecycleRelationshipExtractor,
-  SemanticRelationshipExtractor,
-  ControlFlowRelationshipExtractor,
-  AnnotationRelationshipExtractor,
-  CreationRelationshipExtractor,
-  DependencyRelationshipExtractor,
-  ReferenceRelationshipExtractor,
   CSharpHelperMethods,
-  CSHARP_NODE_TYPE_MAPPING,
-  CSHARP_QUERY_TYPE_MAPPING,
   CSHARP_SUPPORTED_QUERY_TYPES,
-  CSHARP_NAME_CAPTURES,
+  CSHARP_QUERY_TYPE_MAPPING,
+  CSHARP_NODE_TYPE_MAPPING,
   CSHARP_BLOCK_NODE_TYPES,
-  CSHARP_MODIFIERS,
-  CSHARP_COMPLEXITY_KEYWORDS
+  CSHARP_COMPLEXITY_KEYWORDS,
+  CSHARP_NAME_CAPTURES
 } from './csharp-utils';
 type StandardType = StandardizedQueryResult['type'];
 
@@ -31,37 +16,22 @@ type StandardType = StandardizedQueryResult['type'];
  * 专门处理C#语言的查询结果标准化
  */
 export class CSharpLanguageAdapter extends BaseLanguageAdapter {
-  // In-memory symbol table for the current file
-  private symbolTable: SymbolTable | null = null;
-
-  // 关系提取器实例
-  private annotationExtractor: AnnotationRelationshipExtractor;
-  private callExtractor: CallRelationshipExtractor;
-  private creationExtractor: CreationRelationshipExtractor;
-  private dataFlowExtractor: DataFlowRelationshipExtractor;
-  private dependencyExtractor: DependencyRelationshipExtractor;
-  private inheritanceExtractor: InheritanceRelationshipExtractor;
-  private referenceExtractor: ReferenceRelationshipExtractor;
-  private concurrencyExtractor: ConcurrencyRelationshipExtractor;
-  private lifecycleExtractor: LifecycleRelationshipExtractor;
-  private semanticExtractor: SemanticRelationshipExtractor;
-  private controlFlowExtractor: ControlFlowRelationshipExtractor;
-
   constructor(options: AdapterOptions = {}) {
     super(options);
+  }
 
-    // 初始化关系提取器
-    this.annotationExtractor = new AnnotationRelationshipExtractor();
-    this.callExtractor = new CallRelationshipExtractor();
-    this.creationExtractor = new CreationRelationshipExtractor();
-    this.dataFlowExtractor = new DataFlowRelationshipExtractor();
-    this.dependencyExtractor = new DependencyRelationshipExtractor();
-    this.inheritanceExtractor = new InheritanceRelationshipExtractor();
-    this.referenceExtractor = new ReferenceRelationshipExtractor();
-    this.concurrencyExtractor = new ConcurrencyRelationshipExtractor();
-    this.lifecycleExtractor = new LifecycleRelationshipExtractor();
-    this.semanticExtractor = new SemanticRelationshipExtractor();
-    this.controlFlowExtractor = new ControlFlowRelationshipExtractor();
+  /**
+   * 获取语言标识符
+   */
+  protected getLanguage(): string {
+    return 'csharp';
+  }
+
+  /**
+   * 获取语言扩展名
+   */
+  protected getLanguageExtension(): string {
+    return 'cs';
   }
 
   getSupportedQueryTypes(): string[] {
@@ -229,371 +199,80 @@ export class CSharpLanguageAdapter extends BaseLanguageAdapter {
       return modifiers;
     }
 
-    // 检查C#常见的修饰符
     const text = mainNode.text || '';
 
-    for (const modifier of CSHARP_MODIFIERS) {
-      if (modifier === 'coroutine') {
-        if (text.includes('async') || text.includes('await')) {
-          modifiers.push(modifier);
-        }
-      } else if (text.includes(modifier)) {
-        modifiers.push(modifier);
-      }
-    }
+    // Check for C# specific modifiers
+    if (text.includes('public')) modifiers.push('public');
+    if (text.includes('private')) modifiers.push('private');
+    if (text.includes('protected')) modifiers.push('protected');
+    if (text.includes('internal')) modifiers.push('internal');
+    if (text.includes('static')) modifiers.push('static');
+    if (text.includes('abstract')) modifiers.push('abstract');
+    if (text.includes('virtual')) modifiers.push('virtual');
+    if (text.includes('override')) modifiers.push('override');
+    if (text.includes('sealed')) modifiers.push('sealed');
+    if (text.includes('readonly')) modifiers.push('readonly');
+    if (text.includes('const')) modifiers.push('const');
+    if (text.includes('volatile')) modifiers.push('volatile');
+    if (text.includes('extern')) modifiers.push('extern');
+    if (text.includes('partial')) modifiers.push('partial');
+    if (text.includes('async') || text.includes('await')) modifiers.push('async');
+    if (text.includes('params')) modifiers.push('params');
+    if (text.includes('ref')) modifiers.push('ref');
+    if (text.includes('out')) modifiers.push('out');
+    if (text.includes('in')) modifiers.push('in');
 
     return modifiers;
   }
 
-  // 高级关系提取方法 - 委托给专门的提取器
-  extractAnnotationRelationships(result: any): Array<{
-    source: string;
-    target: string;
-    type: 'struct_tag' | 'comment' | 'directive';
-  }> {
-    const relationships = this.annotationExtractor.extractAnnotationRelationships(result);
-    // 转换类型以匹配基类接口
-    return relationships.map(rel => ({
-      source: rel.source,
-      target: rel.target,
-      type: this.mapAnnotationType(rel.type)
-    }));
-  }
-
-  extractCreationRelationships(result: any): Array<{
-    source: string;
-    target: string;
-    type: 'struct_instance' | 'slice' | 'map' | 'channel' | 'function' | 'goroutine_instance';
-  }> {
-    const relationships = this.creationExtractor.extractCreationRelationships(result);
-    // 转换类型以匹配基类接口
-    return relationships.map(rel => ({
-      source: rel.source,
-      target: rel.target,
-      type: this.mapCreationType(rel.type)
-    }));
-  }
-
-  extractReferenceRelationships(result: any): Array<{
-    source: string;
-    target: string;
-    type: 'read' | 'write' | 'declaration' | 'usage';
-  }> {
-    const relationships = this.referenceExtractor.extractReferenceRelationships(result);
-    // 转换类型以匹配基类接口
-    return relationships.map(rel => ({
-      source: rel.source,
-      target: rel.target,
-      type: this.mapReferenceType(rel.type)
-    }));
-  }
-
-  extractDependencyRelationships(result: any): Array<{
-    source: string;
-    target: string;
-    type: 'import' | 'package' | 'qualified_identifier';
-  }> {
-    const relationships = this.dependencyExtractor.extractDependencyRelationships(result);
-    // 转换类型以匹配基类接口
-    return relationships.map(rel => ({
-      source: rel.source,
-      target: rel.target,
-      type: this.mapDependencyType(rel.type)
-    }));
-  }
-
-  extractDataFlowRelationships(result: any): Array<{
-    source: string;
-    target: string;
-    type: 'assignment' | 'parameter' | 'return';
-  }> {
-    return this.dataFlowExtractor.extractDataFlowRelationships(result);
-  }
-
-  extractControlFlowRelationships(result: any): Array<{
-    source: string;
-    target: string;
-    type: 'conditional' | 'loop' | 'exception' | 'callback';
-  }> {
-    return this.controlFlowExtractor.extractControlFlowRelationships(result);
-  }
-
-  extractSemanticRelationships(result: any): Array<{
-    source: string;
-    target: string;
-    type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
-  }> {
-    return this.semanticExtractor.extractSemanticRelationships(result);
-  }
-
-  extractLifecycleRelationships(result: any): Array<{
-    source: string;
-    target: string;
-    type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
-  }> {
-    return this.lifecycleExtractor.extractLifecycleRelationships(result);
-  }
-
-  extractConcurrencyRelationships(result: any): Array<{
-    source: string;
-    target: string;
-    type: 'synchronizes' | 'locks' | 'communicates' | 'races';
-  }> {
-    return this.concurrencyExtractor.extractConcurrencyRelationships(result);
-  }
-
-  // 类型映射辅助方法
-  private mapAnnotationType(type: string): 'struct_tag' | 'comment' | 'directive' {
-    switch (type) {
-      case 'struct_tag': return 'struct_tag';
-      case 'comment': return 'comment';
-      case 'build_directive': return 'directive';
-      default: return 'comment';
-    }
-  }
-
-  private mapCreationType(type: string): 'struct_instance' | 'slice' | 'map' | 'channel' | 'function' | 'goroutine_instance' {
-    switch (type) {
-      case 'struct_instance': return 'struct_instance';
-      case 'slice': return 'slice';
-      case 'map': return 'map';
-      case 'channel': return 'channel';
-      case 'function': return 'function';
-      case 'goroutine_instance': return 'goroutine_instance';
-      case 'composite_literal': return 'struct_instance';
-      case 'make_call': return 'slice';
-      case 'new_call': return 'struct_instance';
-      default: return 'struct_instance';
-    }
-  }
-
-  private mapReferenceType(type: string): 'read' | 'write' | 'declaration' | 'usage' {
-    switch (type) {
-      case 'read': return 'read';
-      case 'write': return 'write';
-      case 'declaration': return 'declaration';
-      case 'usage': return 'usage';
-      default: return 'usage';
-    }
-  }
-
-  private mapDependencyType(type: string): 'import' | 'package' | 'qualified_identifier' {
-    switch (type) {
-      case 'import': return 'import';
-      case 'package': return 'package';
-      case 'qualified_identifier': return 'qualified_identifier';
-      default: return 'import';
-    }
-  }
-
   // 重写isBlockNode方法以支持C#特定的块节点类型
-  protected isBlockNode(node: any): boolean {
-    return CSHARP_BLOCK_NODE_TYPES.includes(node.type) || super.isBlockNode(node);
-  }
+  protected isBlockNode = (node: any): boolean => {
+    return CSHARP_BLOCK_NODE_TYPES.includes(node.type) || ((node: any) => {
+      const blockNodeTypes = ['block', 'compound_statement', 'block_statement'];
+      return blockNodeTypes.includes(node.type);
+    })(node);
+  };
 
-  // 重写normalize方法以集成nodeId生成和符号信息
-  async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
-    const results: StandardizedQueryResult[] = [];
-    const processingStartTime = Date.now();
+  // 重写shouldCreateSymbolInfo以支持C#特定的符号类型
+  protected shouldCreateSymbolInfo = (standardType: string): boolean => {
+    const entityTypes = ['function', 'class', 'method', 'variable', 'import', 'interface', 'type', 'property'];
+    return entityTypes.includes(standardType);
+  };
 
-    // Initialize symbol table for the current processing context
-    // In a real scenario, filePath would be passed in. For now, we'll use a placeholder.
-    const filePath = 'current_file.cs';
-    this.symbolTable = {
-      filePath,
-      globalScope: { symbols: new Map() },
-      imports: new Map()
-    };
-
-    for (const result of queryResults) {
-      try {
-        const standardType = this.mapQueryTypeToStandardType(queryType);
-        const name = this.extractName(result);
-        const content = this.extractContent(result);
-        const complexity = this.calculateComplexity(result);
-        const dependencies = this.extractDependencies(result);
-        const modifiers = this.extractModifiers(result);
-        const extra = this.extractLanguageSpecificMetadata(result);
-
-        // 获取AST节点以生成确定性ID
-        const astNode = result.captures?.[0]?.node;
-        const nodeId = NodeIdGenerator.safeForAstNode(astNode, standardType, name);
-
-        // 使用 MetadataBuilder 创建增强的元数据
-        const builder = this.createMetadataBuilder(result, language)
-          .setProcessingStartTime(processingStartTime)
-          .addDependencies(dependencies)
-          .addModifiers(modifiers)
-          .addCustomFields(extra);
-
-        // 如果是关系类型，添加关系元数据
-        if (this.isRelationshipType(standardType)) {
-          const relationshipMetadata = this.extractRelationshipMetadata(result, standardType, astNode);
-          if (relationshipMetadata) {
-            builder.addCustomFields(relationshipMetadata);
-          }
-        }
-
-        let symbolInfo: SymbolInfo | null = null;
-
-        // Only create symbol info for entity types, not relationships
-        if (['function', 'class', 'method', 'variable', 'import', 'interface', 'type'].includes(standardType)) {
-          symbolInfo = this.createSymbolInfo(astNode, name, standardType, filePath);
-          if (this.symbolTable && symbolInfo) {
-            this.symbolTable.globalScope.symbols.set(name, symbolInfo);
-          }
-        }
-
-        results.push({
-          nodeId,
-          type: standardType,
-          name,
-          startLine: result.startLine || 1,
-          endLine: result.endLine || 1,
-          content,
-          metadata: builder.build(),
-          symbolInfo: symbolInfo || undefined
-        });
-      } catch (error: unknown) {
-        this.logger?.error(`Error normalizing C# result: ${error}`);
-        // 使用 MetadataBuilder 创建错误元数据
-        const errorForMetadata = error instanceof Error ? error : new Error(String(error));
-        const errorBuilder = MetadataBuilder.fromComplete(this.createMetadata(result, language))
-          .setError(errorForMetadata, { phase: 'normalization', queryType, filePath });
-        results.push({
-          nodeId: `error_${Date.now()}`,
-          type: 'expression',
-          name: 'error',
-          startLine: 0,
-          endLine: 0,
-          content: '',
-          metadata: errorBuilder.build()
-        });
-      }
-    }
-
-    return results;
-  }
-
-  private createSymbolInfo(node: Parser.SyntaxNode | undefined, name: string, standardType: string, filePath: string): SymbolInfo | null {
-    if (!name || !node) return null;
-
-    const symbolType = this.mapToSymbolType(standardType);
-
-    const symbolInfo: SymbolInfo = {
-      name,
-      type: symbolType,
-      filePath,
-      location: {
-        startLine: node.startPosition.row + 1,
-        startColumn: node.startPosition.column,
-        endLine: node.endPosition.row + 1,
-        endColumn: node.endPosition.column,
-      },
-      scope: this.determineScope(node)
-    };
-
-    // Add parameters for methods
-    if (symbolType === 'method') {
-      symbolInfo.parameters = this.extractParameters(node);
-    }
-
-    // Add source path for imports
-    if (symbolType === 'import') {
-      symbolInfo.sourcePath = this.extractImportPath(node);
-    }
-
-    return symbolInfo;
-  }
-
-  private mapToSymbolType(standardType: string): SymbolInfo['type'] {
-    const mapping: Record<string, SymbolInfo['type']> = {
+  // 重写符号类型映射以支持C#特定的类型
+  protected mapToSymbolType = (standardType: string): any => {
+    const mapping: Record<string, any> = {
       'function': 'function',
       'method': 'method',
       'class': 'class',
       'interface': 'interface',
+      'property': 'variable',
       'variable': 'variable',
       'import': 'import'
     };
     return mapping[standardType] || 'variable';
-  }
+  };
 
-  private determineScope(node: Parser.SyntaxNode): SymbolInfo['scope'] {
-    // Simplified scope determination. A real implementation would traverse up the AST.
-    let current = node.parent;
-    while (current) {
-      if (current.type === 'method_declaration') {
-        return 'function';
-      }
-      if (current.type === 'class_declaration') {
-        return 'class';
-      }
-      current = current.parent;
-    }
-    return 'global';
-  }
+  // 重写作用域确定方法以支持C#特定的作用域类型
+  protected isFunctionScope = (node: any): boolean => {
+    const csharpFunctionTypes = [
+      'method_declaration', 'constructor_declaration', 'destructor_declaration', 'property_declaration'
+    ];
+    const baseFunctionTypes = [
+      'function_declaration', 'function_expression', 'arrow_function',
+      'method_definition', 'constructor_definition'
+    ];
+    return csharpFunctionTypes.includes(node.type) || baseFunctionTypes.includes(node.type);
+  };
 
-  private extractParameters(node: Parser.SyntaxNode): string[] {
-    const parameters: string[] = [];
-    const parameterList = node.childForFieldName?.('parameters');
-    if (parameterList) {
-      for (const child of parameterList.children) {
-        if (child.type === 'parameter') {
-          const identifier = child.childForFieldName('name');
-          if (identifier) {
-            parameters.push(identifier.text);
-          }
-        }
-      }
-    }
-    return parameters;
-  }
-
-  private extractImportPath(node: Parser.SyntaxNode): string | undefined {
-    // For C# using directives
-    if (node.type === 'using_directive') {
-      const pathNode = node.childForFieldName('name');
-      return pathNode ? pathNode.text : undefined;
-    }
-    return undefined;
-  }
-
-  /**
-   * 检查是否为关系类型
-   */
-  private isRelationshipType(type: string): boolean {
-    const relationshipTypes = ['call', 'data-flow', 'inheritance', 'concurrency', 'lifecycle', 'semantic', 'control-flow', 'dependency', 'reference', 'creation', 'annotation'];
-    return relationshipTypes.includes(type);
-  }
-
-  private extractRelationshipMetadata(result: any, standardType: string, astNode: Parser.SyntaxNode | undefined): any {
-    if (!astNode) return null;
-
-    switch (standardType) {
-      case 'annotation':
-        return this.annotationExtractor.extractAnnotationMetadata(result, astNode, this.symbolTable);
-      case 'call':
-        return this.callExtractor.extractCallMetadata(result, astNode, this.symbolTable);
-      case 'creation':
-        return this.creationExtractor.extractCreationMetadata(result, astNode, this.symbolTable);
-      case 'data-flow':
-        return this.dataFlowExtractor.extractDataFlowMetadata(result, astNode, this.symbolTable);
-      case 'dependency':
-        return this.dependencyExtractor.extractDependencyMetadata(result, astNode, this.symbolTable);
-      case 'inheritance':
-        return this.inheritanceExtractor.extractInheritanceMetadata(result, astNode, this.symbolTable);
-      case 'reference':
-        return this.referenceExtractor.extractReferenceMetadata(result, astNode, this.symbolTable);
-      case 'concurrency':
-        return this.concurrencyExtractor.extractConcurrencyMetadata(result, astNode, this.symbolTable);
-      case 'lifecycle':
-        return this.lifecycleExtractor.extractLifecycleMetadata(result, astNode, this.symbolTable);
-      case 'semantic':
-        return this.semanticExtractor.extractSemanticMetadata(result, astNode, this.symbolTable);
-      case 'control-flow':
-        return this.controlFlowExtractor.extractControlFlowMetadata(result, astNode, this.symbolTable);
-      default:
-        return null;
-    }
-  }
+  protected isClassScope = (node: any): boolean => {
+    const csharpClassTypes = [
+      'class_declaration', 'struct_declaration', 'interface_declaration', 'enum_declaration', 'record_declaration'
+    ];
+    const baseClassTypes = [
+      'class_declaration', 'class_definition', 'interface_declaration',
+      'struct_specifier'
+    ];
+    return csharpClassTypes.includes(node.type) || baseClassTypes.includes(node.type);
+  };
 }

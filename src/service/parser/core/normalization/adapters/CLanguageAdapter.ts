@@ -4,7 +4,8 @@ import {
   CHelperMethods,
   C_SUPPORTED_QUERY_TYPES,
   C_QUERY_TYPE_MAPPING,
-  C_NODE_TYPE_MAPPING
+  C_NODE_TYPE_MAPPING,
+  QueryDispatcher
 } from './c-utils';
 type StandardType = StandardizedQueryResult['type'];
 
@@ -79,19 +80,23 @@ export class CLanguageAdapter extends BaseLanguageAdapter {
     return CHelperMethods.extractModifiers(result);
   }
 
-  // 重写isBlockNode方法以支持C语言特定的块节点类型
-  protected isBlockNode(node: any): boolean {
-    return CHelperMethods.isBlockNode(node) || super.isBlockNode(node);
-  }
+  // 重写isBlockNode以支持C语言特定的块节点类型
+  protected isBlockNode = (node: any): boolean => {
+    const baseIsBlockNode = (node: any): boolean => {
+      const blockNodeTypes = ['block', 'compound_statement', 'block_statement'];
+      return blockNodeTypes.includes(node.type);
+    };
+    return CHelperMethods.isBlockNode(node) || baseIsBlockNode(node);
+  };
 
   // 重写符号信息创建以支持C语言特定的符号类型
-  protected shouldCreateSymbolInfo(standardType: string): boolean {
+  protected shouldCreateSymbolInfo = (standardType: string): boolean => {
     const entityTypes = ['function', 'class', 'method', 'variable', 'import', 'union', 'enum', 'struct'];
     return entityTypes.includes(standardType);
-  }
+  };
 
   // 重写符号类型映射以支持C语言特定的类型
-  protected mapToSymbolType(standardType: string): any {
+  protected mapToSymbolType = (standardType: string): any => {
     const mapping: Record<string, any> = {
       'function': 'function',
       'method': 'method',
@@ -104,22 +109,30 @@ export class CLanguageAdapter extends BaseLanguageAdapter {
       'import': 'import'
     };
     return mapping[standardType] || 'variable';
-  }
+  };
 
   // 重写作用域确定方法以支持C语言特定的作用域类型
-  protected isFunctionScope(node: any): boolean {
+  protected isFunctionScope = (node: any): boolean => {
     const cFunctionTypes = [
       'function_definition', 'function_declaration'
     ];
-    return cFunctionTypes.includes(node.type) || super.isFunctionScope(node);
-  }
+    const baseFunctionTypes = [
+      'function_declaration', 'function_expression', 'arrow_function',
+      'method_definition', 'constructor_definition'
+    ];
+    return cFunctionTypes.includes(node.type) || baseFunctionTypes.includes(node.type);
+  };
 
-  protected isClassScope(node: any): boolean {
+  protected isClassScope = (node: any): boolean => {
     const cStructTypes = [
       'struct_specifier', 'union_specifier', 'enum_specifier'
     ];
-    return cStructTypes.includes(node.type) || super.isClassScope(node);
-  }
+    const baseClassTypes = [
+      'class_declaration', 'class_definition', 'interface_declaration',
+      'struct_specifier', 'enum_specifier'
+    ];
+    return cStructTypes.includes(node.type) || baseClassTypes.includes(node.type);
+  };
 
   // 重写符号信息创建以支持C语言特定的符号信息
   protected createSymbolInfo(
@@ -139,5 +152,12 @@ export class CLanguageAdapter extends BaseLanguageAdapter {
     }
     
     return symbolInfo;
+  }
+  
+  /**
+   * 处理查询分流 - 根据查询类型分发到相应的查询模式
+   */
+  processQueryWithDispatch(queryType: string, baseQuery: string): string {
+    return QueryDispatcher.mergeQueries(baseQuery, queryType);
   }
 }

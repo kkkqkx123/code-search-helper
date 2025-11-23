@@ -15,6 +15,7 @@ export { LifecycleRelationshipExtractor } from './LifecycleRelationshipExtractor
 export { ReferenceRelationshipExtractor } from './ReferenceRelationshipExtractor';
 export { SemanticRelationshipExtractor } from './SemanticRelationshipExtractor';
 export { GoHelperMethods } from './GoHelperMethods';
+export { QueryDispatcher } from './QueryDispatcher';
 
 // 导出常量
 export * from './constants';

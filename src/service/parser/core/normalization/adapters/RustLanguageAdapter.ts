@@ -22,7 +22,8 @@ import {
   RUST_NAME_CAPTURES,
   RUST_BLOCK_NODE_TYPES,
   RUST_MODIFIERS,
-  RUST_COMPLEXITY_KEYWORDS
+  RUST_COMPLEXITY_KEYWORDS,
+  QueryDispatcher
 } from './rust-utils';
 
 /**
@@ -31,7 +32,7 @@ import {
  */
 export class RustLanguageAdapter extends BaseLanguageAdapter {
   // In-memory symbol table for the current file
-  private symbolTable: SymbolTable | null = null;
+  // Note: symbolTable is already defined in BaseLanguageAdapter as protected
 
   // 关系提取器实例
   private callExtractor: CallRelationshipExtractor;
@@ -61,6 +62,20 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
     this.creationExtractor = new CreationRelationshipExtractor();
     this.dependencyExtractor = new DependencyRelationshipExtractor();
     this.referenceExtractor = new ReferenceRelationshipExtractor();
+  }
+
+  /**
+   * 获取语言标识符
+   */
+  protected getLanguage(): string {
+    return 'rust';
+  }
+
+  /**
+   * 获取语言扩展名
+   */
+  protected getLanguageExtension(): string {
+    return 'rs';
   }
 
   getSupportedQueryTypes(): string[] {
@@ -269,9 +284,15 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
   }
 
   // 重写isBlockNode方法以支持Rust特定的块节点类型
-  protected isBlockNode(node: any): boolean {
-    return RUST_BLOCK_NODE_TYPES.includes(node.type) || super.isBlockNode(node);
-  }
+  protected isBlockNode = (node: any): boolean => {
+    const baseBlockTypes = [
+      'block', 'statement_block', 'class_body', 'interface_body', 'suite',
+      'function_definition', 'method_definition', 'class_definition',
+      'if_statement', 'for_statement', 'while_statement',
+      'switch_statement', 'try_statement', 'catch_clause'
+    ];
+    return RUST_BLOCK_NODE_TYPES.includes(node.type) || baseBlockTypes.includes(node.type);
+  };
 
   // 重写normalize方法以集成nodeId生成和符号信息
   async normalize(queryResults: any[], queryType: string, language: string): Promise<StandardizedQueryResult[]> {
@@ -356,11 +377,12 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
     return results;
   }
 
-  private isRelationshipType(type: StandardizedQueryResult['type']): boolean {
-    return ['call', 'data-flow', 'inheritance', 'concurrency', 'lifecycle', 'semantic'].includes(type);
-  }
+  protected isRelationshipType = (type: string): boolean => {
+    const relationshipTypes = ['call', 'data-flow', 'inheritance', 'concurrency', 'lifecycle', 'semantic', 'control-flow', 'dependency', 'reference', 'creation', 'annotation'];
+    return relationshipTypes.includes(type);
+  };
 
-  private extractRelationshipMetadata(result: any, standardType: string, astNode: Parser.SyntaxNode | undefined): any {
+  protected extractRelationshipMetadata = async (result: any, standardType: string, astNode: Parser.SyntaxNode | undefined): Promise<any> => {
     if (!astNode) return null;
 
     switch (standardType) {
@@ -387,9 +409,9 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
       default:
         return null;
     }
-  }
+  };
 
-  private createSymbolInfo(node: Parser.SyntaxNode | undefined, name: string, standardType: string, filePath: string): SymbolInfo | null {
+  protected createSymbolInfo(node: Parser.SyntaxNode | undefined, name: string, standardType: string, filePath: string): SymbolInfo | null {
     if (!name || !node) return null;
 
     const symbolType = this.mapToSymbolType(standardType);
@@ -420,8 +442,8 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
     return symbolInfo;
   }
 
-  private mapToSymbolType(standardType: string): SymbolInfo['type'] {
-    const mapping: Record<string, SymbolInfo['type']> = {
+  protected mapToSymbolType = (standardType: string): 'function' | 'method' | 'class' | 'interface' | 'variable' | 'import' => {
+    const mapping: Record<string, 'function' | 'method' | 'class' | 'interface' | 'variable' | 'import'> = {
       'function': 'function',
       'method': 'method',
       'class': 'class',
@@ -430,9 +452,9 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
       'import': 'import'
     };
     return mapping[standardType] || 'variable';
-  }
+  };
 
-  private determineScope(node: Parser.SyntaxNode): SymbolInfo['scope'] {
+  protected determineScope = (node: Parser.SyntaxNode): 'global' | 'function' | 'class' => {
     // Simplified scope determination. A real implementation would traverse up the AST.
     let current = node.parent;
     while (current) {
@@ -445,9 +467,9 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
       current = current.parent;
     }
     return 'global';
-  }
+  };
 
-  private extractParameters(node: Parser.SyntaxNode): string[] {
+  protected extractParameters = (node: Parser.SyntaxNode): string[] => {
     const parameters: string[] = [];
     const parameterList = node.childForFieldName('parameters');
     if (parameterList) {
@@ -461,16 +483,16 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
       }
     }
     return parameters;
-  }
+  };
 
-  private extractImportPath(node: Parser.SyntaxNode): string | undefined {
+  protected extractImportPath = (node: Parser.SyntaxNode): string | undefined => {
     // For Rust use declarations
     if (node.type === 'use_declaration') {
       const pathNode = node.childForFieldName('path');
       return pathNode ? pathNode.text : undefined;
     }
     return undefined;
-  }
+  };
 
   private extractCallMetadata(result: any, astNode: Parser.SyntaxNode): any {
     return this.callExtractor.extractCallMetadata(result, astNode, this.symbolTable);
@@ -497,11 +519,11 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
   }
 
   // 高级关系提取方法 - 委托给专门的提取器
-  extractCallRelationships(result: any): Array<{
+  async extractCallRelationships(result: any): Promise<Array<{
     source: string;
     target: string;
     type: 'function' | 'method' | 'constructor' | 'static' | 'callback' | 'decorator';
-  }> {
+  }>> {
     const rustRelationships = this.callExtractor.extractCallRelationships(result);
     // 转换Rust特定的类型到基类期望的类型
     return rustRelationships.map(rel => ({
@@ -511,11 +533,11 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
     }));
   }
 
-  extractDataFlowRelationships(result: any): Array<{
+  async extractDataFlowRelationships(result: any): Promise<Array<{
     source: string;
     target: string;
     type: 'assignment' | 'parameter' | 'return';
-  }> {
+  }>> {
     const rustRelationships = this.dataFlowExtractor.extractDataFlowRelationships(result);
     // 转换Rust特定的类型到基类期望的类型
     return rustRelationships.map(rel => ({
@@ -525,11 +547,11 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
     }));
   }
 
-  extractInheritanceRelationships(result: any): Array<{
+  async extractInheritanceRelationships(result: any): Promise<Array<{
     source: string;
     target: string;
-    type: 'class' | 'interface' | 'extends' | 'implements';
-  }> {
+    type: 'implements' | 'extends' | 'mixin' | 'enum_member' | 'contains' | 'embedded_struct' | 'class_inheritance' | 'interface_implementation' | 'protocol';
+  }>> {
     const rustRelationships = this.inheritanceExtractor.extractInheritanceRelationships(result);
     // 转换Rust特定的类型到基类期望的类型
     return rustRelationships.map(rel => ({
@@ -539,11 +561,11 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
     }));
   }
 
-  extractConcurrencyRelationships(result: any): Array<{
+  async extractConcurrencyRelationships(result: any): Promise<Array<{
     source: string;
     target: string;
     type: 'synchronizes' | 'locks' | 'communicates' | 'races';
-  }> {
+  }>> {
     const rustRelationships = this.concurrencyExtractor.extractConcurrencyRelationships(result);
     // 转换Rust特定的类型到基类期望的类型
     return rustRelationships.map(rel => ({
@@ -553,11 +575,11 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
     }));
   }
 
-  extractLifecycleRelationships(result: any): Array<{
+  async extractLifecycleRelationships(result: any): Promise<Array<{
     source: string;
     target: string;
     type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
-  }> {
+  }>> {
     const rustRelationships = this.lifecycleExtractor.extractLifecycleRelationships(result);
     // 转换Rust特定的类型到基类期望的类型
     return rustRelationships.map(rel => ({
@@ -567,11 +589,11 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
     }));
   }
 
-  extractSemanticRelationships(result: any): Array<{
+  async extractSemanticRelationships(result: any): Promise<Array<{
     source: string;
     target: string;
     type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
-  }> {
+  }>> {
     const rustRelationships = this.semanticExtractor.extractSemanticRelationships(result);
     // 转换Rust特定的类型到基类期望的类型
     return rustRelationships.map(rel => ({
@@ -581,11 +603,11 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
     }));
   }
 
-  extractControlFlowRelationships(result: any): Array<{
+  async extractControlFlowRelationships(result: any): Promise<Array<{
     source: string;
     target: string;
     type: 'conditional' | 'loop' | 'exception' | 'callback';
-  }> {
+  }>> {
     const rustRelationships = this.controlFlowExtractor.extractControlFlowRelationships(result);
     // 转换Rust特定的类型到基类期望的类型
     return rustRelationships.map(rel => ({
@@ -597,59 +619,59 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
 
   // 新增的关系提取方法
 
-  extractAnnotationRelationships(result: any): Array<{
+  async extractAnnotationRelationships(result: any): Promise<Array<{
     source: string;
     target: string;
-    type: 'attribute' | 'derive' | 'macro' | 'doc_comment';
-  }> {
+    type: 'comment' | 'jsdoc' | 'directive' | 'decorator' | 'type_annotation' | 'docstring' | 'struct_tag';
+  }>> {
     const relationships = this.annotationExtractor.extractAnnotationRelationships(result);
     // 转换类型以匹配基类接口
     return relationships.map(rel => ({
       source: rel.source,
       target: rel.target,
-      type: this.mapAnnotationType(rel.type)
+      type: this.mapRustAnnotationTypeToBaseType(rel.type)
     }));
   }
 
-  extractCreationRelationships(result: any): Array<{
+  async extractCreationRelationships(result: any): Promise<Array<{
     source: string;
     target: string;
-    type: 'instantiation' | 'enum_creation' | 'closure' | 'function_object' | 'iterator' | 'collection';
-  }> {
+    type: 'function' | 'array' | 'object_instance' | 'class_instance' | 'promise' | 'instantiation' | 'function_object' | 'comprehension' | 'generator' | 'closure' | 'struct_instance' | 'slice' | 'map' | 'channel' | 'goroutine_instance';
+  }>> {
     const relationships = this.creationExtractor.extractCreationRelationships(result);
     // 转换类型以匹配基类接口
     return relationships.map(rel => ({
       source: rel.source,
       target: rel.target,
-      type: this.mapCreationType(rel.type)
+      type: this.mapRustCreationTypeToBaseType(rel.type)
     }));
   }
 
-  extractDependencyRelationships(result: any): Array<{
+  async extractDependencyRelationships(result: any): Promise<Array<{
     source: string;
     target: string;
-    type: 'use' | 'extern_crate' | 'mod' | 'macro_use' | 'macro_export';
-  }> {
+    type: 'import' | 'export' | 'require' | 'dynamic_import' | 'from_import' | 'relative_import' | 'wildcard_import' | 'package' | 'qualified_identifier';
+  }>> {
     const relationships = this.dependencyExtractor.extractDependencyRelationships(result);
     // 转换类型以匹配基类接口
     return relationships.map(rel => ({
       source: rel.source,
       target: rel.target,
-      type: this.mapDependencyType(rel.type)
+      type: this.mapRustDependencyTypeToBaseType(rel.type)
     }));
   }
 
-  extractReferenceRelationships(result: any): Array<{
+  async extractReferenceRelationships(result: any): Promise<Array<{
     source: string;
     target: string;
-    type: 'read' | 'write' | 'declaration' | 'usage' | 'field' | 'method' | 'module' | 'type';
-  }> {
+    type: 'import' | 'attribute' | 'read' | 'write' | 'declaration' | 'usage';
+  }>> {
     const relationships = this.referenceExtractor.extractReferenceRelationships(result);
     // 转换类型以匹配基类接口
     return relationships.map(rel => ({
       source: rel.source,
       target: rel.target,
-      type: this.mapReferenceType(rel.type)
+      type: this.mapRustReferenceTypeToBaseType(rel.type)
     }));
   }
 
@@ -728,13 +750,15 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
     }
   }
 
-  private mapRustInheritanceTypeToBaseType(rustType: string): 'class' | 'interface' | 'extends' | 'implements' {
+  private mapRustInheritanceTypeToBaseType(rustType: string): 'implements' | 'extends' | 'mixin' | 'enum_member' | 'contains' | 'embedded_struct' | 'class_inheritance' | 'interface_implementation' | 'protocol' {
     switch (rustType) {
-      case 'trait_impl': return 'implements';
-      case 'trait_bound': return 'interface';
+      case 'trait_impl': return 'interface_implementation';
+      case 'trait_bound': return 'protocol';
       case 'trait_inheritance': return 'extends';
-      case 'struct_composition': return 'class';
-      default: return 'implements';
+      case 'struct_composition': return 'contains';
+      case 'class': return 'class_inheritance';
+      case 'interface': return 'interface_implementation';
+      default: return 'interface_implementation';
     }
   }
 
@@ -784,5 +808,59 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
       case 'iteration': return 'loop';
       default: return 'conditional';
     }
+  }
+
+  private mapRustAnnotationTypeToBaseType(rustType: string): 'comment' | 'jsdoc' | 'directive' | 'decorator' | 'type_annotation' | 'docstring' | 'struct_tag' {
+    switch (rustType) {
+      case 'attribute': return 'decorator';
+      case 'derive': return 'directive';
+      case 'macro': return 'comment';
+      case 'doc_comment': return 'docstring';
+      default: return 'comment';
+    }
+  }
+
+  private mapRustCreationTypeToBaseType(rustType: string): 'function' | 'array' | 'object_instance' | 'class_instance' | 'promise' | 'instantiation' | 'function_object' | 'comprehension' | 'generator' | 'closure' | 'struct_instance' | 'slice' | 'map' | 'channel' | 'goroutine_instance' {
+    switch (rustType) {
+      case 'instantiation': return 'instantiation';
+      case 'function_object': return 'function_object';
+      case 'closure': return 'closure';
+      case 'iterator': return 'generator';
+      case 'enum_creation': return 'object_instance';
+      case 'collection': return 'array';
+      default: return 'instantiation';
+    }
+  }
+
+  private mapRustDependencyTypeToBaseType(rustType: string): 'import' | 'export' | 'require' | 'dynamic_import' | 'from_import' | 'relative_import' | 'wildcard_import' | 'package' | 'qualified_identifier' {
+    switch (rustType) {
+      case 'use': return 'import';
+      case 'extern_crate': return 'require';
+      case 'mod': return 'from_import';
+      case 'macro_use': return 'import';
+      case 'macro_export': return 'export';
+      default: return 'import';
+    }
+  }
+
+  private mapRustReferenceTypeToBaseType(rustType: string): 'import' | 'attribute' | 'read' | 'write' | 'declaration' | 'usage' {
+    switch (rustType) {
+      case 'read': return 'read';
+      case 'write': return 'write';
+      case 'declaration': return 'declaration';
+      case 'usage': return 'usage';
+      case 'field': return 'attribute';
+      case 'method': return 'usage';
+      case 'module': return 'import';
+      case 'type': return 'attribute';
+      default: return 'usage';
+    }
+  }
+
+  /**
+   * 处理查询分流 - 根据查询类型分发到相应的查询模式
+   */
+  processQueryWithDispatch(queryType: string, baseQuery: string): string {
+    return QueryDispatcher.mergeQueries(baseQuery, queryType);
   }
 }

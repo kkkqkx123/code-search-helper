@@ -18,6 +18,7 @@ export { DependencyRelationshipExtractor } from './DependencyRelationshipExtract
 export { ReferenceRelationshipExtractor } from './ReferenceRelationshipExtractor';
 
 export { RustHelperMethods } from './RustHelperMethods';
+export { QueryDispatcher } from './QueryDispatcher';
 
 // 导出常量
 export * from './constants';

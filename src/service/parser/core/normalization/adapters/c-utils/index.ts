@@ -16,6 +16,9 @@ export { CreationRelationshipExtractor } from './CreationRelationshipExtractor';
 export { DependencyRelationshipExtractor } from './DependencyRelationshipExtractor';
 export { ReferenceRelationshipExtractor } from './ReferenceRelationshipExtractor';
 
+// 查询分流器
+export { QueryDispatcher } from './QueryDispatcher';
+
 // 重新导出常用常量
 export {
   C_NODE_TYPE_MAPPING,

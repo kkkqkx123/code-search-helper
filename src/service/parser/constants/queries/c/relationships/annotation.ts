@@ -17,13 +17,6 @@ export default `
     arguments: (argument_list
       (_) @annotation.argument)*)?) @annotation.relationship.type
 
-; 函数注解
-(function_definition
-  (attribute_specifier
-    name: (identifier) @annotation.name
-    arguments: (argument_list
-      (_) @annotation.argument)*)?) @annotation.relationship.function
-
 ; 变量注解
 (declaration
   (attribute_specifier

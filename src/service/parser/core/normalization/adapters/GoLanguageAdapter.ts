@@ -22,7 +22,8 @@ import {
   GO_NAME_CAPTURES,
   GO_BLOCK_NODE_TYPES,
   GO_MODIFIERS,
-  GO_COMPLEXITY_KEYWORDS
+  GO_COMPLEXITY_KEYWORDS,
+  QueryDispatcher
 } from './go-utils';
 type StandardType = StandardizedQueryResult['type'];
 
@@ -32,7 +33,7 @@ type StandardType = StandardizedQueryResult['type'];
  */
 export class GoLanguageAdapter extends BaseLanguageAdapter {
   // In-memory symbol table for the current file
-  private symbolTable: SymbolTable | null = null;
+  // Note: symbolTable is already defined in BaseLanguageAdapter as protected
 
   // 关系提取器实例
   private annotationExtractor: AnnotationRelationshipExtractor;
@@ -62,6 +63,20 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
     this.lifecycleExtractor = new LifecycleRelationshipExtractor();
     this.semanticExtractor = new SemanticRelationshipExtractor();
     this.controlFlowExtractor = new ControlFlowRelationshipExtractor();
+  }
+
+  /**
+   * 获取语言标识符
+   */
+  protected getLanguage(): string {
+    return 'go';
+  }
+
+  /**
+   * 获取语言扩展名
+   */
+  protected getLanguageExtension(): string {
+    return 'go';
   }
 
   getSupportedQueryTypes(): string[] {
@@ -277,11 +292,11 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
   }
 
   // 高级关系提取方法 - 委托给专门的提取器
-  extractAnnotationRelationships(result: any): Array<{
+  async extractAnnotationRelationships(result: any): Promise<Array<{
     source: string;
     target: string;
     type: 'struct_tag' | 'comment' | 'directive';
-  }> {
+  }>> {
     const relationships = this.annotationExtractor.extractAnnotationRelationships(result);
     // 转换类型以匹配基类接口
     return relationships.map(rel => ({
@@ -291,11 +306,11 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
     }));
   }
 
-  extractCreationRelationships(result: any): Array<{
+  async extractCreationRelationships(result: any): Promise<Array<{
     source: string;
     target: string;
     type: 'struct_instance' | 'slice' | 'map' | 'channel' | 'function' | 'goroutine_instance';
-  }> {
+  }>> {
     const relationships = this.creationExtractor.extractCreationRelationships(result);
     // 转换类型以匹配基类接口
     return relationships.map(rel => ({
@@ -305,11 +320,11 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
     }));
   }
 
-  extractDataFlowRelationships(result: any): Array<{
+  async extractDataFlowRelationships(result: any): Promise<Array<{
     source: string;
     target: string;
     type: 'assignment' | 'parameter' | 'return';
-  }> {
+  }>> {
     const relationships = this.dataFlowExtractor.extractDataFlowRelationships(result);
     // 转换类型以匹配基类接口
     return relationships.map(rel => ({
@@ -319,11 +334,11 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
     }));
   }
 
-  extractDependencyRelationships(result: any): Array<{
+  async extractDependencyRelationships(result: any): Promise<Array<{
     source: string;
     target: string;
     type: 'import' | 'package' | 'qualified_identifier';
-  }> {
+  }>> {
     const relationships = this.dependencyExtractor.extractDependencyRelationships(result);
     // 转换类型以匹配基类接口
     return relationships.map(rel => ({
@@ -333,11 +348,11 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
     }));
   }
 
-  extractReferenceRelationships(result: any): Array<{
+  async extractReferenceRelationships(result: any): Promise<Array<{
     source: string;
     target: string;
     type: 'read' | 'write' | 'declaration' | 'usage';
-  }> {
+  }>> {
     const relationships = this.referenceExtractor.extractReferenceRelationships(result);
     // 转换类型以匹配基类接口
     return relationships.map(rel => ({
@@ -347,11 +362,11 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
     }));
   }
 
-  extractControlFlowRelationships(result: any): Array<{
+  async extractControlFlowRelationships(result: any): Promise<Array<{
     source: string;
     target: string;
     type: 'conditional' | 'loop' | 'exception' | 'callback';
-  }> {
+  }>> {
     const relationships = this.controlFlowExtractor.extractControlFlowRelationships(result);
     // 转换类型以匹配基类接口
     return relationships.map(rel => ({
@@ -361,11 +376,11 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
     }));
   }
 
-  extractSemanticRelationships(result: any): Array<{
+  async extractSemanticRelationships(result: any): Promise<Array<{
     source: string;
     target: string;
     type: 'overrides' | 'overloads' | 'delegates' | 'observes' | 'configures';
-  }> {
+  }>> {
     const relationships = this.semanticExtractor.extractSemanticRelationships(result);
     // 转换类型以匹配基类接口
     return relationships.map(rel => ({
@@ -375,11 +390,11 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
     }));
   }
 
-  extractLifecycleRelationships(result: any): Array<{
+  async extractLifecycleRelationships(result: any): Promise<Array<{
     source: string;
     target: string;
     type: 'instantiates' | 'initializes' | 'destroys' | 'manages';
-  }> {
+  }>> {
     const relationships = this.lifecycleExtractor.extractLifecycleRelationships(result);
     // 转换类型以匹配基类接口
     return relationships.map(rel => ({
@@ -389,11 +404,11 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
     }));
   }
 
-  extractConcurrencyRelationships(result: any): Array<{
+  async extractConcurrencyRelationships(result: any): Promise<Array<{
     source: string;
     target: string;
     type: 'synchronizes' | 'locks' | 'communicates' | 'races';
-  }> {
+  }>> {
     const relationships = this.concurrencyExtractor.extractConcurrencyRelationships(result);
     // 转换类型以匹配基类接口
     return relationships.map(rel => ({
@@ -510,9 +525,15 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
   }
 
   // 重写isBlockNode方法以支持Go特定的块节点类型
-  protected isBlockNode(node: any): boolean {
-    return GO_BLOCK_NODE_TYPES.includes(node.type) || super.isBlockNode(node);
-  }
+  protected isBlockNode = (node: any): boolean => {
+    const baseBlockTypes = [
+      'block', 'statement_block', 'class_body', 'interface_body', 'suite',
+      'function_definition', 'method_definition', 'class_definition',
+      'if_statement', 'for_statement', 'while_statement',
+      'switch_statement', 'try_statement', 'catch_clause'
+    ];
+    return GO_BLOCK_NODE_TYPES.includes(node.type) || baseBlockTypes.includes(node.type);
+  };
 
 
   // 重写normalize方法以集成nodeId生成和符号信息
@@ -599,7 +620,7 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
     return results;
   }
 
-  private createSymbolInfo(node: Parser.SyntaxNode | undefined, name: string, standardType: string, filePath: string): SymbolInfo | null {
+  protected createSymbolInfo(node: Parser.SyntaxNode | undefined, name: string, standardType: string, filePath: string): SymbolInfo | null {
     if (!name || !node) return null;
 
     const symbolType = this.mapToSymbolType(standardType);
@@ -630,8 +651,8 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
     return symbolInfo;
   }
 
-  private mapToSymbolType(standardType: string): SymbolInfo['type'] {
-    const mapping: Record<string, SymbolInfo['type']> = {
+  protected mapToSymbolType = (standardType: string): 'function' | 'method' | 'class' | 'interface' | 'variable' | 'import' => {
+    const mapping: Record<string, 'function' | 'method' | 'class' | 'interface' | 'variable' | 'import'> = {
       'function': 'function',
       'method': 'method',
       'class': 'class',
@@ -640,9 +661,9 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
       'import': 'import'
     };
     return mapping[standardType] || 'variable';
-  }
+  };
 
-  private determineScope(node: Parser.SyntaxNode): SymbolInfo['scope'] {
+  protected determineScope = (node: Parser.SyntaxNode): 'global' | 'function' | 'class' => {
     // Simplified scope determination. A real implementation would traverse up the AST.
     let current = node.parent;
     while (current) {
@@ -655,9 +676,9 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
       current = current.parent;
     }
     return 'global';
-  }
+  };
 
-  private extractParameters(node: Parser.SyntaxNode): string[] {
+  protected extractParameters = (node: Parser.SyntaxNode): string[] => {
     const parameters: string[] = [];
     const parameterList = node.childForFieldName?.('parameters');
     if (parameterList) {
@@ -671,26 +692,26 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
       }
     }
     return parameters;
-  }
+  };
 
-  private extractImportPath(node: Parser.SyntaxNode): string | undefined {
+  protected extractImportPath = (node: Parser.SyntaxNode): string | undefined => {
     // For Go imports
     if (node.type === 'import_spec') {
       const pathNode = node.childForFieldName('path');
       return pathNode ? pathNode.text.replace(/"/g, '') : undefined;
     }
     return undefined;
-  }
+  };
 
   /**
    * 检查是否为关系类型
    */
-  private isRelationshipType(type: string): boolean {
+  protected isRelationshipType = (type: string): boolean => {
     const relationshipTypes = ['call', 'data-flow', 'inheritance', 'concurrency', 'lifecycle', 'semantic', 'control-flow', 'dependency', 'reference', 'creation', 'annotation'];
     return relationshipTypes.includes(type);
-  }
+  };
 
-  private extractRelationshipMetadata(result: any, standardType: string, astNode: Parser.SyntaxNode | undefined): any {
+  protected extractRelationshipMetadata = async (result: any, standardType: string, astNode: Parser.SyntaxNode | undefined): Promise<any> => {
     if (!astNode) return null;
 
     switch (standardType) {
@@ -719,7 +740,7 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
       default:
         return null;
     }
-  }
+  };
 
   private findCallerFunctionContext(callNode: Parser.SyntaxNode): Parser.SyntaxNode | null {
     let current = callNode.parent;
@@ -730,5 +751,12 @@ export class GoLanguageAdapter extends BaseLanguageAdapter {
       current = current.parent;
     }
     return null;
+  }
+
+  /**
+   * 处理查询分流 - 根据查询类型分发到相应的查询模式
+   */
+  processQueryWithDispatch(queryType: string, baseQuery: string): string {
+    return QueryDispatcher.mergeQueries(baseQuery, queryType);
   }
 }
