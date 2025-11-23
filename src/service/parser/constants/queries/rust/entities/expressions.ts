@@ -1,32 +1,8 @@
 /*
-Rust Variable and Expression-specific Tree-Sitter Query Patterns
+Rust Expression-specific Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
 */
 export default `
-; 常量声明查询
-(const_item
-  name: (identifier) @const.name
-  type: (_) @const.type
-  value: (_) @const.value) @definition.constant
-
-; 静态项声明查询
-(static_item
-  name: (identifier) @static.name
-  type: (_) @static.type
-  value: (_) @static.value?
-  mutability: (mut)? @static.mutability) @definition.static
-
-; 变量绑定查询 - 使用锚点确保精确匹配
-(let_statement
-  pattern: (identifier) @variable.name
-  type: (type)? @variable.type
-  value: (_) @variable.value) @definition.variable
-
-; 赋值表达式查询
-(assignment_expression
-  left: (identifier) @assign.target
-  right: (_) @assign.source) @definition.assignment
-
 ; 函数调用查询 - 使用参数化模式
 (call_expression
   function: [
@@ -93,16 +69,6 @@ export default `
   value: (identifier) @typed.value
   type: (type) @typed.type) @definition.type.ascription
 
-; 字面量查询 - 使用交替模式
-[
-  (integer_literal) @literal.integer
-  (float_literal) @literal.float
-  (string_literal) @literal.string
-  (character_literal) @literal.char
-  (boolean_literal) @literal.boolean
-  (unit_expression) @literal.unit
-] @definition.literal
-
 ; 引用和解引用查询 - 使用交替模式
 [
   (reference_expression
@@ -125,15 +91,6 @@ export default `
     (label)? @continue.label)
 ] @definition.jump.expression
 
-; Self和Super关键字查询 - 使用交替模式
-[
-  (self) @keyword.self
-  (super) @keyword.super
-] @definition.keyword
-
-; Self参数查询
-(self_parameter) @definition.self.parameter
-
 ; 泛型函数调用查询 - 使用锚点确保精确匹配
 (generic_function
   function: (identifier) @generic.function
@@ -150,13 +107,6 @@ export default `
   (type_identifier) @type.simple
   (scoped_type_identifier) @type.scoped
 ] @definition.type.identifier
-
-; 模式查询 - 使用交替模式
-[
-  (identifier_pattern) @pattern.identifier
-  (wildcard_pattern) @pattern.wildcard
-  (reference_pattern) @pattern.reference
-] @definition.pattern
 
 ; 修饰符查询 - 使用量词操作符
 (modifiers

@@ -1,29 +1,59 @@
 /*
-Go Tree-Sitter Query Patterns
-Optimized for code chunking and vector embedding
+Go Language Tree-Sitter Query Patterns
+Index for all Go language queries including shared queries
 */
-import functionsTypes from './functions-types';
-import variablesImports from './variables-imports';
-import expressionsControlFlow from './expressions-control-flow';
-import dataFlow from './data-flow';
-import controlFlowRelationships from './control-flow-relationships';
-import semanticRelationships from './semantic-relationships';
-import lifecycleRelationships from './lifecycle-relationships';
-import concurrencyRelationships from './concurrency-relationships';
 
-const comments = `
-; 注释查询
-(comment) @comment
-`;
+// 导入实体查询
+import FUNCTIONS_QUERY from './entities/functions';
+import TYPES_QUERY from './entities/types';
+import VARIABLES_QUERY from './entities/variables';
+import IMPORTS_QUERY from './entities/imports';
+import EXPRESSIONS_QUERY from './entities/expressions';
 
-export default `
-${functionsTypes}
-${variablesImports}
-${expressionsControlFlow}
-${dataFlow}
-${controlFlowRelationships}
-${semanticRelationships}
-${lifecycleRelationships}
-${concurrencyRelationships}
-${comments}
-`;
+// 导入关系查询
+import CONTROL_FLOW_QUERY from './relationships/control-flow';
+import DATA_FLOW_QUERY from './relationships/data-flow';
+import SEMANTIC_QUERY from './relationships/semantic';
+import LIFECYCLE_QUERY from './relationships/lifecycle';
+import CONCURRENCY_QUERY from './relationships/concurrency';
+
+// 导入共享查询
+import CALL_EXPRESSIONS from './shared/call-expressions';
+import FUNCTION_ANNOTATIONS from './shared/function-annotations';
+
+// 定义查询映射
+export const GO_QUERIES = {
+  // 实体查询
+  'entities/functions': FUNCTIONS_QUERY,
+  'entities/types': TYPES_QUERY,
+  'entities/variables': VARIABLES_QUERY,
+  'entities/imports': IMPORTS_QUERY,
+  'entities/expressions': EXPRESSIONS_QUERY,
+
+  // 关系查询
+  'relationships/control-flow': CONTROL_FLOW_QUERY,
+  'relationships/data-flow': DATA_FLOW_QUERY,
+  'relationships/semantic': SEMANTIC_QUERY,
+  'relationships/lifecycle': LIFECYCLE_QUERY,
+  'relationships/concurrency': CONCURRENCY_QUERY,
+
+  // 共享查询
+  'shared/call-expressions': CALL_EXPRESSIONS,
+  'shared/function-annotations': FUNCTION_ANNOTATIONS
+};
+
+// 导出单独的查询常量
+export {
+  FUNCTIONS_QUERY,
+  TYPES_QUERY,
+  VARIABLES_QUERY,
+  IMPORTS_QUERY,
+  EXPRESSIONS_QUERY,
+  CONTROL_FLOW_QUERY,
+  DATA_FLOW_QUERY,
+  SEMANTIC_QUERY,
+  LIFECYCLE_QUERY,
+  CONCURRENCY_QUERY,
+  CALL_EXPRESSIONS,
+  FUNCTION_ANNOTATIONS
+};

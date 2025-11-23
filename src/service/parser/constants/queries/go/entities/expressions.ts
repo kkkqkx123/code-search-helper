@@ -1,5 +1,5 @@
 /*
-Go Expression and Control Flow-specific Tree-Sitter Query Patterns
+Go Expression-specific Tree-Sitter Query Patterns
 Optimized for code chunking and vector embedding
 */
 export default `
@@ -37,36 +37,6 @@ export default `
     operand: (identifier) @index.array
     index: (identifier) @index.value)
 ] @definition.collection.access
-
-; 控制流语句查询 - 使用交替模式
-[
-  (if_statement) @control.if
-  (for_statement) @control.for
-  (switch_statement) @control.switch
-  (select_statement) @control.select
-] @definition.control.flow
-
-; 分支语句查询 - 使用交替模式
-[
-  (expression_case) @branch.case
-  (default_case) @branch.default
-  (type_case) @branch.type.case
-] @definition.control.branch
-
-; 跳转语句查询 - 使用交替模式
-[
-  (return_statement) @jump.return
-  (break_statement) @jump.break
-  (continue_statement) @jump.continue
-  (go_to_statement) @jump.goto
-  (fallthrough_statement) @jump.fallthrough
-] @definition.control.jump
-
-; 延迟和协程语句查询 - 使用交替模式
-[
-  (defer_statement) @async.defer
-  (go_statement) @async.go
-] @definition.async.operation
 
 ; 二元和一元表达式查询 - 使用交替模式
 [
@@ -116,33 +86,19 @@ export default `
   (expression_statement) @statement.expression
 ] @definition.structure
 
-; 限定类型查询 - 使用锚点确保精确匹配
-(qualified_type
-  package: (package_identifier) @qualified.package
-  name: (type_identifier) @qualified.name) @definition.qualified.type
-
-; 数组和切片类型查询 - 使用交替模式
+; 表达式查询 - 使用交替模式
 [
-  (array_type
-    length: (_) @array.length
-    element: (_) @array.element)
-  (slice_type
-    element: (_) @slice.element)
-] @definition.collection.type
+  (identifier) @expression.identifier
+  (selector_expression
+    operand: (identifier) @selector.object
+    field: (field_identifier) @selector.field)
+  (index_expression
+    operand: (identifier) @index.array
+    index: (identifier) @index.value)
+] @definition.expression
 
-; 映射和函数类型查询 - 使用交替模式
-[
-  (map_type
-    key: (_) @map.key
-    value: (_) @map.value)
-  (function_type
-    parameters: (parameter_list) @func.params
-    result: (_)? @func.result)
-] @definition.complex.type
-
-; 指针类型查询
-(pointer_type
-  element: (_) @pointer.element) @definition.pointer.type
+; 注释查询
+(comment) @definition.comment
 
 ; 标签语句查询
 (labeled_statement
