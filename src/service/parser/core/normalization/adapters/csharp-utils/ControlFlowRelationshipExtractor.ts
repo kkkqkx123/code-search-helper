@@ -1,16 +1,16 @@
-import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { CSharpHelperMethods } from './CSharpHelperMethods';
+import { BaseRelationshipExtractor, RelationshipMetadata } from '../utils';
 import Parser from 'tree-sitter';
 
 /**
  * C# 控制流关系提取器
  * 从 CSharpLanguageAdapter 迁移
  */
-export class ControlFlowRelationshipExtractor {
+export class ControlFlowRelationshipExtractor extends BaseRelationshipExtractor {
   /**
    * 提取控制流关系元数据
    */
-  extractControlFlowMetadata(result: any, astNode: Parser.SyntaxNode, symbolTable: any): any {
+  extractControlFlowMetadata(result: any, astNode: Parser.SyntaxNode, symbolTable: any): RelationshipMetadata | null {
     const controlFlowType = this.determineControlFlowType(astNode);
     const sourceNode = this.extractSourceNode(astNode);
     const targetNode = this.extractTargetNode(astNode);
@@ -19,14 +19,10 @@ export class ControlFlowRelationshipExtractor {
     return {
       type: 'control-flow',
       controlFlowType,
-      fromNodeId: sourceNode ? NodeIdGenerator.forAstNode(sourceNode) : 'unknown',
-      toNodeId: targetNode ? NodeIdGenerator.forAstNode(targetNode) : 'unknown',
+      fromNodeId: sourceNode ? CSharpHelperMethods.generateNodeId(sourceNode) : 'unknown',
+      toNodeId: targetNode ? CSharpHelperMethods.generateNodeId(targetNode) : 'unknown',
       condition,
-      location: {
-        filePath: symbolTable?.filePath || 'current_file.cs',
-        lineNumber: astNode.startPosition.row + 1,
-        columnNumber: astNode.startPosition.column + 1,
-      }
+      location: CSharpHelperMethods.createLocationInfo(astNode, symbolTable?.filePath)
     };
   }
 

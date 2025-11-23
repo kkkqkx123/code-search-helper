@@ -1,15 +1,16 @@
-import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
+import { CSharpHelperMethods } from './CSharpHelperMethods';
+import { BaseRelationshipExtractor, RelationshipMetadata } from '../utils';
 import Parser from 'tree-sitter';
 
 /**
  * C#依赖关系提取器
- * 处理using指令、命名空间引用、程序集引用等
+ * 处理using指令、程序集引用、类型引用、接口实现等依赖关系
  */
-export class DependencyRelationshipExtractor {
+export class CSharpDependencyRelationshipExtractor extends BaseRelationshipExtractor {
   /**
    * 提取依赖关系元数据
    */
-  extractDependencyMetadata(result: any, astNode: Parser.SyntaxNode, symbolTable: any): any {
+  extractDependencyMetadata(result: any, astNode: Parser.SyntaxNode, symbolTable: any): RelationshipMetadata | null {
     const dependencyType = this.determineDependencyType(astNode);
 
     if (!dependencyType) {
@@ -17,9 +18,8 @@ export class DependencyRelationshipExtractor {
     }
 
     const { fromNodeId, toNodeId } = this.extractDependencyNodes(astNode, dependencyType);
-    const target = this.extractTarget(astNode);
-    const importedSymbols = this.extractImportedSymbols(astNode);
-    const namespaceInfo = this.extractNamespaceInfoForNode(astNode);
+    const target = CSharpHelperMethods.extractDependencyTarget(astNode);
+    const additionalInfo = this.extractAdditionalInfo(astNode, dependencyType);
 
     return {
       type: 'dependency',
@@ -27,13 +27,8 @@ export class DependencyRelationshipExtractor {
       toNodeId,
       dependencyType,
       target,
-      importedSymbols,
-      namespaceInfo,
-      location: {
-        filePath: symbolTable?.filePath || 'current_file.cs',
-        lineNumber: astNode.startPosition.row + 1,
-        columnNumber: astNode.startPosition.column,
-      }
+      ...additionalInfo,
+      location: CSharpHelperMethods.createLocationInfo(astNode, symbolTable?.filePath)
     };
   }
 
@@ -41,128 +36,267 @@ export class DependencyRelationshipExtractor {
    * 提取依赖关系数组
    */
   extractDependencyRelationships(result: any): Array<any> {
-    const relationships: Array<any> = [];
-    const astNode = result.captures?.[0]?.node;
-
-    if (!astNode) {
-      return relationships;
-    }
-
-    // 检查是否为依赖相关的节点类型
-    if (!this.isDependencyNode(astNode)) {
-      return relationships;
-    }
-
-    const dependencyMetadata = this.extractDependencyMetadata(result, astNode, null);
-    if (dependencyMetadata) {
-      relationships.push(dependencyMetadata);
-    }
-
-    return relationships;
+    return this.extractRelationships(
+      result,
+      (node: Parser.SyntaxNode) => CSharpHelperMethods.isDependencyNode(node),
+      (result: any, astNode: Parser.SyntaxNode, symbolTable: any) =>
+        this.extractDependencyMetadata(result, astNode, symbolTable)
+    );
   }
 
   /**
    * 确定依赖类型
    */
-  private determineDependencyType(astNode: Parser.SyntaxNode): 'using' | 'namespace' | 'extern_alias' | 'assembly' | null {
+  private determineDependencyType(astNode: Parser.SyntaxNode): string {
     const nodeType = astNode.type;
 
+    // C#特有的依赖类型
     if (nodeType === 'using_directive') {
-      return 'using';
-    } else if (nodeType === 'namespace_declaration' || nodeType === 'file_scoped_namespace_declaration') {
-      return 'namespace';
-    } else if (nodeType === 'extern_alias_directive') {
-      return 'extern_alias';
-    } else if (nodeType === 'assembly_attribute') {
-      return 'assembly';
+      return this.determineUsingDirectiveType(astNode);
+    } else if (nodeType === 'attribute_list') {
+      return 'assembly_reference';
+    } else if (nodeType === 'base_class_clause') {
+      return this.determineBaseClassType(astNode);
+    } else if (nodeType === 'type_parameter_constraints_clause') {
+      return 'generic_constraint';
+    } else if (nodeType === 'method_declaration' && this.isExtensionMethod(astNode)) {
+      return 'extension_method';
+    } else if (nodeType === 'query_expression') {
+      return 'linq_query';
+    } else if (nodeType === 'attribute') {
+      return 'attribute_usage';
+    } else if (nodeType === 'delegate_declaration') {
+      return 'delegate_definition';
+    } else if (nodeType === 'lambda_expression') {
+      return 'lambda_expression';
+    } else if (nodeType === 'method_declaration' && this.isAsyncMethod(astNode)) {
+      return 'async_method';
+    } else if (nodeType === 'await_expression') {
+      return 'await_expression';
     }
 
-    return null;
+    // 通用依赖类型
+    if (nodeType === 'declaration') {
+      return 'type_reference';
+    } else if (nodeType === 'invocation_expression') {
+      return 'method_call';
+    } else if (nodeType === 'member_access_expression') {
+      return 'member_access';
+    } else if (nodeType === 'assignment_expression') {
+      return this.determineAssignmentType(astNode);
+    }
+
+    return 'unknown';
+  }
+
+  /**
+   * 确定using指令类型
+   */
+  private determineUsingDirectiveType(astNode: Parser.SyntaxNode): string {
+    // 检查是否为静态using
+    for (const child of astNode.children) {
+      if (child.type === 'identifier' && child.text === 'static') {
+        return 'using_static';
+      }
+    }
+    
+    // 检查是否为别名using
+    for (const child of astNode.children) {
+      if (child.type === 'identifier' && child.text === '=') {
+        return 'using_alias';
+      }
+    }
+    
+    return 'using_namespace';
+  }
+
+  /**
+   * 确定基类类型
+   */
+  private determineBaseClassType(astNode: Parser.SyntaxNode): string {
+    const parent = astNode.parent;
+    if (!parent) return 'unknown';
+
+    if (parent.type === 'class_declaration') {
+      return 'class_inheritance';
+    } else if (parent.type === 'interface_declaration') {
+      return 'interface_inheritance';
+    } else if (parent.type === 'struct_declaration') {
+      return 'struct_inheritance';
+    }
+
+    return 'unknown';
+  }
+
+  /**
+   * 确定赋值类型
+   */
+  private determineAssignmentType(astNode: Parser.SyntaxNode): string {
+    const left = astNode.childForFieldName('left');
+    if (left && left.type === 'member_access_expression') {
+      // 检查是否为事件订阅
+      const right = astNode.childForFieldName('right');
+      if (right && (right.type === 'identifier' || right.type === 'lambda_expression')) {
+        return 'event_subscription';
+      }
+    }
+    return 'assignment';
   }
 
   /**
    * 提取依赖关系的节点
    */
   private extractDependencyNodes(astNode: Parser.SyntaxNode, dependencyType: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
+    let fromNodeId = CSharpHelperMethods.generateNodeId(astNode);
     let toNodeId = 'unknown';
+    const target = CSharpHelperMethods.extractDependencyTarget(astNode);
 
-    if (dependencyType === 'using') {
-      const usingTarget = this.extractUsingTarget(astNode);
-      if (usingTarget) {
-        toNodeId = NodeIdGenerator.forSymbol(usingTarget, 'using', 'current_file.cs', astNode.startPosition.row);
-      }
-    } else if (dependencyType === 'namespace') {
-      const namespaceName = this.extractNamespaceName(astNode);
-      if (namespaceName) {
-        toNodeId = NodeIdGenerator.forSymbol(namespaceName, 'namespace', 'current_file.cs', astNode.startPosition.row);
-      }
-    } else if (dependencyType === 'extern_alias') {
-      const aliasName = this.extractExternAliasName(astNode);
-      if (aliasName) {
-        toNodeId = NodeIdGenerator.forSymbol(aliasName, 'extern_alias', 'current_file.cs', astNode.startPosition.row);
-      }
-    } else if (dependencyType === 'assembly') {
-      const assemblyName = this.extractAssemblyName(astNode);
-      if (assemblyName) {
-        toNodeId = NodeIdGenerator.forSymbol(assemblyName, 'assembly', 'current_file.cs', astNode.startPosition.row);
-      }
+    if (target) {
+      const symbolType = this.getSymbolTypeForDependency(dependencyType);
+      toNodeId = CSharpHelperMethods.generateNodeId(astNode, symbolType);
     }
 
     return { fromNodeId, toNodeId };
   }
 
   /**
-   * 提取using目标
+   * 根据依赖类型获取符号类型
    */
-  private extractUsingTarget(astNode: Parser.SyntaxNode): string | null {
-    if (astNode.type === 'using_directive') {
-      const nameNode = astNode.childForFieldName('name');
-      if (nameNode) {
-        return nameNode.text || null;
-      }
+  private getSymbolTypeForDependency(dependencyType: string): string {
+    switch (dependencyType) {
+      case 'using_namespace':
+      case 'using_static':
+      case 'using_alias':
+        return 'namespace';
+      case 'assembly_reference':
+        return 'assembly';
+      case 'class_inheritance':
+      case 'interface_inheritance':
+      case 'struct_inheritance':
+      case 'generic_constraint':
+        return 'type';
+      case 'extension_method':
+        return 'type';
+      case 'linq_query':
+        return 'variable';
+      case 'attribute_usage':
+        return 'attribute';
+      case 'method_call':
+        return 'method';
+      case 'member_access':
+        return 'object';
+      case 'event_subscription':
+        return 'event';
+      default:
+        return 'symbol';
     }
-    return null;
   }
 
   /**
-   * 提取命名空间名称
+   * 提取附加信息
    */
-  private extractNamespaceName(astNode: Parser.SyntaxNode): string | null {
-    if (astNode.type === 'namespace_declaration' || astNode.type === 'file_scoped_namespace_declaration') {
-      const nameNode = astNode.childForFieldName('name');
-      if (nameNode) {
-        return nameNode.text || null;
-      }
+  private extractAdditionalInfo(astNode: Parser.SyntaxNode, dependencyType: string): any {
+    const additionalInfo: any = {};
+
+    switch (dependencyType) {
+      case 'using_static':
+        additionalInfo.staticMember = this.extractStaticMember(astNode);
+        break;
+
+      case 'using_alias':
+        additionalInfo.aliasName = this.extractAliasName(astNode);
+        additionalInfo.aliasType = this.extractAliasType(astNode);
+        break;
+
+      case 'assembly_reference':
+        additionalInfo.assemblyAttributes = this.extractAssemblyAttributes(astNode);
+        break;
+
+      case 'generic_constraint':
+        additionalInfo.constraints = this.extractGenericConstraints(astNode);
+        break;
+
+      case 'extension_method':
+        additionalInfo.extensionMethodName = this.extractExtensionMethodName(astNode);
+        break;
+
+      case 'linq_query':
+        additionalInfo.linqOperations = this.extractLinqOperations(astNode);
+        break;
+
+      case 'attribute_usage':
+        additionalInfo.attributeArguments = this.extractAttributeArguments(astNode);
+        break;
+
+      case 'method_call':
+        additionalInfo.methodArguments = this.extractMethodArguments(astNode);
+        break;
+
+      case 'member_access':
+        const memberInfo = this.extractMemberInfo(astNode);
+        additionalInfo.memberName = memberInfo.memberName;
+        break;
+
+      case 'event_subscription':
+        const eventInfo = this.extractEventInfo(astNode);
+        additionalInfo.eventHandler = eventInfo.eventHandler;
+        break;
+
+      case 'async_method':
+        additionalInfo.returnType = this.extractAsyncReturnType(astNode);
+        break;
+
+      case 'await_expression':
+        additionalInfo.awaitedType = this.extractAwaitedType(astNode);
+        break;
     }
-    return null;
+
+    return additionalInfo;
   }
 
   /**
-   * 提取外部别名名称
+   * 检查是否为扩展方法
    */
-  private extractExternAliasName(astNode: Parser.SyntaxNode): string | null {
-    if (astNode.type === 'extern_alias_directive') {
-      const identifier = astNode.childForFieldName('identifier');
-      if (identifier) {
-        return identifier.text || null;
+  private isExtensionMethod(astNode: Parser.SyntaxNode): boolean {
+    const parameterList = astNode.childForFieldName('parameters');
+    if (!parameterList) return false;
+
+    const firstParameter = parameterList.childForFieldName('0');
+    if (!firstParameter) return false;
+
+    // 检查第一个参数是否有this修饰符
+    for (const child of firstParameter.children) {
+      if (child.type === 'identifier' && child.text === 'this') {
+        return true;
       }
     }
-    return null;
+    return false;
   }
 
   /**
-   * 提取程序集名称
+   * 检查是否为异步方法
    */
-  private extractAssemblyName(astNode: Parser.SyntaxNode): string | null {
-    if (astNode.type === 'assembly_attribute') {
-      // 查找程序集特性中的名称
-      for (const child of astNode.children) {
-        if (child.type === 'attribute') {
-          const nameNode = child.childForFieldName('name');
-          if (nameNode && nameNode.text?.includes('Assembly')) {
-            return nameNode.text || null;
-          }
+  private isAsyncMethod(astNode: Parser.SyntaxNode): boolean {
+    for (const child of astNode.children) {
+      if (child.type === 'identifier' && child.text === 'async') {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * 提取静态成员
+   */
+  private extractStaticMember(astNode: Parser.SyntaxNode): string | null {
+    // 对于using static，提取静态成员名称
+    for (let i = 0; i < astNode.children.length; i++) {
+      const child = astNode.children[i];
+      if (child.type === 'identifier' && child.text === 'static') {
+        // 下一个节点应该是静态类名
+        const nextChild = astNode.children[i + 1];
+        if (nextChild && nextChild.type === 'identifier') {
+          return nextChild.text;
         }
       }
     }
@@ -170,335 +304,171 @@ export class DependencyRelationshipExtractor {
   }
 
   /**
-   * 提取目标
+   * 提取别名名称
    */
-  private extractTarget(astNode: Parser.SyntaxNode): string | null {
-    const dependencyType = this.determineDependencyType(astNode);
-
-    if (dependencyType === 'using') {
-      return this.extractUsingTarget(astNode);
-    } else if (dependencyType === 'namespace') {
-      return this.extractNamespaceName(astNode);
-    } else if (dependencyType === 'extern_alias') {
-      return this.extractExternAliasName(astNode);
-    } else if (dependencyType === 'assembly') {
-      return this.extractAssemblyName(astNode);
+  private extractAliasName(astNode: Parser.SyntaxNode): string | null {
+    for (const child of astNode.children) {
+      if (child.type === 'identifier') {
+        return child.text;
+      }
     }
-
     return null;
   }
 
   /**
-   * 提取导入的符号
+   * 提取别名类型
    */
-  private extractImportedSymbols(astNode: Parser.SyntaxNode): string[] {
-    const dependencyType = this.determineDependencyType(astNode);
-    const symbols: string[] = [];
-
-    if (dependencyType === 'using') {
-      // 对于using指令，提取具体的符号
-      const nameNode = astNode.childForFieldName('name');
-      if (nameNode) {
-        symbols.push(nameNode.text || '');
-      }
-
-      // 检查是否是静态using
-      const staticModifier = astNode.childForFieldName('static');
-      if (staticModifier) {
-        symbols.push('static');
+  private extractAliasType(astNode: Parser.SyntaxNode): string | null {
+    let foundEquals = false;
+    for (const child of astNode.children) {
+      if (child.type === 'identifier' && child.text === '=') {
+        foundEquals = true;
+      } else if (foundEquals && child.type === 'identifier') {
+        return child.text;
       }
     }
-
-    return symbols;
-  }
-
-  /**
-   * 提取命名空间信息
-   */
-  private extractNamespaceInfoForNode(astNode: Parser.SyntaxNode): any {
-    const dependencyType = this.determineDependencyType(astNode);
-
-    if (dependencyType === 'namespace') {
-      // 使用现有的公共方法
-      return this.extractNamespaceInfoFromNode(astNode);
-    }
-
     return null;
   }
 
   /**
-   * 从AST节点提取命名空间信息的辅助方法
+   * 提取程序集属性
    */
-  private extractNamespaceInfoFromNode(astNode: Parser.SyntaxNode): any {
+  private extractAssemblyAttributes(astNode: Parser.SyntaxNode): any[] {
+    const attributes: any[] = [];
+    for (const child of astNode.children) {
+      if (child.type === 'attribute') {
+        const nameNode = child.childForFieldName('name');
+        if (nameNode) {
+          attributes.push({
+            name: nameNode.text,
+            arguments: this.extractAttributeArguments(child)
+          });
+        }
+      }
+    }
+    return attributes;
+  }
+
+  /**
+   * 提取泛型约束
+   */
+  private extractGenericConstraints(astNode: Parser.SyntaxNode): string[] {
+    const constraints: string[] = [];
+    for (const child of astNode.children) {
+      if (child.type === 'type_parameter_constraint') {
+        constraints.push(child.text);
+      }
+    }
+    return constraints;
+  }
+
+  /**
+   * 提取扩展方法名
+   */
+  private extractExtensionMethodName(astNode: Parser.SyntaxNode): string | null {
     const nameNode = astNode.childForFieldName('name');
-    if (!nameNode) {
-      return null;
-    }
-
-    return {
-      name: nameNode.text || '',
-      isFileScoped: astNode.type === 'file_scoped_namespace_declaration',
-      isGlobal: nameNode.text === 'global'
-    };
+    return nameNode ? nameNode.text : null;
   }
 
   /**
-   * 判断是否为依赖关系节点
+   * 提取LINQ操作
    */
-  private isDependencyNode(astNode: Parser.SyntaxNode): boolean {
-    const dependencyNodeTypes = [
-      'using_directive',
-      'namespace_declaration',
-      'file_scoped_namespace_declaration',
-      'extern_alias_directive',
-      'assembly_attribute'
-    ];
-
-    return dependencyNodeTypes.includes(astNode.type);
+  private extractLinqOperations(astNode: Parser.SyntaxNode): string[] {
+    const operations: string[] = [];
+    const queryBody = astNode.childForFieldName('query_body');
+    if (queryBody) {
+      for (const child of queryBody.children) {
+        if (child.type.includes('clause')) {
+          operations.push(child.type);
+        }
+      }
+    }
+    return operations;
   }
 
   /**
-   * 提取using指令信息
+   * 提取特性参数
    */
-  extractUsingInfo(usingStmt: Parser.SyntaxNode): {
-    target: string;
-    type: 'namespace' | 'alias' | 'static';
-    symbols: string[];
-  } | null {
-    let target = '';
-    let type: 'namespace' | 'alias' | 'static' = 'namespace';
-    const symbols: string[] = [];
-
-    // 检查是否是静态using
-    const staticModifier = usingStmt.childForFieldName('static');
-    if (staticModifier) {
-      type = 'static';
+  private extractAttributeArguments(astNode: Parser.SyntaxNode): any[] {
+    const attributeArgs: any[] = [];
+    const argsNode = astNode.childForFieldName('arguments');
+    if (argsNode) {
+      for (const child of argsNode.children) {
+        if (child.type === 'attribute_argument') {
+          attributeArgs.push({
+            value: child.text,
+            type: child.type
+          });
+        }
+      }
     }
+    return attributeArgs;
+  }
 
-    // 检查是否是别名
-    const nameNode = usingStmt.childForFieldName('name');
-    const aliasNode = usingStmt.childForFieldName('alias');
-
-    if (aliasNode) {
-      type = 'alias';
-      symbols.push(aliasNode.text || '');
+  /**
+   * 提取方法参数
+   */
+  private extractMethodArguments(astNode: Parser.SyntaxNode): any[] {
+    const methodArgs: any[] = [];
+    const argsNode = astNode.childForFieldName('arguments');
+    if (argsNode) {
+      for (const child of argsNode.children) {
+        if (child.type === 'argument') {
+          methodArgs.push({
+            value: child.text,
+            type: child.type
+          });
+        }
+      }
     }
+    return methodArgs;
+  }
 
-    if (nameNode) {
-      target = nameNode.text || '';
-      symbols.push(target);
+  /**
+   * 提取成员信息
+   */
+  private extractMemberInfo(astNode: Parser.SyntaxNode): { objectName: string | null; memberName: string | null } {
+    return CSharpHelperMethods.extractMemberInfo(astNode);
+  }
+
+  /**
+   * 提取事件信息
+   */
+  private extractEventInfo(astNode: Parser.SyntaxNode): { eventName: string | null; eventHandler: string | null } {
+    const left = astNode.childForFieldName('left');
+    const right = astNode.childForFieldName('right');
+    
+    let eventName: string | null = null;
+    let eventHandler: string | null = null;
+    
+    if (left && left.type === 'member_access_expression') {
+      const nameNode = left.childForFieldName('name');
+      eventName = nameNode ? nameNode.text : null;
     }
+    
+    if (right) {
+      eventHandler = right.text;
+    }
+    
+    return { eventName, eventHandler };
+  }
 
-    if (target) {
-      return {
-        target,
-        type,
-        symbols
-      };
+  /**
+   * 提取异步返回类型
+   */
+  private extractAsyncReturnType(astNode: Parser.SyntaxNode): string | null {
+    const typeNode = astNode.childForFieldName('type');
+    if (typeNode && typeNode.type === 'generic_type') {
+      return typeNode.text;
     }
     return null;
   }
 
   /**
-   * 提取命名空间信息
+   * 提取awaited类型
    */
-  extractNamespaceInfo(namespaceDecl: Parser.SyntaxNode): {
-    name: string;
-    isFileScoped: boolean;
-    isGlobal: boolean;
-  } | null {
-    const nameNode = namespaceDecl.childForFieldName('name');
-    if (!nameNode) {
-      return null;
-    }
-
-    return {
-      name: nameNode.text || '',
-      isFileScoped: namespaceDecl.type === 'file_scoped_namespace_declaration',
-      isGlobal: nameNode.text === 'global'
-    };
-  }
-
-  /**
-   * 生成节点ID
-   */
-
-  /**
-   * 查找using指令
-   */
-  findUsingDirectives(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
-    const usingDirectives: Parser.SyntaxNode[] = [];
-
-    this.traverseTree(ast, (node) => {
-      if (node.type === 'using_directive') {
-        usingDirectives.push(node);
-      }
-    });
-
-    return usingDirectives;
-  }
-
-  /**
-   * 查找命名空间声明
-   */
-  findNamespaceDeclarations(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
-    const namespaceDeclarations: Parser.SyntaxNode[] = [];
-
-    this.traverseTree(ast, (node) => {
-      if (node.type === 'namespace_declaration' || node.type === 'file_scoped_namespace_declaration') {
-        namespaceDeclarations.push(node);
-      }
-    });
-
-    return namespaceDeclarations;
-  }
-
-  /**
-   * 查找外部别名指令
-   */
-  findExternAliasDirectives(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
-    const externAliasDirectives: Parser.SyntaxNode[] = [];
-
-    this.traverseTree(ast, (node) => {
-      if (node.type === 'extern_alias_directive') {
-        externAliasDirectives.push(node);
-      }
-    });
-
-    return externAliasDirectives;
-  }
-
-  /**
-   * 查找程序集特性
-   */
-  findAssemblyAttributes(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
-    const assemblyAttributes: Parser.SyntaxNode[] = [];
-
-    this.traverseTree(ast, (node) => {
-      if (node.type === 'assembly_attribute') {
-        assemblyAttributes.push(node);
-      }
-    });
-
-    return assemblyAttributes;
-  }
-
-  /**
-   * 遍历AST树
-   */
-  private traverseTree(node: Parser.SyntaxNode, callback: (node: Parser.SyntaxNode) => void): void {
-    callback(node);
-
-    if (node.children) {
-      for (const child of node.children) {
-        this.traverseTree(child, callback);
-      }
-    }
-  }
-
-  /**
-   * 分析依赖关系
-   */
-  analyzeDependencies(ast: Parser.SyntaxNode, filePath: string): Array<{
-    sourceId: string;
-    targetId: string;
-    dependencyType: string;
-    target: string;
-    importedSymbols: string[];
-    namespaceInfo?: any;
-    location: {
-      filePath: string;
-      lineNumber: number;
-      columnNumber: number;
-    };
-  }> {
-    const dependencies: Array<any> = [];
-    const usingDirectives = this.findUsingDirectives(ast);
-    const namespaceDeclarations = this.findNamespaceDeclarations(ast);
-    const externAliasDirectives = this.findExternAliasDirectives(ast);
-    const assemblyAttributes = this.findAssemblyAttributes(ast);
-
-    // 处理using指令
-    for (const usingDirective of usingDirectives) {
-      const usingInfo = this.extractUsingInfo(usingDirective);
-
-      if (usingInfo) {
-        dependencies.push({
-          sourceId: NodeIdGenerator.forAstNode(usingDirective),
-          targetId: NodeIdGenerator.forSymbol(usingInfo.target, 'using', filePath, usingDirective.startPosition.row + 1),
-          dependencyType: 'using',
-          target: usingInfo.target,
-          importedSymbols: usingInfo.symbols,
-          location: {
-            filePath,
-            lineNumber: usingDirective.startPosition.row + 1,
-            columnNumber: usingDirective.startPosition.column + 1
-          }
-        });
-      }
-    }
-
-    // 处理命名空间声明
-    for (const namespaceDecl of namespaceDeclarations) {
-      const namespaceInfo = this.extractNamespaceInfo(namespaceDecl);
-
-      if (namespaceInfo) {
-        dependencies.push({
-          sourceId: NodeIdGenerator.forAstNode(namespaceDecl),
-          targetId: NodeIdGenerator.forSymbol(namespaceInfo.name, 'namespace', filePath, namespaceDecl.startPosition.row + 1),
-          dependencyType: 'namespace',
-          target: namespaceInfo.name,
-          importedSymbols: [],
-          namespaceInfo,
-          location: {
-            filePath,
-            lineNumber: namespaceDecl.startPosition.row + 1,
-            columnNumber: namespaceDecl.startPosition.column + 1
-          }
-        });
-      }
-    }
-
-    // 处理外部别名指令
-    for (const externAlias of externAliasDirectives) {
-      const aliasName = this.extractExternAliasName(externAlias);
-
-      if (aliasName) {
-        dependencies.push({
-          sourceId: NodeIdGenerator.forAstNode(externAlias),
-          targetId: NodeIdGenerator.forSymbol(aliasName, 'extern_alias', filePath, externAlias.startPosition.row + 1),
-          dependencyType: 'extern_alias',
-          target: aliasName,
-          importedSymbols: [aliasName],
-          location: {
-            filePath,
-            lineNumber: externAlias.startPosition.row + 1,
-            columnNumber: externAlias.startPosition.column + 1
-          }
-        });
-      }
-    }
-
-    // 处理程序集特性
-    for (const assemblyAttr of assemblyAttributes) {
-      const assemblyName = this.extractAssemblyName(assemblyAttr);
-
-      if (assemblyName) {
-        dependencies.push({
-          sourceId: NodeIdGenerator.forAstNode(assemblyAttr),
-          targetId: NodeIdGenerator.forSymbol(assemblyName, 'assembly', filePath, assemblyAttr.startPosition.row + 1),
-          dependencyType: 'assembly',
-          target: assemblyName,
-          importedSymbols: [assemblyName],
-          location: {
-            filePath,
-            lineNumber: assemblyAttr.startPosition.row + 1,
-            columnNumber: assemblyAttr.startPosition.column + 1
-          }
-        });
-      }
-    }
-
-    return dependencies;
+  private extractAwaitedType(astNode: Parser.SyntaxNode): string | null {
+    const expressionNode = astNode.childForFieldName('expression');
+    return expressionNode ? expressionNode.text : null;
   }
 }

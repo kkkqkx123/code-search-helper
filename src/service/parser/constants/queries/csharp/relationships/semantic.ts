@@ -4,22 +4,6 @@ C# Semantic Relationships-specific Tree-Sitter Query Patterns
 Optimized based on tree-sitter best practices
 */
 export default `
-; 继承和实现关系查询 - 使用交替模式和锚点
-[
-  (class_declaration
-    name: (identifier) @derived.class
-    base_class_clause: (base_class_clause
-      (identifier) @base.class)) @semantic.inheritance.class
-  (class_declaration
-    name: (identifier) @implementing.class
-    base_class_clause: (base_class_clause
-      (identifier) @implemented.interface)) @semantic.implementation.interface
-  (interface_declaration
-    name: (identifier) @subinterface.interface
-    base_class_clause: (base_class_clause
-      (identifier) @superinterface.interface)) @semantic.inheritance.interface
-] @semantic.inheritance.relationship
-
 ; 泛型关系查询 - 使用锚点和量词操作符
 [
   (class_declaration

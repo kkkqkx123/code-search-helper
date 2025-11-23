@@ -21,9 +21,8 @@ import REFERENCE_QUERY from './relationships/reference';
 import CONCURRENCY_QUERY from './relationships/concurrency';
 import LIFECYCLE_QUERY from './relationships/lifecycle';
 import SEMANTIC_QUERY from './relationships/semantic';
-
-// 导入共享查询
-import { SHARED_CALL_EXPRESSIONS, SHARED_FUNCTION_ANNOTATIONS } from './shared';
+import CALL_EXPRESSIONS from './shared/call-expressions';
+import FUNCTION_ANNOTATIONS from './shared/function-annotations';
 
 // 定义查询映射
 export const C_QUERIES = {
@@ -32,7 +31,7 @@ export const C_QUERIES = {
   'entities/preprocessor': PREPROCESSOR_QUERY,
   'entities/structs': STRUCTS_QUERY,
   'entities/variables': VARIABLES_QUERY,
-  
+
   // 关系查询
   'relationships/call': CALL_QUERY,
   'relationships/annotation': ANNOTATION_QUERY,
@@ -45,10 +44,10 @@ export const C_QUERIES = {
   'relationships/concurrency': CONCURRENCY_QUERY,
   'relationships/lifecycle': LIFECYCLE_QUERY,
   'relationships/semantic': SEMANTIC_QUERY,
-  
+
   // 共享查询
- 'shared/call-expressions': SHARED_CALL_EXPRESSIONS,
-  'shared/function-annotations': SHARED_FUNCTION_ANNOTATIONS,
+  'shared/call-expressions': CALL_EXPRESSIONS,
+  'shared/function-annotations': FUNCTION_ANNOTATIONS
 };
 
 // 导出单独的查询常量
@@ -68,6 +67,6 @@ export {
   CONCURRENCY_QUERY,
   LIFECYCLE_QUERY,
   SEMANTIC_QUERY,
-  SHARED_CALL_EXPRESSIONS,
-  SHARED_FUNCTION_ANNOTATIONS
+  CALL_EXPRESSIONS,
+  FUNCTION_ANNOTATIONS
 };

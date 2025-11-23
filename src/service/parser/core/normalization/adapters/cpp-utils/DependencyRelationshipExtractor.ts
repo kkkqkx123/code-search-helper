@@ -1,25 +1,25 @@
-import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
+import { CppHelperMethods } from './CppHelperMethods';
+import { BaseRelationshipExtractor, RelationshipMetadata } from '../utils';
 import Parser from 'tree-sitter';
 
 /**
  * C++依赖关系提取器
- * 处理预处理器包含指令、模块依赖、命名空间使用等
+ * 处理头文件包含、using声明、模板依赖、命名空间等依赖关系
  */
-export class DependencyRelationshipExtractor {
+export class CppDependencyRelationshipExtractor extends BaseRelationshipExtractor {
   /**
    * 提取依赖关系元数据
    */
-  extractDependencyMetadata(result: any, astNode: Parser.SyntaxNode, symbolTable: any): any {
+  extractDependencyMetadata(result: any, astNode: Parser.SyntaxNode, symbolTable: any): RelationshipMetadata | null {
     const dependencyType = this.determineDependencyType(astNode);
+    const target = CppHelperMethods.extractDependencyTarget(astNode);
 
     if (!dependencyType) {
       return null;
     }
 
     const { fromNodeId, toNodeId } = this.extractDependencyNodes(astNode, dependencyType);
-    const target = this.extractTarget(astNode);
-    const importedSymbols = this.extractImportedSymbols(astNode);
-    const namespaceInfo = this.extractNamespaceInfo(astNode);
+    const additionalInfo = this.extractAdditionalInfo(astNode, dependencyType);
 
     return {
       type: 'dependency',
@@ -27,13 +27,8 @@ export class DependencyRelationshipExtractor {
       toNodeId,
       dependencyType,
       target,
-      importedSymbols,
-      namespaceInfo,
-      location: {
-        filePath: symbolTable?.filePath || 'current_file.cpp',
-        lineNumber: astNode.startPosition.row + 1,
-        columnNumber: astNode.startPosition.column,
-      }
+      ...additionalInfo,
+      location: CppHelperMethods.createLocationInfo(astNode, symbolTable?.filePath)
     };
   }
 
@@ -41,454 +36,198 @@ export class DependencyRelationshipExtractor {
    * 提取依赖关系数组
    */
   extractDependencyRelationships(result: any): Array<any> {
-    const relationships: Array<any> = [];
-    const astNode = result.captures?.[0]?.node;
-
-    if (!astNode) {
-      return relationships;
-    }
-
-    // 检查是否为依赖相关的节点类型
-    if (!this.isDependencyNode(astNode)) {
-      return relationships;
-    }
-
-    const dependencyMetadata = this.extractDependencyMetadata(result, astNode, null);
-    if (dependencyMetadata) {
-      relationships.push(dependencyMetadata);
-    }
-
-    return relationships;
+    return this.extractRelationships(
+      result,
+      (node: Parser.SyntaxNode) => CppHelperMethods.isDependencyNode(node),
+      (result: any, astNode: Parser.SyntaxNode, symbolTable: any) =>
+        this.extractDependencyMetadata(result, astNode, symbolTable)
+    );
   }
 
   /**
    * 确定依赖类型
    */
-  private determineDependencyType(astNode: Parser.SyntaxNode): 'include' | 'import' | 'using' | 'namespace' | 'module' | null {
+  private determineDependencyType(astNode: Parser.SyntaxNode): string {
     const nodeType = astNode.type;
 
+    // C++特有的依赖类型
     if (nodeType === 'preproc_include') {
       return 'include';
-    } else if (nodeType === 'preproc_def' && astNode.text?.includes('import')) {
-      return 'import';
-    } else if (nodeType === 'using_declaration' || nodeType === 'using_directive') {
-      return 'using';
+    } else if (nodeType === 'using_declaration') {
+      return 'using_declaration';
+    } else if (nodeType === 'using_directive') {
+      return 'using_directive';
+    } else if (nodeType === 'template_type' || nodeType === 'template_function') {
+      return 'template';
     } else if (nodeType === 'namespace_definition') {
       return 'namespace';
-    } else if (nodeType === 'module_declaration' || nodeType === 'import_declaration') {
-      return 'module';
+    } else if (nodeType === 'friend_declaration') {
+      return 'friend';
+    } else if (nodeType === 'base_class_clause') {
+      return 'inheritance';
+    } else if (nodeType === 'type_parameter_constraints_clause') {
+      return 'generic_constraint';
+    } else if (nodeType === 'attribute_list') {
+      return 'assembly_reference';
     }
 
-    return null;
+    // 通用依赖类型
+    if (nodeType === 'declaration') {
+      return 'type_reference';
+    } else if (nodeType === 'call_expression') {
+      return 'function_call';
+    } else if (nodeType === 'field_expression' || nodeType === 'member_access_expression') {
+      return 'member_access';
+    } else if (nodeType === 'assignment_expression') {
+      return 'assignment';
+    } else if (nodeType === 'delegate_declaration') {
+      return 'delegate';
+    } else if (nodeType === 'lambda_expression') {
+      return 'lambda';
+    }
+
+    return 'unknown';
   }
 
   /**
    * 提取依赖关系的节点
    */
   private extractDependencyNodes(astNode: Parser.SyntaxNode, dependencyType: string): { fromNodeId: string; toNodeId: string } {
-    let fromNodeId = NodeIdGenerator.forAstNode(astNode);
+    let fromNodeId = CppHelperMethods.generateNodeId(astNode);
     let toNodeId = 'unknown';
+    const target = CppHelperMethods.extractDependencyTarget(astNode);
 
-    if (dependencyType === 'include') {
-      const includePath = this.extractIncludePath(astNode);
-      if (includePath) {
-        toNodeId = NodeIdGenerator.forSymbol(includePath, 'header', includePath, astNode.startPosition.row);
-      }
-    } else if (dependencyType === 'import') {
-      const importPath = this.extractImportPath(astNode);
-      if (importPath) {
-        toNodeId = NodeIdGenerator.forSymbol(importPath, 'module', importPath, astNode.startPosition.row);
-      }
-    } else if (dependencyType === 'using') {
-      const usingTarget = this.extractUsingTarget(astNode);
-      if (usingTarget) {
-        toNodeId = NodeIdGenerator.forSymbol(usingTarget, 'using', 'current_file.cpp', astNode.startPosition.row);
-      }
-    } else if (dependencyType === 'namespace') {
-      const namespaceName = this.extractNamespaceName(astNode);
-      if (namespaceName) {
-        toNodeId = NodeIdGenerator.forSymbol(namespaceName, 'namespace', 'current_file.cpp', astNode.startPosition.row);
-      }
-    } else if (dependencyType === 'module') {
-      const moduleName = this.extractModuleName(astNode);
-      if (moduleName) {
-        toNodeId = NodeIdGenerator.forSymbol(moduleName, 'module', 'current_file.cpp', astNode.startPosition.row);
-      }
+    if (target) {
+      const symbolType = this.getSymbolTypeForDependency(dependencyType);
+      toNodeId = CppHelperMethods.generateNodeId(astNode, symbolType);
     }
 
     return { fromNodeId, toNodeId };
   }
 
   /**
-   * 提取包含路径
+   * 根据依赖类型获取符号类型
    */
-  private extractIncludePath(astNode: Parser.SyntaxNode): string | null {
+  private getSymbolTypeForDependency(dependencyType: string): string {
+    switch (dependencyType) {
+      case 'include':
+        return 'header';
+      case 'using_declaration':
+      case 'using_directive':
+        return 'namespace';
+      case 'template':
+        return 'template';
+      case 'inheritance':
+        return 'class';
+      case 'function_call':
+        return 'function';
+      case 'type_reference':
+        return 'type';
+      default:
+        return 'symbol';
+    }
+  }
+
+  /**
+   * 提取附加信息
+   */
+  private extractAdditionalInfo(astNode: Parser.SyntaxNode, dependencyType: string): any {
+    const additionalInfo: any = {};
+
+    switch (dependencyType) {
+      case 'include':
+        additionalInfo.includeType = this.extractIncludeType(astNode);
+        break;
+
+      case 'template':
+        additionalInfo.templateArguments = this.extractTemplateArguments(astNode);
+        break;
+
+      case 'inheritance':
+        additionalInfo.inheritanceType = this.extractInheritanceType(astNode);
+        break;
+
+      case 'function_call':
+        additionalInfo.arguments = this.extractCallArguments(astNode);
+        break;
+
+      case 'generic_constraint':
+        additionalInfo.constraints = this.extractGenericConstraints(astNode);
+        break;
+    }
+
+    return additionalInfo;
+  }
+
+  /**
+   * 提取包含类型
+   */
+  private extractIncludeType(astNode: Parser.SyntaxNode): string {
     for (const child of astNode.children) {
-      if (child.type === 'string_literal' || child.type === 'system_lib_string') {
-        return child.text?.replace(/['"<>/]/g, '') || null; // 移除引号和尖括号
-      }
-    }
-    return null;
-  }
-
-  /**
-   * 提取导入路径
-   */
-  private extractImportPath(astNode: Parser.SyntaxNode): string | null {
-    // 对于import声明，提取模块名
-    for (const child of astNode.children) {
-      if (child.type === 'string_literal' || child.type === 'identifier') {
-        return child.text?.replace(/['"<>/]/g, '') || null;
-      }
-    }
-    return null;
-  }
-
-  /**
-   * 提取using目标
-   */
-  private extractUsingTarget(astNode: Parser.SyntaxNode): string | null {
-    // 对于using声明，提取使用的符号或命名空间
-    for (const child of astNode.children) {
-      if (child.type === 'identifier' || child.type === 'type_identifier' || child.type === 'namespace_identifier') {
-        return child.text || null;
-      }
-    }
-    return null;
-  }
-
-  /**
-   * 提取命名空间名称
-   */
-  private extractNamespaceName(astNode: Parser.SyntaxNode): string | null {
-    const nameNode = astNode.childForFieldName('name');
-    if (nameNode && (nameNode.type === 'namespace_identifier' || nameNode.type === 'identifier')) {
-      return nameNode.text || null;
-    }
-    return null;
-  }
-
-  /**
-   * 提取模块名称
-   */
-  private extractModuleName(astNode: Parser.SyntaxNode): string | null {
-    for (const child of astNode.children) {
-      if (child.type === 'identifier' || child.type === 'string_literal') {
-        return child.text || null;
-      }
-    }
-    return null;
-  }
-
-  /**
-   * 提取目标
-   */
-  private extractTarget(astNode: Parser.SyntaxNode): string | null {
-    const dependencyType = this.determineDependencyType(astNode);
-
-    if (dependencyType === 'include') {
-      return this.extractIncludePath(astNode);
-    } else if (dependencyType === 'import') {
-      return this.extractImportPath(astNode);
-    } else if (dependencyType === 'using') {
-      return this.extractUsingTarget(astNode);
-    } else if (dependencyType === 'namespace') {
-      return this.extractNamespaceName(astNode);
-    } else if (dependencyType === 'module') {
-      return this.extractModuleName(astNode);
-    }
-
-    return null;
-  }
-
-  /**
-   * 提取导入的符号
-   */
-  private extractImportedSymbols(astNode: Parser.SyntaxNode): string[] {
-    const dependencyType = this.determineDependencyType(astNode);
-    const symbols: string[] = [];
-
-    if (dependencyType === 'using') {
-      // 对于using声明，提取具体的符号
-      for (const child of astNode.children) {
-        if (child.type === 'identifier' || child.type === 'type_identifier') {
-          symbols.push(child.text || '');
-        }
-      }
-    }
-
-    return symbols;
-  }
-
-  /**
-   * 提取命名空间信息
-   */
-  private extractNamespaceInfo(astNode: Parser.SyntaxNode): any {
-    const dependencyType = this.determineDependencyType(astNode);
-
-    if (dependencyType === 'namespace') {
-      return {
-        name: this.extractNamespaceName(astNode),
-        isNested: this.isNestedNamespace(astNode),
-        isInline: this.isInlineNamespace(astNode)
-      };
-    }
-
-    return null;
-  }
-
-  /**
-   * 判断是否为嵌套命名空间
-   */
-  private isNestedNamespace(astNode: Parser.SyntaxNode): boolean {
-    return astNode.parent?.type === 'namespace_definition';
-  }
-
-  /**
-   * 判断是否为内联命名空间
-   */
-  private isInlineNamespace(astNode: Parser.SyntaxNode): boolean {
-    for (const child of astNode.children) {
-      if (child.type === 'storage_class_specifier' && child.text === 'inline') {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  /**
-   * 判断是否为依赖关系节点
-   */
-  private isDependencyNode(astNode: Parser.SyntaxNode): boolean {
-    const dependencyNodeTypes = [
-      'preproc_include',
-      'preproc_def',
-      'using_declaration',
-      'using_directive',
-      'namespace_definition',
-      'module_declaration',
-      'import_declaration'
-    ];
-
-    return dependencyNodeTypes.includes(astNode.type);
-  }
-
-  /**
-   * 提取包含信息
-   */
-  extractIncludeInfo(includeStmt: Parser.SyntaxNode): {
-    source: string;
-    importedSymbols: string[];
-    isSystem: boolean;
-  } | null {
-    let source = '';
-    const importedSymbols: string[] = [];
-    let isSystem = false;
-
-    for (const child of includeStmt.children) {
-      // Find the source (usually a string literal)
       if (child.type === 'string_literal') {
-        source = child.text.replace(/['"]/g, ''); // Remove quotes
-        isSystem = false;
+        return 'user';
       } else if (child.type === 'system_lib_string') {
-        source = child.text.replace(/[<>]/g, ''); // Remove angle brackets
-        isSystem = true;
+        return 'system';
       }
     }
-
-    if (source) {
-      return {
-        source,
-        importedSymbols,
-        isSystem
-      };
-    }
-    return null;
+    return 'unknown';
   }
 
   /**
-   * 提取using声明信息
+   * 提取模板参数
    */
-  extractUsingInfo(usingStmt: Parser.SyntaxNode): {
-    target: string;
-    type: 'declaration' | 'directive';
-    symbols: string[];
-  } | null {
-    let target = '';
-    let type: 'declaration' | 'directive' = 'declaration';
-    const symbols: string[] = [];
-
-    if (usingStmt.type === 'using_directive') {
-      type = 'directive';
-    }
-
-    for (const child of usingStmt.children) {
-      if (child.type === 'identifier' || child.type === 'type_identifier' || child.type === 'namespace_identifier') {
-        const symbol = child.text || '';
-        if (symbol) {
-          symbols.push(symbol);
-          if (!target) {
-            target = symbol;
-          }
+  private extractTemplateArguments(astNode: Parser.SyntaxNode): string[] {
+    const templateArgs: string[] = [];
+    const argsNode = astNode.childForFieldName('arguments');
+    if (argsNode) {
+      for (const child of argsNode.children) {
+        if (child.text) {
+          templateArgs.push(child.text);
         }
       }
     }
-
-    if (target) {
-      return {
-        target,
-        type,
-        symbols
-      };
-    }
-    return null;
+    return templateArgs;
   }
 
   /**
-   * 生成节点ID
+   * 提取继承类型
    */
-
-  /**
-   * 查找预处理器包含指令
-   */
-  findIncludeStatements(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
-    const includeStatements: Parser.SyntaxNode[] = [];
-
-    this.traverseTree(ast, (node) => {
-      if (node.type === 'preproc_include') {
-        includeStatements.push(node);
+  private extractInheritanceType(astNode: Parser.SyntaxNode): string {
+    // 检查是否有virtual继承
+    for (const child of astNode.children) {
+      if (child.type === 'virtual_specifier') {
+        return 'virtual';
       }
-    });
-
-    return includeStatements;
+    }
+    return 'normal';
   }
 
   /**
-   * 查找using声明
+   * 提取调用参数
    */
-  findUsingStatements(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
-    const usingStatements: Parser.SyntaxNode[] = [];
-
-    this.traverseTree(ast, (node) => {
-      if (node.type === 'using_declaration' || node.type === 'using_directive') {
-        usingStatements.push(node);
+  private extractCallArguments(astNode: Parser.SyntaxNode): string[] {
+    const callArgs: string[] = [];
+    const argsNode = astNode.childForFieldName('arguments');
+    if (argsNode) {
+      for (const child of argsNode.children) {
+        if (child.text && child.type !== ',' && child.type !== '(' && child.type !== ')') {
+          callArgs.push(child.text);
+        }
       }
-    });
-
-    return usingStatements;
+    }
+    return callArgs;
   }
 
   /**
-   * 查找命名空间定义
+   * 提取泛型约束
    */
-  findNamespaceDefinitions(ast: Parser.SyntaxNode): Parser.SyntaxNode[] {
-    const namespaceDefinitions: Parser.SyntaxNode[] = [];
-
-    this.traverseTree(ast, (node) => {
-      if (node.type === 'namespace_definition') {
-        namespaceDefinitions.push(node);
-      }
-    });
-
-    return namespaceDefinitions;
-  }
-
-  /**
-   * 遍历AST树
-   */
-  private traverseTree(node: Parser.SyntaxNode, callback: (node: Parser.SyntaxNode) => void): void {
-    callback(node);
-
-    if (node.children) {
-      for (const child of node.children) {
-        this.traverseTree(child, callback);
+  private extractGenericConstraints(astNode: Parser.SyntaxNode): string[] {
+    const constraints: string[] = [];
+    for (const child of astNode.children) {
+      if (child.type === 'type_parameter_constraint') {
+        constraints.push(child.text);
       }
     }
-  }
-
-  /**
-   * 分析依赖关系
-   */
-  analyzeDependencies(ast: Parser.SyntaxNode, filePath: string): Array<{
-    sourceId: string;
-    targetId: string;
-    dependencyType: string;
-    target: string;
-    importedSymbols: string[];
-    namespaceInfo?: any;
-    location: {
-      filePath: string;
-      lineNumber: number;
-      columnNumber: number;
-    };
-  }> {
-    const dependencies: Array<any> = [];
-    const includeStatements = this.findIncludeStatements(ast);
-    const usingStatements = this.findUsingStatements(ast);
-    const namespaceDefinitions = this.findNamespaceDefinitions(ast);
-
-    // 处理包含语句
-    for (const includeStmt of includeStatements) {
-      const includeInfo = this.extractIncludeInfo(includeStmt);
-
-      if (includeInfo) {
-        dependencies.push({
-          sourceId: NodeIdGenerator.forAstNode(includeStmt),
-          targetId: NodeIdGenerator.forSymbol(includeInfo.source, 'header', includeInfo.source, includeStmt.startPosition.row + 1),
-          dependencyType: 'include',
-          target: includeInfo.source,
-          importedSymbols: includeInfo.importedSymbols,
-          location: {
-            filePath,
-            lineNumber: includeStmt.startPosition.row + 1,
-            columnNumber: includeStmt.startPosition.column + 1
-          }
-        });
-      }
-    }
-
-    // 处理using语句
-    for (const usingStmt of usingStatements) {
-      const usingInfo = this.extractUsingInfo(usingStmt);
-
-      if (usingInfo) {
-        dependencies.push({
-          sourceId: NodeIdGenerator.forAstNode(usingStmt),
-          targetId: NodeIdGenerator.forSymbol(usingInfo.target, 'using', filePath, usingStmt.startPosition.row + 1),
-          dependencyType: 'using',
-          target: usingInfo.target,
-          importedSymbols: usingInfo.symbols,
-          location: {
-            filePath,
-            lineNumber: usingStmt.startPosition.row + 1,
-            columnNumber: usingStmt.startPosition.column + 1
-          }
-        });
-      }
-    }
-
-    // 处理命名空间定义
-    for (const namespaceDef of namespaceDefinitions) {
-      const namespaceName = this.extractNamespaceName(namespaceDef);
-      const namespaceInfo = this.extractNamespaceInfo(namespaceDef);
-
-      if (namespaceName) {
-        dependencies.push({
-          sourceId: NodeIdGenerator.forAstNode(namespaceDef),
-          targetId: NodeIdGenerator.forSymbol(namespaceName, 'namespace', filePath, namespaceDef.startPosition.row + 1),
-          dependencyType: 'namespace',
-          target: namespaceName,
-          importedSymbols: [],
-          namespaceInfo,
-          location: {
-            filePath,
-            lineNumber: namespaceDef.startPosition.row + 1,
-            columnNumber: namespaceDef.startPosition.column + 1
-          }
-        });
-      }
-    }
-
-    return dependencies;
+    return constraints;
   }
 }

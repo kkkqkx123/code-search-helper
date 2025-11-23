@@ -1,282 +1,635 @@
-import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
 import { CSharpHelperMethods } from './CSharpHelperMethods';
+import { BaseRelationshipExtractor, RelationshipMetadata } from '../utils';
 import Parser from 'tree-sitter';
 
 /**
- * C# 继承关系提取器
- * 从 CSharpLanguageAdapter 迁移
+ * C#继承关系提取器
+ * 处理类继承、接口实现、泛型继承、显式接口实现等继承关系
  */
-export class InheritanceRelationshipExtractor {
+export class CSharpInheritanceRelationshipExtractor extends BaseRelationshipExtractor {
   /**
    * 提取继承关系元数据
    */
-  extractInheritanceMetadata(result: any, astNode: Parser.SyntaxNode, symbolTable: any): any {
+  extractInheritanceMetadata(result: any, astNode: Parser.SyntaxNode, symbolTable: any): RelationshipMetadata | null {
     const inheritanceType = this.determineInheritanceType(astNode);
-    const baseTypes = this.extractBaseTypes(astNode);
-    const derivedType = this.extractDerivedType(astNode);
+
+    if (!inheritanceType) {
+      return null;
+    }
+
+    const { fromNodeId, toNodeId } = this.extractInheritanceNodes(astNode, inheritanceType);
+    const additionalInfo = this.extractInheritanceInfo(astNode, inheritanceType);
 
     return {
       type: 'inheritance',
-      fromNodeId: derivedType ? NodeIdGenerator.forAstNode(derivedType) : 'unknown',
-      toNodeId: baseTypes.length > 0 ? NodeIdGenerator.forAstNode(baseTypes[0]) : 'unknown',
+      fromNodeId,
+      toNodeId,
       inheritanceType,
-      baseTypes: baseTypes.map(type => type.text),
-      location: {
-        filePath: symbolTable?.filePath || 'current_file.cs',
-        lineNumber: astNode.startPosition.row + 1,
-        columnNumber: astNode.startPosition.column + 1,
-      }
+      ...additionalInfo,
+      location: CSharpHelperMethods.createLocationInfo(astNode, symbolTable?.filePath)
     };
+  }
+
+  /**
+   * 提取继承关系数组
+   */
+  extractInheritanceRelationships(result: any): Array<any> {
+    return this.extractRelationships(
+      result,
+      (node: Parser.SyntaxNode) => this.isInheritanceNode(node),
+      (result: any, astNode: Parser.SyntaxNode, symbolTable: any) =>
+        this.extractInheritanceMetadata(result, astNode, symbolTable)
+    );
   }
 
   /**
    * 确定继承类型
    */
-  private determineInheritanceType(node: Parser.SyntaxNode): 'extends' | 'implements' | 'mixin' | 'enum_member' | 'contains' | 'embedded_struct' {
-    switch (node.type) {
-      case 'class_declaration':
-      case 'record_class_declaration':
-        return 'extends';
-      case 'interface_declaration':
-        return 'implements';
-      case 'struct_declaration':
-      case 'record_struct_declaration':
-        return 'implements'; // C# 结构体可以实现接口
-      case 'enum_declaration':
-        return 'enum_member';
-      default:
-        return 'extends';
+  private determineInheritanceType(astNode: Parser.SyntaxNode): string {
+    const nodeType = astNode.type;
+
+    // C#特有的继承类型
+    if (nodeType === 'class_declaration') {
+      const baseClassClause = astNode.childForFieldName('base_class_clause');
+      if (baseClassClause) {
+        const baseTypes = this.extractBaseTypes(baseClassClause);
+        
+        // 检查是否有多个基类型（多接口实现）
+        if (baseTypes.length > 1) {
+          return 'multiple_interface_implementation';
+        }
+        
+        // 检查是否为泛型继承
+        if (this.hasGenericInheritance(baseClassClause)) {
+          return 'generic_inheritance';
+        }
+        
+        // 检查第一个基类型是类还是接口
+        const firstBaseType = baseTypes[0];
+        if (this.isInterfaceType(firstBaseType, astNode)) {
+          return 'interface_implementation';
+        } else {
+          return 'class_inheritance';
+        }
+      }
+    } else if (nodeType === 'interface_declaration') {
+      const baseClassClause = astNode.childForFieldName('base_class_clause');
+      if (baseClassClause) {
+        return 'interface_inheritance';
+      }
+    } else if (nodeType === 'struct_declaration') {
+      const baseClassClause = astNode.childForFieldName('base_class_clause');
+      if (baseClassClause) {
+        return 'interface_implementation';
+      }
+    } else if (nodeType === 'record_declaration') {
+      const baseClassClause = astNode.childForFieldName('base_class_clause');
+      if (baseClassClause) {
+        return 'record_inheritance';
+      }
+    } else if (nodeType === 'method_declaration') {
+      // 检查是否为方法重写
+      if (this.isOverrideMethod(astNode)) {
+        return 'method_override';
+      }
+    } else if (nodeType === 'property_declaration') {
+      // 检查是否为属性重写
+      if (this.isOverrideProperty(astNode)) {
+        return 'property_override';
+      }
+    } else if (nodeType === 'indexer_declaration') {
+      // 检查是否为索引器重写
+      if (this.isOverrideIndexer(astNode)) {
+        return 'indexer_override';
+      }
+    } else if (nodeType === 'event_declaration') {
+      // 检查是否为事件重写
+      if (this.isOverrideEvent(astNode)) {
+        return 'event_override';
+      }
+    } else if (nodeType === 'method_declaration' && this.isAbstractMethod(astNode)) {
+      return 'abstract_method';
+    } else if (nodeType === 'method_declaration' && this.isVirtualMethod(astNode)) {
+      return 'virtual_method';
+    } else if (nodeType === 'constructor_declaration') {
+      // 检查是否有构造函数链式调用
+      if (this.hasConstructorChaining(astNode)) {
+        return 'constructor_chaining';
+      }
+    } else if (nodeType === 'delegate_declaration') {
+      return 'delegate_inheritance';
+    } else if (nodeType === 'type_parameter_constraints_clause') {
+      return 'generic_constraint_inheritance';
     }
+
+    return 'unknown';
+  }
+
+  /**
+   * 提取继承关系的节点
+   */
+  private extractInheritanceNodes(astNode: Parser.SyntaxNode, inheritanceType: string): { fromNodeId: string; toNodeId: string } {
+    let fromNodeId = 'unknown';
+    let toNodeId = 'unknown';
+
+    switch (inheritanceType) {
+      case 'class_inheritance':
+      case 'interface_implementation':
+      case 'multiple_interface_implementation':
+      case 'generic_inheritance':
+      case 'interface_inheritance':
+      case 'struct_inheritance':
+      case 'record_inheritance':
+        fromNodeId = this.extractTypeNodeId(astNode);
+        toNodeId = this.extractBaseTypeNodeId(astNode);
+        break;
+
+      case 'method_override':
+      case 'property_override':
+      case 'indexer_override':
+      case 'event_override':
+      case 'abstract_method':
+      case 'virtual_method':
+        fromNodeId = this.extractMemberNodeId(astNode);
+        toNodeId = this.extractBaseMemberNodeId(astNode);
+        break;
+
+      case 'constructor_chaining':
+        fromNodeId = this.extractConstructorNodeId(astNode);
+        toNodeId = this.extractBaseConstructorNodeId(astNode);
+        break;
+
+      case 'delegate_inheritance':
+        fromNodeId = this.extractDelegateNodeId(astNode);
+        toNodeId = this.extractDelegateBaseNodeId(astNode);
+        break;
+
+      case 'generic_constraint_inheritance':
+        fromNodeId = this.extractGenericConstraintNodeId(astNode);
+        toNodeId = this.extractConstraintBaseNodeId(astNode);
+        break;
+    }
+
+    return { fromNodeId, toNodeId };
+  }
+
+  /**
+   * 提取继承信息
+   */
+  private extractInheritanceInfo(astNode: Parser.SyntaxNode, inheritanceType: string): any {
+    const inheritanceInfo: any = {};
+
+    switch (inheritanceType) {
+      case 'multiple_interface_implementation':
+        inheritanceInfo.implementedInterfaces = this.extractBaseTypes(astNode.childForFieldName('base_class_clause')!);
+        break;
+
+      case 'generic_inheritance':
+        inheritanceInfo.genericArguments = this.extractGenericArguments(astNode);
+        inheritanceInfo.typeParameters = this.extractTypeParameters(astNode);
+        break;
+
+      case 'method_override':
+        inheritanceInfo.overrideMethod = this.extractMemberName(astNode);
+        inheritanceInfo.overrideModifier = this.extractOverrideModifier(astNode);
+        break;
+
+      case 'property_override':
+        inheritanceInfo.overrideProperty = this.extractMemberName(astNode);
+        inheritanceInfo.propertyType = this.extractPropertyType(astNode);
+        break;
+
+      case 'abstract_method':
+        inheritanceInfo.abstractMethod = this.extractMemberName(astNode);
+        break;
+
+      case 'virtual_method':
+        inheritanceInfo.virtualMethod = this.extractMemberName(astNode);
+        break;
+
+      case 'constructor_chaining':
+        inheritanceInfo.constructorName = this.extractConstructorName(astNode);
+        inheritanceInfo.baseConstructor = this.extractBaseConstructor(astNode);
+        break;
+
+      case 'delegate_inheritance':
+        inheritanceInfo.delegateName = this.extractDelegateName(astNode);
+        inheritanceInfo.delegateParameters = this.extractDelegateParameters(astNode);
+        break;
+
+      case 'generic_constraint_inheritance':
+        inheritanceInfo.constrainedType = this.extractConstrainedType(astNode);
+        inheritanceInfo.constraintTypes = this.extractConstraintTypes(astNode);
+        break;
+    }
+
+    return inheritanceInfo;
   }
 
   /**
    * 提取基类型
    */
-  private extractBaseTypes(node: Parser.SyntaxNode): Parser.SyntaxNode[] {
-    const baseList = node.childForFieldName('base_list');
-    if (!baseList) {
-      return [];
-    }
-
-    const baseTypes: Parser.SyntaxNode[] = [];
-    for (const child of baseList.children) {
-      if (child.type === 'type') {
-        baseTypes.push(child);
+  private extractBaseTypes(baseClassClause: Parser.SyntaxNode): string[] {
+    const baseTypes: string[] = [];
+    for (const child of baseClassClause.children) {
+      if (child.type === 'identifier' || child.type === 'generic_type') {
+        baseTypes.push(child.text);
       }
     }
     return baseTypes;
   }
 
   /**
-   * 提取派生类型
+   * 检查是否有泛型继承
    */
-  private extractDerivedType(node: Parser.SyntaxNode): Parser.SyntaxNode | null {
-    return node.childForFieldName('name');
-  }
-
-  /**
-   * 分析接口实现关系
-   */
-  analyzeInterfaceImplementation(node: Parser.SyntaxNode): Array<{
-    implementingType: string;
-    interfaceType: string;
-    implementedMembers: string[];
-  }> {
-    const implementations: Array<{
-      implementingType: string;
-      interfaceType: string;
-      implementedMembers: string[];
-    }> = [];
-
-    if (!CSharpHelperMethods.isClassNode(node) && !CSharpHelperMethods.isClassNode(node)) {
-      return implementations;
-    }
-
-    const baseTypes = this.extractBaseTypes(node);
-    const implementingTypeName = CSharpHelperMethods.extractClassName(node);
-
-    if (!implementingTypeName) {
-      return implementations;
-    }
-
-    for (const baseType of baseTypes) {
-      // 检查是否为接口（简化判断，实际需要符号表解析）
-      if (this.isLikelyInterface(baseType)) {
-        const interfaceTypeName = baseType.text;
-        const implementedMembers = this.findImplementedMembers(node, interfaceTypeName);
-
-        implementations.push({
-          implementingType: implementingTypeName,
-          interfaceType: interfaceTypeName,
-          implementedMembers
-        });
+  private hasGenericInheritance(baseClassClause: Parser.SyntaxNode): boolean {
+    for (const child of baseClassClause.children) {
+      if (child.type === 'generic_type') {
+        return true;
       }
     }
-
-    return implementations;
+    return false;
   }
 
   /**
-   * 判断是否可能是接口
+   * 检查是否为接口类型
    */
-  private isLikelyInterface(node: Parser.SyntaxNode): boolean {
-    // 简化判断：以I开头且不是基本类型
-    const text = node.text;
-    return text.startsWith('I') && text.length > 1 && text[1] === text[1].toUpperCase();
+  private isInterfaceType(baseType: string, contextNode: Parser.SyntaxNode): boolean {
+    // 简单的启发式判断：如果基类型以I开头且后面是大写字母，可能是接口
+    return /^I[A-Z]/.test(baseType);
   }
 
   /**
-   * 查找实现的成员
+   * 检查是否为重写方法
    */
-  private findImplementedMembers(classNode: Parser.SyntaxNode, interfaceName: string): string[] {
-    const implementedMembers: string[] = [];
+  private isOverrideMethod(astNode: Parser.SyntaxNode): boolean {
+    for (const child of astNode.children) {
+      if (child.type === 'identifier' && child.text === 'override') {
+        return true;
+      }
+    }
+    return false;
+  }
 
-    // 遍历类的所有成员，查找可能实现接口的成员
-    for (const child of classNode.children) {
-      if (child.type === 'method_declaration' || 
-          child.type === 'property_declaration' ||
-          child.type === 'event_declaration') {
-        
-        const memberName = CSharpHelperMethods.extractMethodName(child) || 
-                          CSharpHelperMethods.extractPropertyName(child);
-        
-        if (memberName) {
-          implementedMembers.push(memberName);
+  /**
+   * 检查是否为重写属性
+   */
+  private isOverrideProperty(astNode: Parser.SyntaxNode): boolean {
+    for (const child of astNode.children) {
+      if (child.type === 'identifier' && child.text === 'override') {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * 检查是否为重写索引器
+   */
+  private isOverrideIndexer(astNode: Parser.SyntaxNode): boolean {
+    for (const child of astNode.children) {
+      if (child.type === 'identifier' && child.text === 'override') {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * 检查是否为重写事件
+   */
+  private isOverrideEvent(astNode: Parser.SyntaxNode): boolean {
+    for (const child of astNode.children) {
+      if (child.type === 'identifier' && child.text === 'override') {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * 检查是否为抽象方法
+   */
+  private isAbstractMethod(astNode: Parser.SyntaxNode): boolean {
+    for (const child of astNode.children) {
+      if (child.type === 'identifier' && child.text === 'abstract') {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * 检查是否为虚方法
+   */
+  private isVirtualMethod(astNode: Parser.SyntaxNode): boolean {
+    for (const child of astNode.children) {
+      if (child.type === 'identifier' && child.text === 'virtual') {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * 检查是否有构造函数链式调用
+   */
+  private hasConstructorChaining(astNode: Parser.SyntaxNode): boolean {
+    const initializer = astNode.childForFieldName('initializer');
+    return !!initializer;
+  }
+
+  /**
+   * 提取类型节点ID
+   */
+  private extractTypeNodeId(astNode: Parser.SyntaxNode): string {
+    const nameNode = astNode.childForFieldName('name');
+    return CSharpHelperMethods.generateNodeId(nameNode || astNode);
+  }
+
+  /**
+   * 提取基类型节点ID
+   */
+  private extractBaseTypeNodeId(astNode: Parser.SyntaxNode): string {
+    const baseClassClause = astNode.childForFieldName('base_class_clause');
+    if (baseClassClause) {
+      for (const child of baseClassClause.children) {
+        if (child.type === 'identifier' || child.type === 'generic_type') {
+          return CSharpHelperMethods.generateNodeId(child);
         }
       }
     }
-
-    return implementedMembers;
+    return 'unknown';
   }
 
   /**
-   * 分析类继承层次
+   * 提取成员节点ID
    */
-  analyzeClassHierarchy(node: Parser.SyntaxNode): Array<{
-    derivedType: string;
-    baseType: string;
-    inheritanceLevel: number;
-  }> {
-    const hierarchy: Array<{
-      derivedType: string;
-      baseType: string;
-      inheritanceLevel: number;
-    }> = [];
-
-    if (!CSharpHelperMethods.isClassNode(node)) {
-      return hierarchy;
-    }
-
-    const derivedTypeName = CSharpHelperMethods.extractClassName(node);
-    if (!derivedTypeName) {
-      return hierarchy;
-    }
-
-    const baseTypes = this.extractBaseTypes(node);
-    
-    for (let i = 0; i < baseTypes.length; i++) {
-      const baseType = baseTypes[i];
-      hierarchy.push({
-        derivedType: derivedTypeName,
-        baseType: baseType.text,
-        inheritanceLevel: i + 1
-      });
-    }
-
-    return hierarchy;
+  private extractMemberNodeId(astNode: Parser.SyntaxNode): string {
+    const nameNode = astNode.childForFieldName('name');
+    return CSharpHelperMethods.generateNodeId(nameNode || astNode);
   }
 
   /**
-   * 分析泛型约束关系
+   * 提取基成员节点ID
    */
-  analyzeGenericConstraints(node: Parser.SyntaxNode): Array<{
-    typeParameter: string;
-    constraintType: string;
-    constraintValue: string;
-  }> {
-    const constraints: Array<{
-      typeParameter: string;
-      constraintType: string;
-      constraintValue: string;
-    }> = [];
-
-    const typeParameters = node.childForFieldName('type_parameters');
-    if (!typeParameters) {
-      return constraints;
+  private extractBaseMemberNodeId(astNode: Parser.SyntaxNode): string {
+    const memberName = this.extractMemberName(astNode);
+    if (memberName) {
+      return CSharpHelperMethods.generateNodeId(astNode, 'base_member');
     }
+    return 'unknown';
+  }
 
-    const constraintsClause = node.childForFieldName('type_parameter_constraints_clause');
-    if (!constraintsClause) {
-      return constraints;
-    }
+  /**
+   * 提取构造函数节点ID
+   */
+  private extractConstructorNodeId(astNode: Parser.SyntaxNode): string {
+    const nameNode = astNode.childForFieldName('name');
+    return CSharpHelperMethods.generateNodeId(nameNode || astNode);
+  }
 
-    // 提取类型参数
-    const typeParamNames: string[] = [];
-    for (const child of typeParameters.children) {
-      if (child.type === 'type_parameter' && child.text) {
-        typeParamNames.push(child.text);
+  /**
+   * 提取基构造函数节点ID
+   */
+  private extractBaseConstructorNodeId(astNode: Parser.SyntaxNode): string {
+    const initializer = astNode.childForFieldName('initializer');
+    return initializer ? CSharpHelperMethods.generateNodeId(initializer) : 'unknown';
+  }
+
+  /**
+   * 提取委托节点ID
+   */
+  private extractDelegateNodeId(astNode: Parser.SyntaxNode): string {
+    const nameNode = astNode.childForFieldName('name');
+    return CSharpHelperMethods.generateNodeId(nameNode || astNode);
+  }
+
+  /**
+   * 提取委托基节点ID
+   */
+  private extractDelegateBaseNodeId(astNode: Parser.SyntaxNode): string {
+    const returnType = astNode.childForFieldName('return_type');
+    return returnType ? CSharpHelperMethods.generateNodeId(returnType) : 'unknown';
+  }
+
+  /**
+   * 提取泛型约束节点ID
+   */
+  private extractGenericConstraintNodeId(astNode: Parser.SyntaxNode): string {
+    for (const child of astNode.children) {
+      if (child.type === 'identifier') {
+        return CSharpHelperMethods.generateNodeId(child);
       }
     }
+    return 'unknown';
+  }
 
-    // 提取约束
-    for (const child of constraintsClause.children) {
+  /**
+   * 提取约束基节点ID
+   */
+  private extractConstraintBaseNodeId(astNode: Parser.SyntaxNode): string {
+    for (const child of astNode.children) {
       if (child.type === 'type_parameter_constraint') {
-        const constrainedParam = child.childForFieldName('target');
-        const constraint = child.childForFieldName('constraint');
-        
-        if (constrainedParam?.text && constraint?.text) {
-          constraints.push({
-            typeParameter: constrainedParam.text,
-            constraintType: 'type_constraint',
-            constraintValue: constraint.text
+        const typeNode = child.childForFieldName('type');
+        if (typeNode) {
+          return CSharpHelperMethods.generateNodeId(typeNode);
+        }
+      }
+    }
+    return 'unknown';
+  }
+
+  /**
+   * 提取泛型参数
+   */
+  private extractGenericArguments(astNode: Parser.SyntaxNode): string[] {
+    const genericArgs: string[] = [];
+    const baseClassClause = astNode.childForFieldName('base_class_clause');
+    if (baseClassClause) {
+      for (const child of baseClassClause.children) {
+        if (child.type === 'generic_type') {
+          const argsNode = child.childForFieldName('type_arguments');
+          if (argsNode) {
+            for (const argChild of argsNode.children) {
+              if (argChild.type === 'identifier') {
+                genericArgs.push(argChild.text);
+              }
+            }
+          }
+        }
+      }
+    }
+    return genericArgs;
+  }
+
+  /**
+   * 提取类型参数
+   */
+  private extractTypeParameters(astNode: Parser.SyntaxNode): string[] {
+    const parameters: string[] = [];
+    const typeParameters = astNode.childForFieldName('type_parameters');
+    if (typeParameters) {
+      for (const child of typeParameters.children) {
+        if (child.type === 'type_parameter') {
+          const nameNode = child.childForFieldName('name');
+          if (nameNode) {
+            parameters.push(nameNode.text);
+          }
+        }
+      }
+    }
+    return parameters;
+  }
+
+  /**
+   * 提取成员名称
+   */
+  private extractMemberName(astNode: Parser.SyntaxNode): string | null {
+    const nameNode = astNode.childForFieldName('name');
+    return nameNode ? nameNode.text : null;
+  }
+
+  /**
+   * 提取重写修饰符
+   */
+  private extractOverrideModifier(astNode: Parser.SyntaxNode): string | null {
+    for (const child of astNode.children) {
+      if (child.type === 'identifier' && child.text === 'override') {
+        return child.text;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * 提取属性类型
+   */
+  private extractPropertyType(astNode: Parser.SyntaxNode): string | null {
+    const typeNode = astNode.childForFieldName('type');
+    return typeNode ? typeNode.text : null;
+  }
+
+  /**
+   * 提取构造函数名称
+   */
+  private extractConstructorName(astNode: Parser.SyntaxNode): string | null {
+    const nameNode = astNode.childForFieldName('name');
+    return nameNode ? nameNode.text : null;
+  }
+
+  /**
+   * 提取基构造函数
+   */
+  private extractBaseConstructor(astNode: Parser.SyntaxNode): string | null {
+    const initializer = astNode.childForFieldName('initializer');
+    return initializer ? initializer.text : null;
+  }
+
+  /**
+   * 提取委托名称
+   */
+  private extractDelegateName(astNode: Parser.SyntaxNode): string | null {
+    const nameNode = astNode.childForFieldName('name');
+    return nameNode ? nameNode.text : null;
+  }
+
+  /**
+   * 提取委托参数
+   */
+  private extractDelegateParameters(astNode: Parser.SyntaxNode): any[] {
+    const parameters: any[] = [];
+    const parametersNode = astNode.childForFieldName('parameters');
+    if (parametersNode) {
+      for (const child of parametersNode.children) {
+        if (child.type === 'parameter') {
+          const nameNode = child.childForFieldName('name');
+          const typeNode = child.childForFieldName('type');
+          parameters.push({
+            name: nameNode ? nameNode.text : 'unknown',
+            type: typeNode ? typeNode.text : 'unknown'
           });
         }
       }
     }
-
-    return constraints;
+    return parameters;
   }
 
   /**
-   * 分析记录类型继承
+   * 提取约束类型
    */
-  analyzeRecordInheritance(node: Parser.SyntaxNode): {
-    recordType: string;
-    baseRecord?: string;
-    withExpressions: string[];
-  } | null {
-    if (node.type !== 'record_class_declaration' && node.type !== 'record_struct_declaration') {
-      return null;
-    }
-
-    const recordTypeName = CSharpHelperMethods.extractClassName(node);
-    if (!recordTypeName) {
-      return null;
-    }
-
-    const baseTypes = this.extractBaseTypes(node);
-    const baseRecord = baseTypes.length > 0 ? baseTypes[0].text : undefined;
-
-    // 查找with表达式
-    const withExpressions: string[] = [];
-    this.findWithExpressions(node, withExpressions);
-
-    return {
-      recordType: recordTypeName,
-      baseRecord,
-      withExpressions
-    };
-  }
-
-  /**
-   * 递归查找with表达式
-   */
-  private findWithExpressions(node: Parser.SyntaxNode, expressions: string[]): void {
-    for (const child of node.children) {
-      if (child.type === 'with_expression') {
-        expressions.push(child.text);
+  private extractConstrainedType(astNode: Parser.SyntaxNode): string | null {
+    for (const child of astNode.children) {
+      if (child.type === 'identifier') {
+        return child.text;
       }
-      this.findWithExpressions(child, expressions);
+    }
+    return null;
+  }
+
+  /**
+   * 提取约束类型列表
+   */
+  private extractConstraintTypes(astNode: Parser.SyntaxNode): string[] {
+    const types: string[] = [];
+    for (const child of astNode.children) {
+      if (child.type === 'type_parameter_constraint') {
+        const typeNode = child.childForFieldName('type');
+        if (typeNode) {
+          types.push(typeNode.text);
+        }
+      }
+    }
+    return types;
+  }
+
+  /**
+   * 判断是否为继承关系节点
+   */
+  private isInheritanceNode(astNode: Parser.SyntaxNode): boolean {
+    const inheritanceNodeTypes = [
+      'class_declaration',
+      'interface_declaration',
+      'struct_declaration',
+      'record_declaration',
+      'method_declaration',
+      'property_declaration',
+      'indexer_declaration',
+      'event_declaration',
+      'constructor_declaration',
+      'delegate_declaration',
+      'type_parameter_constraints_clause'
+    ];
+
+    if (!inheritanceNodeTypes.includes(astNode.type)) {
+      return false;
+    }
+
+    // 进一步检查是否确实包含继承关系
+    switch (astNode.type) {
+      case 'class_declaration':
+      case 'interface_declaration':
+      case 'struct_declaration':
+      case 'record_declaration':
+        return !!astNode.childForFieldName('base_class_clause');
+      
+      case 'method_declaration':
+        return this.isOverrideMethod(astNode) || this.isAbstractMethod(astNode) || this.isVirtualMethod(astNode);
+      
+      case 'property_declaration':
+        return this.isOverrideProperty(astNode);
+      
+      case 'indexer_declaration':
+        return this.isOverrideIndexer(astNode);
+      
+      case 'event_declaration':
+        return this.isOverrideEvent(astNode);
+      
+      case 'constructor_declaration':
+        return this.hasConstructorChaining(astNode);
+      
+      default:
+        return true; // 其他类型默认认为是继承关系
     }
   }
 }

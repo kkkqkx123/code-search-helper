@@ -4,19 +4,6 @@ C++ Semantic Relationships-specific Tree-Sitter Query Patterns
 Optimized based on tree-sitter best practices
 */
 export default `
-; 继承关系查询 - 使用锚点和谓词
-(class_specifier
-  name: (type_identifier) @derived.class
-  base_class_clause: .
-    (base_class_clause
-      (type_identifier) @base.class)
-  body: (field_declaration_list
-    (function_definition
-      declarator: (function_declarator
-        declarator: (field_identifier) @override.method)
-      (virtual_specifier) @virtual.specifier
-      (#eq? @override.method @base.method))?) @override.methods) @semantic.inheritance.relationship
-
 ; 函数重载查询 - 使用量词操作符
 (class_specifier
   name: (type_identifier) @class.name

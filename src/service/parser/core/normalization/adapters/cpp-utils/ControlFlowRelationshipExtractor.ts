@@ -1,14 +1,15 @@
-import { NodeIdGenerator } from '../../../../../../utils/deterministic-node-id';
+import { CppHelperMethods } from './CppHelperMethods';
+import { BaseRelationshipExtractor, RelationshipMetadata } from '../utils';
 import Parser from 'tree-sitter';
 
 /**
  * C++ 控制流关系提取器
  */
-export class ControlFlowRelationshipExtractor {
+export class ControlFlowRelationshipExtractor extends BaseRelationshipExtractor {
   /**
    * 提取控制流关系元数据
    */
-  extractControlFlowMetadata(result: any, astNode: Parser.SyntaxNode, symbolTable: any): any {
+  extractControlFlowMetadata(result: any, astNode: Parser.SyntaxNode, symbolTable: any): RelationshipMetadata | null {
     const text = astNode.text || '';
     let flowType = 'unknown';
     let isExceptional = false;
@@ -41,16 +42,12 @@ export class ControlFlowRelationshipExtractor {
 
     return {
       type: 'control-flow',
-      fromNodeId: NodeIdGenerator.forAstNode(astNode),
+      fromNodeId: CppHelperMethods.generateNodeId(astNode),
       toNodeId: 'unknown', // 需要更复杂的分析来确定目标
       flowType,
       condition: astNode.childForFieldName('condition')?.text,
       isExceptional,
-      location: {
-        filePath: symbolTable?.filePath || 'current_file.cpp',
-        lineNumber: astNode.startPosition.row + 1,
-        columnNumber: astNode.startPosition.column + 1,
-      }
+      location: CppHelperMethods.createLocationInfo(astNode, symbolTable?.filePath)
     };
   }
 
