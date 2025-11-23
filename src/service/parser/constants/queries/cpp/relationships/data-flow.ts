@@ -26,17 +26,6 @@ export default `
       right: (_) @binary.right)
   ]) @data.flow.assignment
 
-; 函数调用数据流 - 参数化查询
-(call_expression
-  function: [
-    (identifier) @target.function
-    (field_expression
-      object: (identifier) @target.object
-      field: (field_identifier) @target.method)
-  ]
-  arguments: (argument_list
-    (identifier) @source.parameter)+) @data.flow.parameter.passing
-
 ; 返回值数据流 - 使用锚点操作符
 (return_statement
   .
@@ -129,19 +118,6 @@ export default `
   arguments: (argument_list
     (identifier) @target.parameter))
   (#match? @stream.method "^(operator<<|operator>>)$")) @data.flow.stream.operation
-
-; 链式调用数据流 - 使用量词操作符
-(call_expression
-  function: (field_expression
-    object: (call_expression) @source.call
-    field: (field_identifier) @target.method)) @data.flow.chained.call
-
-; 模板函数调用数据流 - 使用锚点确保精确匹配
-(call_expression
-  function: (template_function
-    function: (identifier) @target.template.function)
-  arguments: (argument_list
-    (identifier) @source.parameter)) @data.flow.template.call
 
 ; 静态转换数据流 - 使用谓词过滤
 (call_expression

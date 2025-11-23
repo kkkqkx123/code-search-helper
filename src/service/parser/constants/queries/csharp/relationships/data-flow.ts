@@ -58,23 +58,6 @@ export default `
     (argument
       (identifier) @source.value2))) @data.flow.tuple.assignment
 
-; 方法调用数据流 - 参数化查询
-(invocation_expression
-  function: [
-    (identifier) @target.function
-    (member_access_expression
-      expression: (identifier) @target.object
-      name: (identifier) @target.method)
-    (generic_name
-      name: (identifier) @generic.function
-      type_arguments: (type_argument_list
-        (identifier) @type.argument)*)
-  ]
-  arguments: (argument_list
-    (argument
-      name: (identifier)? @parameter.name
-      (identifier) @source.parameter)*)) @data.flow.method.call
-
 ; 对象创建数据流 - 使用锚点确保精确匹配
 (object_creation_expression
   type: (identifier) @target.class

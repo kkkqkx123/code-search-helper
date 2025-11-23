@@ -65,13 +65,6 @@ export default `
   parameters: (parameter_list) @operator.params) @semantic.operator.overload
   (#match? @operator.name "^(operator\\+|operator-|operator\\*|operator/|operator==|operator!=)$")
 
-; 虚函数重写关系 - 使用锚点和谓词
-(function_definition
-  declarator: (function_declarator
-    declarator: (field_identifier) @overridden.method)
-  (virtual_specifier) @virtual.specifier
-  (override_specifier) @override.specifier) @semantic.virtual.override
-
 ; 纯虚函数关系 - 使用锚点确保精确匹配
 (function_definition
   declarator: (function_declarator

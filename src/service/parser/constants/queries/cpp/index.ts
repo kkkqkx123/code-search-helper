@@ -14,6 +14,7 @@ import dataFlow from './relationships/data-flow';
 import semanticRelationships from './relationships/semantic-relationships';
 import lifecycleRelationships from './relationships/lifecycle-relationships';
 import concurrencyRelationships from './relationships/concurrency-relationships';
+import { SHARED_CALL_EXPRESSIONS, SHARED_FUNCTION_ANNOTATIONS } from './shared';
 
 const comments = `
 ; 注释查询
@@ -44,6 +45,10 @@ ${semanticRelationships}
 ${lifecycleRelationships}
 
 ${concurrencyRelationships}
+
+${SHARED_CALL_EXPRESSIONS}
+
+${SHARED_FUNCTION_ANNOTATIONS}
 
 ${comments}
 `;

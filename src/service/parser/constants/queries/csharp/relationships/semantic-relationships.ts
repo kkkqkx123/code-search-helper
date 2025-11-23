@@ -20,21 +20,6 @@ export default `
       (identifier) @superinterface.interface)) @semantic.inheritance.interface
 ] @semantic.inheritance.relationship
 
-; 方法重写和重载关系查询 - 使用谓词过滤
-[
-  (method_declaration
-    (modifier) @override.modifier
-    name: (identifier) @overridden.method
-    (#match? @override.modifier "override")) @semantic.override.method
-  (method_declaration
-    name: (identifier) @overloaded.method
-    parameters: (parameter_list) @method.params) @semantic.overload.method
-  (method_declaration
-    (modifier) @virtual.modifier
-    name: (identifier) @virtual.method
-    (#match? @virtual.modifier "virtual")) @semantic.virtual.method
-] @semantic.method.relationship
-
 ; 泛型关系查询 - 使用锚点和量词操作符
 [
   (class_declaration
@@ -104,17 +89,6 @@ export default `
     (attribute
       name: (identifier) @inject.attribute)) @semantic.dependency.injection.property
 ] @semantic.dependency.injection
-
-; 扩展方法关系查询 - 使用谓词过滤
-(method_declaration
-  (modifier) @this.modifier
-  name: (identifier) @extension.method
-  parameters: (parameter_list
-    (parameter
-      (modifier) @this.modifier
-      type: (identifier) @extended.type
-      name: (identifier) @extended.instance))
-  (#match? @this.modifier "this")) @semantic.extension.method
 
 ; 异步模式关系查询 - 使用谓词过滤
 [

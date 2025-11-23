@@ -65,22 +65,6 @@ export default `
     body: (block) @remove.body) @definition.remove.accessor
 ] @definition.property.accessor
 
-; 方法调用查询 - 使用锚点和谓词过滤
-(invocation_expression
-  function: [
-    (identifier) @call.function
-    (member_access_expression
-      expression: (identifier) @call.object
-      name: (identifier) @call.method)
-    (generic_name
-      name: (identifier) @generic.function
-      type_arguments: (type_argument_list
-        (identifier) @type.argument)*)
-  ]
-  arguments: (argument_list
-    (argument
-      (identifier) @call.argument)*)) @definition.method.call
-
 ; 异步方法查询 - 使用谓词过滤
 (method_declaration
   (modifier) @async.modifier
