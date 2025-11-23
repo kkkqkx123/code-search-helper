@@ -78,9 +78,6 @@ export default `
 (enum_specifier
   name: (type_identifier) @reference.enum.type) @reference.relationship.enum
 
-; 类型别名引用关系
-(type_identifier) @reference.type.alias
-
 ; 函数声明引用关系
 (declaration
   type: (_)

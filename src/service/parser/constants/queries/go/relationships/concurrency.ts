@@ -1,31 +1,53 @@
 /*
 Go Concurrency Relationships-specific Tree-Sitter Query Patterns
 用于识别同步、锁、通信、竞态条件等并发关系
+只包含基于抽象语法树的真实查询，不使用字符匹配
 */
 export default `
-; 协程创建关系 - 使用谓词过滤
+; ===== 协程创建关系 =====
+
+; 基本协程创建关系
 (go_statement
   (call_expression
     function: (identifier) @goroutine.function
     arguments: (argument_list
       (identifier) @goroutine.param)*)) @concurrency.goroutine.creation
 
-; 通道操作关系 - 使用交替模式和谓词过滤
-[
-  (send_statement
-    channel: (identifier) @channel.send
-    value: (identifier) @channel.value)
-  (unary_expression
-    ["<-"] @receive.op
-    operand: (identifier) @channel.receive))
+; 匿名函数协程创建关系
+(go_statement
   (call_expression
-    function: (identifier) @channel.function
-    arguments: (argument_list
-      (channel_type) @channel.type))
-    (#match? @channel.function "^(make|close)$")
-] @concurrency.channel.operation
+    function: (func_literal
+      body: (block) @goroutine.lambda.body))) @concurrency.goroutine.lambda.creation
 
-; Select语句并发关系 - 使用锚点确保精确匹配
+; ===== 通道操作关系 =====
+
+; 通道发送关系
+(send_statement
+  channel: (identifier) @channel.send
+  value: (identifier) @channel.value) @concurrency.channel.send
+
+; 通道接收关系
+(unary_expression
+  ["<-"] @channel.receive.op
+  operand: (identifier) @channel.receive) @concurrency.channel.receive
+
+; 通道创建关系
+(call_expression
+  function: (identifier) @channel.create.function
+  arguments: (argument_list
+    (channel_type) @channel.type))
+  (#eq? @channel.create.function "make")) @concurrency.channel.creation
+
+; 通道关闭关系
+(call_expression
+  function: (identifier) @channel.close.function
+  arguments: (argument_list
+    (identifier) @channel.object))
+  (#eq? @channel.close.function "close")) @concurrency.channel.close
+
+; ===== Select语句并发关系 =====
+
+; 基本Select语句关系
 (select_statement
   body: (block
     (comm_case
@@ -35,66 +57,68 @@ export default `
           value: (identifier) @case.value)
         (expression_statement
           (unary_expression
-            ["<-"] @receive.op
+            ["<-"] @case.receive.op
             operand: (identifier) @case.channel))
       ]
-      (block) @case.body)*)) @concurrency.select.operation
+      (block) @case.body)*
+    (default_case
+      (block) @default.body)?)) @concurrency.select.operation
 
-; Mutex锁操作关系 - 使用谓词过滤
+; ===== 同步原语关系 =====
+
+; Mutex锁操作关系
 (call_expression
   function: (selector_expression
     operand: (identifier) @mutex.object
     field: (field_identifier) @mutex.method)
   arguments: (argument_list
-    (identifier) @mutex.param)*)
-  (#match? @mutex.method "^(Lock|Unlock|TryLock)$")) @concurrency.mutex.operation
+    (identifier) @mutex.param)*)) @concurrency.mutex.operation
 
-; RWMutex操作关系 - 使用谓词过滤
+; RWMutex操作关系
 (call_expression
   function: (selector_expression
     operand: (identifier) @rwmutex.object
     field: (field_identifier) @rwmutex.method)
   arguments: (argument_list
-    (identifier) @rwmutex.param)*)
-  (#match? @rwmutex.method "^(RLock|RUnlock|Lock|Unlock|TryRLock|TryLock)$")) @concurrency.rwmutex.operation
+    (identifier) @rwmutex.param)*)) @concurrency.rwmutex.operation
 
-; WaitGroup操作关系 - 使用谓词过滤
+; WaitGroup操作关系
 (call_expression
   function: (selector_expression
     operand: (identifier) @waitgroup.object
     field: (field_identifier) @waitgroup.method)
   arguments: (argument_list
-    (identifier) @waitgroup.param)*)
-  (#match? @waitgroup.method "^(Add|Done|Wait)$")) @concurrency.waitgroup.operation
+    (identifier) @waitgroup.param)*)) @concurrency.waitgroup.operation
 
-; Once操作关系 - 使用谓词过滤
+; Once操作关系
 (call_expression
   function: (selector_expression
     operand: (identifier) @once.object
     field: (field_identifier) @once.method)
   arguments: (argument_list
-    (identifier) @once.param)*)
-  (#match? @once.method "^(Do)$")) @concurrency.once.operation
+    (identifier) @once.param)*)) @concurrency.once.operation
 
-; Cond操作关系 - 使用谓词过滤
+; Cond操作关系
 (call_expression
   function: (selector_expression
     operand: (identifier) @cond.object
     field: (field_identifier) @cond.method)
   arguments: (argument_list
-    (identifier) @cond.param)*)
-  (#match? @cond.method "^(Wait|Signal|Broadcast)$")) @concurrency.cond.operation
+    (identifier) @cond.param)*)) @concurrency.cond.operation
 
-; Pool操作关系 - 使用谓词过滤
+; ===== 并发集合关系 =====
+
+; Pool操作关系
 (call_expression
   function: (selector_expression
     operand: (identifier) @pool.object
     field: (field_identifier) @pool.method)
   arguments: (argument_list
-    (identifier) @pool.param)*)
-  (#match? @pool.method "^(Get|Put|New)$")) @concurrency.pool.operation
+    (identifier) @pool.param)*)) @concurrency.pool.operation
 
-; Timer操作关系 - 使用谓词过滤
+; ===== 定时器关系 =====
+
+; Timer操作关系
 (call_expression
   function: [
     (identifier) @timer.function
@@ -103,28 +127,31 @@ export default `
       field: (field_identifier) @timer.method)
   ]
   arguments: (argument_list
-    (identifier) @timer.param)*)
-  (#match? @timer.function "^(NewTimer|AfterFunc|NewTicker|Stop|Reset)$")) @concurrency.timer.operation
+    (identifier) @timer.param)*)) @concurrency.timer.operation
 
-; Context操作关系 - 使用谓词过滤
+; ===== Context操作关系 =====
+
+; Context操作关系
 (call_expression
   function: (selector_expression
     operand: (identifier) @context.object
     field: (field_identifier) @context.method)
   arguments: (argument_list
-    (identifier) @context.param)*)
-  (#match? @context.method "^(WithCancel|WithTimeout|WithDeadline|Cancel|Deadline|Done)$")) @concurrency.context.operation
+    (identifier) @context.param)*)) @concurrency.context.operation
 
-; 原子操作关系 - 使用谓词过滤
+; ===== 原子操作关系 =====
+
+; 原子操作关系
 (call_expression
   function: (selector_expression
     operand: (identifier) @atomic.object
     field: (field_identifier) @atomic.method)
   arguments: (argument_list
-    (identifier) @atomic.param)*)
-  (#match? @atomic.method "^(Load|Store|Swap|CompareAndSwap|Add|Sub)$")) @concurrency.atomic.operation
+    (identifier) @atomic.param)*)) @concurrency.atomic.operation
 
-; 竞态条件检测 - 使用锚点确保精确匹配
+; ===== 竞态条件检测 =====
+
+; 共享变量访问竞态条件
 (assignment_statement
   left: (expression_list
     (selector_expression
@@ -138,35 +165,37 @@ export default `
       operator: (_) @race.operator
       right: (identifier) @race.value)))) @concurrency.race.condition
 
-; 死锁模式检测 - 使用量词操作符
+; ===== 死锁模式检测 =====
+
+; 嵌套锁获取模式
 (call_expression
   function: (selector_expression
     operand: (identifier) @first.lock
-    field: (field_identifier) @lock.method)
-  (#match? @lock.method "^(Lock|RLock)$"))
+    field: (field_identifier) @lock.method))
 (call_expression
   function: (selector_expression
     operand: (identifier) @second.lock
-    field: (field_identifier) @lock.method)
-  (#match? @lock.method "^(Lock|RLock)$")) @concurrency.deadlock.pattern
+    field: (field_identifier) @lock.method)) @concurrency.deadlock.pattern
 
-; 并发模式关系 - 使用参数化查询
+; ===== 并发模式关系 =====
+
+; Worker池类型定义
 (type_declaration
   (type_spec
-    name: (type_identifier) @pattern.type
+    name: (type_identifier) @worker.pool.type
     type: (struct_type
       (field_declaration_list
         (field_declaration
-          name: (field_identifier) @pattern.field
-          type: (type_identifier) @pattern.type)*))))
-  (#match? @pattern.type "^(.*Pool|.*Worker|.*Producer|.*Consumer|.*Semaphore|.*Barrier)$")) @concurrency.pattern.relationship
+          name: (field_identifier) @worker.pool.field
+          type: (channel_type) @worker.pool.channel.type)*)))) @concurrency.worker.pool.pattern
 
-; 同步原语操作 - 使用谓词过滤
-(call_expression
-  function: (selector_expression
-    operand: (identifier) @sync.object
-    field: (field_identifier) @sync.method)
-  arguments: (argument_list
-    (identifier) @sync.param)*)
-  (#match? @sync.method "^(New|Lock|Unlock|Wait|Signal|Broadcast)$")) @concurrency.sync.primitive
+; 并发集合类型定义
+(type_declaration
+  (type_spec
+    name: (type_identifier) @concurrent.collection.type
+    type: (struct_type
+      (field_declaration_list
+        (field_declaration
+          name: (field_identifier) @concurrent.field
+          type: (channel_type) @concurrent.channel.type)*)))) @concurrency.concurrent.collection.pattern
 `;
