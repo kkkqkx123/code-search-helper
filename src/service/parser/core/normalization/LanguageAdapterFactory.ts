@@ -21,7 +21,6 @@ import { CssLanguageAdapter } from './adapters/CssLanguageAdapter';
 import { HtmlLanguageAdapter } from './adapters/HtmlLanguageAdapter';
 import { VueLanguageAdapter } from './adapters/VueLanguageAdapter';
 import { DefaultLanguageAdapter } from './adapters/DefaultLanguageAdapter';
-import { ConfigLanguageAdapter } from './ConfigLanguageAdapter';
 import { TOMLConfigAdapter } from './adapters/TOMLConfigAdapter';
 import { YAMLConfigAdapter } from './adapters/YAMLConfigAdapter';
 import { LoggerService } from '../../../../utils/LoggerService';
@@ -202,7 +201,7 @@ export class LanguageAdapterFactory {
    * @param language 编程语言
    * @param config 适配器配置
    */
- setAdapterConfig(language: string, config: AdapterOptions): void {
+  setAdapterConfig(language: string, config: AdapterOptions): void {
     this.adapterConfigs.set(language.toLowerCase(), config);
     this.clearCache();
     this.logger.debug(`Updated adapter config for language: ${language}`, config);
@@ -255,7 +254,7 @@ export class LanguageAdapterFactory {
     const normalizedLanguage = language.toLowerCase();
     // 清除集中缓存中的特定语言适配器
     this.cacheService.deleteByPattern(new RegExp(`^adapter:${normalizedLanguage}:`));
-    
+
     // 清除本地缓存中的特定语言适配器
     const keysToDelete: string[] = [];
     for (const key of this.adapterCache.keys()) {
@@ -360,9 +359,9 @@ export class LanguageAdapterFactory {
    * @param queryTypes 查询类型数组
    * @returns 验证结果
    */
-   validateQueryTypes(language: string, queryTypes: string[]): boolean {
-     return QueryTypeMapper.validateQueryTypes(language, queryTypes);
-   }
+  validateQueryTypes(language: string, queryTypes: string[]): boolean {
+    return QueryTypeMapper.validateQueryTypes(language, queryTypes);
+  }
 
   /**
    * 获取映射后的查询类型
@@ -380,11 +379,11 @@ export class LanguageAdapterFactory {
    * @param adapterClass 适配器类
    * @param options 适配器选项
    */
- registerCustomAdapter(
+  registerCustomAdapter(
     language: string,
     adapterClass: new (options: AdapterOptions) => ILanguageAdapter,
     options?: AdapterOptions
- ): void {
+  ): void {
     const normalizedLanguage = language.toLowerCase();
     const mergedOptions = { ...this.defaultOptions, ...options };
 
