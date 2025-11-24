@@ -84,19 +84,6 @@ export default `
 (return_statement
   (_)? @source.return.variable) @control.flow.return
 
-; 函数调用控制流
-[
-  (expression_statement
-    (call_expression
-      function: (identifier) @target.function
-      arguments: (argument_list
-        (_)* @source.parameter))) @control.flow.function.call
-  (call_expression
-    function: (identifier) @target.recursive.function
-    arguments: (argument_list
-      (_)* @source.parameter)) @control.flow.recursive.call
-] @control.flow.function.invocation
-
 ; 条件表达式控制流
 (conditional_expression
   condition: (_)? @source.condition
@@ -114,40 +101,4 @@ export default `
   left: (_)? @source.left.expression
   right: (_)? @source.right.expression) @control.flow.comma.expression
 
-; 函数定义控制流
-(function_definition
-  declarator: (function_declarator
-    declarator: (identifier) @source.function.name)
-  body: (compound_statement) @target.function.body) @control.flow.function.definition
-
-; 函数指针调用控制流
-(call_expression
-  function: (_) @source.function.pointer
-  arguments: (argument_list
-    (_)* @source.parameter)) @control.flow.function.pointer.call
-
-; 短路求值与控制流
-[
-  (binary_expression
-    left: (_)? @source.left.operand
-    operator: "&&"
-    right: (call_expression
-      function: (identifier) @target.short.circuit.function)) @control.flow.short.circuit.and
-  (binary_expression
-    left: (_)? @source.left.operand
-    operator: "||"
-    right: (call_expression
-      function: (identifier) @target.short.circuit.function)) @control.flow.short.circuit.or
-] @control.flow.short.circuit
-
-; 函数声明控制流
-(declaration
-  (function_declarator
-    declarator: (identifier) @source.function.name)) @control.flow.function.declaration
-
-; 递归函数调用控制流
-(call_expression
-  function: (identifier) @target.recursive.function
-  arguments: (argument_list
-    (_)* @source.parameter)) @control.flow.recursive.call
 `;

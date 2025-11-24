@@ -1,7 +1,6 @@
 import { NestingRelationship, CodeReference, CodeDependency } from '../../../../utils/types/ContentTypes';
 import { QueryResultNormalizer } from './QueryResultNormalizer';
 import { TreeSitterCoreService } from '../parse/TreeSitterCoreService';
-import { LRUCache } from '../../../../utils/cache/LRUCache';
 import { ContentHashUtils } from '../../../../utils/cache/ContentHashUtils';
 import { PerformanceMonitor } from '../../../../infrastructure/monitoring/PerformanceMonitor';
 import { LoggerService } from '../../../../utils/LoggerService';
@@ -11,6 +10,7 @@ import Parser from 'tree-sitter';
 import { InfrastructureConfigService } from '../../../../infrastructure/config/InfrastructureConfigService';
 import { StandardizedQueryResult } from './types';
 import { LineLocation } from '../../../../utils/types/ContentTypes';
+import { ICacheService } from '../../../../infrastructure/caching/types';
 
 /**
  * 关系分析器
@@ -19,7 +19,6 @@ import { LineLocation } from '../../../../utils/types/ContentTypes';
 @injectable()
 export class RelationshipAnalyzer {
   private logger = new LoggerService();
-  private cache: LRUCache<string, any>;
   private performanceMonitor: PerformanceMonitor;
 
   constructor(
@@ -28,9 +27,9 @@ export class RelationshipAnalyzer {
     @inject(TYPES.TreeSitterCoreService)
     private readonly treeSitterService: TreeSitterCoreService,
     @inject(TYPES.InfrastructureConfigService)
-    private readonly configService: InfrastructureConfigService
+    private readonly configService: InfrastructureConfigService,
+    @inject(TYPES.CacheService) private readonly cacheService: ICacheService
   ) {
-    this.cache = new LRUCache(100); // 缓存100个结果
     this.performanceMonitor = new PerformanceMonitor(this.logger, this.configService);
   }
 
@@ -43,10 +42,10 @@ export class RelationshipAnalyzer {
     language: string,
     ast: Parser.SyntaxNode
   ): Promise<NestingRelationship[]> {
-    const cacheKey = `nesting:${language}:${this.hashContent(content)}`;
+    const cacheKey = `graph:nesting:${language}:${this.hashContent(content)}`;
 
     // 检查缓存
-    const cached = this.cache.get(cacheKey);
+    const cached = this.cacheService.getFromCache<NestingRelationship[]>(cacheKey);
     if (cached) {
       this.logger.debug(`使用缓存的嵌套关系分析结果 (${language})`);
       return cached;
@@ -100,8 +99,8 @@ export class RelationshipAnalyzer {
           relationships.push(...implementations);
         }
 
-        // 缓存结果
-        this.cache.set(cacheKey, relationships);
+        // 缓存结果 (TTL: 10分钟)
+        this.cacheService.setCache(cacheKey, relationships, 10 * 60 * 1000);
         this.logger.debug(`分析到 ${relationships.length} 个嵌套关系 (${language})`);
 
         return relationships;
@@ -110,7 +109,7 @@ export class RelationshipAnalyzer {
         return this.analyzeNestingRelationshipsBasic(ast, content);
       }
     });
-  }
+ }
 
   /**
    * 分析代码引用关系
@@ -121,10 +120,10 @@ export class RelationshipAnalyzer {
     language: string,
     ast: Parser.SyntaxNode
   ): Promise<CodeReference[]> {
-    const cacheKey = `references:${language}:${this.hashContent(content)}`;
+    const cacheKey = `graph:references:${language}:${this.hashContent(content)}`;
 
     // 检查缓存
-    const cached = this.cache.get(cacheKey);
+    const cached = this.cacheService.getFromCache<CodeReference[]>(cacheKey);
     if (cached) {
       this.logger.debug(`使用缓存的引用关系分析结果 (${language})`);
       return cached;
@@ -159,8 +158,8 @@ export class RelationshipAnalyzer {
           });
         }
 
-        // 缓存结果
-        this.cache.set(cacheKey, references);
+        // 缓存结果 (TL: 10分钟)
+        this.cacheService.setCache(cacheKey, references, 10 * 60 * 1000);
         this.logger.debug(`分析到 ${references.length} 个代码引用 (${language})`);
 
         return references;
@@ -180,10 +179,10 @@ export class RelationshipAnalyzer {
     language: string,
     ast: Parser.SyntaxNode
   ): Promise<CodeDependency[]> {
-    const cacheKey = `dependencies:${language}:${this.hashContent(content)}`;
+    const cacheKey = `graph:dependencies:${language}:${this.hashContent(content)}`;
 
     // 检查缓存
-    const cached = this.cache.get(cacheKey);
+    const cached = this.cacheService.getFromCache<CodeDependency[]>(cacheKey);
     if (cached) {
       this.logger.debug(`使用缓存的依赖关系分析结果 (${language})`);
       return cached;
@@ -218,8 +217,8 @@ export class RelationshipAnalyzer {
           });
         }
 
-        // 缓存结果
-        this.cache.set(cacheKey, dependencies);
+        // 缓存结果 (TTL: 10分钟)
+        this.cacheService.setCache(cacheKey, dependencies, 10 * 60 * 1000);
         this.logger.debug(`分析到 ${dependencies.length} 个代码依赖 (${language})`);
 
         return dependencies;
@@ -239,10 +238,10 @@ export class RelationshipAnalyzer {
     language: string,
     ast: Parser.SyntaxNode
   ): Promise<Map<string, string[]>> {
-    const cacheKey = `callgraph:${language}:${this.hashContent(content)}`;
+    const cacheKey = `graph:callgraph:${language}:${this.hashContent(content)}`;
 
     // 检查缓存
-    const cached = this.cache.get(cacheKey);
+    const cached = this.cacheService.getFromCache<Map<string, string[]>>(cacheKey);
     if (cached) {
       this.logger.debug(`使用缓存的调用图分析结果 (${language})`);
       return cached;
@@ -266,8 +265,8 @@ export class RelationshipAnalyzer {
           callGraph.get(fromFunction)!.push(toFunction);
         }
 
-        // 缓存结果
-        this.cache.set(cacheKey, callGraph);
+        // 缓存结果 (TL: 10分钟)
+        this.cacheService.setCache(cacheKey, callGraph, 10 * 60 * 1000);
         this.logger.debug(`构建调用图，包含 ${callGraph.size} 个函数 (${language})`);
 
         return callGraph;
@@ -287,10 +286,10 @@ export class RelationshipAnalyzer {
     language: string,
     ast: Parser.SyntaxNode
   ): Promise<Map<string, string[]>> {
-    const cacheKey = `inheritance:${language}:${this.hashContent(content)}`;
+    const cacheKey = `graph:inheritance:${language}:${this.hashContent(content)}`;
 
     // 检查缓存
-    const cached = this.cache.get(cacheKey);
+    const cached = this.cacheService.getFromCache<Map<string, string[]>>(cacheKey);
     if (cached) {
       this.logger.debug(`使用缓存的继承层次分析结果 (${language})`);
       return cached;
@@ -314,8 +313,8 @@ export class RelationshipAnalyzer {
           hierarchy.get(child)!.push(parent);
         }
 
-        // 缓存结果
-        this.cache.set(cacheKey, hierarchy);
+        // 缓存结果 (TTL: 10分钟)
+        this.cacheService.setCache(cacheKey, hierarchy, 10 * 60 * 1000);
         this.logger.debug(`构建继承层次，包含 ${hierarchy.size} 个类 (${language})`);
 
         return hierarchy;
@@ -335,10 +334,10 @@ export class RelationshipAnalyzer {
     language: string,
     ast: Parser.SyntaxNode
   ): Promise<Map<string, string[]>> {
-    const cacheKey = `moduledeps:${language}:${this.hashContent(content)}`;
+    const cacheKey = `graph:moduledeps:${language}:${this.hashContent(content)}`;
 
     // 检查缓存
-    const cached = this.cache.get(cacheKey);
+    const cached = this.cacheService.getFromCache<Map<string, string[]>>(cacheKey);
     if (cached) {
       this.logger.debug(`使用缓存的模块依赖分析结果 (${language})`);
       return cached;
@@ -362,8 +361,8 @@ export class RelationshipAnalyzer {
           moduleDeps.get(fromModule)!.push(targetModule);
         }
 
-        // 缓存结果
-        this.cache.set(cacheKey, moduleDeps);
+        // 缓存结果 (TTL: 10分钟)
+        this.cacheService.setCache(cacheKey, moduleDeps, 10 * 60 * 1000);
         this.logger.debug(`构建模块依赖图，包含 ${moduleDeps.size} 个模块 (${language})`);
 
         return moduleDeps;
@@ -788,7 +787,7 @@ export class RelationshipAnalyzer {
     * 获取缓存统计
     */
   getCacheStats() {
-    return this.cache.getStats();
+    return this.cacheService.getCacheStats();
   }
 
   /**
@@ -802,7 +801,8 @@ export class RelationshipAnalyzer {
     * 清除缓存
     */
   clearCache() {
-    this.cache.clear();
+    // 清除关系分析器相关的缓存
+    this.cacheService.deleteByPattern(/^graph:/);
     this.logger.debug('关系分析器缓存已清除');
   }
 

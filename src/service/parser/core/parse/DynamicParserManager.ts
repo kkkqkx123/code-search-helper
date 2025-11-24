@@ -1,5 +1,4 @@
 import Parser from 'tree-sitter';
-import { LRUCache } from '../../../../utils/cache/LRUCache';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
 import { QueryManager } from '../query/QueryManager';
@@ -13,6 +12,8 @@ import { QueryTypeMapper } from '../normalization/QueryTypeMappings';
 import { LANGUAGE_MAPPINGS } from '../../config/LanguageMappingConfig';
 import { TREE_SITTER_LANGUAGE_MAP } from '../../constants/language-constants';
 import { CacheKeyUtils } from '../../../../utils/cache/CacheKeyUtils';
+import { ICacheService } from '../../../../infrastructure/caching/types';
+import { CacheService } from '../../../../infrastructure/caching/CacheService';
 
 export interface DynamicParserLanguage {
   name: string;
@@ -36,9 +37,6 @@ export interface DynamicParseResult {
  */
 export class DynamicParserManager {
   private parsers: Map<string, DynamicParserLanguage> = new Map();
-  private parserCache: LRUCache<string, Parser> = new LRUCache(50);
-  private astCache: LRUCache<string, Parser.Tree> = new LRUCache(500);
-  private nodeCache: LRUCache<string, Parser.SyntaxNode[]> = new LRUCache(1000);
   private initialized: boolean = false;
   private cacheStats = {
     hits: 0,
@@ -57,10 +55,22 @@ export class DynamicParserManager {
   private errorHandler: ErrorHandlerService;
   private querySystemInitialized = false;
   private detectionService: DetectionService;
+  private cacheService: ICacheService;
 
-  constructor() {
+  constructor(cacheService?: ICacheService) {
     this.errorHandler = new ErrorHandlerService(this.logger);
     this.detectionService = new DetectionService(this.logger);
+    if (cacheService) {
+      this.cacheService = cacheService;
+    } else {
+      // 如果没有提供cacheService，需要创建一个默认的cache服务实例
+      // 注意：在实际实现中，应该从依赖注入容器或其他地方获取
+      this.logger.warn('未提供cacheService，使用默认缓存服务');
+      // 由于CacheService使用了依赖注入，这里我们创建一个基本的缓存服务
+      // 为了兼容性，我们创建一个临时的LoggerService实例
+      const tempLogger = new LoggerService();
+      this.cacheService = new CacheService(tempLogger);
+    }
     this.initializeLanguageLoaders();
     this.initializeQuerySystem();
   }
@@ -112,11 +122,13 @@ export class DynamicParserManager {
    */
   async getParser(language: string): Promise<Parser | null> {
     const normalizedLanguage = language.toLowerCase();
+    const cacheKey = `parser:${normalizedLanguage}`;
 
     // 检查缓存
-    if (this.parserCache.has(normalizedLanguage)) {
+    const cachedParser = this.cacheService.getFromCache<Parser>(cacheKey);
+    if (cachedParser) {
       this.cacheStats.hits++;
-      return this.parserCache.get(normalizedLanguage)!;
+      return cachedParser;
     }
 
     this.cacheStats.misses++;
@@ -134,8 +146,8 @@ export class DynamicParserManager {
       const parser = new Parser();
       parser.setLanguage(languageModule);
 
-      // 缓存解析器
-      this.parserCache.set(normalizedLanguage, parser);
+      // 缓存解析器 (TTL: 30分钟)
+      this.cacheService.setCache(cacheKey, parser, 30 * 60 * 1000);
 
       // 更新配置
       langConfig.parser = parser;
@@ -167,10 +179,10 @@ export class DynamicParserManager {
       }
 
       // 生成缓存键
-      const cacheKey = `${normalizedLanguage}:${this.hashCode(code)}`;
+      const cacheKey = `ast:${normalizedLanguage}:${this.hashCode(code)}`;
 
       // 检查AST缓存
-      let tree = this.astCache.get(cacheKey);
+      let tree = this.cacheService.getFromCache<Parser.Tree>(cacheKey);
       let fromCache = false;
 
       if (tree) {
@@ -182,7 +194,8 @@ export class DynamicParserManager {
         if (!tree) {
           throw new Error('解析失败 - 解析器返回undefined');
         }
-        this.astCache.set(cacheKey, tree);
+        // 缓存AST (TTL: 10分钟)
+        this.cacheService.setCache(cacheKey, tree, 10 * 60 * 1000);
       }
 
       // 更新性能统计
@@ -434,14 +447,13 @@ export class DynamicParserManager {
   getCacheStats() {
     const total = this.cacheStats.hits + this.cacheStats.misses;
     const hitRate = total > 0 ? ((this.cacheStats.hits / total) * 100).toFixed(2) : 0;
+    const cacheStats = this.cacheService.getCacheStats();
 
     return {
       ...this.cacheStats,
       totalRequests: total,
       hitRate: `${hitRate}%`,
-      astCacheSize: this.astCache.size(),
-      nodeCacheSize: this.nodeCache.size(),
-      parserCacheSize: this.parserCache.size(),
+      centralizedCacheStats: cacheStats
     };
   }
 
@@ -459,9 +471,9 @@ export class DynamicParserManager {
    * 清除缓存
    */
   clearCache(): void {
-    this.astCache.clear();
-    this.nodeCache.clear();
-    this.parserCache.clear();
+    // 清除解析器相关的缓存
+    this.cacheService.deleteByPattern(/^parser:/);
+    this.cacheService.deleteByPattern(/^ast:/);
     this.cacheStats = { hits: 0, misses: 0, evictions: 0 };
     this.logger.info('DynamicParserManager 缓存已清除');
   }

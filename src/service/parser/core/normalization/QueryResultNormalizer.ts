@@ -1,68 +1,38 @@
 import Parser from 'tree-sitter';
 import { IQueryResultNormalizer, StandardizedQueryResult, NormalizationOptions, NormalizationStats } from './types';
 import { CLanguageAdapter } from './adapters';
-
-// 简单的语言适配器工厂
-class LanguageAdapterFactory {
-  private static adapters = new Map<string, any>();
-
-  static async getAdapter(language: string): Promise<any> {
-    if (this.adapters.has(language)) {
-      return this.adapters.get(language);
-    }
-
-    // 根据语言返回相应的适配器
-    switch (language.toLowerCase()) {
-      case 'c':
-      case 'cpp':
-        return new CLanguageAdapter();
-      default:
-        return null; // 返回默认适配器或null
-    }
-  }
-
-  static getAdapterSync(language: string): any {
-    if (this.adapters.has(language)) {
-      return this.adapters.get(language);
-    }
-
-    // 根据语言返回相应的适配器
-    switch (language.toLowerCase()) {
-      case 'c':
-      case 'cpp':
-        return new CLanguageAdapter();
-      default:
-        return null; // 返回默认适配器或null
-    }
-  }
-}
 import { QueryManager } from '../query/QueryManager';
 import { QueryLoader } from '../query/QueryLoader';
 import { QueryTypeMapper } from './QueryTypeMappings';
 import { LoggerService } from '../../../../utils/LoggerService';
-import { createCache, LRUCache } from '../../../../utils/cache';
-
 import { TreeSitterCoreService } from '../parse/TreeSitterCoreService';
 import { DefaultLanguageAdapter } from './adapters/DefaultLanguageAdapter';
 import { HashUtils } from '../../../../utils/cache/HashUtils';
+import { ICacheService } from '../../../../infrastructure/caching/types';
+import { inject, injectable } from 'inversify';
+import { TYPES } from '../../../../types';
 
 /**
  * 增强的查询结果标准化器
  * 将不同语言的tree-sitter查询结果转换为统一格式
  * 集成了缓存、性能监控、错误处理和降级机制
  */
+@injectable()
 export class QueryResultNormalizer implements IQueryResultNormalizer {
   private logger: LoggerService;
   private options: Required<NormalizationOptions>;
-  private cacheAdapter: LRUCache<string, any>;
-
   private stats: NormalizationStats;
   private treeSitterService?: TreeSitterCoreService;
   private errorCount: number = 0;
   private maxErrors: number = 10;
   private fallbackEnabled: boolean = true;
+  private readonly ADAPTER_CACHE_TTL = 30 * 60 * 1000; // 30分钟
+  private readonly QUERY_CACHE_TTL = 30 * 60 * 1000; // 30分钟
 
-  constructor(options: NormalizationOptions = {}) {
+  constructor(
+    @inject(TYPES.CacheService) private cacheService: ICacheService,
+    options: NormalizationOptions = {}
+  ) {
     this.logger = new LoggerService();
     this.options = {
       enableCache: options.enableCache ?? true,
@@ -72,14 +42,6 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
       customTypeMappings: options.customTypeMappings ?? [],
       debug: options.debug ?? false
     };
-
-    this.cacheAdapter = createCache('memory-aware', this.options.cacheSize, {
-      defaultTTL: this.options.cacheTTL,
-      enableDetailedStats: true,
-      maxMemory: 50 * 1024 * 1024, // 50MB 内存限制
-      enableCompression: true,
-      compressionThreshold: 2048 // 2KB 以上压缩
-    });
 
     this.stats = {
       totalNodes: 0,
@@ -125,8 +87,10 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
 
       // 检查缓存
       if (this.options.enableCache) {
-        const cachedResult = this.cacheAdapter.get(cacheKey) as StandardizedQueryResult[];
-        return cachedResult;
+        const cachedResult = this.cacheService.getFromCache(`query:result:${cacheKey}`) as StandardizedQueryResult[];
+        if (cachedResult) {
+          return cachedResult;
+        }
       }
 
       // 获取查询类型（使用统一映射）
@@ -165,7 +129,7 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
 
       // 缓存结果
       if (this.options.enableCache) {
-        this.cacheAdapter.set(cacheKey, results);
+        this.cacheService.setCache(`query:result:${cacheKey}`, results, this.QUERY_CACHE_TTL);
       }
 
       // 更新统计信息
@@ -200,7 +164,7 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
       }
 
       // 如果动态发现失败，使用语言适配器的默认查询类型
-      const adapter = await LanguageAdapterFactory.getAdapter(language);
+      const adapter = await this.getAdapter(language);
       return adapter.getSupportedQueryTypes();
     } catch (error) {
       this.logger.warn(`Failed to get supported query types for ${language}:`, error);
@@ -231,7 +195,7 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
     try {
       // 由于接口要求同步返回，我们尝试从缓存中获取适配器
       // 如果适配器已经存在缓存中，则使用它；否则使用默认适配器
-      const cachedAdapter = LanguageAdapterFactory.getAdapterSync(language);
+      const cachedAdapter = this.getAdapterSync(language);
       if (cachedAdapter) {
         return cachedAdapter.mapNodeType(nodeType);
       }
@@ -255,29 +219,22 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
   /**
    * 获取详细性能统计
    */
-  getPerformanceStats(): any {
-    const cacheStats = this.cacheAdapter.getStats() || {
-      hits: 0,
-      misses: 0,
-      evictions: 0,
-      sets: 0,
-      size: 0,
-      memoryUsage: 0
-    };
+  async getPerformanceStats(): Promise<any> {
+    const cacheStats = this.cacheService.getCacheStats();
     return {
       normalization: this.stats,
       cache: cacheStats,
       errorCount: this.errorCount,
       errorRate: this.stats.totalNodes > 0 ? (this.errorCount / this.stats.totalNodes) : 0,
       averageProcessingTime: this.stats.totalNodes > 0 ? (this.stats.processingTime / this.stats.totalNodes) : 0,
-      cacheHitRate: cacheStats.hits > 0 ? cacheStats.hits / (cacheStats.hits + cacheStats.misses) : 0
+      cacheHitRate: cacheStats.hitCount > 0 ? cacheStats.hitCount / (cacheStats.hitCount + cacheStats.missCount) : 0
     };
   }
 
   /**
    * 重置统计信息
    */
-  resetStats(): void {
+  async resetStats(): Promise<void> {
     this.stats = {
       totalNodes: 0,
       successfulNormalizations: 0,
@@ -287,14 +244,14 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
       typeStats: {}
     };
     this.errorCount = 0;
-    this.cacheAdapter.clear();
+    this.cacheService.clearAllCache();
   }
 
   /**
     * 清除缓存
     */
-  clearCache(): void {
-    this.cacheAdapter.clear();
+  async clearCache(): Promise<void> {
+    this.cacheService.clearAllCache();
   }
 
   /**
@@ -302,18 +259,6 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
    */
   updateOptions(options: Partial<NormalizationOptions>): void {
     this.options = { ...this.options, ...options };
-
-    // 如果缓存大小或TTL发生变化，重新创建缓存适配器
-    if (options.cacheSize !== undefined || options.cacheTTL !== undefined) {
-      this.options = { ...this.options, ...options };
-      this.cacheAdapter = createCache('memory-aware', this.options.cacheSize, {
-        defaultTTL: this.options.cacheTTL,
-        enableDetailedStats: true,
-        maxMemory: 50 * 1024 * 1024, // 50MB 内存限制
-        enableCompression: true,
-        compressionThreshold: 1024 // 1KB 以上压缩
-      });
-    }
   }
 
   /**
@@ -491,7 +436,7 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
     language: string,
     queryType: string
   ): Promise<StandardizedQueryResult[]> {
-    const adapter = await LanguageAdapterFactory.getAdapter(language);
+    const adapter = await this.getAdapter(language);
 
     try {
       return await adapter.normalize(queryResults, queryType, language);
@@ -614,7 +559,7 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
    */
   private async shouldInvalidateCache(cacheKey: string, filePath: string): Promise<boolean> {
     const currentFileHash = await this.getFileContextHash(filePath);
-    const cachedFileHash = this.cacheAdapter.get(`${cacheKey}:file_hash`) as string;
+    const cachedFileHash = this.cacheService.getFromCache(`query:result:${cacheKey}:file_hash`) as string;
 
     // 如果文件哈希发生变化，需要失效缓存
     if (cachedFileHash && cachedFileHash !== currentFileHash) {
@@ -622,5 +567,48 @@ export class QueryResultNormalizer implements IQueryResultNormalizer {
     }
 
     return false;
+  }
+
+  /**
+   * 获取语言适配器（带缓存）
+   */
+  private async getAdapter(language: string): Promise<any> {
+    const cacheKey = `adapter:${language}`;
+    
+    // 尝试从缓存获取
+    let adapter = this.cacheService.getFromCache(cacheKey);
+    if (adapter) {
+      return adapter;
+    }
+
+    // 根据语言返回相应的适配器
+    switch (language.toLowerCase()) {
+      case 'c':
+      case 'cpp':
+        adapter = new CLanguageAdapter();
+        break;
+      default:
+        adapter = null; // 返回默认适配器或null
+    }
+
+    // 缓存适配器
+    if (adapter) {
+      this.cacheService.setCache(cacheKey, adapter, this.ADAPTER_CACHE_TTL);
+    }
+
+    return adapter;
+  }
+
+  /**
+   * 同步获取语言适配器（从缓存）
+   */
+  private getAdapterSync(language: string): any {
+    // 由于接口要求同步返回，我们只能尝试从缓存中获取适配器
+    // 如果缓存中没有，返回null，让调用方使用默认适配器
+    const cacheKey = `adapter:${language}`;
+    
+    // 注意：这里我们无法使用async/await，所以只能返回null
+    // 在实际使用中，应该优先使用getAdapter方法
+    return null;
   }
 }

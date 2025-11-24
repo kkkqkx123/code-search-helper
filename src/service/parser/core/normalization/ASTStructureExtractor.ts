@@ -4,11 +4,13 @@ import { QueryResultNormalizer } from './QueryResultNormalizer';
 import { TreeSitterCoreService } from '../parse/TreeSitterCoreService';
 import { StandardizedQueryResult } from './types';
 import { LoggerService } from '../../../../utils/LoggerService';
-import { LRUCache } from '../../../../utils/cache/LRUCache';
 import { PerformanceMonitor } from '../../../../infrastructure/monitoring/PerformanceMonitor';
 import { InfrastructureConfigService } from '../../../../infrastructure/config/InfrastructureConfigService';
 import { GlobalASTStructureExtractorFactory } from './ASTStructureExtractorFactory';
 import { StructureTypeConverter } from './utils/StructureTypeConverter';
+import { injectable, inject } from 'inversify';
+import { TYPES } from '../../../../types';
+import { ICacheService } from '../../../../infrastructure/caching/types';
 
 /**
  * AST结构提取器 - 基于Normalization系统的新实现
@@ -17,18 +19,15 @@ import { StructureTypeConverter } from './utils/StructureTypeConverter';
  */
 export class ASTStructureExtractor {
   private logger: LoggerService;
-  private cache: LRUCache<string, any>;
   private performanceMonitor?: PerformanceMonitor;
   private typeConverter: StructureTypeConverter;
 
   constructor(
     private queryNormalizer: QueryResultNormalizer,
-    private treeSitterService: TreeSitterCoreService
+    private treeSitterService: TreeSitterCoreService,
+    @inject(TYPES.CacheService) private cacheService: ICacheService
   ) {
     this.logger = new LoggerService();
-
-    // 初始化缓存
-    this.cache = new LRUCache(100, { enableStats: true });
 
     // 初始化性能监控
     this.performanceMonitor = new PerformanceMonitor(this.logger, new InfrastructureConfigService(this.logger, {
@@ -105,12 +104,13 @@ export class ASTStructureExtractor {
     ast: Parser.SyntaxNode
   ): Promise<TopLevelStructure[]> {
     const startTime = Date.now();
-    const cacheKey = this.generateCacheKey('topLevel', content, language, ast);
+    const cacheKey = `ast:structure:topLevel:${language}:${this.generateCacheKey('topLevel', content, language, ast)}`;
 
     // 检查缓存
-    if (this.cache.has(cacheKey)) {
+    const cached = this.cacheService.getFromCache<TopLevelStructure[]>(cacheKey);
+    if (cached) {
       this.performanceMonitor?.updateCacheHitRate(true);
-      return this.cache.get(cacheKey);
+      return cached;
     }
 
     try {
@@ -120,8 +120,8 @@ export class ASTStructureExtractor {
       // 转换为TopLevelStructure格式
       const topLevelStructures = this.convertToTopLevelStructures(standardizedResults, content, language);
 
-      // 缓存结果
-      this.cache.set(cacheKey, topLevelStructures);
+      // 缓存结果 (TTL: 5分钟)
+      this.cacheService.setCache(cacheKey, topLevelStructures, 5 * 60 * 1000);
 
       // 更新性能监控
       this.performanceMonitor?.recordQueryExecution(Date.now() - startTime);
@@ -147,12 +147,13 @@ export class ASTStructureExtractor {
     ast: Parser.SyntaxNode
   ): Promise<NestedStructure[]> {
     const startTime = Date.now();
-    const cacheKey = this.generateCacheKey('nested', content, '', ast, parentNode.id, level);
+    const cacheKey = `ast:structure:nested:${level}:${this.generateCacheKey('nested', content, '', ast, parentNode.id, level)}`;
 
     // 检查缓存
-    if (this.cache.has(cacheKey)) {
+    const cached = this.cacheService.getFromCache<NestedStructure[]>(cacheKey);
+    if (cached) {
       this.performanceMonitor?.updateCacheHitRate(true);
-      return this.cache.get(cacheKey);
+      return cached;
     }
 
     try {
@@ -162,8 +163,8 @@ export class ASTStructureExtractor {
       // 转换为NestedStructure格式
       const nestedStructures = this.convertToNestedStructures(standardizedResults, content, level);
 
-      // 缓存结果
-      this.cache.set(cacheKey, nestedStructures);
+      // 缓存结果 (TTL: 5分钟)
+      this.cacheService.setCache(cacheKey, nestedStructures, 5 * 60 * 1000);
 
       // 更新性能监控
       this.performanceMonitor?.recordQueryExecution(Date.now() - startTime);
@@ -188,12 +189,13 @@ export class ASTStructureExtractor {
     ast: Parser.SyntaxNode
   ): Promise<InternalStructure[]> {
     const startTime = Date.now();
-    const cacheKey = this.generateCacheKey('internal', content, '', ast, parentNode.id);
+    const cacheKey = `ast:structure:internal:${this.generateCacheKey('internal', content, '', ast, parentNode.id)}`;
 
     // 检查缓存
-    if (this.cache.has(cacheKey)) {
+    const cached = this.cacheService.getFromCache<InternalStructure[]>(cacheKey);
+    if (cached) {
       this.performanceMonitor?.updateCacheHitRate(true);
-      return this.cache.get(cacheKey);
+      return cached;
     }
 
     try {
@@ -203,8 +205,8 @@ export class ASTStructureExtractor {
       // 转换为InternalStructure格式
       const internalStructures = this.convertToInternalStructures(standardizedResults, content);
 
-      // 缓存结果
-      this.cache.set(cacheKey, internalStructures);
+      // 缓存结果 (TTL: 5分钟)
+      this.cacheService.setCache(cacheKey, internalStructures, 5 * 60 * 1000);
 
       // 更新性能监控
       this.performanceMonitor?.recordQueryExecution(Date.now() - startTime);
@@ -615,14 +617,15 @@ export class ASTStructureExtractor {
    * 获取缓存统计
    */
   getCacheStats() {
-    return this.cache.getStats();
+    return this.cacheService.getCacheStats();
   }
 
   /**
    * 清除缓存
    */
   clearCache(): void {
-    this.cache.clear();
+    // 清除AST结构相关的缓存
+    this.cacheService.deleteByPattern(/^ast:structure:/);
   }
 
   /**

@@ -3,12 +3,12 @@ import { TopLevelStructure, NestedStructure, InternalStructure, LanguagePattern 
 import { QueryResultNormalizer } from './QueryResultNormalizer';
 import { BaseLanguageAdapter } from './adapters/base/BaseLanguageAdapter';
 import { TreeSitterCoreService } from '../parse/TreeSitterCoreService';
-import { LRUCache } from '../../../../utils/cache/LRUCache';
 import { PerformanceMonitor } from '../../../../infrastructure/monitoring/PerformanceMonitor';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../../../types';
 import { InfrastructureConfigService } from '../../../../infrastructure/config/InfrastructureConfigService';
+import { ICacheService } from '../../../../infrastructure/caching/types';
 
 // 简单的语言适配器工厂
 class LanguageAdapterFactory {
@@ -39,72 +39,71 @@ class LanguageAdapterFactory {
 @injectable()
 export class TextPatternAnalyzer {
   private logger = new LoggerService();
-  private cache: LRUCache<string, any>;
   private performanceMonitor: PerformanceMonitor;
 
-  constructor(
-    @inject(TYPES.QueryResultNormalizer)
-    private readonly queryNormalizer: QueryResultNormalizer,
-    @inject(TYPES.TreeSitterCoreService)
-    private readonly treeSitterService: TreeSitterCoreService
-  ) {
-    this.cache = new LRUCache(100); // 缓存100个结果
-    // 修复：提供必需的构造函数参数
-    this.performanceMonitor = new PerformanceMonitor(this.logger, new InfrastructureConfigService(this.logger, {
-      get: () => ({}),
-      set: () => { },
-      has: () => false,
-      clear: () => { }
-    } as any));
-  }
+   constructor(
+     @inject(TYPES.QueryResultNormalizer)
+     private readonly queryNormalizer: QueryResultNormalizer,
+     @inject(TYPES.TreeSitterCoreService)
+     private readonly treeSitterService: TreeSitterCoreService,
+     @inject(TYPES.CacheService) private readonly cacheService: ICacheService
+   ) {
+     // 修复：提供必需的构造函数参数
+     this.performanceMonitor = new PerformanceMonitor(this.logger, new InfrastructureConfigService(this.logger, {
+       get: () => ({}),
+       set: () => { },
+       has: () => false,
+       clear: () => { }
+     } as any));
+   }
 
   /**
    * 提取顶级结构
    * 基于文本模式匹配提取代码中的顶级结构
    */
-  async extractTopLevelStructures(content: string, language: string): Promise<TopLevelStructure[]> {
-    const cacheKey = `toplevel:${language}:${this.hashContent(content)}`;
-
-    // 检查缓存
-    const cached = this.cache.get(cacheKey);
-    if (cached) {
-      this.logger.debug(`使用缓存的顶级结构提取结果 (${language})`);
-      return cached;
-    }
-
-    // 修复：使用 startOperation 和 endOperation 替代不存在的 measureAsync 方法
-    const operationId = this.performanceMonitor.startOperation('extractTopLevelStructures');
-
-    try {
-      // 尝试使用normalization系统获取语言适配器
-      // 修复：使用 LanguageAdapterFactory 替代不存在的 getLanguageAdapter 方法
-      const adapter = await this.getLanguageAdapter(language);
-
-      if (adapter) {
-        // 使用适配器进行增强的文本分析
-        const structures = await this.extractWithAdapter(content, language, adapter);
-
-        // 缓存结果
-        this.cache.set(cacheKey, structures);
-        this.logger.debug(`使用适配器提取到 ${structures.length} 个顶级结构 (${language})`);
-
-        return structures;
-      }
-    } catch (error) {
-      this.logger.warn(`适配器分析失败，使用基础文本模式匹配 (${language}):`, error);
-    } finally {
-      this.performanceMonitor.endOperation(operationId);
-    }
-
-    // 回退到基础文本模式匹配
-    const structures = this.extractTopLevelStructuresBasic(content, language);
-
-    // 缓存结果
-    this.cache.set(cacheKey, structures);
-    this.logger.debug(`使用基础文本模式匹配提取到 ${structures.length} 个顶级结构 (${language})`);
-
-    return structures;
-  }
+   async extractTopLevelStructures(content: string, language: string): Promise<TopLevelStructure[]> {
+     const cacheKey = `textpattern:toplevel:${language}:${this.hashContent(content)}`;
+ 
+     // 检查缓存
+     const cached = this.cacheService.getFromCache<TopLevelStructure[]>(cacheKey);
+     if (cached) {
+       this.logger.debug(`使用缓存的顶级结构提取结果 (${language})`);
+       return cached;
+     }
+ 
+     // 修复：使用 startOperation 和 endOperation 替代不存在的 measureAsync 方法
+     const operationId = this.performanceMonitor.startOperation('extractTopLevelStructures');
+ 
+     try {
+       // 尝试使用normalization系统获取语言适配器
+       // 修复：使用 LanguageAdapterFactory 替代不存在的 getLanguageAdapter 方法
+       const adapter = await this.getLanguageAdapter(language);
+ 
+       if (adapter) {
+         // 使用适配器进行增强的文本分析
+         const structures = await this.extractWithAdapter(content, language, adapter);
+ 
+         // 缓存结果 (TTL: 5分钟)
+         this.cacheService.setCache(cacheKey, structures, 5 * 60 * 100);
+         this.logger.debug(`使用适配器提取到 ${structures.length} 个顶级结构 (${language})`);
+ 
+         return structures;
+       }
+     } catch (error) {
+       this.logger.warn(`适配器分析失败，使用基础文本模式匹配 (${language}):`, error);
+     } finally {
+       this.performanceMonitor.endOperation(operationId);
+     }
+ 
+     // 回退到基础文本模式匹配
+     const structures = this.extractTopLevelStructuresBasic(content, language);
+ 
+     // 缓存结果 (TL: 5分钟)
+     this.cacheService.setCache(cacheKey, structures, 5 * 60 * 1000);
+     this.logger.debug(`使用基础文本模式匹配提取到 ${structures.length} 个顶级结构 (${language})`);
+ 
+     return structures;
+   }
 
   /**
    * 提取嵌套结构
@@ -115,10 +114,10 @@ export class TextPatternAnalyzer {
     level: number,
     language: string
   ): Promise<NestedStructure[]> {
-    const cacheKey = `nested:${language}:${this.hashContent(content)}:${level}`;
+    const cacheKey = `textpattern:nested:${language}:${this.hashContent(content)}:${level}`;
 
     // 检查缓存
-    const cached = this.cache.get(cacheKey);
+    const cached = this.cacheService.getFromCache<NestedStructure[]>(cacheKey);
     if (cached) {
       this.logger.debug(`使用缓存的嵌套结构提取结果 (${language})`);
       return cached;
@@ -136,8 +135,8 @@ export class TextPatternAnalyzer {
         // 使用适配器进行增强的文本分析
         const structures = await this.extractNestedWithAdapter(content, parentNode, level, language, adapter);
 
-        // 缓存结果
-        this.cache.set(cacheKey, structures);
+        // 缓存结果 (TTL: 5分钟)
+        this.cacheService.setCache(cacheKey, structures, 5 * 60 * 1000);
         this.logger.debug(`使用适配器提取到 ${structures.length} 个嵌套结构 (${language})`);
 
         return structures;
@@ -151,8 +150,8 @@ export class TextPatternAnalyzer {
     // 回退到基础文本模式匹配
     const structures = this.extractNestedStructuresBasic(content, parentNode, level);
 
-    // 缓存结果
-    this.cache.set(cacheKey, structures);
+    // 缓存结果 (TTL: 5分钟)
+    this.cacheService.setCache(cacheKey, structures, 5 * 60 * 1000);
     this.logger.debug(`使用基础文本模式匹配提取到 ${structures.length} 个嵌套结构 (${language})`);
 
     return structures;
@@ -166,10 +165,10 @@ export class TextPatternAnalyzer {
     parentNode: any,
     language: string
   ): Promise<InternalStructure[]> {
-    const cacheKey = `internal:${language}:${this.hashContent(content)}`;
+    const cacheKey = `textpattern:internal:${language}:${this.hashContent(content)}`;
 
     // 检查缓存
-    const cached = this.cache.get(cacheKey);
+    const cached = this.cacheService.getFromCache<InternalStructure[]>(cacheKey);
     if (cached) {
       this.logger.debug(`使用缓存的内部结构提取结果 (${language})`);
       return cached;
@@ -187,8 +186,8 @@ export class TextPatternAnalyzer {
         // 使用适配器进行增强的文本分析
         const structures = await this.extractInternalWithAdapter(content, parentNode, language, adapter);
 
-        // 缓存结果
-        this.cache.set(cacheKey, structures);
+        // 缓存结果 (TTL: 5分钟)
+        this.cacheService.setCache(cacheKey, structures, 5 * 60 * 1000);
         this.logger.debug(`使用适配器提取到 ${structures.length} 个内部结构 (${language})`);
 
         return structures;
@@ -202,8 +201,8 @@ export class TextPatternAnalyzer {
     // 回退到基础文本模式匹配
     const structures = this.extractInternalStructuresBasic(content, parentNode);
 
-    // 缓存结果
-    this.cache.set(cacheKey, structures);
+    // 缓存结果 (TTL: 5分钟)
+    this.cacheService.setCache(cacheKey, structures, 5 * 60 * 1000);
     this.logger.debug(`使用基础文本模式匹配提取到 ${structures.length} 个内部结构 (${language})`);
 
     return structures;
@@ -213,10 +212,10 @@ export class TextPatternAnalyzer {
    * 检测代码语言（基于文件内容）
    */
   async detectLanguageFromContent(content: string): Promise<string> {
-    const cacheKey = `detect:${this.hashContent(content)}`;
+    const cacheKey = `textpattern:detect:${this.hashContent(content)}`;
 
     // 检查缓存
-    const cached = this.cache.get(cacheKey);
+    const cached = this.cacheService.getFromCache<string>(cacheKey);
     if (cached) {
       this.logger.debug(`使用缓存的语言检测结果`);
       return cached;
@@ -231,7 +230,8 @@ export class TextPatternAnalyzer {
         // 修复：使用 detectLanguage 方法替代不存在的 detectLanguageFromContent 方法
         const detectedLanguage = await this.detectLanguageWithTreeSitter(content);
         if (detectedLanguage) {
-          this.cache.set(cacheKey, detectedLanguage);
+          // 缓存结果 (TTL: 10分钟)
+          this.cacheService.setCache(cacheKey, detectedLanguage, 10 * 60 * 1000);
           this.logger.debug(`使用TreeSitter检测到语言: ${detectedLanguage}`);
           return detectedLanguage;
         }
@@ -245,8 +245,8 @@ export class TextPatternAnalyzer {
     // 回退到文本模式匹配
     const language = this.detectLanguageFromText(content);
 
-    // 缓存结果
-    this.cache.set(cacheKey, language);
+    // 缓存结果 (TTL: 10分钟)
+    this.cacheService.setCache(cacheKey, language, 10 * 60 * 1000);
     this.logger.debug(`使用文本模式匹配检测到语言: ${language}`);
 
     return language;
@@ -261,10 +261,15 @@ export class TextPatternAnalyzer {
     nestingDepth: number;
     linesOfCode: number;
   }> {
-    const cacheKey = `complexity:${language || 'unknown'}:${this.hashContent(content)}`;
+    const cacheKey = `textpattern:complexity:${language || 'unknown'}:${this.hashContent(content)}`;
 
     // 检查缓存
-    const cached = this.cache.get(cacheKey);
+    const cached = this.cacheService.getFromCache<{
+      cyclomaticComplexity: number;
+      cognitiveComplexity: number;
+      nestingDepth: number;
+      linesOfCode: number;
+    }>(cacheKey);
     if (cached) {
       this.logger.debug(`使用缓存的复杂度分析结果 (${language})`);
       return cached;
@@ -291,8 +296,8 @@ export class TextPatternAnalyzer {
             linesOfCode: content.split('\n').length
           };
 
-          // 缓存结果
-          this.cache.set(cacheKey, complexity);
+          // 缓存结果 (TTL: 5分钟)
+          this.cacheService.setCache(cacheKey, complexity, 5 * 60 * 1000);
           this.logger.debug(`使用适配器分析复杂度 (${language})`);
 
           return complexity;
@@ -307,8 +312,8 @@ export class TextPatternAnalyzer {
     // 回退到基础文本分析
     const complexity = this.analyzeComplexityBasic(content);
 
-    // 缓存结果
-    this.cache.set(cacheKey, complexity);
+    // 缓存结果 (TTL: 5分钟)
+    this.cacheService.setCache(cacheKey, complexity, 5 * 60 * 1000);
     this.logger.debug(`使用基础文本分析复杂度 (${language})`);
 
     return complexity;
@@ -942,8 +947,8 @@ export class TextPatternAnalyzer {
   /**
    * 获取缓存统计
    */
-  getCacheStats() {
-    return this.cache.getStats();
+ getCacheStats() {
+    return this.cacheService.getCacheStats();
   }
 
   /**
@@ -958,7 +963,8 @@ export class TextPatternAnalyzer {
    * 清除缓存
    */
   clearCache() {
-    this.cache.clear();
+    // 清除文本模式分析器相关的缓存
+    this.cacheService.deleteByPattern(/^textpattern:/);
     this.logger.debug('文本模式分析器缓存已清除');
   }
 }
