@@ -29,28 +29,27 @@ export default `
 ] @control.flow.if.statement
 
 ; switch语句控制流
-(switch_statement
-  condition: (_) @source.switch.variable
-  body: (compound_statement) @target.switch.block) @control.flow.switch
-
-; switch case控制流
-(case_statement
-  value: (_)? @source.case.value
-  (statement)? @target.case.block) @control.flow.switch.case
-
-; switch default控制流（处理default关键字）
-(case_statement
-  (statement)? @target.default.block) @control.flow.switch.default
+[
+  (switch_statement
+    condition: (_) @source.switch.variable
+    body: (compound_statement) @target.switch.block) @control.flow.switch
+  (case_statement
+    value: (_)? @source.case.value
+    (statement)? @target.case.block) @control.flow.switch.case
+  (case_statement
+    value: (_)? @source.case.value
+    (statement)? @target.default.block) @control.flow.switch.default
+] @control.flow.switch.statement
 
 ; while循环控制流
-(while_statement
-  condition: (_) @source.while.condition
-  body: (statement) @target.while.block) @control.flow.while
-
-; do-while循环控制流
-(do_statement
-  body: (statement) @source.do.block
-  condition: (_) @target.while.condition) @control.flow.do.while
+[
+  (while_statement
+    condition: (_) @source.while.condition
+    body: (statement) @target.while.block) @control.flow.while
+  (do_statement
+    body: (statement) @source.do.block
+    condition: (_) @target.while.condition) @control.flow.do.while
+] @control.flow.while.statement
 
 ; for循环控制流
 (for_statement
