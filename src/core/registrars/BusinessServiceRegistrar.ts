@@ -50,7 +50,6 @@ import { StructureTypeConverter } from '../../service/parser/core/normalization/
 import { UniversalTextStrategy } from '../../service/parser/processing/strategies/implementations/UniversalTextStrategy';
 import { ErrorThresholdInterceptor } from '../../service/parser/processing/utils/protection/ErrorThresholdInterceptor';
 import { MemoryGuard } from '../../service/parser/guard/MemoryGuard';
-import { BackupFileProcessor } from '../../service/parser/detection/BackupFileProcessor';
 import { OverlapPostProcessor } from '../../service/parser/post-processing/OverlapPostProcessor';
 import { ASTNodeTracker } from '../../service/parser/processing/utils/AST/ASTNodeTracker';
 import { ChunkRebalancer } from '../../service/parser/processing/utils/ChunkRebalancer';
@@ -430,10 +429,6 @@ export class BusinessServiceRegistrar {
         const logger = context.get<LoggerService>(TYPES.LoggerService);
         const cleanupManager = context.get<CleanupManager>(TYPES.CleanupManager);
         return new MemoryGuard(memoryMonitorService, memoryLimitMB, logger, cleanupManager);
-      }).inSingletonScope();
-      container.bind<BackupFileProcessor>(TYPES.BackupFileProcessor).toDynamicValue(context => {
-        const logger = context.get<LoggerService>(TYPES.LoggerService);
-        return new BackupFileProcessor(logger);
       }).inSingletonScope();
       // 将 ProcessingGuard 直接绑定到 UnifiedGuardCoordinator（直接迁移策略）
       container.bind(TYPES.ProcessingGuard).toDynamicValue(context => {

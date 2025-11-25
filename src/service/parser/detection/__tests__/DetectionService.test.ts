@@ -1,7 +1,6 @@
 import { DetectionService, DetectionResult, ProcessingStrategyType } from '../DetectionService';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
 import { FileFeatureDetector } from '../FileFeatureDetector';
-import { BackupFileProcessor } from '../BackupFileProcessor';
 import { LanguageDetector } from '../../core/language-detection/LanguageDetector';
 import { LoggerService } from '../../../../utils/LoggerService';
 
@@ -10,7 +9,6 @@ describe('UnifiedDetectionService', () => {
   let mockLogger: LoggerService;
   let mockTreeSitterService: jest.Mocked<TreeSitterService>;
   let mockFileFeatureDetector: jest.Mocked<FileFeatureDetector>;
-  let mockBackupFileProcessor: jest.Mocked<BackupFileProcessor>;
   let mockLanguageDetector: jest.Mocked<LanguageDetector>;
 
   beforeEach(() => {
@@ -53,19 +51,6 @@ describe('UnifiedDetectionService', () => {
       getFileStats: jest.fn()
     } as any;
 
-    // Create mock backup file processor
-    mockBackupFileProcessor = {
-      isBackupFile: jest.fn(),
-      getBackupFileMetadata: jest.fn(),
-      inferOriginalType: jest.fn(),
-      detectLanguageByExtension: jest.fn(),
-      getOriginalFilePath: jest.fn(),
-      isLikelyCodeFile: jest.fn(),
-      addBackupPattern: jest.fn(),
-      removeBackupPattern: jest.fn(),
-      getBackupPatterns: jest.fn()
-    } as any;
-
     // Create mock language detector
     mockLanguageDetector = {
       detectLanguageByExtension: jest.fn()
@@ -76,7 +61,6 @@ describe('UnifiedDetectionService', () => {
       mockLogger,
       mockTreeSitterService,
       mockFileFeatureDetector,
-      mockBackupFileProcessor,
       mockLanguageDetector
     );
   });
@@ -95,48 +79,10 @@ describe('UnifiedDetectionService', () => {
   });
 
   describe('detectFile', () => {
-    it('should detect backup files', async () => {
-      const filePath = 'test.js.bak';
-      const content = 'console.log("Hello");';
-      const backupMetadata = {
-        isBackup: true,
-        originalInfo: {
-          fileName: 'test.js',
-          extension: '.js',
-          language: 'javascript',
-          confidence: 0.9
-        },
-        isLikelyCode: true
-      };
-
-      mockBackupFileProcessor.isBackupFile.mockReturnValue(true);
-      mockBackupFileProcessor.getBackupFileMetadata.mockReturnValue(backupMetadata);
-      mockFileFeatureDetector.isCodeLanguage.mockReturnValue(true);
-      mockFileFeatureDetector.isTextLanguage.mockReturnValue(false);
-      mockFileFeatureDetector.isMarkdown.mockReturnValue(false);
-      mockFileFeatureDetector.isXML.mockReturnValue(false);
-      mockFileFeatureDetector.isHighlyStructured.mockReturnValue(false);
-      mockFileFeatureDetector.isStructuredFile.mockReturnValue(false);
-      mockFileFeatureDetector.calculateComplexity.mockReturnValue(5);
-      mockFileFeatureDetector.hasImports.mockReturnValue(false);
-      mockFileFeatureDetector.hasExports.mockReturnValue(false);
-      mockFileFeatureDetector.hasFunctions.mockReturnValue(true);
-      mockFileFeatureDetector.hasClasses.mockReturnValue(false);
-
-      const result = await service.detectFile(filePath, content);
-
-      expect(result.language).toBe('javascript');
-      expect(result.confidence).toBe(0.9);
-      expect(result.detectionMethod).toBe('backup');
-      expect(result.fileType).toBe('backup');
-      expect(result.metadata.fileFeatures).toBeDefined();
-    });
-
     it('should detect language by extension with high confidence', async () => {
       const filePath = 'test.js';
       const content = 'console.log("Hello");';
 
-      mockBackupFileProcessor.isBackupFile.mockReturnValue(false);
       mockLanguageDetector.detectLanguageByExtension.mockReturnValue('javascript');
       mockFileFeatureDetector.isCodeLanguage.mockReturnValue(true);
       mockFileFeatureDetector.isTextLanguage.mockReturnValue(false);
@@ -162,7 +108,6 @@ describe('UnifiedDetectionService', () => {
       const filePath = 'testfile';
       const content = '#!/usr/bin/env python\nprint("Hello");';
 
-      mockBackupFileProcessor.isBackupFile.mockReturnValue(false);
       mockLanguageDetector.detectLanguageByExtension.mockReturnValue('unknown');
       mockFileFeatureDetector.isCodeLanguage.mockReturnValue(true);
       mockFileFeatureDetector.isTextLanguage.mockReturnValue(false);
@@ -188,7 +133,6 @@ describe('UnifiedDetectionService', () => {
       const filePath = 'test.py';
       const content = 'def hello():\n    print("Hello")';
 
-      mockBackupFileProcessor.isBackupFile.mockReturnValue(false);
       mockLanguageDetector.detectLanguageByExtension.mockReturnValue('python');
       mockFileFeatureDetector.isCodeLanguage.mockReturnValue(true);
       mockFileFeatureDetector.isTextLanguage.mockReturnValue(false);
@@ -217,7 +161,6 @@ describe('UnifiedDetectionService', () => {
       const functions = [{ name: 'test', type: 'function' }] as any;
       const classes: never[] = [];
 
-      mockBackupFileProcessor.isBackupFile.mockReturnValue(false);
       mockLanguageDetector.detectLanguageByExtension.mockReturnValue('javascript');
       mockFileFeatureDetector.isCodeLanguage.mockReturnValue(true);
       mockFileFeatureDetector.isTextLanguage.mockReturnValue(false);
@@ -246,7 +189,6 @@ describe('UnifiedDetectionService', () => {
       const filePath = 'test.js';
       const content = 'function test() { return 42; }';
 
-      mockBackupFileProcessor.isBackupFile.mockReturnValue(false);
       mockLanguageDetector.detectLanguageByExtension.mockReturnValue('javascript');
       mockFileFeatureDetector.isCodeLanguage.mockReturnValue(true);
       mockFileFeatureDetector.isTextLanguage.mockReturnValue(false);
@@ -271,7 +213,6 @@ describe('UnifiedDetectionService', () => {
       const filePath = 'test.js';
       const content = 'console.log("Hello");';
 
-      mockBackupFileProcessor.isBackupFile.mockReturnValue(false);
       mockLanguageDetector.detectLanguageByExtension.mockReturnValue('javascript');
       mockFileFeatureDetector.isCodeLanguage.mockReturnValue(true);
       mockFileFeatureDetector.isTextLanguage.mockReturnValue(false);
@@ -300,7 +241,8 @@ describe('UnifiedDetectionService', () => {
       const content = 'console.log("Hello");';
       const error = new Error('Test error');
 
-      mockBackupFileProcessor.isBackupFile.mockImplementation(() => {
+      // Simulate error in language detection
+      mockLanguageDetector.detectLanguageByExtension.mockImplementation(() => {
         throw error;
       });
 
@@ -320,7 +262,6 @@ describe('UnifiedDetectionService', () => {
       const filePath = 'test.js';
       const content = 'console.log("Hello");';
 
-      mockBackupFileProcessor.isBackupFile.mockReturnValue(false);
       mockLanguageDetector.detectLanguageByExtension.mockReturnValue('javascript');
       mockFileFeatureDetector.isCodeLanguage.mockReturnValue(true);
       mockFileFeatureDetector.isTextLanguage.mockReturnValue(false);
@@ -370,33 +311,6 @@ describe('UnifiedDetectionService', () => {
       // Access private method through type assertion
       const strategy = (service as any).recommendProcessingStrategy(detection, features);
       expect(strategy).toBe('universal-line');
-    });
-
-    it('should recommend universal-bracket for backup files', () => {
-      const detection = {
-        language: 'javascript',
-        confidence: 0.8,
-        detectionMethod: 'backup' as const,
-        metadata: {}
-      };
-      const features = {
-        isCodeFile: true,
-        isTextFile: false,
-        isMarkdownFile: false,
-        isXMLFile: false,
-        isStructuredFile: true,
-        isHighlyStructured: true,
-        complexity: 10,
-        lineCount: 50,
-        size: 2000,
-        hasImports: true,
-        hasExports: true,
-        hasFunctions: true,
-        hasClasses: true
-      };
-
-      const strategy = (service as any).recommendProcessingStrategy(detection, features);
-      expect(strategy).toBe('universal-bracket');
     });
 
     it('should recommend universal-line for small files', () => {
@@ -628,7 +542,6 @@ describe('UnifiedDetectionService', () => {
         { filePath: 'test3.md', content: '# Test 3' }
       ];
 
-      mockBackupFileProcessor.isBackupFile.mockReturnValue(false);
       mockLanguageDetector.detectLanguageByExtension.mockImplementation((filePath: string) => {
         if (filePath.endsWith('.js')) return 'javascript';
         if (filePath.endsWith('.py')) return 'python';

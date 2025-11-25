@@ -3,7 +3,6 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
 import { TreeSitterService } from '../core/parse/TreeSitterService';
 import { IFileFeatureDetector } from './IFileFeatureDetector';
-import { BackupFileProcessor } from './BackupFileProcessor';
 import { LanguageDetector } from '../core/language-detection/LanguageDetector';
 import { languageFeatureDetector } from '../utils';
 import { IEventBus } from '../../../interfaces/IEventBus';
@@ -75,7 +74,6 @@ export interface LanguageDetectionInfo {
 export class DetectionService {
   private logger?: LoggerService;
   private fileFeatureDetector: IFileFeatureDetector;
-  private backupFileProcessor: BackupFileProcessor;
   private languageDetector: LanguageDetector;
   private eventBus?: IEventBus;
 
@@ -83,13 +81,11 @@ export class DetectionService {
     @inject(TYPES.LoggerService) logger?: LoggerService,
     @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
     @inject(TYPES.FileFeatureDetector) fileFeatureDetector?: IFileFeatureDetector,
-    @inject(TYPES.BackupFileProcessor) backupFileProcessor?: BackupFileProcessor,
     @inject(TYPES.LanguageDetector) languageDetector?: LanguageDetector,
     @inject(TYPES.EventBus) eventBus?: IEventBus
   ) {
     this.logger = logger;
     this.fileFeatureDetector = fileFeatureDetector!;
-    this.backupFileProcessor = backupFileProcessor || new BackupFileProcessor(logger);
     this.languageDetector = languageDetector || new LanguageDetector();
     this.eventBus = eventBus;
     this.logger?.debug('UnifiedDetectionService initialized');
@@ -106,15 +102,7 @@ export class DetectionService {
     this.eventBus?.emit(ParserEvents.FILE_DETECTION_STARTED, { filePath, contentLength: content.length });
 
     try {
-      // 1. 检查是否为备份文件
-      const backupResult = this.detectBackupFile(filePath, content);
-      if (backupResult) {
-        backupResult.filePath = filePath; // 添加filePath
-        this.logger?.info(`Detected backup file: ${backupResult.language} (confidence: ${backupResult.confidence})`);
-        return backupResult;
-      }
-
-      // 2. 基于扩展名的语言检测
+      // 1. 基于扩展名的语言检测
       const extensionResult = this.detectLanguageByExtension(filePath);
 
       // 3. 基于内容的语言检测
@@ -156,32 +144,6 @@ export class DetectionService {
       fallbackResult.filePath = filePath; // 添加filePath
       return fallbackResult;
     }
-  }
-
-  /**
-   * 检测备份文件
-   */
-  private detectBackupFile(filePath: string, content: string): DetectionResult | null {
-    // 使用现有的BackupFileProcessor
-    if (!this.backupFileProcessor.isBackupFile(filePath)) {
-      return null;
-    }
-
-    const backupMetadata = this.backupFileProcessor.getBackupFileMetadata(filePath);
-    if (backupMetadata.originalInfo && backupMetadata.originalInfo.confidence >= 0.5) {
-      return {
-        language: backupMetadata.originalInfo.language,
-        confidence: backupMetadata.originalInfo.confidence,
-        detectionMethod: 'backup',
-        fileType: 'backup',
-        metadata: {
-          originalExtension: backupMetadata.originalInfo.extension,
-          fileFeatures: this.analyzeFileFeatures(content, backupMetadata.originalInfo.language)
-        }
-      };
-    }
-
-    return null;
   }
 
   /**
@@ -333,10 +295,6 @@ export class DetectionService {
       return 'universal-line';
     }
 
-    // 备份文件使用保守策略
-    if (detection.detectionMethod === 'backup') {
-      return 'universal-bracket';
-    }
 
     // 小文件使用简单策略
     if (features.size < 1000) {

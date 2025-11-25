@@ -56,10 +56,12 @@ export class DynamicParserManager {
   private querySystemInitialized = false;
   private detectionService: DetectionService;
   private cacheService: ICacheService;
+  public nodeCache: Map<string, Parser.SyntaxNode[]>; // 添加节点缓存属性
 
   constructor(cacheService?: ICacheService) {
     this.errorHandler = new ErrorHandlerService(this.logger);
     this.detectionService = new DetectionService(this.logger);
+    this.nodeCache = new Map<string, Parser.SyntaxNode[]>(); // 初始化节点缓存
     if (cacheService) {
       this.cacheService = cacheService;
     } else {
@@ -474,6 +476,7 @@ export class DynamicParserManager {
     // 清除解析器相关的缓存
     this.cacheService.deleteByPattern(/^parser:/);
     this.cacheService.deleteByPattern(/^ast:/);
+    this.nodeCache.clear(); // 清除节点缓存
     this.cacheStats = { hits: 0, misses: 0, evictions: 0 };
     this.logger.info('DynamicParserManager 缓存已清除');
   }

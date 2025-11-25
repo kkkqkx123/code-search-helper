@@ -88,7 +88,6 @@ export const TYPES = {
   UniversalTextStrategy: Symbol.for('UniversalTextStrategy'),
   ErrorThresholdManager: Symbol.for('ErrorThresholdManager'),
   MemoryGuard: Symbol.for('MemoryGuard'),
-  BackupFileProcessor: Symbol.for('BackupFileProcessor'),
   ExtensionlessFileProcessor: Symbol.for('ExtensionlessFileProcessor'),
   ProcessingGuard: Symbol.for('ProcessingGuard'),
   ProcessingStrategySelector: Symbol.for('ProcessingStrategySelector'),
