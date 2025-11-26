@@ -1,4 +1,5 @@
 import Parser from 'tree-sitter';
+import { inject, injectable } from 'inversify';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
 import { QueryManager } from '../query/QueryManager';
@@ -13,7 +14,7 @@ import { LANGUAGE_MAPPINGS } from '../../config/LanguageMappingConfig';
 import { TREE_SITTER_LANGUAGE_MAP } from '../../constants/language-constants';
 import { CacheKeyUtils } from '../../../../utils/cache/CacheKeyUtils';
 import { ICacheService } from '../../../../infrastructure/caching/types';
-import { CacheService } from '../../../../infrastructure/caching/CacheService';
+import { TYPES } from '../../../../types';
 
 export interface DynamicParserLanguage {
   name: string;
@@ -58,21 +59,13 @@ export class DynamicParserManager {
   private cacheService: ICacheService;
   public nodeCache: Map<string, Parser.SyntaxNode[]>; // 添加节点缓存属性
 
-  constructor(cacheService?: ICacheService) {
+  constructor(
+    @inject(TYPES.CacheService) cacheService: ICacheService
+  ) {
     this.errorHandler = new ErrorHandlerService(this.logger);
     this.detectionService = new DetectionService(this.logger);
     this.nodeCache = new Map<string, Parser.SyntaxNode[]>(); // 初始化节点缓存
-    if (cacheService) {
-      this.cacheService = cacheService;
-    } else {
-      // 如果没有提供cacheService，需要创建一个默认的cache服务实例
-      // 注意：在实际实现中，应该从依赖注入容器或其他地方获取
-      this.logger.warn('未提供cacheService，使用默认缓存服务');
-      // 由于CacheService使用了依赖注入，这里我们创建一个基本的缓存服务
-      // 为了兼容性，我们创建一个临时的LoggerService实例
-      const tempLogger = new LoggerService();
-      this.cacheService = new CacheService(tempLogger);
-    }
+    this.cacheService = cacheService;
     this.initializeLanguageLoaders();
     this.initializeQuerySystem();
   }

@@ -33,6 +33,7 @@ import { PerformanceOptimizerService } from '../../service/optimization/Performa
 import { TreeSitterService } from '../../service/parser/core/parse/TreeSitterService';
 import { TreeSitterCoreService } from '../../service/parser/core/parse/TreeSitterCoreService';
 import { TreeSitterQueryEngine } from '../../service/parser/core/query/TreeSitterQueryExecutor';
+import { DynamicParserManager } from '../../service/parser/core/parse/DynamicParserManager';
 
 
 import { QueryResultNormalizer } from '../../service/parser/core/normalization/QueryResultNormalizer';
@@ -182,6 +183,7 @@ export class BusinessServiceRegistrar {
 
 
       // 解析服务
+      container.bind<DynamicParserManager>(TYPES.TreeSitterService).to(DynamicParserManager).inSingletonScope();
       container.bind<TreeSitterCoreService>(TYPES.TreeSitterCoreService).to(TreeSitterCoreService).inSingletonScope();
       container.bind<TreeSitterService>(TYPES.TreeSitterService).to(TreeSitterService).inSingletonScope();
       container.bind<TreeSitterQueryEngine>(TYPES.TreeSitterQueryEngine).to(TreeSitterQueryEngine).inSingletonScope();

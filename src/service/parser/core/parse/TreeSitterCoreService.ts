@@ -13,6 +13,8 @@ import { TreeSitterQueryFacade } from '../query/TreeSitterQueryFacade';
 import { TreeSitterQueryEngine } from '../query/TreeSitterQueryExecutor';
 import { QueryEngineFactory } from '../query/QueryEngineFactory';
 import { GlobalQueryInitializer } from '../query/GlobalQueryInitializer';
+import { ICacheService } from '../../../../infrastructure/caching/types';
+import { TYPES } from '../../../../types';
 
 export interface ParserLanguage {
   name: string;
@@ -60,9 +62,11 @@ export class TreeSitterCoreService {
   private errorHandler: ErrorHandlerService;
   private queryEngine: TreeSitterQueryEngine;
 
-  constructor() {
+  constructor(
+    @inject(TYPES.CacheService) cacheService: ICacheService
+  ) {
     this.languageDetector = new LanguageDetector();
-    this.dynamicManager = new DynamicParserManager();
+    this.dynamicManager = new DynamicParserManager(cacheService);
     this.errorHandler = new ErrorHandlerService(this.logger);
     this.queryEngine = QueryEngineFactory.getInstance();
 

@@ -4,6 +4,7 @@ import { QueryManager } from '../../core/query/QueryManager';
 import { QueryRegistryImpl } from '../../core/query/QueryRegistry';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
 import { CodeStructureService } from '../../core/structure/CodeStructureService';
+import { ICacheService } from '../../../../infrastructure/caching/types';
 
 /**
  * 优化后的解析器集成测试
@@ -14,11 +15,28 @@ describe('Optimized Parser Integration Tests', () => {
   let dynamicManager: DynamicParserManager;
   let treeSitterService: TreeSitterService;
   let structureService: CodeStructureService;
+  let mockCacheService: ICacheService;
 
   beforeAll(async () => {
+    // 创建模拟缓存服务
+    mockCacheService = {
+      getFromCache: jest.fn(),
+      setCache: jest.fn(),
+      deleteFromCache: jest.fn(),
+      clearAllCache: jest.fn(),
+      getCacheStats: jest.fn(() => ({ totalEntries: 0, hitCount: 0, missCount: 0, hitRate: 0 })),
+      cleanupExpiredEntries: jest.fn(),
+      isGraphCacheHealthy: jest.fn(() => true),
+      deleteByPattern: jest.fn(() => 0),
+      getKeysByPattern: jest.fn(() => []),
+      getDatabaseSpecificCache: jest.fn(() => Promise.resolve(null)),
+      setDatabaseSpecificCache: jest.fn(() => Promise.resolve()),
+      invalidateDatabaseCache: jest.fn(() => Promise.resolve())
+    };
+
     // 初始化服务
-    coreService = new TreeSitterCoreService();
-    dynamicManager = new DynamicParserManager();
+    coreService = new TreeSitterCoreService(mockCacheService);
+    dynamicManager = new DynamicParserManager(mockCacheService);
     treeSitterService = new TreeSitterService(coreService);
     structureService = new CodeStructureService(coreService);
     
@@ -300,7 +318,7 @@ class TestClass {
       // 创建多个解析实例
       const instances = [];
       for (let i = 0; i < 5; i++) {
-        instances.push(new DynamicParserManager());
+        instances.push(new DynamicParserManager(mockCacheService));
       }
       
       // 执行解析操作

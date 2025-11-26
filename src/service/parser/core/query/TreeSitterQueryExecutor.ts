@@ -342,7 +342,42 @@ export class TreeSitterQueryEngine {
         try {
           // 导入DynamicParserManager来获取解析器
           const { DynamicParserManager } = await import('../parse/DynamicParserManager');
-          const dynamicManager = new DynamicParserManager();
+          // 创建简单的内存缓存服务用于临时使用
+          const tempCacheService = {
+            getFromCache: () => undefined,
+            setCache: () => {},
+            deleteFromCache: () => false,
+            clearAllCache: () => {},
+            getCacheStats: () => ({ totalEntries: 0, hitCount: 0, missCount: 0, hitRate: 0 }),
+            cleanupExpiredEntries: () => {},
+            isGraphCacheHealthy: () => true,
+            checkMemoryUsage: () => {},
+            aggressiveCleanup: () => {},
+            startCleanupInterval: () => {},
+            evictEntries: () => {},
+            getGraphStatsCache: () => undefined,
+            setGraphStatsCache: () => {},
+            cacheGraphData: async () => {},
+            getGraphData: async () => null,
+            hasKey: () => false,
+            getKeys: () => [],
+            getSize: () => 0,
+            updateConfig: () => {},
+            stopCleanupInterval: () => {},
+            forceCleanup: () => {},
+            getPerformanceMetrics: () => ({ totalEntries: 0, hitCount: 0, missCount: 0, hitRate: 0, averageTTL: 0, expiredEntries: 0, memoryUsage: 0 }),
+            preloadCache: () => {},
+            getKeysByPattern: () => [],
+            deleteByPattern: () => 0,
+            getDatabaseSpecificCache: async () => null,
+            setDatabaseSpecificCache: async () => {},
+            invalidateDatabaseCache: async () => {},
+            cacheNebulaGraphData: async () => {},
+            getNebulaGraphData: async () => null,
+            cacheVectorData: async () => {},
+            getVectorData: async () => null
+          } as any;
+          const dynamicManager = new DynamicParserManager(tempCacheService);
           const parser = await dynamicManager.getParser(language);
           if (parser) {
             // 从解析器获取语言对象

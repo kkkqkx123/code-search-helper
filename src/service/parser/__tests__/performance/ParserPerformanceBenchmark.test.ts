@@ -2,12 +2,14 @@ import { TreeSitterCoreService } from '../../core/parse/TreeSitterCoreService';
 import { DynamicParserManager } from '../../core/parse/DynamicParserManager';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
 import { CodeStructureService } from '../../core/structure/CodeStructureService';
+import { ICacheService } from '../../../../infrastructure/caching/types';
 
 /**
  * 解析器性能基准测试
  * 用于对比优化前后的性能差异
  */
 describe('Parser Performance Benchmark', () => {
+  let mockCacheService: ICacheService;
   const testCodeSamples = {
     javascript: `
 function calculateSum(a, b) {
@@ -128,13 +130,29 @@ public class UserServiceImpl implements UserService {
   let structureService: CodeStructureService;
 
   beforeAll(async () => {
+    // 创建模拟缓存服务
+    mockCacheService = {
+      getFromCache: jest.fn(),
+      setCache: jest.fn(),
+      deleteFromCache: jest.fn(),
+      clearAllCache: jest.fn(),
+      getCacheStats: jest.fn(() => ({ totalEntries: 0, hitCount: 0, missCount: 0, hitRate: 0 })),
+      cleanupExpiredEntries: jest.fn(),
+      isGraphCacheHealthy: jest.fn(() => true),
+      deleteByPattern: jest.fn(() => 0),
+      getKeysByPattern: jest.fn(() => []),
+      getDatabaseSpecificCache: jest.fn(() => Promise.resolve(null)),
+      setDatabaseSpecificCache: jest.fn(() => Promise.resolve()),
+      invalidateDatabaseCache: jest.fn(() => Promise.resolve())
+    };
+
     // 初始化原始服务
-    originalService = new TreeSitterCoreService();
+    originalService = new TreeSitterCoreService(mockCacheService);
     treeSitterService = new TreeSitterService(originalService);
     structureService = new CodeStructureService(originalService);
 
     // 初始化动态管理器
-    dynamicManager = new DynamicParserManager();
+    dynamicManager = new DynamicParserManager(mockCacheService);
 
     // 等待初始化完成
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -143,7 +161,7 @@ public class UserServiceImpl implements UserService {
   describe('初始化性能对比', () => {
     test('原始服务初始化时间', async () => {
       const startTime = performance.now();
-      const service = new TreeSitterCoreService();
+      const service = new TreeSitterCoreService(mockCacheService);
       const initTime = performance.now() - startTime;
 
       console.log(`原始服务初始化时间: ${initTime.toFixed(2)}ms`);
@@ -153,7 +171,7 @@ public class UserServiceImpl implements UserService {
 
     test('动态管理器初始化时间', async () => {
       const startTime = performance.now();
-      const manager = new DynamicParserManager();
+      const manager = new DynamicParserManager(mockCacheService);
       const initTime = performance.now() - startTime;
 
       console.log(`动态管理器初始化时间: ${initTime.toFixed(2)}ms`);
@@ -256,7 +274,7 @@ public class UserServiceImpl implements UserService {
       // 创建多个原始服务实例
       const originalServices = [];
       for (let i = 0; i < 10; i++) {
-        originalServices.push(new TreeSitterCoreService());
+        originalServices.push(new TreeSitterCoreService(mockCacheService));
       }
 
       const afterOriginalMemory = process.memoryUsage();
@@ -264,7 +282,7 @@ public class UserServiceImpl implements UserService {
       // 创建多个动态管理器实例
       const dynamicManagers = [];
       for (let i = 0; i < 10; i++) {
-        dynamicManagers.push(new DynamicParserManager());
+        dynamicManagers.push(new DynamicParserManager(mockCacheService));
       }
 
       const afterDynamicMemory = process.memoryUsage();
