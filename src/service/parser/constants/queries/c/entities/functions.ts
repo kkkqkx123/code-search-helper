@@ -35,12 +35,4 @@ export default `
       (pointer_declarator
         declarator: (identifier) @function.pointer.name))
     parameters: (parameter_list))) @definition.function.pointer
-
-; 内联函数查询 - 修复：查找包含inline或static inline的函数定义
-(function_definition
-  (storage_class_specifier) @func.type
- declarator: (function_declarator
-    declarator: (identifier) @inline.function)
-  body: (compound_statement) @inline.body
-  (#match? @func.type "inline|static")) @definition.inline.function
 `;

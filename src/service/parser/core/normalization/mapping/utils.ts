@@ -59,7 +59,7 @@ export function sortMappingsByPriority(mappings: QueryMapping[]): QueryMapping[]
  * 过滤指定模式的映射
  */
 export function filterMappingsByPattern(
-  mappings: QueryMapping[], 
+  mappings: QueryMapping[],
   patternType: QueryPatternType
 ): QueryMapping[] {
   return mappings.filter(mapping => mapping.patternType === patternType);
@@ -69,11 +69,11 @@ export function filterMappingsByPattern(
  * 查找匹配查询模式的映射
  */
 export function findMappingsByPattern(
-  mappings: QueryMapping[], 
+  mappings: QueryMapping[],
   queryPattern: string
 ): QueryMapping[] {
   const normalizedPattern = normalizeQueryPattern(queryPattern);
-  return mappings.filter(mapping => 
+  return mappings.filter(mapping =>
     normalizeQueryPattern(mapping.queryPattern) === normalizedPattern
   );
 }
@@ -88,11 +88,11 @@ export function validateCaptureConfig(mapping: QueryMapping): {
 } {
   const patternCaptures = extractCaptureNames(mapping.queryPattern);
   const configCaptures = Object.values(mapping.captures).filter(Boolean) as string[];
-  
-  const missingCaptures = patternCaptures.filter(capture => 
+
+  const missingCaptures = patternCaptures.filter(capture =>
     !configCaptures.some(config => config.includes(capture))
   );
-  
+
   const extraCaptures = configCaptures.filter(config =>
     !patternCaptures.some(capture => config.includes(capture))
   );
@@ -156,8 +156,6 @@ export function mergeMappingConfigs(...configs: MappingConfig[]): MappingConfig 
   const uniqueMappings = removeDuplicateMappings(allMappings);
 
   return {
-    description: `合并的映射配置 (${configs.length} 个配置)`,
-    version: 'merged',
     language,
     queryType,
     mappings: sortMappingsByPriority(uniqueMappings)
@@ -197,79 +195,18 @@ export function isMappingConfigEmpty(config: MappingConfig): boolean {
 }
 
 /**
- * 获取映射配置的复杂度评分
- */
-export function getMappingComplexityScore(config: MappingConfig): {
-  score: number;
-  level: 'simple' | 'moderate' | 'complex' | 'very_complex';
-  factors: {
-    mappingCount: number;
-    patternTypes: number;
-    captureComplexity: number;
-    metadataComplexity: number;
-  };
-} {
-  const mappingCount = config.mappings.length;
-  const patternTypes = new Set(config.mappings.map(m => m.patternType)).size;
-  
-  let captureComplexity = 0;
-  let metadataComplexity = 0;
-
-  for (const mapping of config.mappings) {
-    // 计算捕获组复杂度
-    captureComplexity += Object.keys(mapping.captures).length;
-    
-    // 计算元数据复杂度
-    if (mapping.relationship?.metadata) {
-      metadataComplexity += Object.keys(mapping.relationship.metadata).length;
-    }
-    if (mapping.entity?.metadata) {
-      metadataComplexity += Object.keys(mapping.entity.metadata).length;
-    }
-  }
-
-  const score = mappingCount * 1 + patternTypes * 2 + captureComplexity * 0.5 + metadataComplexity * 0.3;
-
-  let level: 'simple' | 'moderate' | 'complex' | 'very_complex';
-  if (score < 10) {
-    level = 'simple';
-  } else if (score < 25) {
-    level = 'moderate';
-  } else if (score < 50) {
-    level = 'complex';
-  } else {
-    level = 'very_complex';
-  }
-
-  return {
-    score: Math.round(score * 10) / 10,
-    level,
-    factors: {
-      mappingCount,
-      patternTypes,
-      captureComplexity,
-      metadataComplexity
-    }
-  };
-}
-
-/**
  * 格式化映射配置为可读的字符串
  */
 export function formatMappingConfig(config: MappingConfig): string {
   const summary = generateMappingSummary(config);
-  const complexity = getMappingComplexityScore(config);
-  
+
   return [
-    `映射配置: ${config.description}`,
     `语言: ${config.language}`,
     `查询类型: ${config.queryType}`,
-    `版本: ${config.version}`,
     `总映射数: ${summary.totalMappings}`,
     `实体映射: ${summary.entityMappings}`,
     `关系映射: ${summary.relationshipMappings}`,
     `共享映射: ${summary.sharedMappings}`,
-    `复杂度: ${complexity.score} (${complexity.level})`,
     `查询模式:`,
     ...summary.patterns.map(pattern => `  - ${pattern}`)
   ].join('\n');
@@ -295,7 +232,7 @@ export function parseMappingConfigKey(key: string): {
   }
 
   const [language, queryType] = parts;
-  
+
   // 这里可以添加更严格的验证
   return {
     language: language as SupportedLanguage,

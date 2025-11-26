@@ -26,10 +26,6 @@ export default `
         name: (identifier) @enum.constant)*)) @definition.enum
 ] @definition.type
 
-; 类型别名查询
-(type_definition
-  type: (_)
-  declarator: (type_identifier) @alias.name) @definition.type.alias
 
 ; 数组和指针声明查询 - 使用交替模式合并
 [
@@ -58,31 +54,4 @@ export default `
         argument: (identifier) @pointer.name))
     field: (field_identifier) @field.name) @definition.pointer.member.access
 ] @definition.access
-
-; 数组访问查询 - 一维和二维数组访问合并
-[
-  ; 一维数组访问: arr[i]
-  (subscript_expression
-    argument: (identifier) @array.name
-    indices: (subscript_argument_list
-      (_) @index)) @definition.array.access
-
-  ; 二维数组访问: matrix[i][j]
-  (subscript_expression
-    argument: (subscript_expression
-      argument: (identifier) @array.name
-      indices: (subscript_argument_list _))
-    indices: (subscript_argument_list
-      (_) @index)) @definition.array.access
-
-  ; 支持表达式作为索引的情况，比如 matrix[i+1][j-1]
-  ; 上面两条已经能捕获，只要 @index 能匹配任意表达式即可
-] @definition.array.access
-
-; 嵌套结构体查询 - 简化版本
-(struct_specifier
-  body: (field_declaration_list
-    (field_declaration
-      type: (struct_specifier)
-      declarator: (field_identifier) @nested.field.name))) @definition.nested.struct
 `;

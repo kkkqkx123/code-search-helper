@@ -1,9 +1,7 @@
-import { NodeIdGenerator } from '../../../../../utils/deterministic-node-id';
-import Parser from 'tree-sitter';
-import { 
-  QueryMapping, 
-  MappingConfig, 
-  RelationshipResult, 
+import {
+  QueryMapping,
+  MappingConfig,
+  RelationshipResult,
   EntityResult,
   MappingResult,
   MappingResolverOptions,
@@ -15,6 +13,7 @@ import {
   QueryType,
   IMappingResolver
 } from './types';
+import { ASTProcessor } from './ASTProcessor';
 
 /**
  * 通用查询映射解析器
@@ -28,7 +27,7 @@ export class QueryMappingResolver implements IMappingResolver {
     cacheSizeLimit: 1000,
     enablePerformanceMonitoring: false
   };
-  
+
   private static stats: MappingResolverStats = {
     cacheSize: 0,
     cacheKeys: [],
@@ -40,9 +39,11 @@ export class QueryMappingResolver implements IMappingResolver {
 
   private language: SupportedLanguage;
   private performanceTimes: number[] = [];
+  private astProcessor: ASTProcessor;
 
   constructor(language: SupportedLanguage) {
     this.language = language;
+    this.astProcessor = new ASTProcessor();
   }
 
   /**
@@ -57,10 +58,10 @@ export class QueryMappingResolver implements IMappingResolver {
    */
   async resolve(queryResults: any[], queryType: QueryType): Promise<MappingResult> {
     const startTime = QueryMappingResolver.options.enablePerformanceMonitoring ? Date.now() : 0;
-    
+
     try {
       QueryMappingResolver.stats.totalQueries++;
-      
+
       const mappings = await this.getMappings(queryType);
       const result: MappingResult = {
         relationships: [],
@@ -71,34 +72,34 @@ export class QueryMappingResolver implements IMappingResolver {
       };
 
       for (const queryResult of queryResults) {
-         try {
-           const mappedResult = this.processQueryResult(queryResult, mappings);
+        try {
+          const mappedResult = this.processQueryResult(queryResult, mappings);
           result.relationships.push(...mappedResult.relationships);
           result.entities.push(...mappedResult.entities);
           result.mappedCount += mappedResult.relationships.length + mappedResult.entities.length;
         } catch (error) {
-           const errorMessage = error instanceof Error ? error.message : String(error);
-           result.errors?.push(`处理查询结果时出错: ${errorMessage}`);
-           
-           if (QueryMappingResolver.options.debug) {
-             console.error('处理查询结果出错:', error, queryResult);
-           }
-         }
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          result.errors?.push(`处理查询结果时出错: ${errorMessage}`);
+
+          if (QueryMappingResolver.options.debug) {
+            console.error('处理查询结果出错:', error, queryResult);
+          }
+        }
       }
 
       if (QueryMappingResolver.options.enablePerformanceMonitoring) {
-         const processingTime = Date.now() - startTime;
-         this.updatePerformanceStats(processingTime);
-       }
+        const processingTime = Date.now() - startTime;
+        this.updatePerformanceStats(processingTime);
+      }
 
       return result;
     } catch (error) {
-       const errorMessage = error instanceof Error ? error.message : String(error);
-       
-       if (QueryMappingResolver.options.debug) {
-         console.error('映射解析失败:', error);
-       }
-      
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
+      if (QueryMappingResolver.options.debug) {
+        console.error('映射解析失败:', error);
+      }
+
       return {
         relationships: [],
         entities: [],
@@ -123,35 +124,20 @@ export class QueryMappingResolver implements IMappingResolver {
     for (const mapping of mappings) {
       if (this.matchesQueryPattern(queryResult, mapping)) {
         try {
-          if (mapping.patternType === QueryPatternType.RELATIONSHIP) {
-            const relationship = this.buildRelationship(queryResult, mapping);
-            if (relationship) {
-              result.relationships.push(relationship);
-              result.mappedCount++;
+          // 使用ASTProcessor处理映射
+          const processedResult = this.astProcessor.process(queryResult, mapping, this.language);
+
+          if (processedResult) {
+            if (this.isRelationshipResult(processedResult)) {
+              result.relationships.push(processedResult as RelationshipResult);
+            } else if (this.isEntityResult(processedResult)) {
+              result.entities.push(processedResult as EntityResult);
             }
-          } else if (mapping.patternType === QueryPatternType.ENTITY) {
-            const entity = this.buildEntity(queryResult, mapping);
-            if (entity) {
-              result.entities.push(entity);
-              result.mappedCount++;
-            }
-          } else if (mapping.patternType === QueryPatternType.SHARED) {
-            // 共享模式同时生成关系和实体结果
-            const relationship = this.buildRelationship(queryResult, mapping);
-            const entity = this.buildEntity(queryResult, mapping);
-            
-            if (relationship) {
-              result.relationships.push(relationship);
-              result.mappedCount++;
-            }
-            if (entity) {
-              result.entities.push(entity);
-              result.mappedCount++;
-            }
+            result.mappedCount++;
           }
         } catch (error) {
           if (QueryMappingResolver.options.debug) {
-            console.error(`构建映射结果失败 (${mapping.queryPattern}):`, error);
+            console.error(`处理映射结果失败 (${mapping.queryPattern}):`, error);
           }
         }
       }
@@ -165,19 +151,19 @@ export class QueryMappingResolver implements IMappingResolver {
    */
   private async getMappings(queryType: QueryType): Promise<QueryMapping[]> {
     const cacheKey = `${this.language}:${queryType}`;
-    
+
     if (QueryMappingResolver.options.enableCache && QueryMappingResolver.mappingCache.has(cacheKey)) {
       QueryMappingResolver.stats.cacheHits++;
       return QueryMappingResolver.mappingCache.get(cacheKey)!;
     }
-    
+
     QueryMappingResolver.stats.cacheMisses++;
     const mappings = await this.loadMappings(queryType);
-    
+
     if (QueryMappingResolver.options.enableCache) {
       this.addToCache(cacheKey, mappings);
     }
-    
+
     return mappings;
   }
 
@@ -193,7 +179,7 @@ export class QueryMappingResolver implements IMappingResolver {
         QueryMappingResolver.mappingCache.delete(firstKey);
       }
     }
-    
+
     QueryMappingResolver.mappingCache.set(key, mappings);
     this.updateCacheStats();
   }
@@ -212,17 +198,17 @@ export class QueryMappingResolver implements IMappingResolver {
   private async loadMappings(queryType: QueryType): Promise<QueryMapping[]> {
     try {
       const mappingModule = await import(`./${this.language}/${queryType}`);
-      const config: MappingConfig = mappingModule.default || 
-                                mappingModule[`${queryType.toUpperCase()}_MAPPINGS`] ||
-                                mappingModule[`${queryType}_MAPPINGS`];
-      
+      const config: MappingConfig = mappingModule.default ||
+        mappingModule[`${queryType.toUpperCase()}_MAPPINGS`] ||
+        mappingModule[`${queryType}_MAPPINGS`];
+
       if (!config || !config.mappings) {
         if (QueryMappingResolver.options.debug) {
           console.warn(`未找到 ${this.language}.${queryType} 的映射配置`);
         }
         return [];
       }
-      
+
       return config.mappings.sort((a, b) => (b.priority || 0) - (a.priority || 0));
     } catch (error) {
       if (QueryMappingResolver.options.debug) {
@@ -238,116 +224,43 @@ export class QueryMappingResolver implements IMappingResolver {
   private matchesQueryPattern(result: any, mapping: QueryMapping): boolean {
     const captures = result.captures || [];
     const captureNames = captures.map((c: any) => c.name);
-    
+
     // 检查是否有匹配的捕获组
     const patternWithoutAt = mapping.queryPattern.replace('@', '');
-    
+
     // 检查捕获组名称匹配
-    const hasMatchingCapture = captureNames.some((name: string) => 
-      name.includes(patternWithoutAt) || 
+    const hasMatchingCapture = captureNames.some((name: string) =>
+      name.includes(patternWithoutAt) ||
       patternWithoutAt.includes(name)
     );
-    
+
     // 检查节点文本匹配
-    const hasMatchingText = captures.some((capture: any) => 
-      capture.node && 
-      capture.node.text && 
+    const hasMatchingText = captures.some((capture: any) =>
+      capture.node &&
+      capture.node.text &&
       capture.node.text.includes(patternWithoutAt)
     );
-    
+
     return hasMatchingCapture || hasMatchingText;
-  }
-
-  /**
-   * 构建关系对象
-   */
-  private buildRelationship(result: any, mapping: QueryMapping): RelationshipResult | null {
-    if (!mapping.captures.source || !mapping.relationship) {
-      return null;
-    }
-
-    const captures = result.captures || [];
-    const sourceCapture = captures.find((c: any) => c.name === mapping.captures.source);
-    const targetCapture = mapping.captures.target ? 
-      captures.find((c: any) => c.name === mapping.captures.target) : null;
-    
-    if (!sourceCapture) {
-      return null;
-    }
-
-    const sourceNode = sourceCapture.node;
-    const targetNode = targetCapture?.node;
-
-    return {
-      source: NodeIdGenerator.forAstNode(sourceNode),
-      target: targetNode ? NodeIdGenerator.forAstNode(targetNode) : 'unknown',
-      type: mapping.relationship.type,
-      category: mapping.relationship.category,
-      metadata: {
-        ...mapping.relationship.metadata,
-        // 添加额外的捕获组信息
-        ...this.extractAdditionalCaptures(captures, mapping.captures)
-      },
-      location: {
-        filePath: 'current_file',
-        lineNumber: sourceNode.startPosition.row + 1,
-        columnNumber: sourceNode.startPosition.column
-      }
-    };
-  }
-
-  /**
-   * 构建实体对象
-   */
-  private buildEntity(result: any, mapping: QueryMapping): EntityResult | null {
-    if (!mapping.captures.entityType || !mapping.entity) {
-      return null;
-    }
-
-    const captures = result.captures || [];
-    const entityCapture = captures.find((c: any) => c.name === mapping.captures.entityType);
-    
-    if (!entityCapture) {
-      return null;
-    }
-
-    const entityNode = entityCapture.node;
-
-    return {
-      id: NodeIdGenerator.forAstNode(entityNode),
-      type: mapping.entity.type,
-      category: mapping.entity.category,
-      name: entityNode.text || 'unknown',
-      metadata: {
-        ...mapping.entity.metadata,
-        // 添加额外的捕获组信息
-        ...this.extractAdditionalCaptures(captures, mapping.captures)
-      },
-      location: {
-        filePath: 'current_file',
-        lineNumber: entityNode.startPosition.row + 1,
-        columnNumber: entityNode.startPosition.column
-      }
-    };
   }
 
   /**
    * 提取额外的捕获组信息
    */
   private extractAdditionalCaptures(
-    captures: any[], 
+    captures: any[],
     captureConfig: any
   ): Record<string, any> {
     const additionalInfo: Record<string, any> = {};
     const excludedKeys = ['source', 'target', 'entityType'];
-    
+
     for (const capture of captures) {
-      if (!excludedKeys.includes(capture.name) && 
-          !Object.values(captureConfig).includes(capture.name)) {
+      if (!excludedKeys.includes(capture.name) &&
+        !Object.values(captureConfig).includes(capture.name)) {
         additionalInfo[capture.name] = capture.node?.text || capture.text;
       }
     }
-    
+
     return additionalInfo;
   }
 
@@ -456,7 +369,7 @@ export class QueryMappingResolver implements IMappingResolver {
   getAvailableQueryTypes(): QueryType[] {
     // 这里应该从映射目录中动态获取，暂时返回硬编码列表
     return [
-      'lifecycle', 'dependency', 'inheritance', 'call', 'data-flow', 
+      'lifecycle', 'dependency', 'inheritance', 'call', 'data-flow',
       'control-flow', 'concurrency', 'semantic', 'creation', 'reference',
       'annotation', 'functions', 'variables', 'structs', 'preprocessor',
       'call-expressions', 'function-annotations'
@@ -483,12 +396,12 @@ export class QueryMappingResolver implements IMappingResolver {
    */
   private updatePerformanceStats(processingTime: number): void {
     this.performanceTimes.push(processingTime);
-    
+
     // 保持最近100次的性能数据
     if (this.performanceTimes.length > 100) {
       this.performanceTimes.shift();
     }
-    
+
     const averageTime = this.performanceTimes.reduce((sum, time) => sum + time, 0) / this.performanceTimes.length;
     QueryMappingResolver.stats.averageProcessingTime = averageTime;
   }
@@ -502,12 +415,23 @@ export class QueryMappingResolver implements IMappingResolver {
     language: string
   ): Promise<RelationshipResult[]> {
     const resolver = new QueryMappingResolver(language as SupportedLanguage);
-    
+
     try {
       const result = await resolver.resolve(queryResults, queryType as QueryType);
       return result.relationships;
     } catch {
       return [];
     }
+  }
+
+  /**
+   * 类型检查方法
+   */
+  private isRelationshipResult(item: any): item is RelationshipResult {
+    return item && typeof item === 'object' && 'source' in item && 'target' in item;
+  }
+
+  private isEntityResult(item: any): item is EntityResult {
+    return item && typeof item === 'object' && 'id' in item && 'type' in item;
   }
 }

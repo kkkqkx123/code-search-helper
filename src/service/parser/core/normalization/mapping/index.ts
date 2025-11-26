@@ -7,9 +7,6 @@ export * from './QueryMappingResolver';
 // 导出各语言的映射
 export * from './c';
 
-// 导出映射解析器工厂
-export { MappingResolverFactory } from './MappingResolverFactory';
-
 // 导出映射验证工具
 export { MappingValidator } from './MappingValidator';
 
