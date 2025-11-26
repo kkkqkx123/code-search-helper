@@ -63,6 +63,8 @@ export interface QueryMapping {
   };
   /** 可选的自定义处理函数名 */
   customProcessor?: string;
+  /** 可选的处理器配置 */
+  processorConfig?: Record<string, any>;
   /** 映射优先级（使用 MappingPriority 枚举，数字越大优先级越高） */
   priority?: number;
   /** 映射描述 */
