@@ -11,6 +11,8 @@ import { CacheService } from '../../infrastructure/caching/CacheService';
 import { PerformanceMonitor } from '../../infrastructure/monitoring/PerformanceMonitor';
 import { DatabaseHealthChecker } from '../../service/monitoring/DatabaseHealthChecker';
 import { GraphOperation, BatchResult } from '../../infrastructure/batching/types';
+import { NebulaConfigService } from '../../config/service/NebulaConfigService';
+import { InfrastructureConfigService } from '../../infrastructure/config/InfrastructureConfigService';
 
 @injectable()
 export class NebulaInfrastructure implements IDatabaseInfrastructure {
@@ -21,6 +23,8 @@ export class NebulaInfrastructure implements IDatabaseInfrastructure {
   private performanceMonitor: PerformanceMonitor;
   private batchOptimizer: BatchProcessingService;
   private healthChecker: IHealthChecker;
+  private nebulaConfigService: NebulaConfigService;
+  private infraConfigService: InfrastructureConfigService;
   private initialized = false;
 
   constructor(
@@ -28,13 +32,17 @@ export class NebulaInfrastructure implements IDatabaseInfrastructure {
     @inject(TYPES.CacheService) cacheService: CacheService,
     @inject(TYPES.PerformanceMonitor) performanceMonitor: PerformanceMonitor,
     @inject(TYPES.BatchProcessingService) batchOptimizer: BatchProcessingService,
-    @inject(TYPES.HealthChecker) healthChecker: DatabaseHealthChecker
+    @inject(TYPES.HealthChecker) healthChecker: DatabaseHealthChecker,
+    @inject(TYPES.NebulaConfigService) nebulaConfigService: NebulaConfigService,
+    @inject(TYPES.InfrastructureConfigService) infraConfigService: InfrastructureConfigService
   ) {
     this.logger = logger;
     this.cacheService = cacheService;
     this.performanceMonitor = performanceMonitor;
     this.batchOptimizer = batchOptimizer;
     this.healthChecker = healthChecker;
+    this.nebulaConfigService = nebulaConfigService;
+    this.infraConfigService = infraConfigService;
 
     this.logger.info('Nebula infrastructure created');
   }

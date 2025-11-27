@@ -57,8 +57,9 @@ describe('配置统一验证测试', () => {
 
       expect(config.performance).toBeDefined();
       expect(config.performance?.monitoringInterval).toBeDefined();
-      expect(config.performance?.queryExecutionTime).toBeDefined();
-      expect(config.performance?.memoryUsage).toBeDefined();
+      expect(config.performance?.performanceThresholds).toBeDefined();
+      expect(config.performance?.performanceThresholds?.queryExecutionTime).toBeDefined();
+      expect(config.performance?.performanceThresholds?.memoryUsage).toBeDefined();
     });
 
     it('应该包含容错配置', () => {
@@ -109,8 +110,8 @@ describe('配置统一验证测试', () => {
     it('应该保留 Qdrant 特定配置', () => {
       const infraConfig = infrastructureConfigService.getConfig();
 
+      // 注意: Qdrant 的 cache/performance/batch 配置现在由 QdrantConfigService 管理
       expect(infraConfig.qdrant).toBeDefined();
-      expect(infraConfig.qdrant.cache).toBeDefined();
     });
   });
 

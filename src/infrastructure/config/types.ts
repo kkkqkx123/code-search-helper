@@ -155,19 +155,14 @@ export interface CommonConfig {
 }
 
 // 完整的基础设施配置
+// 注意: Qdrant 和 Nebula 的 cache/performance/batch 配置已移到 QdrantConfigService 和 NebulaConfigService
 export interface InfrastructureConfig {
   common: CommonConfig;
-  qdrant: {
-    cache: CacheConfig;
-    performance: PerformanceConfig;
-    batch: BatchConfig;
+  qdrant?: {
     vector?: VectorSpecificConfig;
   };
-  nebula: {
-    cache: CacheConfig;
-    performance: PerformanceConfig;
-    batch: BatchConfig;
-    graph: GraphSpecificConfig;
+  nebula?: {
+    graph?: GraphSpecificConfig;
   };
   vector?: {
     cache: CacheConfig;

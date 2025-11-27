@@ -52,72 +52,10 @@ describe('PerformanceMonitor', () => {
         gracefulShutdownTimeout: 5000,
       },
       qdrant: {
-        cache: {
-          defaultTTL: 300000,
-          maxEntries: 1000,
-          cleanupInterval: 60000,
-          enableStats: true,
-          databaseSpecific: {},
-        },
-        performance: {
-          monitoringInterval: 30000,
-          metricsRetentionPeriod: 86400000,
-          enableDetailedLogging: true,
-          performanceThresholds: {
-            queryExecutionTime: 5000,
-            memoryUsage: 80,
-            responseTime: 2000,
-          },
-          databaseSpecific: {},
-        },
-        batch: {
-          maxConcurrentOperations: 10,
-          defaultBatchSize: 100,
-          maxBatchSize: 1000,
-          minBatchSize: 10,
-          memoryThreshold: 80,
-          processingTimeout: 30000,
-          retryAttempts: 3,
-          retryDelay: 1000,
-          adaptiveBatchingEnabled: true,
-          performanceThreshold: 1000,
-          adjustmentFactor: 0.1,
-          databaseSpecific: {},
-        },
+        // 注意: cache/performance/batch 配置现在由 QdrantConfigService 管理
       },
       nebula: {
-        cache: {
-          defaultTTL: 300000,
-          maxEntries: 1000,
-          cleanupInterval: 60000,
-          enableStats: true,
-          databaseSpecific: {},
-        },
-        performance: {
-          monitoringInterval: 30000,
-          metricsRetentionPeriod: 86400000,
-          enableDetailedLogging: true,
-          performanceThresholds: {
-            queryExecutionTime: 5000,
-            memoryUsage: 80,
-            responseTime: 2000,
-          },
-          databaseSpecific: {},
-        },
-        batch: {
-          maxConcurrentOperations: 10,
-          defaultBatchSize: 100,
-          maxBatchSize: 1000,
-          minBatchSize: 10,
-          memoryThreshold: 80,
-          processingTimeout: 30000,
-          retryAttempts: 3,
-          retryDelay: 1000,
-          adaptiveBatchingEnabled: true,
-          performanceThreshold: 1000,
-          adjustmentFactor: 0.1,
-          databaseSpecific: {},
-        },
+        // 注意: cache/performance/batch 配置现在由 NebulaConfigService 管理
         graph: {
           defaultSpace: 'test_space',
         },
@@ -256,72 +194,23 @@ describe('PerformanceMonitor', () => {
           gracefulShutdownTimeout: 5000,
         },
         qdrant: {
-          cache: {
-            defaultTTL: 300000,
-            maxEntries: 1000,
-            cleanupInterval: 60000,
-            enableStats: true,
-            databaseSpecific: {},
-          },
-          performance: {
-            monitoringInterval: 30000,
-            metricsRetentionPeriod: 86400000,
-            enableDetailedLogging: true,
-            performanceThresholds: {
-              queryExecutionTime: 1000,
-              memoryUsage: 80,
-              responseTime: 2000,
+          // 数据库特定配置（cache, performance, batch）现在由 QdrantConfigService 管理
+          // InfrastructureConfigService 仅包含基础设施特定配置
+          vector: {
+            defaultCollection: 'default',
+            collectionOptions: {
+              vectorSize: 1536,
+              distance: 'Cosine',
+              indexing: {
+                type: 'hnsw',
+                options: {},
+              },
             },
-            databaseSpecific: {},
-          },
-          batch: {
-            maxConcurrentOperations: 10,
-            defaultBatchSize: 100,
-            maxBatchSize: 1000,
-            minBatchSize: 10,
-            memoryThreshold: 80,
-            processingTimeout: 30000,
-            retryAttempts: 3,
-            retryDelay: 1000,
-            adaptiveBatchingEnabled: true,
-            performanceThreshold: 1000,
-            adjustmentFactor: 0.1,
-            databaseSpecific: {},
           },
         },
         nebula: {
-          cache: {
-            defaultTTL: 300000,
-            maxEntries: 1000,
-            cleanupInterval: 60000,
-            enableStats: true,
-            databaseSpecific: {},
-          },
-          performance: {
-            monitoringInterval: 30000,
-            metricsRetentionPeriod: 86400000,
-            enableDetailedLogging: true,
-            performanceThresholds: {
-              queryExecutionTime: 5000,
-              memoryUsage: 80,
-              responseTime: 2000,
-            },
-            databaseSpecific: {},
-          },
-          batch: {
-            maxConcurrentOperations: 10,
-            defaultBatchSize: 100,
-            maxBatchSize: 1000,
-            minBatchSize: 10,
-            memoryThreshold: 80,
-            processingTimeout: 30000,
-            retryAttempts: 3,
-            retryDelay: 1000,
-            adaptiveBatchingEnabled: true,
-            performanceThreshold: 1000,
-            adjustmentFactor: 0.1,
-            databaseSpecific: {},
-          },
+          // 数据库特定配置（cache, performance, batch）现在由 NebulaConfigService 管理
+          // InfrastructureConfigService 仅包含基础设施特定配置
           graph: {
             defaultSpace: 'test_space',
           },

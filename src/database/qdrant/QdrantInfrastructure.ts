@@ -11,6 +11,7 @@ import { CacheService } from '../../infrastructure/caching/CacheService';
 import { PerformanceMonitor } from '../../infrastructure/monitoring/PerformanceMonitor';
 import { DatabaseHealthChecker } from '../../service/monitoring/DatabaseHealthChecker';
 import { InfrastructureConfigService } from '../../infrastructure/config/InfrastructureConfigService';
+import { QdrantConfigService } from '../../config/service/QdrantConfigService';
 
 @injectable()
 export class QdrantInfrastructure implements IDatabaseInfrastructure {
@@ -21,7 +22,8 @@ export class QdrantInfrastructure implements IDatabaseInfrastructure {
   private performanceMonitor: PerformanceMonitor;
   private batchOptimizer: BatchProcessingService;
   private healthChecker: IHealthChecker;
-  private configService: InfrastructureConfigService;
+  private qdrantConfigService: QdrantConfigService;
+  private infraConfigService: InfrastructureConfigService;
   private initialized = false;
 
   constructor(
@@ -30,14 +32,16 @@ export class QdrantInfrastructure implements IDatabaseInfrastructure {
     @inject(TYPES.PerformanceMonitor) performanceMonitor: PerformanceMonitor,
     @inject(TYPES.BatchProcessingService) batchOptimizer: BatchProcessingService,
     @inject(TYPES.HealthChecker) healthChecker: DatabaseHealthChecker,
-    @inject(TYPES.InfrastructureConfigService) configService: InfrastructureConfigService
+    @inject(TYPES.QdrantConfigService) qdrantConfigService: QdrantConfigService,
+    @inject(TYPES.InfrastructureConfigService) infraConfigService: InfrastructureConfigService
   ) {
     this.logger = logger;
     this.cacheService = cacheService;
     this.performanceMonitor = performanceMonitor;
     this.batchOptimizer = batchOptimizer;
     this.healthChecker = healthChecker;
-    this.configService = configService;
+    this.qdrantConfigService = qdrantConfigService;
+    this.infraConfigService = infraConfigService;
 
     this.logger.info('Qdrant infrastructure created');
   }
@@ -72,8 +76,8 @@ export class QdrantInfrastructure implements IDatabaseInfrastructure {
 
     try {
       // 从配置获取监控间隔，或使用默认值
-      const config = this.configService.getConfig();
-      const monitoringInterval = config.qdrant?.performance?.monitoringInterval || 30000;
+      const qdrantConfig = this.qdrantConfigService.getConfig();
+      const monitoringInterval = qdrantConfig.performance?.monitoringInterval || 30000;
       
       // 启动性能监控
       this.performanceMonitor.startPeriodicMonitoring(monitoringInterval);

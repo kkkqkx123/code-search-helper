@@ -71,22 +71,29 @@ export class PerformanceMonitor implements IPerformanceMonitor {
   }
 
   /**
-   * 从配置服务加载性能配置
-   */
+    * 从配置服务加载性能配置
+    * 注意：性能配置现在由 QdrantConfigService 和 NebulaConfigService 管理
+    * InfrastructureConfigService 仅包含通用基础设施配置
+    */
   private loadConfiguration(): void {
     try {
       const config = this.configService.getConfig();
 
-      // 加载 Qdrant 配置（使用 Qdrant 配置作为主要来源）
-      if (config.qdrant && config.qdrant.performance) {
-        const perfConfig = config.qdrant.performance;
-        this.monitoringIntervalMs = perfConfig.monitoringInterval || 30000;
-        this.enableDetailedLogging = perfConfig.enableDetailedLogging !== false;
+      // 尝试从 InfrastructureConfigService 加载性能配置
+      // 如果不存在，将使用默认值
+      if (config && typeof config === 'object') {
+        // 检查 qdrant 对象是否存在且有性能配置
+        const qdrant = (config as any).qdrant;
+        if (qdrant && qdrant.performance) {
+          const perfConfig = qdrant.performance;
+          this.monitoringIntervalMs = perfConfig.monitoringInterval || 30000;
+          this.enableDetailedLogging = perfConfig.enableDetailedLogging !== false;
 
-        if (perfConfig.performanceThresholds) {
-          this.queryExecutionTimeThreshold = perfConfig.performanceThresholds.queryExecutionTime || 5000;
-          this.memoryUsageThreshold = perfConfig.performanceThresholds.memoryUsage || 80;
-          this.responseTimeThreshold = perfConfig.performanceThresholds.responseTime || 2000;
+          if (perfConfig.performanceThresholds) {
+            this.queryExecutionTimeThreshold = perfConfig.performanceThresholds.queryExecutionTime || 5000;
+            this.memoryUsageThreshold = perfConfig.performanceThresholds.memoryUsage || 80;
+            this.responseTimeThreshold = perfConfig.performanceThresholds.responseTime || 2000;
+          }
         }
       }
 

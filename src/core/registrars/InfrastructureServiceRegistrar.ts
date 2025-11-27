@@ -20,6 +20,8 @@ import { MappingCacheManager } from '../../service/graph/caching/MappingCacheMan
 
 // 基础设施配置服务
 import { InfrastructureConfigService } from '../../infrastructure/config/InfrastructureConfigService';
+import { QdrantConfigService } from '../../config/service/QdrantConfigService';
+import { NebulaConfigService } from '../../config/service/NebulaConfigService';
 
 
 // 批处理服务
@@ -317,13 +319,17 @@ export class InfrastructureServiceRegistrar {
         const performanceMonitor = context.get<PerformanceMonitor>(TYPES.PerformanceMonitor);
         const batchProcessingService = context.get<BatchProcessingService>(TYPES.BatchProcessingService);
         const infrastructureConfigService = context.get<InfrastructureConfigService>(TYPES.InfrastructureConfigService);
+        const qdrantConfigService = context.get<QdrantConfigService>(TYPES.QdrantConfigService);
+        const nebulaConfigService = context.get<NebulaConfigService>(TYPES.NebulaConfigService);
 
         const infrastructureManager = new InfrastructureManager(
           logger,
           cacheService,
           performanceMonitor,
           batchProcessingService,
-          infrastructureConfigService
+          infrastructureConfigService,
+          qdrantConfigService,
+          nebulaConfigService
         );
 
         // 获取健康检查器并注册基础设施的健康检查器

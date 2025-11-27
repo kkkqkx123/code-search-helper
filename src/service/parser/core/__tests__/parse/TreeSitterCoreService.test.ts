@@ -4,14 +4,19 @@ import { TreeSitterUtils } from '../../../utils/TreeSitterUtils';
 import { FallbackExtractor } from '../../../utils/FallbackExtractor';
 import { TreeSitterService } from '../../parse/TreeSitterService';
 import { CodeStructureService } from '../../structure/CodeStructureService';
+import { CacheService } from '../../../../../infrastructure/caching/CacheService';
+import { LoggerService } from '../../../../../utils/LoggerService';
 
 describe('TreeSitterCoreService', () => {
   let treeSitterService: TreeSitterCoreService;
   let codeStructureService: CodeStructureService;
   let treeSitterWrapper: TreeSitterService;
+  let cacheService: CacheService;
 
   beforeEach(() => {
-    treeSitterService = new TreeSitterCoreService();
+    const logger = new LoggerService();
+    cacheService = new CacheService(logger);
+    treeSitterService = new TreeSitterCoreService(cacheService);
     codeStructureService = new CodeStructureService(treeSitterService);
     treeSitterWrapper = new TreeSitterService(treeSitterService);
   });
@@ -292,8 +297,9 @@ describe('TreeSitterCoreService', () => {
       expect(typeof stats.evictions).toBe('number');
       expect(typeof stats.totalRequests).toBe('number');
       expect(typeof stats.hitRate).toBe('string');
-      expect(typeof stats.dynamicManagerStats.astCacheSize).toBe('number');
-      expect(typeof stats.dynamicManagerStats.nodeCacheSize).toBe('number');
+      expect(stats.dynamicManagerStats).toHaveProperty('centralizedCacheStats');
+      expect(typeof stats.dynamicManagerStats.centralizedCacheStats.totalEntries).toBe('number');
+      expect(typeof stats.dynamicManagerStats.centralizedCacheStats.hitRate).toBe('number');
     });
   });
 
@@ -312,17 +318,16 @@ describe('TreeSitterCoreService', () => {
       const code = `function hello(): string { return "Hello, World!"; }`;
       const result = await treeSitterService.parseCode(code, 'typescript');
 
-      // Check that cache has some entries
+      // Check that cache has some entries before clearing
       const statsBefore = treeSitterService.getCacheStats();
-      const hasCacheEntries = statsBefore.dynamicManagerStats.astCacheSize > 0 || statsBefore.dynamicManagerStats.nodeCacheSize > 0;
+      const entriesBefore = statsBefore.dynamicManagerStats.centralizedCacheStats.totalEntries;
 
       // Clear the cache
       treeSitterService.clearCache();
 
       // Check that cache is empty
       const statsAfter = treeSitterService.getCacheStats();
-      expect(statsAfter.dynamicManagerStats.astCacheSize).toBe(0);
-      expect(statsAfter.dynamicManagerStats.nodeCacheSize).toBe(0);
+      expect(statsAfter.dynamicManagerStats.centralizedCacheStats.totalEntries).toBe(0);
     });
   });
 

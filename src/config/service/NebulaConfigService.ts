@@ -7,6 +7,38 @@ import { TYPES } from '../../types';
 import { HashUtils } from '../../utils/cache/HashUtils';
 import { ProjectMappingService } from '../../database/ProjectMappingService';
 
+export interface NebulaCacheConfig {
+  defaultTTL: number;
+  maxEntries: number;
+  cleanupInterval: number;
+  enableStats: boolean;
+}
+
+export interface NebulaPerformanceConfig {
+  monitoringInterval: number;
+  metricsRetentionPeriod: number;
+  enableDetailedLogging: boolean;
+  performanceThresholds: {
+    queryExecutionTime: number;
+    memoryUsage: number;
+    responseTime: number;
+  };
+}
+
+export interface NebulaBatchConfig {
+  maxConcurrentOperations: number;
+  defaultBatchSize: number;
+  maxBatchSize: number;
+  minBatchSize: number;
+  memoryThreshold: number;
+  processingTimeout: number;
+  retryAttempts: number;
+  retryDelay: number;
+  adaptiveBatchingEnabled: boolean;
+  performanceThreshold: number;
+  adjustmentFactor: number;
+}
+
 export interface NebulaConfig {
   host: string;
   port: number;
@@ -34,21 +66,14 @@ export interface NebulaConfig {
     maxFailures?: number;
   };
   
-  // 缓存配置
-  cache?: {
-    defaultTTL?: number;
-    maxEntries?: number;
-    cleanupInterval?: number;
-    enableStats?: boolean;
-  };
+  // 缓存配置（扩展）
+  cache?: NebulaCacheConfig;
   
-  // 性能配置
-  performance?: {
-    monitoringInterval?: number;
-    queryExecutionTime?: number;
-    memoryUsage?: number;
-    responseTime?: number;
-  };
+  // 性能配置（扩展）
+  performance?: NebulaPerformanceConfig;
+  
+  // 批处理配置（新增）
+  batch?: NebulaBatchConfig;
   
   // 容错配置
   faultTolerance?: {
@@ -111,9 +136,28 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
         // 性能配置
         performance: {
           monitoringInterval: parseInt(process.env.NEBULA_PERFORMANCE_INTERVAL || '1000'),
-          queryExecutionTime: parseInt(process.env.NEBULA_PERFORMANCE_QUERY_TIMEOUT || '1000'),
-          memoryUsage: parseInt(process.env.NEBULA_PERFORMANCE_MEMORY_THRESHOLD || '80'),
-          responseTime: parseInt(process.env.NEBULA_PERFORMANCE_RESPONSE_THRESHOLD || '500'),
+          metricsRetentionPeriod: parseInt(process.env.NEBULA_PERFORMANCE_RETENTION || '8640000'),
+          enableDetailedLogging: process.env.NEBULA_PERFORMANCE_LOGGING_ENABLED !== 'false',
+          performanceThresholds: {
+            queryExecutionTime: parseInt(process.env.NEBULA_PERFORMANCE_QUERY_TIMEOUT || '1000'),
+            memoryUsage: parseFloat(process.env.NEBULA_PERFORMANCE_MEMORY_THRESHOLD || '0.80'),
+            responseTime: parseInt(process.env.NEBULA_PERFORMANCE_RESPONSE_THRESHOLD || '2000'),
+          },
+        },
+        
+        // 批处理配置
+        batch: {
+          maxConcurrentOperations: parseInt(process.env.NEBULA_BATCH_CONCURRENCY || '5'),
+          defaultBatchSize: parseInt(process.env.NEBULA_BATCH_SIZE_DEFAULT || '50'),
+          maxBatchSize: parseInt(process.env.NEBULA_BATCH_SIZE_MAX || '500'),
+          minBatchSize: parseInt(process.env.NEBULA_BATCH_SIZE_MIN || '10'),
+          memoryThreshold: parseFloat(process.env.NEBULA_BATCH_MEMORY_THRESHOLD || '0.80'),
+          processingTimeout: parseInt(process.env.NEBULA_BATCH_PROCESSING_TIMEOUT || '300000'),
+          retryAttempts: parseInt(process.env.NEBULA_BATCH_RETRY_ATTEMPTS || '3'),
+          retryDelay: parseInt(process.env.NEBULA_BATCH_RETRY_DELAY || '1000'),
+          adaptiveBatchingEnabled: process.env.NEBULA_BATCH_ADAPTIVE_ENABLED !== 'false',
+          performanceThreshold: parseInt(process.env.NEBULA_BATCH_PERFORMANCE_THRESHOLD || '1000'),
+          adjustmentFactor: parseFloat(process.env.NEBULA_BATCH_ADJUSTMENT_FACTOR || '0.1'),
         },
         
         // 容错配置
@@ -299,9 +343,28 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
         // 性能配置验证
         performance: Joi.object({
           monitoringInterval: Joi.number().min(100).default(1000),
-          queryExecutionTime: Joi.number().min(100).default(1000),
-          memoryUsage: Joi.number().min(1).max(100).default(80),
-          responseTime: Joi.number().min(100).default(500),
+          metricsRetentionPeriod: Joi.number().min(1000).default(8640000),
+          enableDetailedLogging: Joi.boolean().default(true),
+          performanceThresholds: Joi.object({
+            queryExecutionTime: Joi.number().min(100).default(1000),
+            memoryUsage: Joi.number().min(0).max(1).default(0.80),
+            responseTime: Joi.number().min(100).default(2000),
+          }).default(),
+        }).optional(),
+        
+        // 批处理配置验证
+        batch: Joi.object({
+          maxConcurrentOperations: Joi.number().min(1).default(5),
+          defaultBatchSize: Joi.number().min(1).default(50),
+          maxBatchSize: Joi.number().min(1).default(500),
+          minBatchSize: Joi.number().min(1).default(10),
+          memoryThreshold: Joi.number().min(0).max(1).default(0.80),
+          processingTimeout: Joi.number().min(1000).default(300000),
+          retryAttempts: Joi.number().min(0).default(3),
+          retryDelay: Joi.number().min(100).default(1000),
+          adaptiveBatchingEnabled: Joi.boolean().default(true),
+          performanceThreshold: Joi.number().min(100).default(1000),
+          adjustmentFactor: Joi.number().min(0).max(1).default(0.1),
         }).optional(),
         
         // 容错配置验证
@@ -374,9 +437,27 @@ export class NebulaConfigService extends BaseConfigService<NebulaConfig> {
       
       performance: {
         monitoringInterval: 1000,
-        queryExecutionTime: 1000,
-        memoryUsage: 80,
-        responseTime: 500,
+        metricsRetentionPeriod: 8640000,
+        enableDetailedLogging: true,
+        performanceThresholds: {
+          queryExecutionTime: 1000,
+          memoryUsage: 0.80,
+          responseTime: 2000,
+        },
+      },
+      
+      batch: {
+        maxConcurrentOperations: 5,
+        defaultBatchSize: 50,
+        maxBatchSize: 500,
+        minBatchSize: 10,
+        memoryThreshold: 0.80,
+        processingTimeout: 300000,
+        retryAttempts: 3,
+        retryDelay: 1000,
+        adaptiveBatchingEnabled: true,
+        performanceThreshold: 1000,
+        adjustmentFactor: 0.1,
       },
       
       faultTolerance: {

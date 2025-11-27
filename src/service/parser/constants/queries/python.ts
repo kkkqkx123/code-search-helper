@@ -4,4 +4,4 @@ Optimized for code chunking and vector embedding
 */
 import { PYTHON_QUERIES } from './python/index';
 
-const pythonQueries = PYTHON_QUERIES;
+export default PYTHON_QUERIES;

@@ -75,38 +75,6 @@ export class InfrastructureConfigService {
         gracefulShutdownTimeout: EnvUtils.getEnvNumberValue('INFRA_SHUTDOWN_TIMEOUT', 10000)
       },
       qdrant: {
-        cache: {
-          defaultTTL: EnvUtils.getEnvNumberValue('INFRA_QDRANT_CACHE_TTL', 30000),
-          maxEntries: EnvUtils.getEnvNumberValue('INFRA_QDRANT_CACHE_MAX_ENTRIES', 10000),
-          cleanupInterval: EnvUtils.getEnvNumberValue('INFRA_QDRANT_CACHE_CLEANUP_INTERVAL', 60000),
-          enableStats: EnvUtils.getEnvBooleanValue('INFRA_QDRANT_CACHE_STATS_ENABLED', true),
-          databaseSpecific: {}
-        },
-        performance: {
-          monitoringInterval: EnvUtils.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_INTERVAL', 30000),
-          metricsRetentionPeriod: EnvUtils.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_RETENTION', 86400000),
-          enableDetailedLogging: EnvUtils.getEnvBooleanValue('INFRA_QDRANT_PERFORMANCE_LOGGING_ENABLED', true),
-          performanceThresholds: {
-            queryExecutionTime: EnvUtils.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_QUERY_TIMEOUT', 5000),
-            memoryUsage: EnvUtils.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_MEMORY_THRESHOLD', 80),
-            responseTime: EnvUtils.getEnvNumberValue('INFRA_QDRANT_PERFORMANCE_RESPONSE_THRESHOLD', 500)
-          },
-          databaseSpecific: {}
-        },
-        batch: {
-          maxConcurrentOperations: EnvUtils.getEnvNumberValue('INFRA_QDRANT_BATCH_CONCURRENCY', 5),
-          defaultBatchSize: EnvUtils.getEnvNumberValue('INFRA_QDRANT_BATCH_SIZE_DEFAULT', 50),
-          maxBatchSize: EnvUtils.getEnvNumberValue('INFRA_QDRANT_BATCH_SIZE_MAX', 500),
-          minBatchSize: EnvUtils.getEnvNumberValue('INFRA_QDRANT_BATCH_SIZE_MIN', 10),
-          memoryThreshold: EnvUtils.getEnvFloatValue('INFRA_QDRANT_BATCH_MEMORY_THRESHOLD', 0.80),
-          processingTimeout: EnvUtils.getEnvNumberValue('INFRA_QDRANT_BATCH_PROCESSING_TIMEOUT', 3000),
-          retryAttempts: EnvUtils.getEnvNumberValue('INFRA_QDRANT_BATCH_RETRY_ATTEMPTS', 3),
-          retryDelay: EnvUtils.getEnvNumberValue('INFRA_QDRANT_BATCH_RETRY_DELAY', 1000),
-          adaptiveBatchingEnabled: EnvUtils.getEnvBooleanValue('INFRA_QDRANT_BATCH_ADAPTIVE_ENABLED', true),
-          performanceThreshold: EnvUtils.getEnvNumberValue('INFRA_QDRANT_BATCH_PERFORMANCE_THRESHOLD', 1000),
-          adjustmentFactor: EnvUtils.getEnvFloatValue('INFRA_QDRANT_BATCH_ADJUSTMENT_FACTOR', 0.1),
-          databaseSpecific: {}
-        },
         vector: {
           defaultCollection: EnvUtils.getEnvValue('INFRA_QDRANT_VECTOR_COLLECTION_DEFAULT') || 'default',
           collectionOptions: {
@@ -125,39 +93,7 @@ export class InfrastructureConfigService {
         }
       },
       nebula: {
-        // 简化 nebula 配置，只保留基础设施特有的
-        cache: {
-          defaultTTL: EnvUtils.getEnvNumberValue('INFRA_NEBULA_CACHE_TTL', 30000),
-          maxEntries: EnvUtils.getEnvNumberValue('INFRA_NEBULA_CACHE_MAX_ENTRIES', 10000),
-          cleanupInterval: EnvUtils.getEnvNumberValue('INFRA_NEBULA_CACHE_CLEANUP_INTERVAL', 60000),
-          enableStats: EnvUtils.getEnvBooleanValue('INFRA_NEBULA_CACHE_STATS_ENABLED', true),
-          databaseSpecific: {}
-        },
-        performance: {
-          monitoringInterval: EnvUtils.getEnvNumberValue('INFRA_NEBULA_PERFORMANCE_INTERVAL', 1000),
-          metricsRetentionPeriod: EnvUtils.getEnvNumberValue('INFRA_NEBULA_PERFORMANCE_RETENTION', 8640000),
-          enableDetailedLogging: EnvUtils.getEnvBooleanValue('INFRA_NEBULA_PERFORMANCE_LOGGING_ENABLED', true),
-          performanceThresholds: {
-            queryExecutionTime: EnvUtils.getEnvNumberValue('INFRA_NEBULA_PERFORMANCE_QUERY_TIMEOUT', 1000),
-            memoryUsage: EnvUtils.getEnvFloatValue('INFRA_NEBULA_PERFORMANCE_MEMORY_THRESHOLD', 0.80),
-            responseTime: EnvUtils.getEnvNumberValue('INFRA_NEBULA_PERFORMANCE_RESPONSE_THRESHOLD', 500),
-          },
-          databaseSpecific: {}
-        },
-        batch: {
-          maxConcurrentOperations: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_CONCURRENCY', 5),
-          defaultBatchSize: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_SIZE_DEFAULT', 50),
-          maxBatchSize: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_SIZE_MAX', 500),
-          minBatchSize: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_SIZE_MIN', 10),
-          memoryThreshold: EnvUtils.getEnvFloatValue('INFRA_NEBULA_BATCH_MEMORY_THRESHOLD', 0.80),
-          processingTimeout: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_PROCESSING_TIMEOUT', 300000),
-          retryAttempts: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_RETRY_ATTEMPTS', 3),
-          retryDelay: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_RETRY_DELAY', 1000),
-          adaptiveBatchingEnabled: EnvUtils.getEnvBooleanValue('INFRA_NEBULA_BATCH_ADAPTIVE_ENABLED', true),
-          performanceThreshold: EnvUtils.getEnvNumberValue('INFRA_NEBULA_BATCH_PERFORMANCE_THRESHOLD', 1000),
-          adjustmentFactor: EnvUtils.getEnvFloatValue('INFRA_NEBULA_BATCH_ADJUSTMENT_FACTOR', 0.1),
-          databaseSpecific: {}
-        },
+        // 仅保留基础设施特有的配置（graph），数据库配置由 NebulaConfigService 管理
         graph: {
           defaultSpace: EnvUtils.getEnvValue('INFRA_NEBULA_GRAPH_SPACE_DEFAULT') || 'default',
           spaceOptions: {
@@ -174,7 +110,6 @@ export class InfrastructureConfigService {
             autoCreateEdges: EnvUtils.getEnvBooleanValue('INFRA_NEBULA_GRAPH_SCHEMA_EDGES_AUTO', false)
           }
         }
-        // 移除 batch 配置，由 NebulaConfigService 统一管理
       }
     };
   }
@@ -265,38 +200,6 @@ export class InfrastructureConfigService {
         gracefulShutdownTimeout: 10000
       },
       qdrant: {
-        cache: {
-          defaultTTL: 30000,
-          maxEntries: 1000,
-          cleanupInterval: 60000,
-          enableStats: true,
-          databaseSpecific: {}
-        },
-        performance: {
-          monitoringInterval: 30000,
-          metricsRetentionPeriod: 86400000,
-          enableDetailedLogging: true,
-          performanceThresholds: {
-            queryExecutionTime: 5000,
-            memoryUsage: 80,
-            responseTime: 2000
-          },
-          databaseSpecific: {}
-        },
-        batch: {
-          maxConcurrentOperations: 3,
-          defaultBatchSize: 25,
-          maxBatchSize: 100,
-          minBatchSize: 5,
-          memoryThreshold: 0.70,
-          processingTimeout: 30000,
-          retryAttempts: 2,
-          retryDelay: 1000,
-          adaptiveBatchingEnabled: false,
-          performanceThreshold: 1000,
-          adjustmentFactor: 0.1,
-          databaseSpecific: {}
-        },
         vector: {
           defaultCollection: 'default',
           collectionOptions: {
@@ -315,38 +218,6 @@ export class InfrastructureConfigService {
         }
       },
       nebula: {
-        cache: {
-          defaultTTL: 30000,
-          maxEntries: 1000,
-          cleanupInterval: 60000,
-          enableStats: true,
-          databaseSpecific: {}
-        },
-        performance: {
-          monitoringInterval: 30000,
-          metricsRetentionPeriod: 86400000,
-          enableDetailedLogging: false,
-          performanceThresholds: {
-            queryExecutionTime: 1000,
-            memoryUsage: 0.80,
-            responseTime: 500
-          },
-          databaseSpecific: {}
-        },
-        batch: {
-          maxConcurrentOperations: 5,
-          defaultBatchSize: 50,
-          maxBatchSize: 100,
-          minBatchSize: 10,
-          memoryThreshold: 0.80,
-          processingTimeout: 300000,
-          retryAttempts: 3,
-          retryDelay: 1000,
-          adaptiveBatchingEnabled: true,
-          performanceThreshold: 100,
-          adjustmentFactor: 0.1,
-          databaseSpecific: {}
-        },
         graph: {
           defaultSpace: 'default',
           spaceOptions: {
@@ -380,38 +251,6 @@ export class InfrastructureConfigService {
         gracefulShutdownTimeout: 5000
       },
       qdrant: {
-        cache: {
-          defaultTTL: 60000,
-          maxEntries: 100,
-          cleanupInterval: 120000,
-          enableStats: false,
-          databaseSpecific: {}
-        },
-        performance: {
-          monitoringInterval: 60000,
-          metricsRetentionPeriod: 3600000,
-          enableDetailedLogging: false,
-          performanceThresholds: {
-            queryExecutionTime: 5000,
-            memoryUsage: 90,
-            responseTime: 2000
-          },
-          databaseSpecific: {}
-        },
-        batch: {
-          maxConcurrentOperations: 1,
-          defaultBatchSize: 10,
-          maxBatchSize: 50,
-          minBatchSize: 1,
-          memoryThreshold: 0.50,
-          processingTimeout: 10000,
-          retryAttempts: 1,
-          retryDelay: 2000,
-          adaptiveBatchingEnabled: false,
-          performanceThreshold: 5000,
-          adjustmentFactor: 0.05,
-          databaseSpecific: {}
-        },
         vector: {
           defaultCollection: 'default',
           collectionOptions: {
@@ -430,38 +269,6 @@ export class InfrastructureConfigService {
         }
       },
       nebula: {
-        cache: {
-          defaultTTL: 60000,
-          maxEntries: 100,
-          cleanupInterval: 120000,
-          enableStats: false,
-          databaseSpecific: {}
-        },
-        performance: {
-          monitoringInterval: 60000,
-          metricsRetentionPeriod: 3600000,
-          enableDetailedLogging: false,
-          performanceThresholds: {
-            queryExecutionTime: 500,
-            memoryUsage: 0.90,
-            responseTime: 2000
-          },
-          databaseSpecific: {}
-        },
-        batch: {
-          maxConcurrentOperations: 5,
-          defaultBatchSize: 50,
-          maxBatchSize: 100,
-          minBatchSize: 10,
-          memoryThreshold: 0.80,
-          processingTimeout: 300000,
-          retryAttempts: 3,
-          retryDelay: 1000,
-          adaptiveBatchingEnabled: true,
-          performanceThreshold: 100,
-          adjustmentFactor: 0.1,
-          databaseSpecific: {}
-        },
         graph: {
           defaultSpace: 'default',
           spaceOptions: {
@@ -489,33 +296,8 @@ export class InfrastructureConfigService {
       const batchProcessingConfig = this.configService.get('batchProcessing');
       const loggingConfig = this.configService.get('logging');
 
-      // 合并相关的配置到基础设施配置中，但保持最小值验证
-      if (batchProcessingConfig) {
-        // 更新批处理相关的基础设施配置（仅限 Qdrant）
-        if (batchProcessingConfig.maxConcurrentOperations !== undefined) {
-          this.config.qdrant.batch.maxConcurrentOperations = batchProcessingConfig.maxConcurrentOperations;
-        }
-        if (batchProcessingConfig.defaultBatchSize !== undefined) {
-          this.config.qdrant.batch.defaultBatchSize = batchProcessingConfig.defaultBatchSize;
-        }
-        if (batchProcessingConfig.maxBatchSize !== undefined) {
-          this.config.qdrant.batch.maxBatchSize = batchProcessingConfig.maxBatchSize;
-        }
-        if (batchProcessingConfig.memoryThreshold !== undefined) {
-          this.config.qdrant.batch.memoryThreshold = batchProcessingConfig.memoryThreshold;
-        }
-        if (batchProcessingConfig.processingTimeout !== undefined) {
-          // 确保处理超时时间不低于最小值
-          this.config.qdrant.batch.processingTimeout = Math.max(batchProcessingConfig.processingTimeout, 1000);
-        }
-        if (batchProcessingConfig.retryAttempts !== undefined) {
-          this.config.qdrant.batch.retryAttempts = batchProcessingConfig.retryAttempts;
-        }
-        if (batchProcessingConfig.retryDelay !== undefined) {
-          // 确保重试延迟不低于最小值
-          this.config.qdrant.batch.retryDelay = Math.max(batchProcessingConfig.retryDelay, 100);
-        }
-      }
+      // 注意: 批处理配置现在由 QdrantConfigService 和 NebulaConfigService 管理
+      // 这里不再处理批处理相关的配置
 
 
       if (loggingConfig && loggingConfig.level !== undefined) {

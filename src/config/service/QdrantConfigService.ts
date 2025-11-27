@@ -9,6 +9,38 @@ import { ValidationUtils } from '../utils/ValidationUtils';
 import { HashUtils } from '../../utils/cache/HashUtils';
 import { ProjectMappingService } from '../../database/ProjectMappingService';
 
+export interface QdrantCacheConfig {
+  defaultTTL: number;
+  maxEntries: number;
+  cleanupInterval: number;
+  enableStats: boolean;
+}
+
+export interface QdrantPerformanceConfig {
+  monitoringInterval: number;
+  metricsRetentionPeriod: number;
+  enableDetailedLogging: boolean;
+  performanceThresholds: {
+    queryExecutionTime: number;
+    memoryUsage: number;
+    responseTime: number;
+  };
+}
+
+export interface QdrantBatchConfig {
+  maxConcurrentOperations: number;
+  defaultBatchSize: number;
+  maxBatchSize: number;
+  minBatchSize: number;
+  memoryThreshold: number;
+  processingTimeout: number;
+  retryAttempts: number;
+  retryDelay: number;
+  adaptiveBatchingEnabled: boolean;
+  performanceThreshold: number;
+  adjustmentFactor: number;
+}
+
 export interface QdrantConfig {
   host: string;
   port: number;
@@ -16,6 +48,11 @@ export interface QdrantConfig {
   apiKey?: string;
   useHttps: boolean;
   timeout: number;
+  
+  // 新增配置块
+  cache?: QdrantCacheConfig;
+  performance?: QdrantPerformanceConfig;
+  batch?: QdrantBatchConfig;
 }
 
 @injectable()
@@ -37,6 +74,41 @@ export class QdrantConfigService extends BaseConfigService<QdrantConfig> {
         apiKey: EnvironmentUtils.parseOptionalString('QDRANT_API_KEY'),
         useHttps: EnvironmentUtils.parseBoolean('QDRANT_USE_HTTPS', false),
         timeout: EnvironmentUtils.parseNumber('QDRANT_TIMEOUT', 30000),
+        
+        // 新增: 缓存配置
+        cache: {
+          defaultTTL: EnvironmentUtils.parseNumber('QDRANT_CACHE_TTL', 30000),
+          maxEntries: EnvironmentUtils.parseNumber('QDRANT_CACHE_MAX_ENTRIES', 10000),
+          cleanupInterval: EnvironmentUtils.parseNumber('QDRANT_CACHE_CLEANUP_INTERVAL', 60000),
+          enableStats: EnvironmentUtils.parseBoolean('QDRANT_CACHE_STATS_ENABLED', true),
+        },
+        
+        // 新增: 性能配置
+        performance: {
+          monitoringInterval: EnvironmentUtils.parseNumber('QDRANT_PERFORMANCE_INTERVAL', 30000),
+          metricsRetentionPeriod: EnvironmentUtils.parseNumber('QDRANT_PERFORMANCE_RETENTION', 86400000),
+          enableDetailedLogging: EnvironmentUtils.parseBoolean('QDRANT_PERFORMANCE_LOGGING_ENABLED', true),
+          performanceThresholds: {
+            queryExecutionTime: EnvironmentUtils.parseNumber('QDRANT_PERFORMANCE_QUERY_TIMEOUT', 5000),
+            memoryUsage: EnvironmentUtils.parseNumber('QDRANT_PERFORMANCE_MEMORY_THRESHOLD', 80),
+            responseTime: EnvironmentUtils.parseNumber('QDRANT_PERFORMANCE_RESPONSE_THRESHOLD', 500),
+          },
+        },
+        
+        // 新增: 批处理配置
+        batch: {
+          maxConcurrentOperations: EnvironmentUtils.parseNumber('QDRANT_BATCH_CONCURRENCY', 5),
+          defaultBatchSize: EnvironmentUtils.parseNumber('QDRANT_BATCH_SIZE_DEFAULT', 50),
+          maxBatchSize: EnvironmentUtils.parseNumber('QDRANT_BATCH_SIZE_MAX', 500),
+          minBatchSize: EnvironmentUtils.parseNumber('QDRANT_BATCH_SIZE_MIN', 10),
+          memoryThreshold: EnvironmentUtils.parseFloat('QDRANT_BATCH_MEMORY_THRESHOLD', 0.80),
+          processingTimeout: EnvironmentUtils.parseNumber('QDRANT_BATCH_PROCESSING_TIMEOUT', 3000),
+          retryAttempts: EnvironmentUtils.parseNumber('QDRANT_BATCH_RETRY_ATTEMPTS', 3),
+          retryDelay: EnvironmentUtils.parseNumber('QDRANT_BATCH_RETRY_DELAY', 1000),
+          adaptiveBatchingEnabled: EnvironmentUtils.parseBoolean('QDRANT_BATCH_ADAPTIVE_ENABLED', true),
+          performanceThreshold: EnvironmentUtils.parseNumber('QDRANT_BATCH_PERFORMANCE_THRESHOLD', 1000),
+          adjustmentFactor: EnvironmentUtils.parseFloat('QDRANT_BATCH_ADJUSTMENT_FACTOR', 0.1),
+        },
       };
 
       return this.validateConfig(rawConfig);
@@ -177,6 +249,41 @@ export class QdrantConfigService extends BaseConfigService<QdrantConfig> {
         apiKey: Joi.string().optional(),
         useHttps: ValidationUtils.booleanSchema(false),
         timeout: ValidationUtils.positiveNumberSchema(30000),
+        
+        // 缓存配置验证
+        cache: Joi.object({
+          defaultTTL: Joi.number().min(1000).default(30000),
+          maxEntries: Joi.number().min(100).default(10000),
+          cleanupInterval: Joi.number().min(10000).default(60000),
+          enableStats: Joi.boolean().default(true),
+        }).optional(),
+        
+        // 性能配置验证
+        performance: Joi.object({
+          monitoringInterval: Joi.number().min(100).default(30000),
+          metricsRetentionPeriod: Joi.number().min(1000).default(86400000),
+          enableDetailedLogging: Joi.boolean().default(true),
+          performanceThresholds: Joi.object({
+            queryExecutionTime: Joi.number().min(100).default(5000),
+            memoryUsage: Joi.number().min(1).max(100).default(80),
+            responseTime: Joi.number().min(100).default(500),
+          }).default(),
+        }).optional(),
+        
+        // 批处理配置验证
+        batch: Joi.object({
+          maxConcurrentOperations: Joi.number().min(1).default(5),
+          defaultBatchSize: Joi.number().min(1).default(50),
+          maxBatchSize: Joi.number().min(1).default(500),
+          minBatchSize: Joi.number().min(1).default(10),
+          memoryThreshold: Joi.number().min(0).max(1).default(0.80),
+          processingTimeout: Joi.number().min(1000).default(3000),
+          retryAttempts: Joi.number().min(0).default(3),
+          retryDelay: Joi.number().min(100).default(1000),
+          adaptiveBatchingEnabled: Joi.boolean().default(true),
+          performanceThreshold: Joi.number().min(100).default(1000),
+          adjustmentFactor: Joi.number().min(0).max(1).default(0.1),
+        }).optional(),
       });
 
       const value = ValidationUtils.validateConfig(config, schema);
@@ -204,6 +311,38 @@ export class QdrantConfigService extends BaseConfigService<QdrantConfig> {
       collection: 'code-snippets',
       useHttps: false,
       timeout: 30000,
+      
+      cache: {
+        defaultTTL: 30000,
+        maxEntries: 10000,
+        cleanupInterval: 60000,
+        enableStats: true,
+      },
+      
+      performance: {
+        monitoringInterval: 30000,
+        metricsRetentionPeriod: 86400000,
+        enableDetailedLogging: true,
+        performanceThresholds: {
+          queryExecutionTime: 5000,
+          memoryUsage: 80,
+          responseTime: 500,
+        },
+      },
+      
+      batch: {
+        maxConcurrentOperations: 5,
+        defaultBatchSize: 50,
+        maxBatchSize: 500,
+        minBatchSize: 10,
+        memoryThreshold: 0.80,
+        processingTimeout: 3000,
+        retryAttempts: 3,
+        retryDelay: 1000,
+        adaptiveBatchingEnabled: true,
+        performanceThreshold: 1000,
+        adjustmentFactor: 0.1,
+      },
     };
   }
 }

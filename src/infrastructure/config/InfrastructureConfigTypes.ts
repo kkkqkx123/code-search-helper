@@ -8,46 +8,8 @@ export interface InfrastructureConfig {
   // 通用配置
   common: CommonConfig;
   
-  // Qdrant特定配置，使用新的接口
+  // Qdrant特定配置 - 仅基础设施特定部分（数据库配置由 QdrantConfigService 管理）
   qdrant: {
-    cache: {
-      defaultTTL: number;
-      maxEntries: number;
-      cleanupInterval: number;
-      enableStats: boolean;
-      databaseSpecific: {
-        [key: string]: any;
-      };
-    };
-    performance: {
-      monitoringInterval: number;
-      metricsRetentionPeriod: number;
-      enableDetailedLogging: boolean;
-      performanceThresholds: {
-        queryExecutionTime: number;
-        memoryUsage: number;
-        responseTime: number;
-      };
-      databaseSpecific: {
-        [key: string]: any;
-      };
-    };
-    batch: {
-      maxConcurrentOperations: number;
-      defaultBatchSize: number;
-      maxBatchSize: number;
-      minBatchSize: number;
-      memoryThreshold: number;
-      processingTimeout: number;
-      retryAttempts: number;
-      retryDelay: number;
-      adaptiveBatchingEnabled: boolean;
-      performanceThreshold: number;
-      adjustmentFactor: number;
-      databaseSpecific: {
-        [key: string]: any;
-      };
-    };
     vector?: {
       defaultCollection?: string;
       collectionOptions?: {
@@ -66,46 +28,8 @@ export interface InfrastructureConfig {
     };
   };
   
-  // Nebula特定配置，使用新的接口
+  // Nebula特定配置 - 仅基础设施特定部分（数据库配置由 NebulaConfigService 管理）
   nebula: {
-    cache: {
-      defaultTTL: number;
-      maxEntries: number;
-      cleanupInterval: number;
-      enableStats: boolean;
-      databaseSpecific: {
-        [key: string]: any;
-      };
-    };
-    performance: {
-      monitoringInterval: number;
-      metricsRetentionPeriod: number;
-      enableDetailedLogging: boolean;
-      performanceThresholds: {
-        queryExecutionTime: number;
-        memoryUsage: number;
-        responseTime: number;
-      };
-      databaseSpecific: {
-        [key: string]: any;
-      };
-    };
-    batch: {
-      maxConcurrentOperations: number;
-      defaultBatchSize: number;
-      maxBatchSize: number;
-      minBatchSize: number;
-      memoryThreshold: number;
-      processingTimeout: number;
-      retryAttempts: number;
-      retryDelay: number;
-      adaptiveBatchingEnabled: boolean;
-      performanceThreshold: number;
-      adjustmentFactor: number;
-      databaseSpecific: {
-        [key: string]: any;
-      };
-    };
     graph: {
       defaultSpace?: string;
       spaceOptions?: {

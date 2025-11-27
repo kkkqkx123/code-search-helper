@@ -13,6 +13,8 @@ import { InfrastructureConfig as TypedInfrastructureConfig } from './config/type
 import { ConfigValidator } from './config/ConfigValidator';
 import { InfrastructureConfigService } from './config/InfrastructureConfigService';
 import { IHealthCheckerRegistry } from '../service/monitoring/DatabaseHealthChecker';
+import { QdrantConfigService } from '../config/service/QdrantConfigService';
+import { NebulaConfigService } from '../config/service/NebulaConfigService';
 
 export interface IDatabaseInfrastructure {
   readonly databaseType: DatabaseType;
@@ -44,7 +46,9 @@ export class InfrastructureManager {
     @inject(TYPES.CacheService) cacheService: any,
     @inject(TYPES.PerformanceMonitor) performanceMonitor: any,
     @inject(TYPES.BatchProcessingService) batchOptimizer: BatchProcessingService,
-    @inject(TYPES.InfrastructureConfigService) private infrastructureConfigService: InfrastructureConfigService
+    @inject(TYPES.InfrastructureConfigService) private infrastructureConfigService: InfrastructureConfigService,
+    @inject(TYPES.QdrantConfigService) private qdrantConfigService: QdrantConfigService,
+    @inject(TYPES.NebulaConfigService) private nebulaConfigService: NebulaConfigService
   ) {
     this.logger = logger;
     this.databaseInfrastructures = new Map();
@@ -62,7 +66,8 @@ export class InfrastructureManager {
         error: (error as Error).message
       });
 
-      // 初始化默认配置
+      // 初始化默认配置 - 仅保留通用基础设施配置
+      // 数据库特定配置由各自的 ConfigService (QdrantConfigService, NebulaConfigService) 管理
       this.config = {
         common: {
           enableCache: true,
@@ -74,38 +79,6 @@ export class InfrastructureManager {
           gracefulShutdownTimeout: 10000
         },
         qdrant: {
-          cache: {
-            defaultTTL: 300000,
-            maxEntries: 10000,
-            cleanupInterval: 60000,
-            enableStats: true,
-            databaseSpecific: {}
-          },
-          performance: {
-            monitoringInterval: 1000,  // 增加到最小值1000
-            metricsRetentionPeriod: 86400000,
-            enableDetailedLogging: true,
-            performanceThresholds: {
-              queryExecutionTime: 1000,
-              memoryUsage: 80,
-              responseTime: 500
-            },
-            databaseSpecific: {}
-          },
-          batch: {
-            maxConcurrentOperations: 5,
-            defaultBatchSize: 50,
-            maxBatchSize: 500,
-            minBatchSize: 10,
-            memoryThreshold: 80,
-            processingTimeout: 300000,
-            retryAttempts: 3,
-            retryDelay: 1000,
-            adaptiveBatchingEnabled: true,
-            performanceThreshold: 1000,
-            adjustmentFactor: 0.1,
-            databaseSpecific: {}
-          },
           vector: {
             defaultCollection: 'default',
             collectionOptions: {
@@ -124,38 +97,6 @@ export class InfrastructureManager {
           }
         },
         nebula: {
-          cache: {
-            defaultTTL: 30000,
-            maxEntries: 10000,
-            cleanupInterval: 60000,
-            enableStats: true,
-            databaseSpecific: {}
-          },
-          performance: {
-            monitoringInterval: 30000,
-            metricsRetentionPeriod: 8640000,
-            enableDetailedLogging: true,
-            performanceThresholds: {
-              queryExecutionTime: 1000,
-              memoryUsage: 80,
-              responseTime: 500
-            },
-            databaseSpecific: {}
-          },
-          batch: {
-            maxConcurrentOperations: 5,
-            defaultBatchSize: 50,
-            maxBatchSize: 500,
-            minBatchSize: 10,
-            memoryThreshold: 80,
-            processingTimeout: 300000,
-            retryAttempts: 3,
-            retryDelay: 1000,
-            adaptiveBatchingEnabled: true,
-            performanceThreshold: 1000,
-            adjustmentFactor: 0.1,
-            databaseSpecific: {}
-          },
           graph: {
             defaultSpace: 'default',
             spaceOptions: {
@@ -171,153 +112,6 @@ export class InfrastructureManager {
               autoCreateTags: false,
               autoCreateEdges: false
             }
-          }
-        },
-        vector: {
-          cache: {
-            defaultTTL: 3000,
-            maxEntries: 10000,
-            cleanupInterval: 60000,
-            enableStats: true,
-            databaseSpecific: {}
-          },
-          performance: {
-            monitoringInterval: 30000,
-            metricsRetentionPeriod: 86400000,
-            enableDetailedLogging: true,
-            performanceThresholds: {
-              queryExecutionTime: 1000,
-              memoryUsage: 80,
-              responseTime: 50
-            },
-            databaseSpecific: {}
-          },
-          batch: {
-            maxConcurrentOperations: 5,
-            defaultBatchSize: 50,
-            maxBatchSize: 500,
-            minBatchSize: 10,
-            memoryThreshold: 80,
-            processingTimeout: 3000,
-            retryAttempts: 3,
-            retryDelay: 1000,
-            adaptiveBatchingEnabled: true,
-            performanceThreshold: 1000,
-            adjustmentFactor: 0.1,
-            databaseSpecific: {}
-          },
-          vector: {
-            defaultCollection: 'default',
-            collectionOptions: {
-              vectorSize: 1536,
-              distance: 'Cosine' as const,
-              indexing: {
-                type: 'hnsw',
-                options: {}
-              }
-            },
-            searchOptions: {
-              limit: 10,
-              threshold: 0.5,
-              exactSearch: false
-            }
-          }
-        },
-        graph: {
-          cache: {
-            defaultTTL: 30000,
-            maxEntries: 10000,
-            cleanupInterval: 60000,
-            enableStats: true,
-            databaseSpecific: {}
-          },
-          performance: {
-            monitoringInterval: 30000,
-            metricsRetentionPeriod: 8640000,
-            enableDetailedLogging: true,
-            performanceThresholds: {
-              queryExecutionTime: 1000,
-              memoryUsage: 80,
-              responseTime: 50
-            },
-            databaseSpecific: {}
-          },
-          batch: {
-            maxConcurrentOperations: 5,
-            defaultBatchSize: 50,
-            maxBatchSize: 500,
-            minBatchSize: 10,
-            memoryThreshold: 80,
-            processingTimeout: 300000,
-            retryAttempts: 3,
-            retryDelay: 1000,
-            adaptiveBatchingEnabled: true,
-            performanceThreshold: 1000,
-            adjustmentFactor: 0.1,
-            databaseSpecific: {}
-          },
-          graph: {
-            defaultSpace: 'default',
-            spaceOptions: {
-              partitionNum: 10,
-              replicaFactor: 1,
-              vidType: 'FIXED_STRING' as const
-            },
-            queryOptions: {
-              timeout: 30000,
-              retryAttempts: 3
-            },
-            schemaManagement: {
-              autoCreateTags: false,
-              autoCreateEdges: false
-            }
-          }
-        },
-        sqlite: {
-          cache: {
-            defaultTTL: 300000,
-            maxEntries: 10000,
-            cleanupInterval: 60000,
-            enableStats: true,
-            databaseSpecific: {}
-          },
-          performance: {
-            monitoringInterval: 30000,
-            metricsRetentionPeriod: 86400000,
-            enableDetailedLogging: true,
-            performanceThresholds: {
-              queryExecutionTime: 1000,
-              memoryUsage: 80,
-              responseTime: 500
-            },
-            databaseSpecific: {}
-          },
-          batch: {
-            maxConcurrentOperations: 5,
-            defaultBatchSize: 50,
-            maxBatchSize: 500,
-            minBatchSize: 10,
-            memoryThreshold: 80,
-            processingTimeout: 300000,
-            retryAttempts: 3,
-            retryDelay: 1000,
-            adaptiveBatchingEnabled: true,
-            performanceThreshold: 1000,
-            adjustmentFactor: 0.1,
-            databaseSpecific: {}
-          },
-          database: {
-            databasePath: 'data/code-search-helper.db',
-            backupPath: 'data/backups',
-            backupInterval: 86400000,
-            maxConnections: 10,
-            queryTimeout: 30000,
-            journalMode: 'WAL',
-            synchronous: 'NORMAL',
-            cacheSize: 10000,
-            tempStore: 'MEMORY',
-            autoVacuum: 'INCREMENTAL',
-            busyTimeout: 5000
           }
         }
       };
@@ -332,7 +126,7 @@ export class InfrastructureManager {
     this.createDatabaseInfrastructures(
       cacheService,
       performanceMonitor,
-      batchOptimizer,
+      batchOptimizer
     );
 
     this.logger.info('Infrastructure manager initialized');
@@ -346,7 +140,7 @@ export class InfrastructureManager {
   private createDatabaseInfrastructures(
     cacheService: any,
     performanceMonitor: any,
-    batchOptimizer: BatchProcessingService,
+    batchOptimizer: BatchProcessingService
   ): void {
     // 创建 Qdrant 基础设施
     const qdrantInfrastructure = new QdrantInfrastructure(
@@ -355,7 +149,8 @@ export class InfrastructureManager {
       performanceMonitor,
       batchOptimizer,
       null as any, // healthChecker - 将通过注册表模式设置
-      this.infrastructureConfigService // 添加配置服务
+      this.qdrantConfigService, // 数据库配置服务
+      this.infrastructureConfigService // 基础设施配置服务
     );
     this.databaseInfrastructures.set(DatabaseType.QDRANT, qdrantInfrastructure);
 
@@ -366,6 +161,8 @@ export class InfrastructureManager {
       performanceMonitor,
       batchOptimizer,
       null as any, // healthChecker - 将通过注册表模式设置
+      this.nebulaConfigService, // 数据库配置服务
+      this.infrastructureConfigService // 基础设施配置服务
     );
     this.databaseInfrastructures.set(DatabaseType.NEBULA, nebulaInfrastructure);
 
