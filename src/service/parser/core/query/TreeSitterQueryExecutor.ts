@@ -3,8 +3,6 @@ import { QueryRegistryImpl } from './QueryRegistry';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { QueryCache } from './QueryCache';
 import { QueryPerformanceMonitor } from './QueryPerformanceMonitor';
-import { CacheKeyGenerator } from './CacheKeyGenerator';
-import { GlobalQueryInitializer } from './GlobalQueryInitializer';
 import { LANGUAGE_QUERY_MAPPINGS } from '../normalization/QueryTypeMappings';
 
 /**
@@ -97,7 +95,7 @@ export class TreeSitterQueryEngine {
   private async initialize(): Promise<void> {
     try {
       // 使用全局初始化管理器避免重复初始化
-      const success = await GlobalQueryInitializer.initialize();
+      const success = await QueryRegistryImpl.initialize();
       if (success) {
         await this.loadPatternsFromRegistry();
         this.initialized = true;
@@ -326,7 +324,7 @@ export class TreeSitterQueryEngine {
    * 生成缓存键 - 优化版本，考虑AST内容而不仅仅是引用
    */
   private generateCacheKey(ast: Parser.SyntaxNode, patternName: string, language: string): string {
-    return CacheKeyGenerator.forTreeSitterQuery(ast, patternName, language);
+    return QueryCache.forTreeSitterQuery(ast, patternName, language);
   }
 
   /**

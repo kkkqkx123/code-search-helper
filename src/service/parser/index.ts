@@ -15,8 +15,6 @@ export { TreeSitterQueryFacade } from './core/query/TreeSitterQueryFacade';
 export { TreeSitterQueryEngine } from './core/query/TreeSitterQueryExecutor';
 export { QueryManager } from './core/query/QueryManager';
 export { QueryRegistryImpl } from './core/query/QueryRegistry';
-export { QueryEngineFactory } from './core/query/QueryEngineFactory';
-export { GlobalQueryInitializer } from './core/query/GlobalQueryInitializer';
 
 // 工具类
 export { TreeSitterUtils } from './utils/TreeSitterUtils';

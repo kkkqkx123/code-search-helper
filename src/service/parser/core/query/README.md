@@ -465,6 +465,8 @@ const results = await TreeSitterQueryFacade.findMultiple(
 ## 📚 相关文档
 
 - [GlobalQueryInitializer.md](./GlobalQueryInitializer.md) - 初始化系统设计
+- [LAYER_OPTIMIZATION_ANALYSIS.md](./LAYER_OPTIMIZATION_ANALYSIS.md) - 🔄 **架构优化分析** - 当前层次是否必要的详细评估
+- [DEPENDENCY_ANALYSIS.md](./DEPENDENCY_ANALYSIS.md) - 🔗 **依赖关系分析** - 各模块间的依赖关系和循环风险
 - [树查询语言](https://tree-sitter.github.io/tree-sitter/queries) - Tree-sitter 官方文档
 
 ## 🚀 使用建议

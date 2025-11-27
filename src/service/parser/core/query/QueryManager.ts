@@ -1,9 +1,8 @@
 import Parser from 'tree-sitter';
 import { LRUCache } from '../../../../utils/cache/LRUCache';
 import { LoggerService } from '../../../../utils/LoggerService';
-import { QueryRegistry, QueryRegistryImpl } from './QueryRegistry';
+import { QueryRegistryImpl } from './QueryRegistry';
 import { QueryLoader } from './QueryLoader';
-import { GlobalQueryInitializer } from './GlobalQueryInitializer';
 import { ParseOptions } from '../../types';
 
 /**
@@ -32,7 +31,7 @@ export class QueryManager {
 
     try {
       // 使用全局初始化管理器避免重复初始化
-      const success = await GlobalQueryInitializer.initialize();
+      const success = await QueryRegistryImpl.initialize();
       if (success) {
         this.initialized = true;
         this.logger.info('QueryManager 初始化完成');

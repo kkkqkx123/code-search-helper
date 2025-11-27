@@ -6,7 +6,7 @@ import { QueryManager } from '../query/QueryManager';
 import { QueryRegistryImpl } from '../query/QueryRegistry';
 import { languageExtensionMap } from '../../utils';
 import { DetectionService } from '../../detection/DetectionService';
-import { GlobalQueryInitializer } from '../query/GlobalQueryInitializer';
+import { QueryRegistryImpl } from '../query/QueryRegistry';
 import { languageMappingManager } from '../../config/LanguageMappingManager';
 import { FallbackExtractor } from '../../utils/FallbackExtractor';
 import { QueryTypeMapper } from '../normalization/QueryTypeMappings';
@@ -98,8 +98,8 @@ export class DynamicParserManager {
    */
   private async initializeQuerySystem(): Promise<void> {
     try {
-      // 使用全局初始化管理器避免重复初始化
-      const success = await GlobalQueryInitializer.initialize();
+      // 使用查询注册表初始化避免重复初始化
+      const success = await QueryRegistryImpl.initialize();
       if (success) {
         this.querySystemInitialized = true;
         this.logger.info('查询系统初始化完成');

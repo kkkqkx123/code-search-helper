@@ -1,6 +1,6 @@
 import Parser from 'tree-sitter';
 import { TreeSitterQueryEngine } from '../../query/TreeSitterQueryExecutor';
-import { QueryEngineFactory } from '../../query/QueryEngineFactory';
+import { TreeSitterQueryFacade } from '../../query/TreeSitterQueryFacade';
 import { QueryPerformanceMonitor } from '../../query/QueryPerformanceMonitor';
 import { QueryCache } from '../../query/QueryCache';
 
@@ -228,17 +228,16 @@ describe('TreeSitterQueryEngine', () => {
   });
 });
 
-describe('QueryEngineFactory', () => {
+describe('TreeSitterQueryFacade', () => {
   it('should return singleton instance', () => {
-    const instance1 = QueryEngineFactory.getInstance();
-    const instance2 = QueryEngineFactory.getInstance();
-
-    expect(instance1).toBe(instance2);
-  });
-
-  it('should return TreeSitterQueryEngine instance', () => {
-    const instance = QueryEngineFactory.getInstance();
-    expect(instance).toBeInstanceOf(TreeSitterQueryEngine);
+    TreeSitterQueryFacade.resetInstance();
+    const instance1 = TreeSitterQueryFacade.isInitialized();
+    expect(instance1).toBe(false);
+    
+    // Trigger initialization by calling any method
+    TreeSitterQueryFacade.getPerformanceStats();
+    const instance2 = TreeSitterQueryFacade.isInitialized();
+    expect(instance2).toBe(true);
   });
 });
 

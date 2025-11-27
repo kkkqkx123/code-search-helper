@@ -1,37 +1,44 @@
 import { QueryLoader } from './QueryLoader';
-
 import { LoggerService } from '../../../../utils/LoggerService';
-import { GlobalQueryInitializer } from './GlobalQueryInitializer';
 
 /**
  * 查询注册表 - 管理所有语言的查询模式
  * 重构版本：支持新的目录结构和旧结构回退
+ * 合并了 GlobalQueryInitializer 的功能
  */
 export class QueryRegistryImpl {
   private static patterns: Map<string, Map<string, string>> = new Map();
   private static logger = new LoggerService();
   private static initialized = false;
+  private static initializing = false;
 
   /**
-   * 异步初始化查询注册表
+   * 初始化查询系统（全局单次初始化）
    */
-  static async initialize(): Promise<void> {
+  static async initialize(): Promise<boolean> {
+    // 如果已经初始化完成，直接返回
     if (this.initialized) {
-      return;
+      return true;
     }
-
-    this.logger.info('初始化查询注册表...');
     
-    try {
-      // 使用全局初始化管理器检查是否已经初始化
-      const globalStatus = GlobalQueryInitializer.getStatus();
-      if (globalStatus.initialized) {
-        // 如果全局已经初始化，直接标记为已初始化
-        this.initialized = true;
-        this.logger.info(`查询注册表已通过全局初始化完成，支持 ${this.patterns.size} 种语言`);
-        return;
+    // 如果正在初始化，等待初始化完成
+    if (this.initializing) {
+      // 等待最多5秒
+      const maxWaitTime = 5000;
+      const startTime = Date.now();
+      
+      while (this.initializing && (Date.now() - startTime) < maxWaitTime) {
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
       
+      return this.initialized;
+    }
+    
+    // 开始初始化
+    this.initializing = true;
+    this.logger.info('开始全局查询系统初始化...');
+    
+    try {
       // 从查询文件加载
       try {
         await this.loadFromQueryFiles();
@@ -46,14 +53,38 @@ export class QueryRegistryImpl {
       }
       
       this.initialized = true;
-      this.logger.info(`查询注册表初始化完成，支持 ${this.patterns.size} 种语言`);
+      this.initializing = false;
+      this.logger.info(`全局查询系统初始化完成，支持 ${this.patterns.size} 种语言`);
+      return true;
       
     } catch (error) {
-      this.logger.error('查询注册表初始化失败:', error);
-      // 不要抛出错误，让系统继续运行，但标记为未初始化
-      // 这样即使查询加载失败，应用也能继续启动
-      this.initialized = false;
+      this.initializing = false;
+      this.logger.error('全局查询系统初始化失败:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        name: error instanceof Error ? error.name : 'Unknown',
+        type: typeof error
+      });
+      return false;
     }
+  }
+  
+  /**
+   * 重新初始化查询系统
+   */
+  static async reinitialize(): Promise<boolean> {
+    this.initialized = false;
+    return await this.initialize();
+  }
+  
+  /**
+   * 获取初始化状态
+   */
+  static getStatus(): { initialized: boolean; initializing: boolean } {
+    return {
+      initialized: this.initialized,
+      initializing: this.initializing
+    };
   }
 
   /**
@@ -129,6 +160,9 @@ export class QueryRegistryImpl {
   static async getPattern(language: string, queryType: string): Promise<string | null> {
     if (!this.initialized) {
       await this.initialize();
+      if (!this.initialized) {
+        return null;
+      }
     }
 
     const langPatterns = this.patterns.get(language.toLowerCase());
@@ -276,5 +310,4 @@ export class QueryRegistryImpl {
 // 注意：移除了自动初始化，改为异步初始化
 // QueryRegistry.initialize();
 
-// 导出兼容性包装器作为默认导出
-export { QueryRegistryCompatibility as QueryRegistry } from './QueryRegistryCompatibility';
+// 注意：QueryRegistryCompatibility 已被移除，请直接使用 QueryRegistryImpl

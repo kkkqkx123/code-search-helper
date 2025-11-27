@@ -1,15 +1,39 @@
 import Parser from 'tree-sitter';
-import { QueryResult } from './TreeSitterQueryExecutor';
-import { QueryEngineFactory } from './QueryEngineFactory';
+import { QueryResult, TreeSitterQueryEngine } from './TreeSitterQueryExecutor';
 import { QueryCache } from './QueryCache';
-import { CacheKeyGenerator } from './CacheKeyGenerator';
 
 /**
  * 简化查询引擎
  * 为常见用例提供简单易用的接口
  */
 export class TreeSitterQueryFacade {
-  private static queryEngine = QueryEngineFactory.getInstance();
+  private static queryEngine: TreeSitterQueryEngine;
+  
+  /**
+   * 获取或创建TreeSitterQueryEngine的单例实例
+   * @returns TreeSitterQueryEngine实例
+   */
+  private static getOrCreateEngine(): TreeSitterQueryEngine {
+    if (!this.queryEngine) {
+      this.queryEngine = new TreeSitterQueryEngine();
+    }
+    return this.queryEngine;
+  }
+  
+  /**
+   * 重置单例实例（主要用于测试）
+   */
+  static resetInstance(): void {
+    this.queryEngine = null as any;
+  }
+  
+  /**
+   * 检查实例是否已初始化
+   * @returns 是否已初始化
+   */
+  static isInitialized(): boolean {
+    return this.queryEngine !== undefined;
+  }
 
   // 缓存键前缀，避免与其他引擎冲突
   private static readonly CACHE_PREFIX = 'simple:';
@@ -19,14 +43,14 @@ export class TreeSitterQueryFacade {
    * 生成缓存键
    */
   private static generateCacheKey(ast: Parser.SyntaxNode, queryType: string, language: string): string {
-    return CacheKeyGenerator.forSimpleQuery(ast, queryType, language);
+    return QueryCache.forSimpleQuery(ast, queryType, language);
   }
 
   /**
    * 生成批量查询缓存键
    */
   private static generateBatchCacheKey(ast: Parser.SyntaxNode, types: string[], language: string): string {
-    return CacheKeyGenerator.forBatchQuery(ast, types, language);
+    return QueryCache.forBatchQuery(ast, types, language);
   }
 
 
@@ -52,7 +76,7 @@ export class TreeSitterQueryFacade {
     }
 
     try {
-      const result = await this.queryEngine.executeQuery(ast, queryType, language);
+      const result = await this.getOrCreateEngine().executeQuery(ast, queryType, language);
 
       // 直接提取节点，避免创建中间数组
       const nodes: Parser.SyntaxNode[] = new Array(result.matches.length);
@@ -174,7 +198,7 @@ export class TreeSitterQueryFacade {
       }
 
       try {
-        const result = await this.queryEngine.executeQuery(ast, type, language);
+        const result = await this.getOrCreateEngine().executeQuery(ast, type, language);
 
         // 直接提取节点，避免创建中间数组，预分配数组大小
         const nodes: Parser.SyntaxNode[] = new Array(result.matches.length);
@@ -239,7 +263,7 @@ export class TreeSitterQueryFacade {
    * 获取性能统计信息
    */
   static getPerformanceStats() {
-    const engineStats = this.queryEngine.getPerformanceStats();
+    const engineStats = this.getOrCreateEngine().getPerformanceStats();
     const allCacheStats = QueryCache.getAllStats();
 
     return {
@@ -252,7 +276,7 @@ export class TreeSitterQueryFacade {
    * 清理缓存
    */
   static clearCache(): void {
-    this.queryEngine.clearCache();
+    this.getOrCreateEngine().clearCache();
     QueryCache.clearCache();
   }
 
@@ -306,7 +330,7 @@ export class TreeSitterQueryFacade {
     }
 
     // 使用底层查询引擎执行查询
-    const result = await this.queryEngine.executeQuery(ast, queryType, language);
+    const result = await this.getOrCreateEngine().executeQuery(ast, queryType, language);
 
     // 缓存完整结果
     QueryCache.setResult(cacheKey, result);
@@ -362,7 +386,7 @@ export class TreeSitterQueryFacade {
       }
 
       try {
-        const result = await this.queryEngine.executeQuery(ast, type, language);
+        const result = await this.getOrCreateEngine().executeQuery(ast, type, language);
 
         // 缓存单个查询结果
         QueryCache.setResult(singleCacheKey, result);

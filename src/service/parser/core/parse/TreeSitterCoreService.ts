@@ -11,8 +11,6 @@ import { QueryRegistryImpl } from '../query/QueryRegistry';
 import { DynamicParserManager, DynamicParserLanguage, DynamicParseResult } from './DynamicParserManager';
 import { TreeSitterQueryFacade } from '../query/TreeSitterQueryFacade';
 import { TreeSitterQueryEngine } from '../query/TreeSitterQueryExecutor';
-import { QueryEngineFactory } from '../query/QueryEngineFactory';
-import { GlobalQueryInitializer } from '../query/GlobalQueryInitializer';
 import { ICacheService } from '../../../../infrastructure/caching/types';
 import { TYPES } from '../../../../types';
 
@@ -68,7 +66,7 @@ export class TreeSitterCoreService {
     this.languageDetector = new LanguageDetector();
     this.dynamicManager = new DynamicParserManager(cacheService);
     this.errorHandler = new ErrorHandlerService(this.logger);
-    this.queryEngine = QueryEngineFactory.getInstance();
+    this.queryEngine = new TreeSitterQueryEngine();
 
     // 异步初始化查询系统
     this.initializeQuerySystem();
@@ -451,8 +449,8 @@ export class TreeSitterCoreService {
    */
   private async initializeQuerySystem(): Promise<void> {
     try {
-      // 使用全局初始化管理器避免重复初始化
-      const success = await GlobalQueryInitializer.initialize();
+      // 使用查询注册表初始化避免重复初始化
+      const success = await QueryRegistryImpl.initialize();
       if (success) {
         this.querySystemInitialized = true;
         this.logger.info('查询系统初始化完成');
