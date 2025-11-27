@@ -9,6 +9,7 @@ import { FileSystemTraversal } from '../../service/filesystem/FileSystemTraversa
 import { FileWatcherService } from '../../service/filesystem/FileWatcherService';
 import { ChangeDetectionService } from '../../service/filesystem/ChangeDetectionService';
 import { HotReloadRecoveryService } from '../../service/filesystem/HotReloadRecoveryService';
+import { ChangeCoordinator } from '../../service/hot-reload/ChangeCoordinator';
 import { ProjectHotReloadService } from '../../service/filesystem/ProjectHotReloadService';
 import { HotReloadConfigService } from '../../service/filesystem/HotReloadConfigService';
 import { HotReloadMonitoringService } from '../../service/filesystem/HotReloadMonitoringService';
@@ -143,6 +144,7 @@ export class BusinessServiceRegistrar {
       container.bind<HotReloadMonitoringService>(TYPES.HotReloadMonitoringService).to(HotReloadMonitoringService).inSingletonScope();
       container.bind<HotReloadErrorPersistenceService>(TYPES.HotReloadErrorPersistenceService).to(HotReloadErrorPersistenceService).inSingletonScope();
       container.bind<HotReloadRestartService>(TYPES.HotReloadRestartService).to(HotReloadRestartService).inSingletonScope();
+      container.bind<ChangeCoordinator>(TYPES.ChangeCoordinator).to(ChangeCoordinator).inSingletonScope();
 
       // 项目管理服务
       container.bind<CoreStateService>(TYPES.CoreStateService).to(CoreStateService).inSingletonScope();

@@ -85,6 +85,8 @@ export class ChangeDetectionService extends EventEmitter {
   private fileHashManager: FileHashManager;
   private fileHistory: Map<string, FileHistoryEntry[]> = new Map();
   private pendingChanges: Map<string, NodeJS.Timeout> = new Map();
+  private changeAccumulator: Map<string, FileChangeEvent[]> = new Map();
+  private batchTimers: Map<string, NodeJS.Timeout> = new Map();
   private isRunning: boolean = false;
   private testMode: boolean = false;
   private options: Required<ChangeDetectionOptions>;
@@ -312,19 +314,8 @@ export class ChangeDetectionService extends EventEmitter {
       const previousHash = await this.fileHashManager.getFileHash(projectId, fileInfo.relativePath);
 
       if (previousHash === null) {
-        // New file
-        await this.fileHashManager.updateFileHash(projectId, fileInfo.relativePath, fileInfo.hash, {
-          fileSize: fileInfo.size,
-          lastModified: fileInfo.lastModified,
-          language: fileInfo.language,
-          fileType: path.extname(fileInfo.path)
-        });
-
-        if (this.options.trackFileHistory) {
-          this.addFileHistoryEntry(fileInfo);
-        }
-
-        const event: FileChangeEvent = {
+        // 累积变更而不是立即处理
+        this.accumulateChange(projectId, {
           type: 'created',
           path: fileInfo.path,
           relativePath: fileInfo.relativePath,
@@ -332,17 +323,10 @@ export class ChangeDetectionService extends EventEmitter {
           timestamp: new Date(),
           size: fileInfo.size,
           language: fileInfo.language,
-        };
+        });
 
-        this.emit('fileCreated', event);
-
-        if (this.callbacks.onFileCreated) {
-          try {
-            this.callbacks.onFileCreated(event);
-          } catch (error) {
-            this.logger.error('Error in onFileCreated callback', error);
-          }
-        }
+        // 调度批量处理
+        this.scheduleBatchProcessing(projectId);
       }
     } catch (error) {
       this.handleFileEventError('add', fileInfo.relativePath, error);
@@ -363,62 +347,20 @@ export class ChangeDetectionService extends EventEmitter {
         return;
       }
 
-      // Debounce rapid changes
-      if (this.pendingChanges.has(fileInfo.relativePath)) {
-        clearTimeout(this.pendingChanges.get(fileInfo.relativePath)!);
-      }
+      // 累积变更而不是立即处理
+      this.accumulateChange(projectId, {
+        type: 'modified',
+        path: fileInfo.path,
+        relativePath: fileInfo.relativePath,
+        previousHash,
+        currentHash: fileInfo.hash,
+        timestamp: new Date(),
+        size: fileInfo.size,
+        language: fileInfo.language,
+      });
 
-      const timeoutId = setTimeout(async () => {
-        try {
-          const currentHash = this.options.enableHashComparison
-            ? await FileUtils.calculateFileHash(fileInfo.path)
-            : fileInfo.hash;
-
-          if (previousHash !== currentHash) {
-            // Actual content change
-            await this.fileHashManager.updateFileHash(projectId, fileInfo.relativePath, currentHash, {
-              fileSize: fileInfo.size,
-              lastModified: fileInfo.lastModified,
-              language: fileInfo.language,
-              fileType: path.extname(fileInfo.path)
-            });
-
-            if (this.options.trackFileHistory) {
-              this.addFileHistoryEntry({
-                ...fileInfo,
-                hash: currentHash,
-              });
-            }
-
-            const event: FileChangeEvent = {
-              type: 'modified',
-              path: fileInfo.path,
-              relativePath: fileInfo.relativePath,
-              previousHash,
-              currentHash,
-              timestamp: new Date(),
-              size: fileInfo.size,
-              language: fileInfo.language,
-            };
-
-            this.emit('fileModified', event);
-
-            if (this.callbacks.onFileModified) {
-              try {
-                this.callbacks.onFileModified(event);
-              } catch (error) {
-                this.logger.error('Error in onFileModified callback', error);
-              }
-            }
-          }
-        } catch (error) {
-          this.handleFileEventError('change', fileInfo.relativePath, error);
-        } finally {
-          this.pendingChanges.delete(fileInfo.relativePath);
-        }
-      }, this.options.debounceInterval);
-
-      this.pendingChanges.set(fileInfo.relativePath, timeoutId);
+      // 调度批量处理
+      this.scheduleBatchProcessing(projectId);
     } catch (error) {
       this.handleFileEventError('change', fileInfo.relativePath, error);
     }
@@ -436,25 +378,17 @@ export class ChangeDetectionService extends EventEmitter {
       const previousHash = await this.fileHashManager.getFileHash(projectId, relativePath);
 
       if (previousHash !== null) {
-        await this.fileHashManager.deleteFileHash(projectId, relativePath);
-
-        const event: FileChangeEvent = {
+        // 累积变更而不是立即处理
+        this.accumulateChange(projectId, {
           type: 'deleted',
           path: filePath,
           relativePath,
           previousHash,
           timestamp: new Date(),
-        };
+        });
 
-        this.emit('fileDeleted', event);
-
-        if (this.callbacks.onFileDeleted) {
-          try {
-            this.callbacks.onFileDeleted(event);
-          } catch (error) {
-            this.logger.error('Error in onFileDeleted callback', error);
-          }
-        }
+        // 调度批量处理
+        this.scheduleBatchProcessing(projectId);
       }
     } catch (error) {
       this.handleFileEventError('delete', filePath, error);
@@ -560,6 +494,9 @@ export class ChangeDetectionService extends EventEmitter {
         clearTimeout(timeoutId);
       }
       this.pendingChanges.clear();
+
+      // Clear batch processing state
+      this.clearBatchProcessingState();
 
       // Stop the file watcher
       await this.fileWatcherService.stopWatching();
@@ -873,6 +810,211 @@ export class ChangeDetectionService extends EventEmitter {
       this.logger.error(`Failed to get indexed files from hash manager: ${projectId}`, error);
       return [];
     }
+  }
+
+  /**
+   * 累积文件变更
+   */
+  private accumulateChange(projectId: string, change: FileChangeEvent): void {
+    if (!this.changeAccumulator.has(projectId)) {
+      this.changeAccumulator.set(projectId, []);
+    }
+    this.changeAccumulator.get(projectId)!.push(change);
+  }
+
+  /**
+   * 调度批量处理
+   */
+  private scheduleBatchProcessing(projectId: string): void {
+    // 清除现有的批处理定时器
+    if (this.batchTimers.has(projectId)) {
+      clearTimeout(this.batchTimers.get(projectId)!);
+    }
+
+    const changes = this.changeAccumulator.get(projectId) || [];
+    const dynamicDelay = this.calculateOptimalDelay(changes.length);
+
+    const timer = setTimeout(async () => {
+      await this.processBatchedChanges(projectId);
+    }, dynamicDelay);
+
+    this.batchTimers.set(projectId, timer);
+  }
+
+  /**
+   * 计算最优延迟时间
+   */
+  private calculateOptimalDelay(changeCount: number): number {
+    if (changeCount >= 50) {
+      return 100; // 立即处理
+    } else if (changeCount >= 20) {
+      return 500; // 中等延迟
+    } else if (changeCount >= 10) {
+      return 1000; // 标准延迟
+    } else {
+      return this.options.debounceInterval; // 默认延迟
+    }
+  }
+
+  /**
+   * 处理批量变更
+   */
+  private async processBatchedChanges(projectId: string): Promise<void> {
+    const changes = this.changeAccumulator.get(projectId) || [];
+    if (changes.length === 0) return;
+
+    // 清空累积器和定时器
+    this.changeAccumulator.set(projectId, []);
+    this.batchTimers.delete(projectId);
+
+    this.logger.debug(`Processing batched changes for project ${projectId}`, {
+      changeCount: changes.length
+    });
+
+    try {
+      // 按变更类型分组
+      const groupedChanges = this.groupChangesByType(changes);
+
+      // 并发处理不同类型的变更
+      await Promise.all([
+        this.processFileChanges(groupedChanges.fileChanges),
+        this.processIndexChanges(groupedChanges.indexChanges)
+      ]);
+
+      this.logger.debug(`Batch processing completed for project ${projectId}`, {
+        fileChanges: groupedChanges.fileChanges.length,
+        indexChanges: groupedChanges.indexChanges.length
+      });
+    } catch (error) {
+      this.logger.error(`Error processing batched changes for project ${projectId}:`, error);
+      // 重新加入队列进行重试
+      for (const change of changes) {
+        this.accumulateChange(projectId, change);
+      }
+      // 延迟重试
+      setTimeout(() => this.scheduleBatchProcessing(projectId), 5000);
+    }
+  }
+
+  /**
+   * 按类型分组变更
+   */
+  private groupChangesByType(changes: FileChangeEvent[]): {
+    fileChanges: FileChangeEvent[];
+    indexChanges: FileChangeEvent[];
+  } {
+    return changes.reduce((groups: { fileChanges: FileChangeEvent[]; indexChanges: FileChangeEvent[] }, change) => {
+      // 判断是否需要索引更新
+      if (this.requiresIndexing(change)) {
+        groups.indexChanges.push(change);
+      } else {
+        groups.fileChanges.push(change);
+      }
+      return groups;
+    }, { fileChanges: [], indexChanges: [] });
+  }
+
+  /**
+   * 判断变更是否需要索引更新
+   */
+  private requiresIndexing(change: FileChangeEvent): boolean {
+    const indexedExtensions = ['.ts', '.js', '.tsx', '.jsx', '.py', '.java', '.cpp', '.c', '.h', '.hpp'];
+    const extension = path.extname(change.path);
+    return indexedExtensions.includes(extension);
+  }
+
+  /**
+   * 处理文件变更（哈希更新等）
+   */
+  private async processFileChanges(changes: FileChangeEvent[]): Promise<void> {
+    for (const change of changes) {
+      try {
+        const projectId = await this.getProjectIdForPath(change.path);
+
+        switch (change.type) {
+          case 'created':
+          case 'modified':
+            await this.fileHashManager.updateFileHash(projectId, change.relativePath, change.currentHash!, {
+              fileSize: change.size,
+              lastModified: change.timestamp,
+              language: change.language,
+              fileType: path.extname(change.path)
+            });
+
+            if (this.options.trackFileHistory && change.type === 'created') {
+              this.addFileHistoryEntry({
+                path: change.path,
+                relativePath: change.relativePath,
+                hash: change.currentHash!,
+                size: change.size || 0,
+                language: change.language || 'unknown',
+                lastModified: change.timestamp,
+                name: path.basename(change.path),
+                extension: path.extname(change.path),
+                isBinary: this.isLikelyBinaryFile(change.path)
+              });
+            }
+            break;
+
+          case 'deleted':
+            await this.fileHashManager.deleteFileHash(projectId, change.relativePath);
+            break;
+        }
+
+        // 发出事件
+        this.emit(`file${change.type.charAt(0).toUpperCase() + change.type.slice(1)}`, change);
+
+        // 调用回调
+        const callbackKey = `onFile${change.type.charAt(0).toUpperCase() + change.type.slice(1)}` as keyof ChangeDetectionCallbacks;
+        if (this.callbacks[callbackKey]) {
+          try {
+            (this.callbacks[callbackKey] as any)(change);
+          } catch (error) {
+            this.logger.error(`Error in ${callbackKey} callback`, error);
+          }
+        }
+      } catch (error) {
+        this.logger.error(`Error processing file change ${change.type} for ${change.path}:`, error);
+      }
+    }
+  }
+
+  /**
+   * 处理索引变更（触发索引更新）
+   */
+  private async processIndexChanges(changes: FileChangeEvent[]): Promise<void> {
+    // 这里可以集成索引更新逻辑
+    // 目前先发出事件，让其他服务处理
+    for (const change of changes) {
+      this.emit('indexUpdateRequired', change);
+    }
+  }
+
+  /**
+   * 清理批量处理状态
+   */
+  private clearBatchProcessingState(): void {
+    for (const timer of this.batchTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.batchTimers.clear();
+    this.changeAccumulator.clear();
+  }
+
+  /**
+   * 启发式检测文件是否为二进制文件（基于扩展名）
+   */
+  private isLikelyBinaryFile(filePath: string): boolean {
+    const binaryExtensions = [
+      '.bin', '.exe', '.dll', '.so', '.dylib',
+      '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.ico',
+      '.zip', '.tar', '.gz', '.rar', '.7z',
+      '.pdf', '.doc', '.docx', '.xls', '.xlsx',
+      '.mp3', '.mp4', '.avi', '.mov', '.mkv',
+      '.jar', '.class', '.o', '.a', '.lib'
+    ];
+    const ext = path.extname(filePath).toLowerCase();
+    return binaryExtensions.includes(ext);
   }
 
 }

@@ -298,9 +298,223 @@ export class CacheService implements ICacheService {
 
   preloadCache<T>(entries: Array<{ key: string; data: T; ttl?: number }>): void {
     for (const entry of entries) {
-      this.setCache(entry.key, entry.data, entry.ttl || this.config.defaultTTL);
+      this.setCache(entry.key, entry.data, entry.ttl);
     }
-    this.logger.info('Preloaded cache with entries', { count: entries.length });
+    this.logger.info(`Preloaded ${entries.length} cache entries`);
+  }
+
+  // Parser专用缓存方法
+  private readonly PARSER_CACHE_PREFIX = 'parser:';
+  private readonly CONTEXT_CACHE_PREFIX = 'context:';
+  private readonly DEFAULT_PARSER_TTL = 60000; // 1分钟
+  private readonly DEFAULT_CONTEXT_TTL = 300000; // 5分钟
+
+  /**
+   * 获取Parser处理结果
+   */
+  async getParserResult<T>(key: string): Promise<T | null> {
+    const cacheKey = `${this.PARSER_CACHE_PREFIX}${key}`;
+    const result = this.getFromCache<T>(cacheKey);
+    return result || null;
+  }
+
+  /**
+   * 设置Parser处理结果
+   */
+  async setParserResult<T>(key: string, value: T, ttl?: number): Promise<void> {
+    const cacheKey = `${this.PARSER_CACHE_PREFIX}${key}`;
+    const effectiveTTL = ttl || this.DEFAULT_PARSER_TTL;
+    this.setCache(cacheKey, value, effectiveTTL);
+  }
+
+  /**
+   * 获取处理上下文
+   */
+  async getProcessingContext<T>(key: string): Promise<T | null> {
+    const cacheKey = `${this.CONTEXT_CACHE_PREFIX}${key}`;
+    const result = this.getFromCache<T>(cacheKey);
+    return result || null;
+  }
+
+  /**
+   * 设置处理上下文
+   */
+  async setProcessingContext<T>(key: string, value: T, ttl?: number): Promise<void> {
+    const cacheKey = `${this.CONTEXT_CACHE_PREFIX}${key}`;
+    const effectiveTTL = ttl || this.DEFAULT_CONTEXT_TTL;
+    this.setCache(cacheKey, value, effectiveTTL);
+  }
+
+  /**
+   * 批量失效模块缓存
+   */
+  async invalidateModuleCache(moduleName: string): Promise<void> {
+    const pattern = new RegExp(`^${moduleName}:`);
+    const keys = this.getKeys().filter(key => pattern.test(key));
+    
+    for (const key of keys) {
+      this.cache.delete(key);
+      this.compressedKeys.delete(key);
+    }
+    
+    this.logger.info(`Invalidated ${keys.length} cache entries for module ${moduleName}`);
+  }
+
+  /**
+   * 智能缓存设置 - 基于数据类型和访问模式自动选择策略
+   */
+  async smartSet<T>(key: string, value: T, options?: {
+    ttl?: number;
+    priority?: 'high' | 'medium' | 'low';
+    compress?: boolean;
+  }): Promise<void> {
+    const strategy = this.determineOptimalStrategy(key, value, options);
+    const processedValue = this.preprocessValue(value, strategy);
+    const effectiveTTL = this.calculateOptimalTTL(key, strategy, options);
+    
+    this.setCache(key, processedValue, effectiveTTL);
+  }
+
+  /**
+   * 智能缓存获取
+   */
+  async smartGet<T>(key: string): Promise<T | null> {
+    const result = this.getFromCache<T>(key);
+    
+    if (result) {
+      // 预加载相关数据
+      this.preloadRelatedData(key);
+    }
+    
+    return result || null;
+  }
+
+  /**
+   * 确定最优缓存策略
+   */
+  private determineOptimalStrategy<T>(
+    key: string,
+    value: T,
+    options?: { ttl?: number; priority?: 'high' | 'medium' | 'low'; compress?: boolean }
+  ): {
+    compress: boolean;
+    ttl: number;
+    priority: 'high' | 'medium' | 'low';
+  } {
+    const dataSize = JSON.stringify(value).length;
+    const compress = options?.compress !== false && dataSize > 1024; // 大于1KB的数据压缩
+    
+    let priority = options?.priority || 'medium';
+    if (key.includes('parser:') || key.includes('context:')) {
+      priority = 'high'; // Parser相关数据高优先级
+    }
+    
+    return {
+      compress,
+      ttl: options?.ttl || this.getDefaultTTL(key, priority),
+      priority
+    };
+  }
+
+  /**
+   * 预处理缓存值
+   */
+  private preprocessValue<T>(value: T, strategy: { compress: boolean }): T {
+    if (strategy.compress) {
+      // 标记为需要压缩
+      return value;
+    }
+    return value;
+  }
+
+  /**
+   * 计算最优TTL
+   */
+  private calculateOptimalTTL(
+    key: string,
+    strategy: { ttl: number; priority: 'high' | 'medium' | 'low' },
+    options?: { ttl?: number }
+  ): number {
+    if (options?.ttl) {
+      return options.ttl;
+    }
+    
+    if (key.includes('parser:')) {
+      return this.DEFAULT_PARSER_TTL;
+    } else if (key.includes('context:')) {
+      return this.DEFAULT_CONTEXT_TTL;
+    }
+    
+    switch (strategy.priority) {
+      case 'high':
+        return Math.min(strategy.ttl, 300000); // 最多5分钟
+      case 'medium':
+        return Math.min(strategy.ttl, 600000); // 最多10分钟
+      case 'low':
+        return Math.min(strategy.ttl, 1800000); // 最多30分钟
+      default:
+        return strategy.ttl;
+    }
+  }
+
+  /**
+   * 获取默认TTL
+   */
+  private getDefaultTTL(key: string, priority: 'high' | 'medium' | 'low'): number {
+    if (key.includes('parser:')) {
+      return this.DEFAULT_PARSER_TTL;
+    } else if (key.includes('context:')) {
+      return this.DEFAULT_CONTEXT_TTL;
+    }
+    
+    switch (priority) {
+      case 'high':
+        return 120000; // 2分钟
+      case 'medium':
+        return 300000; // 5分钟
+      case 'low':
+        return 900000; // 15分钟
+      default:
+        return this.config.defaultTTL;
+    }
+  }
+
+  /**
+   * 预加载相关数据
+   */
+  private async preloadRelatedData(key: string): Promise<void> {
+    // 基于访问模式预加载相关数据
+    if (key.includes('parser:')) {
+      // 如果访问了parser结果，可能需要相关的上下文
+      const contextKey = key.replace('parser:', 'context:');
+      if (!this.hasKey(contextKey)) {
+        // 这里可以触发异步预加载逻辑
+        // 目前作为占位符
+      }
+    }
+  }
+
+  /**
+   * 获取Parser缓存统计
+   */
+  getParserCacheStats(): {
+    totalEntries: number;
+    parserEntries: number;
+    contextEntries: number;
+    hitRate: number;
+  } {
+    const allKeys = this.getKeys();
+    const parserKeys = allKeys.filter(key => key.startsWith(this.PARSER_CACHE_PREFIX));
+    const contextKeys = allKeys.filter(key => key.startsWith(this.CONTEXT_CACHE_PREFIX));
+    
+    const stats = this.getCacheStats();
+    
+    return {
+      totalEntries: allKeys.length,
+      parserEntries: parserKeys.length,
+      contextEntries: contextKeys.length,
+      hitRate: stats.hitRate
+    };
   }
 
   getKeysByPattern(pattern: RegExp): string[] {

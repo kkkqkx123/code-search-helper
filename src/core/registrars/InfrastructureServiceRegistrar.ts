@@ -33,6 +33,15 @@ import { GraphBatchStrategy } from '../../infrastructure/batching/strategies/Gra
 import { EmbeddingBatchStrategy } from '../../infrastructure/batching/strategies/EmbeddingBatchStrategy';
 import { ConfigService } from '../../config/ConfigService';
 
+// 批处理模块化服务
+import { BatchConfigManager } from '../../infrastructure/batching/BatchConfigManager';
+import { BatchExecutionEngine } from '../../infrastructure/batching/BatchExecutionEngine';
+import { PerformanceMetricsManager } from '../../infrastructure/batching/PerformanceMetricsManager';
+import { HotReloadBatchProcessor } from '../../infrastructure/batching/HotReloadBatchProcessor';
+import { ChangeGroupingService } from '../../infrastructure/batching/ChangeGroupingService';
+import { VectorIndexBatchProcessor } from '../../infrastructure/batching/VectorIndexBatchProcessor';
+import { GraphIndexBatchProcessor } from '../../infrastructure/batching/GraphIndexBatchProcessor';
+
 // SQLite基础设施
 import { SqliteInfrastructure } from '../../database/splite/SqliteInfrastructure';
 import { SqliteStateManager } from '../../database/splite/SqliteStateManager';
@@ -47,6 +56,7 @@ import { CleanupManager } from '../../infrastructure/cleanup/CleanupManager';
 
 // 基础设施服务
 import { CacheService } from '../../infrastructure/caching/CacheService';
+import { CacheStrategyManager } from '../../infrastructure/caching/CacheStrategyManager';
 import { PerformanceMonitor } from '../../infrastructure/monitoring/PerformanceMonitor';
 import { DatabaseHealthChecker } from '../../service/monitoring/DatabaseHealthChecker';
 import { TreeSitterCacheCleanupStrategy } from '../../infrastructure/cleanup/strategies/TreeSitterCacheCleanupStrategy';
@@ -57,6 +67,8 @@ import { DatabaseErrorHandler } from '../../database/error/DatabaseErrorHandler'
 
 // 基础设施管理器
 import { InfrastructureManager } from '../../infrastructure/InfrastructureManager';
+import { ModuleConfigManager } from '../../config/ModuleConfigManager';
+import { ReliabilityManager } from '../../infrastructure/reliability/ReliabilityManager';
 
 export class InfrastructureServiceRegistrar {
   static registerBasicServices(container: Container): void {
@@ -72,11 +84,15 @@ export class InfrastructureServiceRegistrar {
       container.bind<GraphBatchStrategy>(TYPES.GraphBatchStrategy).to(GraphBatchStrategy).inSingletonScope();
       container.bind<EmbeddingBatchStrategy>(TYPES.EmbeddingBatchStrategy).to(EmbeddingBatchStrategy).inSingletonScope();
       container.bind<BatchStrategyFactory>(TYPES.BatchStrategyFactory).to(BatchStrategyFactory).inSingletonScope();
+
+      // 批处理模块化服务 - 基础服务
+      container.bind<BatchConfigManager>(TYPES.BatchConfigManager).to(BatchConfigManager).inSingletonScope();
+      container.bind<ChangeGroupingService>(TYPES.ChangeGroupingService).to(ChangeGroupingService).inSingletonScope();
       // 注意：GraphConfigService可能还没有注册，所以这里使用默认配置
       container.bind<FaultToleranceHandler>(TYPES.FaultToleranceHandler).toDynamicValue(context => {
         const logger = context.get<LoggerService>(TYPES.LoggerService);
         const cache = context.get<GraphMappingCache>(TYPES.GraphMappingCache);
-        
+
         // 使用默认的容错配置选项
         const defaultOptions: Partial<FaultToleranceOptions> = {
           maxRetries: 3,
@@ -113,7 +129,7 @@ export class InfrastructureServiceRegistrar {
       }).inSingletonScope();
 
       // 图服务基础设施
-      
+
       container.bind<GraphPerformanceMonitor>(TYPES.GraphPerformanceMonitor).to(GraphPerformanceMonitor).inSingletonScope();
       container.bind<GraphQueryValidator>(TYPES.GraphQueryValidator).to(GraphQueryValidator).inSingletonScope();
       container.bind<MappingCacheManager>(TYPES.MappingCacheManager).to(MappingCacheManager).inSingletonScope();
@@ -161,7 +177,7 @@ export class InfrastructureServiceRegistrar {
       // 基础设施配置服务
       container.bind<InfrastructureConfigService>(TYPES.InfrastructureConfigService)
         .to(InfrastructureConfigService).inSingletonScope();
-      
+
 
       // CleanupManager - 注册为基础设施服务
       container.bind<CleanupManager>(TYPES.CleanupManager).toDynamicValue(context => {
@@ -181,6 +197,9 @@ export class InfrastructureServiceRegistrar {
 
       // 基础设施核心服务（在CleanupManager外部注册，确保正确的依赖顺序）
       container.bind<CacheService>(TYPES.CacheService).to(CacheService).inSingletonScope();
+      container.bind<CacheStrategyManager>(TYPES.CacheStrategyManager).to(CacheStrategyManager).inSingletonScope();
+      container.bind<ReliabilityManager>(TYPES.ReliabilityManager).to(ReliabilityManager).inSingletonScope();
+      container.bind<ModuleConfigManager>(TYPES.ModuleConfigManager).to(ModuleConfigManager).inSingletonScope();
       // 统一的性能监控器
       container.bind<PerformanceMonitor>(TYPES.PerformanceMonitor).to(PerformanceMonitor).inSingletonScope();
       // 为数据库服务提供相同的实例
@@ -205,27 +224,60 @@ export class InfrastructureServiceRegistrar {
 
   static registerAdvancedServices(container: Container): void {
     try {
+      console.log('Attempting to bind batch processing advanced services...');
+      try {
+        // 注册执行引擎
+        container.bind<BatchExecutionEngine>(TYPES.BatchExecutionEngine)
+          .to(BatchExecutionEngine).inSingletonScope();
+
+        // 注册性能指标管理器
+        container.bind<PerformanceMetricsManager>(TYPES.PerformanceMetricsManager)
+          .to(PerformanceMetricsManager).inSingletonScope();
+
+        // 注册向量索引处理器
+        container.bind<VectorIndexBatchProcessor>(TYPES.VectorIndexBatchProcessor)
+          .to(VectorIndexBatchProcessor).inSingletonScope();
+
+        // 注册图索引处理器
+        container.bind<GraphIndexBatchProcessor>(TYPES.GraphIndexBatchProcessor)
+          .to(GraphIndexBatchProcessor).inSingletonScope();
+
+        // 注册热重载批处理器
+        container.bind<HotReloadBatchProcessor>(TYPES.HotReloadBatchProcessor)
+          .to(HotReloadBatchProcessor).inSingletonScope();
+
+        console.log('Batch processing advanced services bound');
+      } catch (error: any) {
+        console.error('Error binding batch processing advanced services:', error);
+        console.error('Error stack:', error?.stack);
+        throw error;
+      }
+
       console.log('Attempting to bind BatchProcessingService...');
       try {
         // 修改为动态绑定，延迟初始化直到ConfigService可用
         container.bind<BatchProcessingService>(TYPES.BatchProcessingService).toDynamicValue(context => {
           console.log('Creating BatchProcessingService dynamically...');
           const logger = context.get<LoggerService>(TYPES.LoggerService);
-          const errorHandler = context.get<ErrorHandlerService>(TYPES.ErrorHandlerService);
-          const memoryMonitorService = context.get<IMemoryMonitorService>(TYPES.MemoryMonitorService);
           const batchStrategyFactory = context.get<BatchStrategyFactory>(TYPES.BatchStrategyFactory);
           const semanticBatchStrategy = context.get<SemanticBatchStrategy>(TYPES.SemanticBatchStrategy);
+          const configManager = context.get<BatchConfigManager>(TYPES.BatchConfigManager);
+          const executionEngine = context.get<BatchExecutionEngine>(TYPES.BatchExecutionEngine);
+          const metricsManager = context.get<PerformanceMetricsManager>(TYPES.PerformanceMetricsManager);
+          const hotReloadProcessor = context.get<HotReloadBatchProcessor>(TYPES.HotReloadBatchProcessor);
 
           console.log('All dependencies retrieved, creating BatchProcessingService...');
           const batchProcessingService = new BatchProcessingService(
             logger,
-            errorHandler,
-            memoryMonitorService,
             batchStrategyFactory,
             semanticBatchStrategy,
+            configManager,
+            executionEngine,
+            metricsManager,
+            hotReloadProcessor,
             undefined // config parameter - will use default config
           );
-          
+
           console.log('BatchProcessingService created successfully');
           return batchProcessingService;
         }).inSingletonScope();
@@ -294,7 +346,7 @@ export class InfrastructureServiceRegistrar {
     try {
       // 获取配置服务和需要延迟注入的服务
       const configService = container.get<ConfigService>(TYPES.ConfigService);
-      
+
       // 设置 EmbedderFactory 的配置服务
       if (container.isBound(TYPES.EmbedderFactory)) {
         const embedderFactory = container.get<EmbedderFactory>(TYPES.EmbedderFactory);
@@ -302,7 +354,7 @@ export class InfrastructureServiceRegistrar {
           embedderFactory.setConfigService(configService);
         }
       }
-      
+
       // 设置 EmbeddingCacheService 的配置服务
       if (container.isBound(TYPES.EmbeddingCacheService)) {
         const embeddingCacheService = container.get<EmbeddingCacheService>(TYPES.EmbeddingCacheService);

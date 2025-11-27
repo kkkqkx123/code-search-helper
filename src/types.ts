@@ -72,6 +72,10 @@ export const TYPES = {
   // 8. 性能优化器服务
   PerformanceOptimizerService: Symbol.for('PerformanceOptimizerService'),
   BatchProcessingService: Symbol.for('BatchProcessingService'),
+  ChangeCoordinator: Symbol.for('ChangeCoordinator'),
+  CacheStrategyManager: Symbol.for('CacheStrategyManager'),
+  ReliabilityManager: Symbol.for('ReliabilityManager'),
+  ModuleConfigManager: Symbol.for('ModuleConfigManager'),
 
   // 9. 嵌入器服务
   EmbedderFactory: Symbol.for('EmbedderFactory'),
@@ -400,4 +404,13 @@ export const TYPES = {
   NebulaBatchStrategy: Symbol.for('NebulaBatchStrategy'),
   GraphBatchStrategy: Symbol.for('GraphBatchStrategy'),
   EmbeddingBatchStrategy: Symbol.for('EmbeddingBatchStrategy'),
-};
+
+  // 48. 批处理模块化服务
+  BatchConfigManager: Symbol.for('BatchConfigManager'),
+  BatchExecutionEngine: Symbol.for('BatchExecutionEngine'),
+  PerformanceMetricsManager: Symbol.for('PerformanceMetricsManager'),
+  HotReloadBatchProcessor: Symbol.for('HotReloadBatchProcessor'),
+  ChangeGroupingService: Symbol.for('ChangeGroupingService'),
+  VectorIndexBatchProcessor: Symbol.for('VectorIndexBatchProcessor'),
+  GraphIndexBatchProcessor: Symbol.for('GraphIndexBatchProcessor'),
+  };
