@@ -40,8 +40,7 @@ export type {
 export type {
   IProcessingStrategy,
   IStrategyFactory,
-  IProcessingContext,
-  IConfigManager
+  IProcessingContext
 } from '../core';
 
 // 默认导出

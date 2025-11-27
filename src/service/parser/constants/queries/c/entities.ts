@@ -66,6 +66,18 @@ export default `
           parameters: (parameter_list) @function.parameters))) @entity.function.pointer
 ] @entity.function
 
+; 资源析构函数模式
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @resource.destructor
+    parameters: (parameter_list
+      (parameter_declaration
+        type: (type_identifier)
+        declarator: (pointer_declarator declarator: (identifier)) @resource.pointer)))
+  body: (compound_statement)
+  (#eq? @resource.destructor "destroy_resource")
+  (#set! "operation" "destruct")) @lifecycle.entity.resource.destructor
+
 ; 4. 数组和指针声明 -> entity.variable 2
 [
 ; 数组查询只能捕获单维数组，但对于多维数组能够覆盖内部结构
@@ -91,4 +103,34 @@ export default `
       declarator: (identifier) @name.entity.variable))
 ] @entity.variable
 
+; 6. 注释与注解 - 优先级0
+(comment) @comment.entity
+
+; C11属性说明符
+(attribute_declaration
+  (attribute
+    name: (identifier) @annotation.name
+    arguments: (argument_list
+      (_) @annotation.argument)*)) @annotation.attribute
+
+; 类型注解
+(type_definition
+  (attribute
+    name: (identifier) @annotation.name
+    arguments: (argument_list
+      (_) @annotation.argument)*)?) @annotation.type
+
+; 变量注解
+(declaration
+  (attribute
+    name: (identifier) @annotation.name
+    arguments: (argument_list
+      (_) @annotation.argument)*)?) @annotation.variable
+
+; 结构体字段注解
+(field_declaration
+  (attribute
+    name: (identifier) @annotation.name
+    arguments: (argument_list
+      (_) @annotation.argument)*)?) @annotation.field
 `;

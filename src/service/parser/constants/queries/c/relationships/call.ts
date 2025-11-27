@@ -1,10 +1,10 @@
 /*
 C Call Relationships-specific Tree-Sitter Query Patterns
 用于识别和分析代码中的函数调用关系
-合并了dependency.ts和reference.ts中的重复函数调用查询
+优先级4
 */
 export default `
-; 统一的函数调用关系 - 基本模式（合并了dependency.ts和reference.ts中的重复查询）
+; 函数调用关系
 (call_expression
   function: (identifier) @call.function.name
   arguments: (argument_list

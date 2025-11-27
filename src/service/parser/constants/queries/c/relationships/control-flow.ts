@@ -1,6 +1,7 @@
 /*
 C Control Flow-specific Tree-Sitter Query Patterns
 用于识别和分析代码中的控制流模式
+优先级4
 */
 export default `
 ; if语句控制流

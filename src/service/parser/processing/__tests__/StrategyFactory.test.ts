@@ -4,8 +4,8 @@
  */
 
 import { StrategyFactory } from '../StrategyFactory';
-import { IProcessingStrategy } from '../../core/interfaces/IProcessingStrategy';
-import { ProcessingConfig } from '../../core/types/ConfigTypes';
+import { IProcessingStrategy } from '../core/interfaces/IProcessingStrategy';
+import { ProcessingConfig } from '../core/types/ConfigTypes';
 
 // 创建一个模拟的策略类用于测试
 class MockStrategy implements IProcessingStrategy {

@@ -5,7 +5,6 @@
 
 import { IProcessingStrategy } from '../core/interfaces/IProcessingStrategy';
 import { IStrategyFactory } from '../core/interfaces/IStrategyFactory';
-import { IConfigManager } from '../core/interfaces/IConfigManager';
 import { ProcessingConfig } from '../core/types/ConfigTypes';
 import { ProcessingResult, ProcessingUtils } from '../types/Processing';
 import { ProcessingContext, ContextBuilder, ContextUtils } from '../types/Context';
@@ -25,7 +24,7 @@ import {
   getLanguageSpecificStrategies,
   getFileTypeSpecificStrategy
 } from '../../constants/StrategyPriorities';
-import { BatchProcessingCoordinator, BatchProcessingFile, BatchProcessingOptions } from '../batching/BatchProcessingCoordinator';
+import { BatchProcessingOptions } from '../../../../infrastructure/batching/types';
 
 /**
  * 处理协调器类
@@ -36,8 +35,8 @@ export class ProcessingCoordinator {
   /** 策略工厂 */
   private strategyFactory: IStrategyFactory;
 
-  /** 配置管理器 */
-  private configManager: IConfigManager;
+  /** 处理配置 */
+  private config: ProcessingConfig;
 
   /** 后处理协调器 */
   private postProcessorCoordinator: ChunkPostProcessorCoordinator;
@@ -56,25 +55,23 @@ export class ProcessingCoordinator {
   /**
    * 构造函数
    * @param strategyFactory 策略工厂
-   * @param configManager 配置管理器
+   * @param config 处理配置
    * @param postProcessorCoordinator 后处理协调器
    * @param logger 日志服务
    */
   constructor(
     @inject(TYPES.StrategyFactory) strategyFactory: IStrategyFactory,
-    @inject(TYPES.ConfigurationManager) configManager: IConfigManager,
+    @inject(TYPES.ConfigurationManager) config: ProcessingConfig,
     @inject(TYPES.FileFeatureDetector) fileFeatureDetector: FileFeatureDetector,
     @inject(TYPES.DetectionService) detectionService: DetectionService,
     @inject(TYPES.ChunkPostProcessorCoordinator) postProcessorCoordinator: ChunkPostProcessorCoordinator,
-    @inject(BatchProcessingCoordinator) @optional() private batchCoordinator?: BatchProcessingCoordinator,
     @inject(TYPES.LoggerService) @optional() logger?: LoggerService
   ) {
     this.strategyFactory = strategyFactory;
-    this.configManager = configManager;
+    this.config = config;
     this.fileFeatureDetector = fileFeatureDetector;
     this.detectionService = detectionService;
     this.postProcessorCoordinator = postProcessorCoordinator;
-    this.batchCoordinator = batchCoordinator;
     this.logger = logger;
     this.performanceStats = this.initializePerformanceStats();
   }
@@ -142,7 +139,7 @@ export class ProcessingCoordinator {
   }
 
   /**
-   * 批量处理多个文件（增强版本）
+   * 批量处理多个文件（简化版本）
    * @param requests 处理请求数组
    * @param options 批量处理选项
    * @returns 处理结果数组
@@ -151,92 +148,53 @@ export class ProcessingCoordinator {
     requests: ProcessingRequest[],
     options?: BatchProcessingOptions
   ): Promise<ProcessingResult[]> {
-    // 如果有批量协调器且启用智能批量处理，使用增强版本
-    if (this.batchCoordinator && options?.enableIntelligentGrouping !== false) {
-      return this.processBatchWithCoordinator(requests, options);
-    }
+    const startTime = Date.now();
 
-    // 降级到原始的顺序处理
-    return this.processBatchSequentially(requests);
-  }
-
-  /**
-   * 使用批量协调器处理
-   */
-  private async processBatchWithCoordinator(
-    requests: ProcessingRequest[],
-    options?: BatchProcessingOptions
-  ): Promise<ProcessingResult[]> {
-    try {
-      this.logger?.info(`Processing batch with intelligent coordinator`, {
-        requestCount: requests.length,
-        options
-      });
-
-      // 转换为批量处理文件格式
-      const batchFiles: BatchProcessingFile[] = requests.map(request => ({
-        content: request.content,
-        language: request.language,
-        filePath: request.filePath,
-        features: request.features,
-        ast: request.ast,
-        nodeTracker: request.nodeTracker
-      }));
-
-      // 使用批量协调器处理
-      const batchResult = await this.batchCoordinator!.processBatch(batchFiles, options);
-
-      this.logger?.info(`Batch processing completed with coordinator`, {
-        requestCount: requests.length,
-        successCount: batchResult.successCount,
-        failureCount: batchResult.failureCount,
-        totalDuration: batchResult.totalDuration
-      });
-
-      return batchResult.results;
-    } catch (error) {
-      this.logger?.error(`Batch processing with coordinator failed, falling back to sequential`, {
-        error: error instanceof Error ? error.message : String(error),
-        requestCount: requests.length
-      });
-
-      // 降级到顺序处理
-      return this.processBatchSequentially(requests);
-    }
-  }
-
-  /**
-   * 顺序批量处理（原始方法）
-   */
-  private async processBatchSequentially(requests: ProcessingRequest[]): Promise<ProcessingResult[]> {
-    const results: ProcessingResult[] = [];
-
-    this.logger?.info(`Processing batch sequentially`, {
-      requestCount: requests.length
+    this.logger?.info(`Processing batch of ${requests.length} files`, {
+      requestCount: requests.length,
+      options
     });
 
-    for (const request of requests) {
-      const result = await this.process(
-        request.content,
-        request.language,
-        request.filePath,
-        request.ast,
-        request.features,
-        request.nodeTracker
-      );
-      results.push(result);
-    }
+    // 使用简单的Promise.allSettled实现批处理
+    const results = await Promise.allSettled(
+      requests.map(request =>
+        this.process(
+          request.content,
+          request.language,
+          request.filePath,
+          request.ast,
+          request.features,
+          request.nodeTracker
+        )
+      )
+    );
 
-    const successCount = results.filter(r => r.success).length;
-    const failureCount = results.filter(r => !r.success).length;
+    // 处理结果，将fulfilled和rejected的结果分别处理
+    const processedResults: ProcessingResult[] = results.map((result, index) => {
+      if (result.status === 'fulfilled') {
+        return result.value;
+      } else {
+        // 如果处理失败，返回失败结果
+        const request = requests[index];
+        return ProcessingUtils.createFailureResult(
+          'unknown',
+          Date.now() - startTime,
+          result.reason instanceof Error ? result.reason.message : String(result.reason)
+        );
+      }
+    });
 
-    this.logger?.info(`Sequential batch processing completed`, {
+    const successCount = processedResults.filter(r => r.success).length;
+    const failureCount = processedResults.filter(r => !r.success).length;
+
+    this.logger?.info(`Batch processing completed`, {
       requestCount: requests.length,
       successCount,
-      failureCount
+      failureCount,
+      totalDuration: Date.now() - startTime
     });
 
-    return results;
+    return processedResults;
   }
 
   /**
@@ -258,9 +216,6 @@ export class ProcessingCoordinator {
     nodeTracker?: any
   ): Promise<ProcessingContext> {
     try {
-      // 获取配置
-      const config = await this.configManager.getConfig();
-
       // 如果上游没有提供特征，使用默认特征
       const finalFeatures = features || this.createDefaultFileFeatures(content, filePath);
 
@@ -268,7 +223,7 @@ export class ProcessingCoordinator {
       const context = new ContextBuilder(content)
         .setLanguage(language)
         .setFilePath(filePath)
-        .setConfig(config)
+        .setConfig(this.config)
         .setFeatures(finalFeatures)
         .setAST(ast)
         .setNodeTracker(nodeTracker)
@@ -519,61 +474,15 @@ export class ProcessingCoordinator {
    * 检测换行符类型
    */
   private detectLineEndingType(content: string): LineEndingType {
-    const crlfCount = (content.match(/\r\n/g) || []).length;
-    const lfCount = (content.match(/(?<!\r)\n/g) || []).length;
-    const crCount = (content.match(/\r(?!\n)/g) || []).length;
-
-    if (crlfCount > 0 && lfCount === 0 && crCount === 0) {
-      return LineEndingType.CRLF;
-    } else if (lfCount > 0 && crlfCount === 0 && crCount === 0) {
-      return LineEndingType.LF;
-    } else if (crCount > 0 && crlfCount === 0 && lfCount === 0) {
-      return LineEndingType.CR;
-    } else {
-      // 使用 FileFeatureDetector 进行换行符类型检测
-      return this.fileFeatureDetector.detectLineEndingType(content);
-    }
+    // 使用FileFeatureDetector检测换行符类型
+    return this.fileFeatureDetector.detectLineEndingType(content);
   }
 
   /**
    * 检测缩进类型
    */
   private detectIndentationType(content: string): { type: IndentType; size: number } {
-    const lines = content.split('\n');
-    const indentPatterns: string[] = [];
-
-    for (const line of lines) {
-      const match = line.match(/^(\s+)/);
-      if (match) {
-        indentPatterns.push(match[1]);
-      }
-    }
-
-    if (indentPatterns.length === 0) {
-      return { type: IndentType.NONE, size: 0 };
-    }
-
-    const tabCount = indentPatterns.filter(pattern => pattern.includes('\t')).length;
-    const spaceCount = indentPatterns.filter(pattern => /^[ ]+$/.test(pattern)).length;
-
-    let type: IndentType;
-    if (tabCount > 0 && spaceCount === 0) {
-      type = IndentType.TABS;
-    } else if (spaceCount > 0 && tabCount === 0) {
-      type = IndentType.SPACES;
-    } else if (tabCount > 0 && spaceCount > 0) {
-      type = IndentType.MIXED;
-    } else {
-      type = IndentType.NONE;
-    }
-
-    // 计算平均缩进大小
-    const spaceIndents = indentPatterns.filter(pattern => /^[ ]+$/.test(pattern));
-    const averageIndentSize = spaceIndents.length > 0
-      ? spaceIndents.reduce((sum, pattern) => sum + pattern.length, 0) / spaceIndents.length
-      : 0;
-
-    // 使用 FileFeatureDetector 进行缩进类型检测
+    // 使用FileFeatureDetector检测缩进类型
     return this.fileFeatureDetector.detectIndentationType(content);
   }
 
@@ -581,40 +490,39 @@ export class ProcessingCoordinator {
    * 检测是否为二进制内容
    */
   private isBinaryContent(content: string): boolean {
-    // 简单的二进制检测：检查是否包含null字节
+    // 使用FileFeatureDetector检测是否为二进制内容
     return this.fileFeatureDetector.isBinaryContent(content);
   }
 
   /**
-  * 创建默认文件特征
-  * @param content 代码内容
-  * @param filePath 文件路径
-  * @returns 文件特征
-  */
+   * 创建默认文件特征
+   * @param content 代码内容
+   * @param filePath 文件路径
+   * @returns 文件特征
+   */
   private createDefaultFileFeatures(content: string, filePath?: string): FileFeatures {
     const lines = content.split('\n');
     const lineCount = lines.length;
-    const characterCount = content.length;
     const size = new Blob([content]).size;
-    const extension = filePath ? filePath.split('.').pop()?.toLowerCase() || '' : '';
+    const extension = filePath ? filePath.split('.').pop()?.toLowerCase() : '';
 
-    // 基本特征检测
-    const hasImports = /import\s+|require\s*\(/.test(content);
-    const hasExports = /export\s+|module\.exports/.test(content);
-    const hasFunctions = /function\s+\w+|=>\s*{|\w+\s*:\s*function/.test(content);
-    const hasClasses = /class\s+\w+/.test(content);
+    // 基本特征检测 - 使用FileFeatureDetector
+    const hasImports = this.fileFeatureDetector.hasImports(content, 'unknown');
+    const hasExports = this.fileFeatureDetector.hasExports(content, 'unknown');
+    const hasFunctions = this.fileFeatureDetector.hasFunctions(content, 'unknown');
+    const hasClasses = this.fileFeatureDetector.hasClasses(content, 'unknown');
 
-    // 计算基本复杂度
-    const complexity = this.calculateBasicComplexity(content);
+    // 计算基本复杂度 - 使用FileFeatureDetector
+    const complexity = this.fileFeatureDetector.calculateComplexity(content);
 
-    // 检测换行符类型
-    const lineEndingType = this.detectLineEndingType(content);
+    // 检测换行符类型 - 使用FileFeatureDetector
+    const lineEndingType = this.fileFeatureDetector.detectLineEndingType(content);
 
-    // 检测缩进类型
-    const { type: indentType, size: averageIndentSize } = this.detectIndentationType(content);
+    // 检测缩进类型 - 使用FileFeatureDetector
+    const { type: indentType, size: averageIndentSize } = this.fileFeatureDetector.detectIndentationType(content);
 
-    // 检测是否为二进制文件
-    const isBinary = this.isBinaryContent(content);
+    // 检测是否为二进制文件 - 使用FileFeatureDetector
+    const isBinary = this.fileFeatureDetector.isBinaryContent(content);
 
     // 检测是否包含非ASCII字符
     const hasNonASCII = /[^\x00-\x7F]/.test(content);
@@ -627,15 +535,15 @@ export class ProcessingCoordinator {
       size,
       lineCount,
       isSmallFile: size < 1024,
-      isCodeFile: this.isCodeContent(content),
+      isCodeFile: this.fileFeatureDetector.isCodeContent(content),
       isStructuredFile: hasFunctions || hasClasses,
-      complexity: this.calculateBasicComplexity(content),
+      complexity,
       hasImports,
       hasExports,
       hasFunctions,
       hasClasses,
       languageFeatures: {
-        characterCount,
+        characterCount: content.length,
         isBinary,
         isText: !isBinary,
         extension,
@@ -647,24 +555,14 @@ export class ProcessingCoordinator {
       }
     };
   }
-
   /**
    * 计算基本复杂度
    * @param content 代码内容
    * @returns 复杂度评分
    */
   private calculateBasicComplexity(content: string): number {
-    let complexity = 0;
-
-    complexity += (content.match(/if\s*\(/g) || []).length * 2;
-    complexity += (content.match(/for\s*\(/g) || []).length * 3;
-    complexity += (content.match(/while\s*\(/g) || []).length * 3;
-    complexity += (content.match(/function\s+\w+/g) || []).length * 2;
-    complexity += (content.match(/class\s+\w+/g) || []).length * 3;
-    complexity += (content.match(/try\s*{/g) || []).length * 2;
-    complexity += (content.match(/catch\s*\(/g) || []).length * 2;
-
-    return Math.max(1, complexity);
+    // 使用FileFeatureDetector计算文件复杂度
+    return this.fileFeatureDetector.calculateComplexity(content);
   }
 
   /**
@@ -673,24 +571,7 @@ export class ProcessingCoordinator {
    * @returns 是否为代码
    */
   private isCodeContent(content: string): boolean {
-    const codePatterns = [
-      /function\s+\w+/,
-      /class\s+\w+/,
-      /var\s+\w+\s*=/,
-      /let\s+\w+\s*=/,
-      /const\s+\w+\s*=/,
-      /import\s+/,
-      /export\s+/,
-      /if\s*\(/,
-      /for\s*\(/,
-      /while\s*\(/,
-      /def\s+\w+/,
-      /public\s+class/,
-      /private\s+\w+/,
-      /public\s+\w+/
-    ];
-
-    // 使用 FileFeatureDetector 进行代码内容检测
+    // 使用FileFeatureDetector判断是否为代码内容
     return this.fileFeatureDetector.isCodeContent(content);
   }
 

@@ -8,7 +8,6 @@ export * from './interfaces/IProcessingStrategy';
 export * from './interfaces/IStrategyFactory';
 export * from './interfaces/IProcessingContext';
 export * from './interfaces/IPostProcessor';
-export * from './interfaces/IConfigManager';
 export * from './interfaces/IOverlapCalculator';
 
 // 导出所有类型
@@ -32,7 +31,6 @@ export const CORE_MODULE_INFO = {
     'interfaces/IStrategyFactory',
     'interfaces/IProcessingContext',
     'interfaces/IPostProcessor',
-    'interfaces/IConfigManager',
     'types/ProcessingTypes',
     'types/ContextTypes',
     'types/ResultTypes',

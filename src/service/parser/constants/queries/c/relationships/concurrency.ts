@@ -1,8 +1,7 @@
 /*
 C Concurrency Relationships-specific Tree-Sitter Query Patterns
 用于识别和分析代码中的并发模式
-从 ref/concurrency-relationships.ts 迁移而来
-合并了creation.ts和lifecycle.ts中的重复线程查询
+优先级3
 */
 export default `
 ; 统一的线程操作并发关系（合并了creation.ts和lifecycle.ts中的重复查询）

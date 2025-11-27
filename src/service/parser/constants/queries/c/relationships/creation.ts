@@ -45,11 +45,6 @@ export default `
       (identifier) @file.handle)) @creation.relationship.file.write
 ] @creation.relationship.file.operations
 
-; 线程创建关系 - 已移至concurrency.ts以避免重复
-; 参考 concurrency.ts 中的统一线程操作查询
-
-; 互斥锁创建关系 - 已移至concurrency.ts以避免重复
-; 参考 concurrency.ts 中的统一互斥锁操作查询
 
 ; 条件变量创建关系
 (call_expression

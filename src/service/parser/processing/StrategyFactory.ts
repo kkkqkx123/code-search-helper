@@ -4,10 +4,10 @@
  * 优化后版本：支持精简的策略架构，专注于向量嵌入优化
  */
 
-import { IStrategyFactory, StrategyConstructor } from '../core/interfaces/IStrategyFactory';
-import { IProcessingStrategy } from '../core/interfaces/IProcessingStrategy';
-import { ProcessingConfig } from '../core/types/ConfigTypes';
-import { UNIFIED_STRATEGY_PRIORITIES, getPrioritizedStrategies } from '../../constants/StrategyPriorities';
+import { IStrategyFactory, StrategyConstructor } from './core/interfaces/IStrategyFactory';
+import { IProcessingStrategy } from './core/interfaces/IProcessingStrategy';
+import { ProcessingConfig } from './core/types/ConfigTypes';
+import { UNIFIED_STRATEGY_PRIORITIES, getPrioritizedStrategies } from '../constants/StrategyPriorities';
 
 /**
  * 策略工厂类
@@ -68,7 +68,7 @@ export class StrategyFactory implements IStrategyFactory {
     const strategies = Array.from(this.strategies.keys());
     const prioritizedStrategies = getPrioritizedStrategies(strategies);
     const nonPrioritizedStrategies = strategies.filter(s => !UNIFIED_STRATEGY_PRIORITIES.hasOwnProperty(s));
-    
+
     // 将有优先级的策略和无优先级的策略合并，无优先级的放在最后
     return [...prioritizedStrategies, ...nonPrioritizedStrategies];
   }
@@ -165,7 +165,7 @@ export class StrategyFactory implements IStrategyFactory {
     if (!this.isValidOptimizedStrategy(strategyType)) {
       throw new Error(`Strategy '${strategyType}' is not in the optimized strategy list. Available strategies: ${this.getOptimizedStrategies().join(', ')}`);
     }
-    
+
     return this.createStrategy(strategyType, config);
   }
 
@@ -177,7 +177,7 @@ export class StrategyFactory implements IStrategyFactory {
   private registerDefaultStrategies(): void {
     // 不在工厂中直接注册策略，避免类型不匹配问题
     // 策略应该在应用初始化时通过registerStrategy方法注册
-    
+
     // 优化后的策略列表（供参考）：
     // - line-segmentation: LineSegmentationStrategy
     // - bracket-segmentation: BracketSegmentationStrategy  

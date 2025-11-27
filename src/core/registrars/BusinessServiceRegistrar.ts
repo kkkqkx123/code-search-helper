@@ -36,16 +36,15 @@ import { TreeSitterCoreService } from '../../service/parser/core/parse/TreeSitte
 import { TreeSitterQueryEngine } from '../../service/parser/core/query/TreeSitterQueryExecutor';
 import { DynamicParserManager } from '../../service/parser/core/parse/DynamicParserManager';
 
-
-import { QueryResultNormalizer } from '../../service/parser/core/normalization/QueryResultNormalizer';
 import { SegmentationConfigService } from '../../config/service/SegmentationConfigService';
 
+// 缓存服务
+import { ICacheService } from '../../infrastructure/caching/types';
+
+// 基础设施配置服务
+import { InfrastructureConfigService } from '../../infrastructure/config/InfrastructureConfigService';
+
 // 新的AST结构提取器相关服务
-import { ASTStructureExtractor } from '../../service/parser/core/normalization/ASTStructureExtractor';
-import { ASTStructureExtractorFactory } from '../../service/parser/core/normalization/ASTStructureExtractorFactory';
-import { ContentAnalyzer } from '../../service/parser/core/normalization/ContentAnalyzer';
-import { RelationshipAnalyzer } from '../../service/parser/core/normalization/RelationshipAnalyzer';
-import { TextPatternAnalyzer } from '../../service/parser/core/normalization/TextPatternAnalyzer';
 import { StructureTypeConverter } from '../../service/parser/core/normalization/utils/StructureTypeConverter';
 
 // 通用文件处理服务
@@ -81,9 +80,8 @@ import { ChunkMerger } from '../../service/parser/processing/utils/chunking/eval
 import { ChunkSimilarityCalculator } from '../../service/parser/processing/utils/chunking/evaluators/ChunkSimilarityCalculator';
 
 // 新增的processing模块替代组件
-import { StrategyFactory } from '../../service/parser/processing/factory/StrategyFactory';
+import { StrategyFactory } from '../../service/parser/processing/StrategyFactory';
 import { ProcessingCoordinator } from '../../service/parser/processing/coordinator/ProcessingCoordinator';
-import { SimpleConfigManager } from '../../service/parser/processing/coordinator/SimpleConfigManager';
 
 import { ChunkPostProcessorCoordinator } from '../../service/parser/post-processing/ChunkPostProcessorCoordinator';
 import { ProcessingConfig } from '../../service/parser/processing/core/types/ConfigTypes';
@@ -192,43 +190,10 @@ export class BusinessServiceRegistrar {
 
 
       // 标准化服务
-      container.bind<QueryResultNormalizer>(TYPES.QueryResultNormalizer).to(QueryResultNormalizer).inSingletonScope();
 
       // 新的AST结构提取器相关服务
       container.bind<StructureTypeConverter>(TYPES.StructureTypeConverter).to(StructureTypeConverter).inSingletonScope();
 
-      container.bind<ASTStructureExtractorFactory>(TYPES.ASTStructureExtractorFactory).toDynamicValue(context => {
-        const queryNormalizer = context.get<QueryResultNormalizer>(TYPES.QueryResultNormalizer);
-        const treeSitterCoreService = context.get<TreeSitterCoreService>(TYPES.TreeSitterCoreService);
-        return new ASTStructureExtractorFactory(queryNormalizer, treeSitterCoreService);
-      }).inSingletonScope();
-
-      container.bind<ASTStructureExtractor>(TYPES.ASTStructureExtractor).toDynamicValue(context => {
-        const factory = context.get<ASTStructureExtractorFactory>(TYPES.ASTStructureExtractorFactory);
-        return factory.getInstance();
-      }).inSingletonScope();
-      // 注册新的分析器
-      container.bind<RelationshipAnalyzer>(TYPES.RelationshipAnalyzer).toDynamicValue(context => {
-        const queryNormalizer = context.get<QueryResultNormalizer>(TYPES.QueryResultNormalizer);
-        const treeSitterCoreService = context.get<TreeSitterCoreService>(TYPES.TreeSitterCoreService);
-        const configService = context.get<any>(TYPES.InfrastructureConfigService);
-        return new RelationshipAnalyzer(queryNormalizer, treeSitterCoreService, configService);
-      }).inSingletonScope();
-
-      container.bind<TextPatternAnalyzer>(TYPES.TextPatternAnalyzer).toDynamicValue(context => {
-        const queryNormalizer = context.get<QueryResultNormalizer>(TYPES.QueryResultNormalizer);
-        const treeSitterCoreService = context.get<TreeSitterCoreService>(TYPES.TreeSitterCoreService);
-        return new TextPatternAnalyzer(queryNormalizer, treeSitterCoreService);
-      }).inSingletonScope();
-
-      container.bind<ContentAnalyzer>(TYPES.UnifiedContentAnalyzer).toDynamicValue(context => {
-        const queryNormalizer = context.get<QueryResultNormalizer>(TYPES.QueryResultNormalizer);
-        const treeSitterCoreService = context.get<TreeSitterCoreService>(TYPES.TreeSitterCoreService);
-        const astStructureExtractor = context.get<ASTStructureExtractor>(TYPES.ASTStructureExtractor);
-        const relationshipAnalyzer = context.get<RelationshipAnalyzer>(TYPES.RelationshipAnalyzer);
-        const textPatternAnalyzer = context.get<TextPatternAnalyzer>(TYPES.TextPatternAnalyzer);
-        return new ContentAnalyzer(queryNormalizer, treeSitterCoreService, astStructureExtractor, relationshipAnalyzer, textPatternAnalyzer);
-      }).inSingletonScope();
 
       // 分段器模块服务 - 注意：UniversalTextStrategy 现在不使用 @injectable，需要手动实例化
       container.bind<UniversalTextStrategy>(TYPES.UniversalTextStrategy).toDynamicValue(() => {
@@ -249,160 +214,102 @@ export class BusinessServiceRegistrar {
       }).inSingletonScope();
 
       // 新增的processing模块替代组件
+      // 定义默认处理配置常量
+      const DEFAULT_PROCESSING_CONFIG: ProcessingConfig = {
+        chunking: {
+          maxChunkSize: 2000,
+          minChunkSize: 200,
+          overlapSize: 100,
+          maxLinesPerChunk: 50,
+          minLinesPerChunk: 5,
+          maxOverlapRatio: 0.2,
+          defaultStrategy: 'semantic',
+          strategyPriorities: {
+            'semantic': 10,
+            'bracket': 8,
+            'line': 6,
+            'ast': 9
+          },
+          enableIntelligentChunking: true,
+          enableSemanticBoundaryDetection: true
+        },
+        features: {
+          enableAST: true,
+          enableSemanticDetection: true,
+          enableBracketBalance: true,
+          enableCodeOverlap: true,
+          enableStandardization: true,
+          standardizationFallback: true,
+          enableComplexityCalculation: true,
+          enableLanguageFeatureDetection: true,
+          featureDetectionThresholds: {}
+        },
+        performance: {
+          memoryLimitMB: 500,
+          maxExecutionTime: 30000,
+          enableCaching: true,
+          cacheSizeLimit: 100,
+          enablePerformanceMonitoring: true,
+          concurrencyLimit: 10,
+          queueSizeLimit: 100,
+          enableBatchProcessing: true,
+          batchSize: 50,
+          enableLazyLoading: true
+        },
+        languages: {},
+        postProcessing: {
+          enabled: true,
+          enabledProcessors: ['OverlapPostProcessor', 'ChunkFilter', 'ChunkRebalancer'],
+          processorConfigs: {},
+          processorOrder: ['OverlapPostProcessor', 'ChunkFilter', 'ChunkRebalancer'],
+          maxProcessingRounds: 3,
+          enableParallelProcessing: false,
+          parallelProcessingLimit: 5
+        },
+        global: {
+          debugMode: false,
+          logLevel: 'info',
+          enableMetrics: true,
+          enableStatistics: true,
+          configVersion: '1.0.0',
+          compatibilityMode: false,
+          strictMode: false,
+          experimentalFeatures: [],
+          customProperties: {}
+        },
+        version: '1.0.0',
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      };
+
       container.bind<StrategyFactory>(TYPES.StrategyFactory).toDynamicValue(context => {
         const logger = context.get<LoggerService>(TYPES.LoggerService);
         const segmentationConfigService = context.get<SegmentationConfigService>(TYPES.SegmentationConfigService);
 
-        // 创建默认的ProcessingConfig
-        const processingConfig: ProcessingConfig = {
-          chunking: {
-            maxChunkSize: 2000,
-            minChunkSize: 200,
-            overlapSize: 100,
-            maxLinesPerChunk: 50,
-            minLinesPerChunk: 5,
-            maxOverlapRatio: 0.2,
-            defaultStrategy: 'semantic',
-            strategyPriorities: {
-              'semantic': 10,
-              'bracket': 8,
-              'line': 6,
-              'ast': 9
-            },
-            enableIntelligentChunking: true,
-            enableSemanticBoundaryDetection: true
-          },
-          features: {
-            enableAST: true,
-            enableSemanticDetection: true,
-            enableBracketBalance: true,
-            enableCodeOverlap: true,
-            enableStandardization: true,
-            standardizationFallback: true,
-            enableComplexityCalculation: true,
-            enableLanguageFeatureDetection: true,
-            featureDetectionThresholds: {}
-          },
-          performance: {
-            memoryLimitMB: 500,
-            maxExecutionTime: 30000,
-            enableCaching: true,
-            cacheSizeLimit: 100,
-            enablePerformanceMonitoring: true,
-            concurrencyLimit: 10,
-            queueSizeLimit: 100,
-            enableBatchProcessing: true,
-            batchSize: 50,
-            enableLazyLoading: true
-          },
-          languages: {},
-          postProcessing: {
-            enabled: true,
-            enabledProcessors: ['OverlapPostProcessor', 'ChunkFilter', 'ChunkRebalancer'],
-            processorConfigs: {},
-            processorOrder: ['OverlapPostProcessor', 'ChunkFilter', 'ChunkRebalancer'],
-            maxProcessingRounds: 3,
-            enableParallelProcessing: false,
-            parallelProcessingLimit: 5
-          },
-          global: {
-            debugMode: false,
-            logLevel: 'info',
-            enableMetrics: true,
-            enableStatistics: true,
-            configVersion: '1.0.0',
-            compatibilityMode: false,
-            strictMode: false,
-            experimentalFeatures: [],
-            customProperties: {}
-          },
-          version: '1.0.0',
-          createdAt: Date.now(),
-          updatedAt: Date.now()
-        };
-
-        return new StrategyFactory(processingConfig);
+        return new StrategyFactory({ ...DEFAULT_PROCESSING_CONFIG });
       }).inSingletonScope();
 
 
 
       container.bind<ChunkPostProcessorCoordinator>(TYPES.ChunkPostProcessorCoordinator).to(ChunkPostProcessorCoordinator).inSingletonScope();
 
-      // 注册 SimpleConfigManager
-      container.bind<SimpleConfigManager>(TYPES.ConfigurationManager).toDynamicValue(context => {
-        // 创建默认的ProcessingConfig
-        const processingConfig: ProcessingConfig = {
-          chunking: {
-            maxChunkSize: 2000,
-            minChunkSize: 200,
-            overlapSize: 100,
-            maxLinesPerChunk: 50,
-            minLinesPerChunk: 5,
-            maxOverlapRatio: 0.2,
-            defaultStrategy: 'semantic',
-            strategyPriorities: {
-              'semantic': 10,
-              'bracket': 8,
-              'line': 6,
-              'ast': 9
-            },
-            enableIntelligentChunking: true,
-            enableSemanticBoundaryDetection: true
-          },
-          features: {
-            enableAST: true,
-            enableSemanticDetection: true,
-            enableBracketBalance: true,
-            enableCodeOverlap: true,
-            enableStandardization: true,
-            standardizationFallback: true,
-            enableComplexityCalculation: true,
-            enableLanguageFeatureDetection: true,
-            featureDetectionThresholds: {}
-          },
-          performance: {
-            memoryLimitMB: 500,
-            maxExecutionTime: 30000,
-            enableCaching: true,
-            cacheSizeLimit: 100,
-            enablePerformanceMonitoring: true,
-            concurrencyLimit: 10,
-            queueSizeLimit: 100,
-            enableBatchProcessing: true,
-            batchSize: 50,
-            enableLazyLoading: true
-          },
-          languages: {},
-          postProcessing: {
-            enabled: true,
-            enabledProcessors: ['OverlapPostProcessor', 'ChunkFilter', 'ChunkRebalancer'],
-            processorConfigs: {},
-            processorOrder: ['OverlapPostProcessor', 'ChunkFilter', 'ChunkRebalancer'],
-            maxProcessingRounds: 3,
-            enableParallelProcessing: false,
-            parallelProcessingLimit: 5
-          },
-          global: {
-            debugMode: false,
-            logLevel: 'info',
-            enableMetrics: true,
-            enableStatistics: true,
-            configVersion: '1.0.0',
-            compatibilityMode: false,
-            strictMode: false,
-            experimentalFeatures: [],
-            customProperties: {}
-          },
-          version: '1.0.0',
-          createdAt: Date.now(),
-          updatedAt: Date.now()
-        };
+      // 注册 ProcessingCoordinator，直接注入配置
+      container.bind<ProcessingCoordinator>(TYPES.UnifiedProcessingCoordinator).toDynamicValue(context => {
+        const strategyFactory = context.get<StrategyFactory>(TYPES.StrategyFactory);
+        const fileFeatureDetector = context.get<FileFeatureDetector>(TYPES.FileFeatureDetector);
+        const detectionService = context.get<DetectionService>(TYPES.DetectionService);
+        const postProcessorCoordinator = context.get<ChunkPostProcessorCoordinator>(TYPES.ChunkPostProcessorCoordinator);
+        const logger = context.get<LoggerService>(TYPES.LoggerService);
 
-        return new SimpleConfigManager(processingConfig);
+        return new ProcessingCoordinator(
+          strategyFactory,
+          { ...DEFAULT_PROCESSING_CONFIG },
+          fileFeatureDetector,
+          detectionService,
+          postProcessorCoordinator,
+          logger
+        );
       }).inSingletonScope();
-
-      // 注册 ProcessingCoordinator
-      container.bind<ProcessingCoordinator>(TYPES.UnifiedProcessingCoordinator).to(ProcessingCoordinator).inSingletonScope();
 
       // 块相似性计算器
       container.bind<ChunkSimilarityCalculator>(TYPES.ChunkSimilarityCalculator).to(ChunkSimilarityCalculator).inSingletonScope();

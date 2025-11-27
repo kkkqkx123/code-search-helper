@@ -116,16 +116,12 @@ export type {
   IProcessingStrategy,
   IStrategyFactory,
   IProcessingContext,
-  IConfigManager,
   IOverlapCalculator,
   IPostProcessor
 } from './core';
 
 // 处理协调器导入和导出
 export { ProcessingCoordinator, ProcessingRequest, ProcessingPerformanceStats } from './coordinator';
-
-// 策略工厂导入和导出
-export { StrategyFactory } from './factory';
 
 // 检测服务导入和导出 - 从上级目录导入
 export {
@@ -155,7 +151,6 @@ export * from './strategies';
 
 // 导入所需的类用于默认导出
 import { ProcessingCoordinator } from './coordinator';
-import { StrategyFactory } from './factory';
 import { DetectionService } from '../detection/DetectionService';
 import { ChunkPostProcessorCoordinator } from '../post-processing/ChunkPostProcessorCoordinator';
 
@@ -163,7 +158,6 @@ import { ChunkPostProcessorCoordinator } from '../post-processing/ChunkPostProce
 export default {
   // 主要类
   ProcessingCoordinator,
-  StrategyFactory,
   UnifiedDetectionService: DetectionService,
   ChunkPostProcessorCoordinator,
 

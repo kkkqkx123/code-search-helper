@@ -1,7 +1,7 @@
 /*
 C Lifecycle Relationships-specific Tree-Sitter Query Patterns
 用于识别和分析代码中的生命周期管理模式
-从 ref/lifecycle-relationships.ts 迁移而来，排除已在 creation.ts 中的功能
+优先级3
 */
 export default `
 ; 内存释放生命周期
@@ -20,18 +20,6 @@ export default `
     (identifier) @original.pointer
     (binary_expression) @new.size)
   (#set! "operation" "reallocate")) @lifecycle.relationship.memory.reallocation
-
-; 内存分配变量绑定 - 已移至creation.ts以避免重复
-; 参考 creation.ts 中的统一内存分配查询
-
-; 文件操作生命周期 - 已移至creation.ts以避免重复
-; 参考 creation.ts 中的统一文件操作查询
-
-; 线程操作生命周期 - 已移至concurrency.ts以避免重复
-; 参考 concurrency.ts 中的统一线程操作查询
-
-; 互斥锁操作生命周期 - 已移至concurrency.ts以避免重复
-; 参考 concurrency.ts 中的统一互斥锁操作查询
 
 ; 资源管理函数模式 - 注意：这些是实体查询而非关系查询
 ; 建议移至专门的实体查询文件中，避免与关系查询混淆

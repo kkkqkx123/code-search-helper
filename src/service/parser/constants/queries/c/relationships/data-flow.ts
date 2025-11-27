@@ -1,7 +1,7 @@
 /*
 C Data Flow-specific Tree-Sitter Query Patterns
 用于追踪变量间的数据传递关系
-Optimized based on tree-sitter best practices
+优先级3
 */
 export default `
 ; 统一的赋值数据流查询 - 使用交替模式，包含声明初始化和赋值表达式

@@ -4,7 +4,7 @@
  */
 
 import { ProcessingCoordinator } from '../coordinator/ProcessingCoordinator';
-import { StrategyFactory } from '../factory/StrategyFactory';
+import { StrategyFactory } from '../StrategyFactory';
 import { ChunkPostProcessorCoordinator } from '../../post-processing/ChunkPostProcessorCoordinator';
 import { ProcessingContext, ContextBuilder } from '../types/Context';
 import { UNIFIED_STRATEGY_PRIORITIES, getPrioritizedStrategies, getLanguageSpecificStrategies } from '../../constants/StrategyPriorities';
