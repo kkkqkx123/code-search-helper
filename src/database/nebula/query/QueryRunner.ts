@@ -286,7 +286,7 @@ export class QueryRunner extends EventEmitter implements IQueryRunner {
       };
 
       // 使用批处理服务执行查询
-      const results = await this.batchProcessingService.processBatches(
+      const results = await this.batchProcessingService.executeBatch(
         queries,
         async (batch: QueryBatch[]) => {
           const batchResults: NebulaQueryResult[] = [];

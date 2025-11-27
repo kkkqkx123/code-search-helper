@@ -208,7 +208,7 @@ export class BatchProcessingOptimizer {
 
     try {
       // 执行批处理操作
-      const batchResult = await this.batchOptimizer.processBatches(
+      const batchResult = await this.batchOptimizer.executeBatch(
         items,
         operation,
         {

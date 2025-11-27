@@ -32,7 +32,7 @@ export interface BatchConfig {
  * 变更协调器 - 集中管理文件变更的批量处理和调度
  */
 @injectable()
-export class ChangeCoordinator extends EventEmitter {
+export class ChangeCoordinator {
   private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
   private batchProcessor: BatchProcessingService;
@@ -40,13 +40,13 @@ export class ChangeCoordinator extends EventEmitter {
   private batchSchedulers: Map<string, BatchScheduler> = new Map();
   private batchConfig: Map<string, BatchConfig> = new Map();
   private isProcessing: Map<string, boolean> = new Map();
+  private eventEmitter: EventEmitter = new EventEmitter();
 
   constructor(
     @inject(TYPES.LoggerService) logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) errorHandler: ErrorHandlerService,
     @inject(TYPES.BatchProcessingService) batchProcessor: BatchProcessingService
   ) {
-    super();
     this.logger = logger;
     this.errorHandler = errorHandler;
     this.batchProcessor = batchProcessor;
@@ -125,38 +125,40 @@ export class ChangeCoordinator extends EventEmitter {
   }
 
   /**
-   * 智能变更分组
-   */
-  private groupChangesByTarget(changes: FileChangeEvent[]): ChangeGroups {
-    return changes.reduce((groups, change) => {
-      // 基于文件扩展名和变更类型进行分组
-      const extension = change.path.split('.').pop()?.toLowerCase();
-      
-      // 向量索引相关文件
-      if (this.isVectorRelevantFile(extension)) {
-        groups.vectorChanges.push(change);
-      }
-      
-      // 图索引相关文件
-      if (this.isGraphRelevantFile(extension)) {
-        groups.graphChanges.push(change);
-      }
-      
-      // 索引更新相关
-      if (this.requiresIndexing(change)) {
-        groups.indexChanges.push(change);
-      } else {
-        groups.fileChanges.push(change);
-      }
-      
-      return groups;
-    }, {
-      fileChanges: [],
-      indexChanges: [],
-      vectorChanges: [],
-      graphChanges: []
-    });
-  }
+    * 智能变更分组
+    */
+   private groupChangesByTarget(changes: FileChangeEvent[]): ChangeGroups {
+     const initialGroups: ChangeGroups = {
+       fileChanges: [],
+       indexChanges: [],
+       vectorChanges: [],
+       graphChanges: []
+     };
+
+     return changes.reduce((groups: ChangeGroups, change: FileChangeEvent) => {
+       // 基于文件扩展名和变更类型进行分组
+       const extension = change.path.split('.').pop()?.toLowerCase();
+       
+       // 向量索引相关文件
+       if (this.isVectorRelevantFile(extension)) {
+         groups.vectorChanges.push(change);
+       }
+       
+       // 图索引相关文件
+       if (this.isGraphRelevantFile(extension)) {
+         groups.graphChanges.push(change);
+       }
+       
+       // 索引更新相关
+       if (this.requiresIndexing(change)) {
+         groups.indexChanges.push(change);
+       } else {
+         groups.fileChanges.push(change);
+       }
+       
+       return groups;
+     }, initialGroups);
+   }
 
   /**
    * 判断文件是否与向量索引相关
@@ -211,7 +213,7 @@ export class ChangeCoordinator extends EventEmitter {
     });
 
     // 发出事件供其他服务处理
-    this.emit('processChangeGroup', { changes, priority });
+    this.eventEmitter.emit('processChangeGroup', { changes, priority });
   }
 
   /**
@@ -327,7 +329,7 @@ class DefaultBatchScheduler implements BatchScheduler {
         changeCount: changes.length
       });
 
-      const result = await this.batchProcessor.processHotReloadChanges(
+      const result = await this.batchProcessor.executeHotReloadBatch(
         projectId,
         changes,
         {

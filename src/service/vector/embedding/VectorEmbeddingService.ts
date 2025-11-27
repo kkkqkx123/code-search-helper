@@ -107,9 +107,9 @@ export class VectorEmbeddingService {
       });
 
       // 3. 使用优化的批处理策略
-      const uniqueEmbeddings = await this.batchProcessor.processBatches(
+      const uniqueEmbeddings = await this.batchProcessor.executeBatch(
         processedContents.map(item => item.content),
-        async (batch) => {
+        async (batch: string[]) => {
           return this.processBatchWithEmbedder(batch, options);
         },
         {

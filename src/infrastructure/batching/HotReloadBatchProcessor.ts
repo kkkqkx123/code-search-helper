@@ -3,8 +3,8 @@ import { LoggerService } from '../../utils/LoggerService';
 import { TYPES } from '../../types';
 import { FileChangeEvent } from '../../service/filesystem/ChangeDetectionService';
 import { ChangeGroupingService, GroupedChanges } from './ChangeGroupingService';
-import { VectorIndexBatchProcessor } from './VectorIndexBatchProcessor';
-import { GraphIndexBatchProcessor } from './GraphIndexBatchProcessor';
+import { VectorIndexBatchProcessor } from '../../service/vector/batching/VectorIndexBatchProcessor';
+import { GraphIndexBatchProcessor } from '../../service/graph/batching/GraphIndexBatchProcessor';
 import { BatchConfigManager } from './BatchConfigManager';
 
 /**
@@ -29,7 +29,7 @@ export class HotReloadBatchProcessor {
     @inject(VectorIndexBatchProcessor) private vectorProcessor: VectorIndexBatchProcessor,
     @inject(GraphIndexBatchProcessor) private graphProcessor: GraphIndexBatchProcessor,
     @inject(BatchConfigManager) private configManager: BatchConfigManager
-  ) {}
+  ) { }
 
   /**
    * 处理热重载变更
@@ -78,8 +78,8 @@ export class HotReloadBatchProcessor {
           failedCount += result.value.failed;
         } else {
           this.logger.error(`Batch processing failed for group ${index}:`, result.reason);
-          const groupSize = index === 0 
-            ? groupedChanges.vectorChanges.length 
+          const groupSize = index === 0
+            ? groupedChanges.vectorChanges.length
             : groupedChanges.graphChanges.length;
           failedCount += groupSize;
         }

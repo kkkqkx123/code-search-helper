@@ -21,6 +21,7 @@ import { SemanticBatchStrategy } from './strategies/SemanticBatchStrategy';
 
 // 导入新的模块
 import { BatchConfigManager, BatchProcessingConfig } from './BatchConfigManager';
+export { BatchProcessingConfig } from './BatchConfigManager';
 import { BatchExecutionEngine } from './BatchExecutionEngine';
 import { PerformanceMetricsManager } from './PerformanceMetricsManager';
 import { HotReloadBatchProcessor } from './HotReloadBatchProcessor';
@@ -48,9 +49,9 @@ export class BatchProcessingService implements IBatchProcessingService {
   }
 
   /**
-   * 通用批处理方法
+   * 核心批处理方法 - 统一的批处理入口
    */
-  async processBatches<T, R>(
+  async executeBatch<T, R>(
     items: T[],
     processor: (batch: T[]) => Promise<R[]>,
     options?: BatchProcessingOptions
@@ -83,28 +84,28 @@ export class BatchProcessingService implements IBatchProcessingService {
   }
 
   /**
-   * 数据库批处理
+   * 便捷方法：数据库批处理
    */
-  async processDatabaseBatches<T, R>(
+  async executeDatabaseBatch<T, R>(
     items: T[],
     processor: (batch: T[]) => Promise<R[]>,
     options?: DatabaseBatchOptions
   ): Promise<R[]> {
-    return this.processBatches(items, processor, {
+    return this.executeBatch(items, processor, {
       ...options,
       context: { domain: 'database', subType: options?.databaseType || DatabaseType.QDRANT }
     });
   }
 
   /**
-   * 嵌入器批处理
+   * 便捷方法：嵌入器批处理
    */
-  async processEmbeddingBatches(
+  async executeEmbeddingBatch(
     inputs: EmbeddingInput[],
     embedder: Embedder,
     options?: EmbeddingOptions
   ): Promise<EmbeddingResult[]> {
-    return this.processBatches(inputs, async (batch) => {
+    return this.executeBatch(inputs, async (batch) => {
       const result = await embedder.embed(batch);
       return Array.isArray(result) ? result : [result];
     }, {
@@ -114,9 +115,9 @@ export class BatchProcessingService implements IBatchProcessingService {
   }
 
   /**
-   * 相似度计算批处理
+   * 便捷方法：相似度计算批处理
    */
-  async processSimilarityBatches(
+  async executeSimilarityBatch(
     items: any[],
     strategy: ISimilarityStrategy,
     options?: SimilarityOptions
@@ -168,52 +169,9 @@ export class BatchProcessingService implements IBatchProcessingService {
   }
 
   /**
-   * 添加缺失的接口方法：processSimilarityBatch
+   * 便捷方法：热重载变更批处理
    */
-  async processSimilarityBatch(
-    contents: string[],
-    strategy: ISimilarityStrategy,
-    options?: SimilarityOptions
-  ): Promise<BatchSimilarityResult> {
-    return this.processSimilarityBatches(contents, strategy, options);
-  }
-
-  /**
-   * 添加缺失的接口方法：processEmbeddingBatch
-   */
-  async processEmbeddingBatch(
-    inputs: EmbeddingInput[],
-    embedder: Embedder,
-    options?: EmbeddingOptions
-  ): Promise<EmbeddingResult[]> {
-    return this.processEmbeddingBatches(inputs, embedder, options);
-  }
-
-  /**
-   * 添加缺失的接口方法：processDatabaseBatch
-   */
-  async processDatabaseBatch<T>(
-    operations: T[],
-    databaseType: DatabaseType,
-    options?: DatabaseBatchOptions
-  ): Promise<BatchResult> {
-    const result = await this.processDatabaseBatches(operations, async (batch) => batch, {
-      ...options,
-      databaseType
-    });
-    return {
-      totalOperations: operations.length,
-      successfulOperations: result.length,
-      failedOperations: operations.length - result.length,
-      totalDuration: 0,
-      results: result
-    };
-  }
-
-  /**
-   * 热重载变更批处理
-   */
-  async processHotReloadChanges(
+  async executeHotReloadBatch(
     projectId: string,
     changes: FileChangeEvent[],
     options?: {
@@ -229,6 +187,39 @@ export class BatchProcessingService implements IBatchProcessingService {
   }> {
     return this.hotReloadProcessor.processChanges(projectId, changes, options);
   }
+
+  /**
+   * 便捷方法：带重试的批处理
+   */
+  async executeBatchWithRetry<T, R>(
+    items: T[],
+    processor: (batch: T[]) => Promise<R[]>,
+    options?: BatchProcessingOptions
+  ): Promise<R[]> {
+    return this.executeBatch(items, processor, {
+      ...options,
+      enableRetry: true
+    });
+  }
+
+  /**
+   * 便捷方法：带监控的批处理
+   */
+  async executeBatchWithMonitoring<T, R>(
+    items: T[],
+    processor: (batch: T[]) => Promise<R[]>,
+    operationName: string,
+    options?: BatchProcessingOptions
+  ): Promise<R[]> {
+    return this.executeBatch(items, async (batch) => {
+      return this.executionEngine.executeWithMonitoring(
+        () => processor(batch),
+        `${operationName}-batch`
+      );
+    }, options);
+  }
+
+  // ========== 配置和监控方法 ==========
 
   /**
    * 获取当前批处理大小

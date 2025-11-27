@@ -9,7 +9,6 @@ import { FileFeatures } from '../core/interfaces/IProcessingContext';
 import { IProcessingStrategy } from '../core/interfaces/IProcessingStrategy';
 import { IStrategyFactory } from '../core/interfaces/IStrategyFactory';
 import { IConfigManager } from '../core/interfaces/IConfigManager';
-import { CodeChunk } from '../types/CodeChunk';
 
 /**
  * 批量处理文件接口
@@ -96,7 +95,7 @@ export class BatchProcessingCoordinator {
     @inject(TYPES.BatchProcessingService) private batchProcessor: BatchProcessingService,
     @inject(TYPES.StrategyFactory) private strategyFactory: IStrategyFactory,
     @inject(TYPES.ConfigurationManager) private configManager: IConfigManager
-  ) {}
+  ) { }
 
   /**
    * 批量处理多个文件
@@ -106,7 +105,7 @@ export class BatchProcessingCoordinator {
     options?: BatchProcessingOptions
   ): Promise<BatchProcessingResult> {
     const startTime = Date.now();
-    
+
     try {
       this.logger.info(`Starting batch processing for ${files.length} files`, {
         fileCount: files.length,
@@ -115,7 +114,7 @@ export class BatchProcessingCoordinator {
 
       // 1. 按语言和策略类型分组
       const fileGroups = this.groupFilesByProcessingStrategy(files);
-      
+
       this.logger.info('Files grouped by processing strategy', {
         totalFiles: files.length,
         groupCount: fileGroups.size,
@@ -132,9 +131,9 @@ export class BatchProcessingCoordinator {
 
       // 3. 等待所有组完成并聚合结果
       const groupResults = await Promise.allSettled(groupPromises);
-      
+
       const result = this.aggregateBatchResults(groupResults, startTime);
-      
+
       this.logger.info('Batch processing completed', {
         totalFiles: files.length,
         successCount: result.successCount,
@@ -166,7 +165,7 @@ export class BatchProcessingCoordinator {
     for (const file of files) {
       // 预先确定策略类型，避免重复计算
       const strategyType = this.preselectStrategyType(file.language, file.filePath);
-      
+
       if (!groups.has(strategyType)) {
         groups.set(strategyType, []);
       }
@@ -228,7 +227,7 @@ export class BatchProcessingCoordinator {
           'xml': 'xml-based',
           'md': 'markdown-based'
         };
-        
+
         if (extStrategyMap[ext]) {
           return extStrategyMap[ext];
         }
@@ -263,7 +262,7 @@ export class BatchProcessingCoordinator {
 
     // 1. 创建共享的处理上下文
     const sharedContext = await this.createSharedContext(files[0], strategyType);
-    
+
     // 2. 计算最优批次大小
     const batchSize = this.calculateOptimalBatchSize(files, strategyType, options);
     const maxConcurrency = options?.maxConcurrency || 3;
@@ -276,9 +275,9 @@ export class BatchProcessingCoordinator {
     });
 
     // 3. 批量处理文件
-    const batchResults = await this.batchProcessor.processBatches(
+    const batchResults = await this.batchProcessor.executeBatch(
       files,
-      async (batch) => {
+      async (batch: BatchProcessingFile[]) => {
         return this.processBatchWithSharedContext(batch, sharedContext, strategyType);
       },
       {
@@ -296,7 +295,7 @@ export class BatchProcessingCoordinator {
     for (let i = 0; i < batchResultsArray.length; i += batchSize) {
       groupedResults.push(batchResultsArray.slice(i, i + batchSize));
     }
-    
+
     const batchStats = this.generateBatchStats(groupedResults, strategyType, batchSize);
 
     return {
@@ -314,7 +313,7 @@ export class BatchProcessingCoordinator {
   ): Promise<SharedProcessingContext> {
     // 获取基础配置
     const baseConfig = await this.configManager.getConfig();
-    
+
     // 创建可重用的上下文
     const baseContext = await new ContextBuilder(sampleFile.content)
       .setLanguage(sampleFile.language)
@@ -327,7 +326,7 @@ export class BatchProcessingCoordinator {
 
     // 创建共享策略实例
     const sharedStrategy = this.strategyFactory.createStrategy(strategyType, baseContext.config);
-    
+
     // 计算文件特征统计
     const featuresStats = this.calculateFeaturesStats([sampleFile]);
 
@@ -356,14 +355,14 @@ export class BatchProcessingCoordinator {
         try {
           // 创建文件特定的上下文（轻量级）
           const fileContext = this.createFileContext(file, sharedContext);
-          
+
           // 使用共享策略执行处理
           const result = await sharedContext.sharedStrategy.execute(fileContext);
-          
+
           // 后处理
           const finalResult = await this.postProcess(result, fileContext);
           results.push(finalResult);
-          
+
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           this.logger.error(`Failed to process file ${file.filePath || 'unknown'}`, {
@@ -442,7 +441,7 @@ export class BatchProcessingCoordinator {
   ): Promise<ProcessingResult> {
     // 这里可以添加通用的后处理逻辑
     // 例如：代码块过滤、合并、优化等
-    
+
     return result;
   }
 
@@ -503,7 +502,7 @@ export class BatchProcessingCoordinator {
     const totalComplexity = files.reduce((sum, file) => {
       return sum + this.calculateFileComplexity(file.content);
     }, 0);
-    
+
     return files.length > 0 ? totalComplexity / files.length : 0;
   }
 
@@ -512,7 +511,7 @@ export class BatchProcessingCoordinator {
    */
   private calculateFileComplexity(content: string): number {
     let complexity = 0;
-    
+
     complexity += (content.match(/if\s*\(/g) || []).length * 2;
     complexity += (content.match(/for\s*\(/g) || []).length * 3;
     complexity += (content.match(/while\s*\(/g) || []).length * 3;
@@ -520,7 +519,7 @@ export class BatchProcessingCoordinator {
     complexity += (content.match(/class\s+\w+/g) || []).length * 3;
     complexity += (content.match(/try\s*{/g) || []).length * 2;
     complexity += (content.match(/catch\s*\(/g) || []).length * 2;
-    
+
     return Math.max(1, complexity);
   }
 
@@ -531,7 +530,7 @@ export class BatchProcessingCoordinator {
     const lines = content.split('\n');
     const lineCount = lines.length;
     const size = new Blob([content]).size;
-    
+
     return {
       size,
       lineCount,
@@ -577,7 +576,7 @@ export class BatchProcessingCoordinator {
       /private\s+\w+/,
       /public\s+\w+/
     ];
-    
+
     return codePatterns.some(pattern => pattern.test(content));
   }
 
@@ -648,8 +647,8 @@ export class BatchProcessingCoordinator {
       }
     }
 
-    return indentSizes.length > 0 
-      ? indentSizes.reduce((sum, size) => sum + size, 0) / indentSizes.length 
+    return indentSizes.length > 0
+      ? indentSizes.reduce((sum, size) => sum + size, 0) / indentSizes.length
       : 0;
   }
 
@@ -659,7 +658,7 @@ export class BatchProcessingCoordinator {
   private calculateFeaturesStats(files: BatchProcessingFile[]): SharedProcessingContext['featuresStats'] {
     const complexities = files.map(file => this.calculateFileComplexity(file.content));
     const sizes = files.map(file => file.content.length);
-    
+
     return {
       avgComplexity: complexities.reduce((sum, c) => sum + c, 0) / complexities.length,
       avgSize: sizes.reduce((sum, s) => sum + s, 0) / sizes.length,
@@ -672,7 +671,7 @@ export class BatchProcessingCoordinator {
    */
   private extractCommonPatterns(files: BatchProcessingFile[]): string[] {
     const patterns = new Set<string>();
-    
+
     for (const file of files) {
       if (file.content.includes('import')) patterns.add('imports');
       if (file.content.includes('export')) patterns.add('exports');
@@ -681,7 +680,7 @@ export class BatchProcessingCoordinator {
       if (file.content.includes('async')) patterns.add('async');
       if (file.content.includes('await')) patterns.add('await');
     }
-    
+
     return Array.from(patterns);
   }
 

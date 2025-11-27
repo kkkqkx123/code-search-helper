@@ -25,7 +25,7 @@ import {
   getLanguageSpecificStrategies,
   getFileTypeSpecificStrategy
 } from '../../constants/StrategyPriorities';
-import { BatchProcessingCoordinator, BatchProcessingFile, BatchProcessingOptions } from '../batch/BatchProcessingCoordinator';
+import { BatchProcessingCoordinator, BatchProcessingFile, BatchProcessingOptions } from '../batching/BatchProcessingCoordinator';
 
 /**
  * 处理协调器类

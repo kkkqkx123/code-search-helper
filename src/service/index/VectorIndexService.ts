@@ -22,12 +22,6 @@ export interface VectorIndexOptions {
   excludePatterns?: string[];
 }
 
-interface IndexingConfig {
-  batchSize: number;
-  maxConcurrency: number;
-  chunkSize?: number;
-  chunkOverlap?: number;
-}
 
 export interface VectorIndexResult {
   success: boolean;
@@ -486,17 +480,6 @@ export class VectorIndexService implements IIndexService {
     }
   }
 
-  /**
-   * 获取向量索引默认配置
-   */
-  private getDefaultVectorConfig(): IndexingConfig {
-    return {
-      batchSize: 10,
-      maxConcurrency: 3,
-      chunkSize: 1000,
-      chunkOverlap: 200
-    };
-  }
 
   /**
    * 执行实际的向量索引
@@ -508,36 +491,28 @@ export class VectorIndexService implements IIndexService {
     options?: IndexOptions
   ): Promise<void> {
     try {
-      const defaultConfig = this.getDefaultVectorConfig();
-      const batchSize = options?.batchSize || defaultConfig.batchSize;
-      const maxConcurrency = options?.maxConcurrency || defaultConfig.maxConcurrency;
-
       let processedFiles = 0;
       let failedFiles = 0;
 
-      // 使用批处理服务批量处理文件
-      await this.batchProcessor.processBatches(
+      // 使用基础设施层的批处理服务，完全委托批处理逻辑
+      await this.batchProcessor.executeDatabaseBatch(
         files,
-        async (batch) => {
+        async (batch: string[]) => {
           try {
-            // 使用IndexingLogicService处理文件
-            const promises = batch.map(async (filePath) => {
-              try {
+            // 处理批次中的每个文件
+            const results = await Promise.allSettled(
+              batch.map(async (filePath: string) => {
                 await this.indexFileDirectly(projectPath, filePath);
-              } catch (error) {
-                this.logger.error(`Failed to index file: ${filePath}`, { error });
-                throw error;
-              }
-            });
+                return { filePath, success: true };
+              })
+            );
 
-            // 限制并发数
-            // 使用 BatchProcessingService 的并发控制功能
-            for (let i = 0; i < promises.length; i += maxConcurrency) {
-              const batch = promises.slice(i, i + maxConcurrency);
-              await Promise.all(batch);
-            }
-
-            processedFiles += batch.length;
+            // 统计成功和失败的文件
+            const successful = results.filter(r => r.status === 'fulfilled').length;
+            const failed = results.filter(r => r.status === 'rejected').length;
+            
+            processedFiles += successful;
+            failedFiles += failed;
 
             // 更新进度
             const progress = Math.round((processedFiles / files.length) * 100);
@@ -550,16 +525,20 @@ export class VectorIndexService implements IIndexService {
 
             this.logger.debug(`Processed vector batch for project ${projectId}`, {
               projectId,
+              batchSize: batch.length,
               processedFiles,
               totalFiles: files.length,
-              progress
+              progress,
+              successful,
+              failed
             });
 
-            return batch.map(file => ({ filePath: file, success: true }));
+            return batch.map((file: string) => ({ filePath: file, success: true }));
           } catch (error) {
             failedFiles += batch.length;
             this.logger.error(`Failed to process vector batch for project ${projectId}`, {
               projectId,
+              batchSize: batch.length,
               error: error instanceof Error ? error.message : String(error)
             });
 
@@ -570,7 +549,7 @@ export class VectorIndexService implements IIndexService {
               failedFiles
             );
 
-            return batch.map(file => ({
+            return batch.map((file: string) => ({
               filePath: file,
               success: false,
               error: error instanceof Error ? error.message : String(error)
@@ -578,9 +557,9 @@ export class VectorIndexService implements IIndexService {
           }
         },
         {
-          batchSize,
-          maxConcurrency,
-          context: { domain: 'database', subType: 'vector' }
+          batchSize: options?.batchSize,
+          maxConcurrency: options?.maxConcurrency,
+          databaseType: 'vector' as any
         }
       );
 

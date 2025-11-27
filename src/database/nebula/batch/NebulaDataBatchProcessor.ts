@@ -189,18 +189,20 @@ export class NebulaDataBatchProcessor implements INebulaDataBatchProcessor {
         }
       };
 
-      // 使用批处理服务
-      const result = await this.batchService.processDatabaseBatch(
-        processedNodes,
-        DatabaseType.NEBULA,
-        {
-          databaseType: DatabaseType.NEBULA,
-          context,
-          operationType: 'write',
-          enableRetry: true,
-          enableMonitoring: true
-        }
+      // 使用批处理服务 - 处理节点插入
+      const success = await this.dataOperations.insertNodes(
+        nodes[0].properties?.projectId || 'default',
+        'default_space',
+        processedNodes
       );
+
+      // 构建结果对象
+      const result = {
+        successfulOperations: success ? processedNodes.length : 0,
+        failedOperations: success ? 0 : processedNodes.length,
+        totalOperations: processedNodes.length,
+        results: success
+      };
 
       const duration = Date.now() - startTime;
       // 使用 DatabaseLoggerService 记录节点插入事件
@@ -252,20 +254,17 @@ export class NebulaDataBatchProcessor implements INebulaDataBatchProcessor {
         }
       };
 
-      // 使用批处理服务
-      const result = await this.batchService.processDatabaseBatch(
-        processedRelationships,
-        DatabaseType.NEBULA,
-        {
-          databaseType: DatabaseType.NEBULA,
-          context,
-          operationType: 'write',
-          enableRetry: true,
-          enableMonitoring: true
-        }
+      // 使用批处理服务 - 处理关系插入
+      const success = await this.dataOperations.insertRelationships(
+        relationships[0].properties?.projectId || 'default',
+        'default_space',
+        processedRelationships
       );
 
       const duration = Date.now() - startTime;
+      const successfulCount = success ? processedRelationships.length : 0;
+      const failedCount = success ? 0 : processedRelationships.length;
+
       // 使用 DatabaseLoggerService 记录关系插入事件
       await this.databaseLogger.logDatabaseEvent({
         type: DatabaseEventType.DATA_INSERTED,
@@ -274,13 +273,13 @@ export class NebulaDataBatchProcessor implements INebulaDataBatchProcessor {
         data: {
           message: `Inserted ${relationships.length} relationships`,
           relationshipCount: relationships.length,
-          successfulOperations: result.successfulOperations,
-          failedOperations: result.failedOperations,
+          successfulOperations: successfulCount,
+          failedOperations: failedCount,
           duration
         }
       });
 
-      return result.successfulOperations === relationships.length;
+      return success;
     } catch (error) {
       this.errorHandler.handleError(
         error instanceof Error ? error : new Error(String(error)),

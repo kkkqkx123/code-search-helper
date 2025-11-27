@@ -9,14 +9,14 @@ import { NebulaProjectManager } from '../../database/nebula/NebulaProjectManager
 import { VectorIndexService } from './VectorIndexService';
 import { FileSystemTraversal } from '../filesystem/FileSystemTraversal';
 import { BatchProcessingService } from '../../infrastructure/batching/BatchProcessingService';
+import { BatchConfigManager } from '../../infrastructure/batching/BatchConfigManager';
 import { IIndexService, IndexServiceType, IndexStatus, IndexOptions } from './IIndexService';
 import { IndexServiceError } from './errors/IndexServiceErrors';
 import { LANGUAGE_MAP } from '../parser/constants/language-constants';
 import { IGraphIndexPerformanceMonitor } from '../../infrastructure/monitoring/GraphIndexMetrics';
 import { IGraphConstructionService } from '../graph/construction/IGraphConstructionService';
-import { GraphBatchConfigManager } from './batching/GraphBatchConfigManager';
-import { GraphFileGroupingStrategy } from './batching/GraphFileGroupingStrategy';
-import { GraphRetryService } from './batching/GraphRetryService';
+import { GraphFileGroupingStrategy } from '../graph/utils/GraphFileGroupingStrategy';
+import { GraphRetryService } from '../graph/utils/GraphRetryService';
 
 export interface GraphIndexOptions {
   maxConcurrency?: number;
@@ -24,10 +24,6 @@ export interface GraphIndexOptions {
   excludePatterns?: string[];
 }
 
-interface IndexingConfig {
-  batchSize: number;
-  maxConcurrency: number;
-}
 
 export interface GraphIndexResult {
   success: boolean;
@@ -61,7 +57,7 @@ export class GraphIndexService implements IIndexService {
     @inject(TYPES.BatchProcessingService) private batchProcessor: BatchProcessingService,
     @inject(TYPES.GraphIndexPerformanceMonitor) private performanceMonitor: IGraphIndexPerformanceMonitor,
     @inject(TYPES.GraphConstructionService) private graphConstructionService: IGraphConstructionService,
-    @inject(GraphBatchConfigManager) private batchConfigManager: GraphBatchConfigManager,
+    @inject(BatchConfigManager) private batchConfigManager: BatchConfigManager,
     @inject(GraphFileGroupingStrategy) private fileGroupingStrategy: GraphFileGroupingStrategy,
     @inject(GraphRetryService) private retryService: GraphRetryService
   ) { }
@@ -464,15 +460,6 @@ export class GraphIndexService implements IIndexService {
     }
   }
 
-  /**
-   * 获取图索引默认配置
-   */
-  private getDefaultGraphConfig(): IndexingConfig {
-    return {
-      batchSize: 5,
-      maxConcurrency: 2
-    };
-  }
 
   /**
    * 执行实际的图索引（改进版本）
@@ -638,58 +625,23 @@ export class GraphIndexService implements IIndexService {
     projectId: string,
     options?: IndexOptions
   ): Promise<{ processed: number; failed: number }> {
-    const config = this.batchConfigManager;
-    const batchSize = await config.calculateOptimalBatchSize(group.files);
-    const concurrency = await config.calculateOptimalConcurrency(group.files);
-
     this.logger.debug(`Processing file group ${group.groupType}`, {
       projectId,
       groupType: group.groupType,
       fileCount: group.files.length,
-      batchSize,
-      concurrency,
       priority: group.priority
     });
 
     let processedFiles = 0;
     let failedFiles = 0;
 
-    // 使用批处理服务处理文件组
-    await this.batchProcessor.processBatches(
+    // 使用基础设施层的批处理服务，完全委托批处理逻辑
+    await this.batchProcessor.executeDatabaseBatch(
       group.files,
-      async (batch) => {
+      async (batch: string[]) => {
         try {
-          // 使用重试机制处理当前批次
-          const retryConfig = this.retryService.createRetryConfig({
-            maxRetries: 2,
-            baseDelay: 1000,
-            shouldRetry: (error, attempt) => {
-              // 只对网络相关错误进行重试
-              const errorMessage = error.message.toLowerCase();
-              return errorMessage.includes('network') ||
-                     errorMessage.includes('timeout') ||
-                     errorMessage.includes('connection');
-            }
-          });
-
-          const retryResult = await this.retryService.executeWithRetry(
-            () => this.processGraphFiles(projectPath, batch, projectId),
-            retryConfig,
-            `processGraphFiles-batch-${batch.length}`
-          );
-
-          if (retryResult.success) {
-            processedFiles += batch.length;
-          } else {
-            failedFiles += batch.length;
-            this.logger.error(`Batch processing failed after retries`, {
-              projectId,
-              groupType: group.groupType,
-              batchSize: batch.length,
-              attempts: retryResult.attempts,
-              error: retryResult.error?.message
-            });
-          }
+          await this.processGraphFiles(projectPath, batch, projectId);
+          processedFiles += batch.length;
           
           // 更新进度（减少更新频率）
           if (processedFiles % Math.max(1, Math.floor(group.files.length / 10)) === 0) {
@@ -710,7 +662,7 @@ export class GraphIndexService implements IIndexService {
             totalFiles: group.files.length
           });
           
-          return batch.map(file => ({ filePath: file, success: true }));
+          return batch.map((file: string) => ({ filePath: file, success: true }));
         } catch (error) {
           failedFiles += batch.length;
           const errorMessage = error instanceof Error ? error.message : String(error);
@@ -722,7 +674,7 @@ export class GraphIndexService implements IIndexService {
             error: errorMessage
           });
           
-          return batch.map(file => ({
+          return batch.map((file: string) => ({
             filePath: file,
             success: false,
             error: errorMessage
@@ -730,12 +682,9 @@ export class GraphIndexService implements IIndexService {
         }
       },
       {
-        batchSize,
-        maxConcurrency: concurrency,
-        context: {
-          domain: 'database',
-          subType: 'graph',
-        }
+        batchSize: options?.batchSize,
+        maxConcurrency: options?.maxConcurrency,
+        databaseType: 'graph' as any
       }
     );
 

@@ -41,8 +41,8 @@ import { BatchExecutionEngine } from '../../infrastructure/batching/BatchExecuti
 import { PerformanceMetricsManager } from '../../infrastructure/batching/PerformanceMetricsManager';
 import { HotReloadBatchProcessor } from '../../infrastructure/batching/HotReloadBatchProcessor';
 import { ChangeGroupingService } from '../../infrastructure/batching/ChangeGroupingService';
-import { VectorIndexBatchProcessor } from '../../infrastructure/batching/VectorIndexBatchProcessor';
-import { GraphIndexBatchProcessor } from '../../infrastructure/batching/GraphIndexBatchProcessor';
+import { VectorIndexBatchProcessor } from '../../service/vector/batching/VectorIndexBatchProcessor';
+import { GraphIndexBatchProcessor } from '../../service/graph/batching/GraphIndexBatchProcessor';
 
 // SQLite基础设施
 import { SqliteInfrastructure } from '../../database/splite/SqliteInfrastructure';

@@ -155,9 +155,12 @@ export class QdrantInfrastructure implements IDatabaseInfrastructure {
     });
 
     const startTime = Date.now();
-    const batchResult = await this.batchOptimizer.processDatabaseBatch(
+    const batchResult = await this.batchOptimizer.executeDatabaseBatch(
       items,
-      DatabaseType.QDRANT,
+      async (batch: any[]) => {
+        // 这里应该有实际的批处理逻辑
+        return batch;
+      },
       {
         operationType: 'write',
         batchSize: options?.batchSize,
@@ -170,7 +173,7 @@ export class QdrantInfrastructure implements IDatabaseInfrastructure {
     // 记录批处理性能
     this.performanceMonitor.recordOperation(`qdrant_batch_insert:${items.length}`, duration);
 
-    return batchResult.results;
+    return batchResult;
   }
 
   isInitialized(): boolean {

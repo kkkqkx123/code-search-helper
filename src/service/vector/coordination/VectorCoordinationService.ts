@@ -173,7 +173,7 @@ export class VectorCoordinationService implements IVectorCoordinationService {
     processor: (batch: T[]) => Promise<R[]>,
     options?: BatchOptions
   ): Promise<R[]> {
-    return await this.batchService.processBatches(items, processor, options);
+    return await this.batchService.executeBatch(items, processor, options);
   }
 
   private generateVectorId(content: string, options?: VectorOptions): string {

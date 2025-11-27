@@ -1,8 +1,8 @@
 import { injectable, inject } from 'inversify';
-import { LoggerService } from '../../utils/LoggerService';
-import { TYPES } from '../../types';
-import { BatchExecutionEngine } from './BatchExecutionEngine';
-import { FileChangeEvent } from '../../service/filesystem/ChangeDetectionService';
+import { LoggerService } from '../../../utils/LoggerService';
+import { TYPES } from '../../../types';
+import { BatchExecutionEngine } from '../../../infrastructure/batching/BatchExecutionEngine';
+import { FileChangeEvent } from '../../filesystem/ChangeDetectionService';
 
 /**
  * 向量索引批处理结果
@@ -21,7 +21,7 @@ export class VectorIndexBatchProcessor {
   constructor(
     @inject(TYPES.LoggerService) private logger: LoggerService,
     @inject(BatchExecutionEngine) private executionEngine: BatchExecutionEngine
-  ) {}
+  ) { }
 
   /**
    * 处理向量索引变更

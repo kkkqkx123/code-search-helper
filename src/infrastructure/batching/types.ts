@@ -147,13 +147,16 @@ export interface BatchOperationResult {
 
 // 统一批处理服务接口
 export interface IBatchProcessingService {
-  // 通用批处理方法
-  processBatches<T, R>(items: T[], processor: (batch: T[]) => Promise<R[]>, options?: BatchProcessingOptions): Promise<R[]>;
+  // 核心批处理方法
+  executeBatch<T, R>(items: T[], processor: (batch: T[]) => Promise<R[]>, options?: BatchProcessingOptions): Promise<R[]>;
 
-  // 特殊领域批处理方法
-  processSimilarityBatch(contents: string[], strategy: ISimilarityStrategy, options?: SimilarityOptions): Promise<BatchSimilarityResult>;
-  processEmbeddingBatch(inputs: EmbeddingInput[], embedder: Embedder, options?: EmbeddingOptions): Promise<EmbeddingResult[]>;
-  processDatabaseBatch<T>(operations: T[], databaseType: DatabaseType, options?: DatabaseBatchOptions): Promise<BatchResult>;
+  // 便捷方法
+  executeDatabaseBatch<T, R>(items: T[], processor: (batch: T[]) => Promise<R[]>, options?: DatabaseBatchOptions): Promise<R[]>;
+  executeEmbeddingBatch(inputs: EmbeddingInput[], embedder: Embedder, options?: EmbeddingOptions): Promise<EmbeddingResult[]>;
+  executeSimilarityBatch(items: any[], strategy: ISimilarityStrategy, options?: SimilarityOptions): Promise<BatchSimilarityResult>;
+  executeHotReloadBatch(projectId: string, changes: any[], options?: any): Promise<any>;
+  executeBatchWithRetry<T, R>(items: T[], processor: (batch: T[]) => Promise<R[]>, options?: BatchProcessingOptions): Promise<R[]>;
+  executeBatchWithMonitoring<T, R>(items: T[], processor: (batch: T[]) => Promise<R[]>, operationName: string, options?: BatchProcessingOptions): Promise<R[]>;
 
   // 重试和监控
   executeWithRetry<T>(operation: () => Promise<T>, operationName: string, options?: Partial<RetryOptions>): Promise<T>;
@@ -163,7 +166,9 @@ export interface IBatchProcessingService {
   updateConfig(config: Partial<BatchProcessingConfig>): void;
   getPerformanceStats(operationName?: string): PerformanceStats;
   getCurrentBatchSize(context?: BatchContext): number;
-  optimizeMemory(): void;
+  optimizeMemory(): Promise<void>;
+  optimizeBatchSize(context: BatchContext): Promise<number>;
+  resetPerformanceStats(): void;
 }
 
 // 批处理策略工厂接口
