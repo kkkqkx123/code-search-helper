@@ -1,92 +1,68 @@
-import { injectable, inject } from 'inversify';
+import { injectable } from 'inversify';
 import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
-import { BatchExecutionEngine } from '../../../infrastructure/batching/BatchExecutionEngine';
+import { BatchProcessingService } from '../../../infrastructure/batching/BatchProcessingService';
 import { FileChangeEvent } from '../../filesystem/ChangeDetectionService';
-
-/**
- * 向量索引批处理结果
- */
-export interface IndexProcessResult {
-  processed: number;
-  failed: number;
-}
+import { BaseIndexBatchProcessor, IndexProcessResult } from '../../../infrastructure/batching/BaseIndexBatchProcessor';
+import { BatchContext } from '../../../infrastructure/batching/types';
 
 /**
  * 向量索引批处理器
  * 负责处理与向量索引相关的文件变更
  */
 @injectable()
-export class VectorIndexBatchProcessor {
-  constructor(
-    @inject(TYPES.LoggerService) private logger: LoggerService,
-    @inject(BatchExecutionEngine) private executionEngine: BatchExecutionEngine
-  ) { }
+export class VectorIndexBatchProcessor extends BaseIndexBatchProcessor {
+  
+  /**
+   * 处理向量索引变更批次
+   */
+  protected async processBatch(batch: FileChangeEvent[]): Promise<Array<{ success: boolean; error?: string }>> {
+    const results = await Promise.allSettled(
+      batch.map(change => this.processVectorIndexChange(change))
+    );
+
+    return results.map(result => {
+      if (result.status === 'fulfilled') {
+        return { success: true };
+      } else {
+        return { 
+          success: false, 
+          error: result.reason instanceof Error ? result.reason.message : String(result.reason)
+        };
+      }
+    });
+  }
 
   /**
-   * 处理向量索引变更
+   * 获取批处理上下文
    */
-  async processChanges(
-    changes: FileChangeEvent[],
-    options?: {
-      maxConcurrency?: number;
-      batchSize?: number;
-    }
-  ): Promise<IndexProcessResult> {
-    if (changes.length === 0) {
-      return { processed: 0, failed: 0 };
-    }
+  protected getBatchContext(): BatchContext {
+    return { 
+      domain: 'database', 
+      subType: 'qdrant',
+      metadata: { operationType: 'vector-index' }
+    };
+  }
 
-    const batchSize = options?.batchSize || 20;
-    const maxConcurrency = options?.maxConcurrency || 3;
+  /**
+   * 获取处理器类型
+   */
+  protected getProcessorType(): string {
+    return 'vector';
+  }
 
-    this.logger.debug('Starting vector index batch processing', {
-      changeCount: changes.length,
-      batchSize,
-      maxConcurrency
-    });
+  /**
+   * 获取默认批处理大小
+   */
+  protected getDefaultBatchSize(): number {
+    return 20;
+  }
 
-    const batches = this.executionEngine.createBatches(changes, batchSize);
-    let totalProcessed = 0;
-    let totalFailed = 0;
-
-    // 并发处理批次
-    for (let i = 0; i < batches.length; i += maxConcurrency) {
-      const concurrentBatches = batches.slice(i, i + maxConcurrency);
-
-      const batchPromises = concurrentBatches.map(async (batch) => {
-        const results = await Promise.allSettled(
-          batch.map(change => this.processVectorIndexChange(change))
-        );
-
-        let processed = 0;
-        let failed = 0;
-
-        results.forEach(result => {
-          if (result.status === 'fulfilled') {
-            processed++;
-          } else {
-            failed++;
-            this.logger.warn('Vector index change processing failed:', result.reason);
-          }
-        });
-
-        return { processed, failed };
-      });
-
-      const batchResults = await Promise.all(batchPromises);
-      batchResults.forEach(result => {
-        totalProcessed += result.processed;
-        totalFailed += result.failed;
-      });
-    }
-
-    this.logger.debug('Vector index batch processing completed', {
-      processed: totalProcessed,
-      failed: totalFailed
-    });
-
-    return { processed: totalProcessed, failed: totalFailed };
+  /**
+   * 获取默认最大并发数
+   */
+  protected getDefaultMaxConcurrency(): number {
+    return 3;
   }
 
   /**
