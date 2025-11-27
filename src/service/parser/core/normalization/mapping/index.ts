@@ -4,9 +4,6 @@ export * from './types';
 // 导出通用映射解析器
 export * from './QueryMappingResolver';
 
-// 导出各语言的映射
-export * from './c';
-
 // 导出映射验证工具
 export { MappingValidator } from './MappingValidator';
 

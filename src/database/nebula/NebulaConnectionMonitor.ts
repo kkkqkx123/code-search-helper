@@ -21,7 +21,6 @@ export interface NebulaConnectionEvent {
 @injectable()
 export class NebulaConnectionMonitor extends EventEmitter {
   private logger: LoggerService;
-  private errorHandler: ErrorHandlerService;
   private nebulaService: INebulaClient;
   private monitoringInterval: NodeJS.Timeout | null = null;
   private isConnected: boolean = false;
@@ -38,7 +37,6 @@ export class NebulaConnectionMonitor extends EventEmitter {
   ) {
     super();
     this.logger = logger;
-    this.errorHandler = errorHandler;
     this.nebulaService = nebulaService;
   }
 

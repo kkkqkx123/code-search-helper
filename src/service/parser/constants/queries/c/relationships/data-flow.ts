@@ -93,20 +93,7 @@ export default `
       right: (_) @binary.right)
     (number_literal) @source.literal
   ]) @data.flow.return.value
-
-; 初始化数据流 - 使用交替模式
-[
-  (init_declarator
-    declarator: (identifier) @target.variable
-    value: (initializer_list
-      (_) @source.variable)*)) @data.flow.struct.initialization
-  (init_declarator
-    declarator: (array_declarator
-      declarator: (identifier) @target.array)
-    value: (initializer_list
-      (_) @source.variable)*)) @data.flow.array.initialization
-] @data.flow.initialization
-
+   
 ; 指针操作数据流 - 使用交替模式
 [
   (assignment_expression

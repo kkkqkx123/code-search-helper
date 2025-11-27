@@ -1,70 +1,55 @@
 /*
 C Creation Relationships-specific Tree-Sitter Query Patterns
 用于识别和分析代码中的对象创建关系
+合并了lifecycle.ts和semantic.ts中的重复内存分配查询
 */
 export default `
-; 变量声明创建关系
-(declaration
-  type: (type_identifier) @creation.type
-  declarator: (identifier) @creation.variable) @creation.relationship.variable
-
-; 结构体实例化关系
-(declaration
-  type: (struct_specifier
-    name: (type_identifier) @creation.struct.type)
-  declarator: (identifier) @creation.struct.instance) @creation.relationship.struct
-
-; 数组创建关系
-(declaration
-  type: (array_declarator
-    type: (_) @creation.array.type
-    size: (_) @creation.array.size)
-  declarator: (identifier) @creation.array.name) @creation.relationship.array
-
-; 指针创建关系
-(declaration
-  type: (pointer_declarator
-    type: (_) @creation.pointer.type)
-  declarator: (identifier) @creation.pointer.name) @creation.relationship.pointer
-
-; 内存分配创建关系
+; 统一的内存分配创建关系（合并了lifecycle.ts和semantic.ts中的重复查询）
 (init_declarator
   declarator: (pointer_declarator
     declarator: (identifier) @creation.variable)
   value: (call_expression
     function: (identifier) @allocation.function
-    (#match? @allocation.function "^(malloc|calloc|realloc)$")
+    (#match? @allocation.function "^(malloc|calloc|realloc|alloca)$")
     arguments: (argument_list
       (_) @allocation.size))) @creation.relationship.allocation
 
-; 文件创建关系
-(init_declarator
-  declarator: (identifier) @creation.file.handle
-  value: (call_expression
-    function: (identifier) @file.open.function
-    (#match? @file.open.function "^(fopen|open|create)$")
+; 统一的文件操作关系（合并了lifecycle.ts中的重复查询）
+[
+  ; 文件创建/打开
+  (init_declarator
+    declarator: (identifier) @creation.file.handle
+    value: (call_expression
+      function: (identifier) @file.open.function
+      (#match? @file.open.function "^(fopen|open|create)$")
+      arguments: (argument_list
+        (string_literal) @file.path
+        (_) @file.mode))) @creation.relationship.file
+  ; 文件关闭
+  (call_expression
+    function: (identifier) @file.close.function
+    (#match? @file.close.function "^(fclose|close)$")
     arguments: (argument_list
-      (string_literal) @file.path
-      (_) @file.mode))) @creation.relationship.file
+      (identifier) @file.handle)) @creation.relationship.file.close
+  ; 文件读取
+  (call_expression
+    function: (identifier) @file.read.function
+    (#match? @file.read.function "^(fread|read|fgets|getline)$")
+    arguments: (argument_list
+      (identifier) @file.handle)) @creation.relationship.file.read
+  ; 文件写入
+  (call_expression
+    function: (identifier) @file.write.function
+    (#match? @file.write.function "^(fwrite|write|fputs|fprintf)$")
+    arguments: (argument_list
+      (identifier) @file.handle)) @creation.relationship.file.write
+] @creation.relationship.file.operations
 
-; 线程创建关系
-(call_expression
-  function: (identifier) @thread.create.function
-  (#match? @thread.create.function "^(pthread_create|CreateThread|_beginthread)$")
-  arguments: (argument_list
-    (identifier) @thread.handle
-    (_) @thread.attributes
-    (identifier) @thread.function
-    (_) @thread.argument)) @creation.relationship.thread
+; 线程创建关系 - 已移至concurrency.ts以避免重复
+; 参考 concurrency.ts 中的统一线程操作查询
 
-; 互斥锁创建关系
-(call_expression
-  function: (identifier) @mutex.create.function
-  (#match? @mutex.create.function "^(pthread_mutex_init|InitializeCriticalSection)$")
-  arguments: (argument_list
-    (pointer_expression
-      argument: (identifier) @mutex.handle)
-    (_) @mutex.attributes)) @creation.relationship.mutex
+; 互斥锁创建关系 - 已移至concurrency.ts以避免重复
+; 参考 concurrency.ts 中的统一互斥锁操作查询
 
 ; 条件变量创建关系
 (call_expression
