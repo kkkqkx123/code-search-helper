@@ -1,5 +1,6 @@
 import Parser from 'tree-sitter';
 import { CacheKeyUtils } from '../../../../utils/cache/CacheKeyUtils';
+import { HashUtils } from '../../../../utils/cache/HashUtils';
 
 /**
  * 统一的缓存键生成器
@@ -45,7 +46,7 @@ export class CacheKeyGenerator {
    */
   static forBatchQuery(ast: Parser.SyntaxNode, types: string[], language: string): string {
     const contentHash = this.generateContentHash(ast);
-    const typesKey = types.sort().join(',');
+    const typesKey = CacheKeyUtils.generateCacheKey(types.sort());
     return `${this.BATCH_QUERY_PREFIX}${contentHash}:batch:${typesKey}:${language}`;
   }
 
@@ -56,7 +57,9 @@ export class CacheKeyGenerator {
    * @returns 缓存键
    */
   static forAst(filePath: string, contentHash: string): string {
-    return `${this.AST_PREFIX}${filePath}:${contentHash}`;
+    // 使用CacheKeyUtils标准化文件路径和内容哈希的组合
+    const normalizedKey = CacheKeyUtils.generateCacheKey(filePath, contentHash);
+    return `${this.AST_PREFIX}${normalizedKey}`;
   }
 
   /**
@@ -80,14 +83,8 @@ export class CacheKeyGenerator {
     const structure = this.extractNodeStructure(ast);
     const combined = `${ast.type}:${text.length}:${structure}`;
 
-    // 简单哈希算法
-    let hash = 0;
-    for (let i = 0; i < combined.length; i++) {
-      const char = combined.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // 转换为32位整数
-    }
-    return Math.abs(hash).toString();
+    // 使用标准化的哈希算法（FNV-1a比简单哈希更可靠）
+    return HashUtils.fnv1aHash(combined);
   }
 
   /**
