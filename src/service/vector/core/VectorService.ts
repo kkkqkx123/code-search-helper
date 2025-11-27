@@ -223,43 +223,284 @@ export class VectorService implements IVectorService {
 
   async batchProcess(operations: VectorOperation[]): Promise<BatchResult> {
     const startTime = Date.now();
-    let processedCount = 0;
-    let failedCount = 0;
-    const errors: Error[] = [];
-
+    
     try {
-      for (const op of operations) {
-        try {
-          switch (op.type) {
-            case 'create':
-              const vector = op.data as Vector;
-              await this.repository.create(vector);
-              break;
-            case 'delete':
-              await this.repository.delete(op.data as string);
-              break;
-          }
-          processedCount++;
-        } catch (error) {
-          failedCount++;
-          errors.push(error as Error);
-        }
-      }
+      this.logger.info(`Starting enhanced batch processing for ${operations.length} operations`);
+      
+      // 1. 按操作类型分组
+      const operationGroups = this.groupOperationsByType(operations);
+      
+      this.logger.debug('Operations grouped by type', {
+        total: operations.length,
+        create: operationGroups.create.length,
+        delete: operationGroups.delete.length
+      });
 
-      return {
-        success: failedCount === 0,
-        processedCount,
-        failedCount,
-        errors: errors.length > 0 ? errors : undefined,
-        executionTime: Date.now() - startTime
-      };
+      // 2. 并行处理不同类型的操作
+      const groupResults = await Promise.allSettled([
+        this.processCreateOperations(operationGroups.create),
+        this.processDeleteOperations(operationGroups.delete)
+      ]);
+
+      // 3. 聚合结果
+      return this.aggregateBatchResults(groupResults, startTime);
+      
     } catch (error) {
       this.errorHandler.handleError(error as Error, {
         component: 'VectorService',
-        operation: 'batchProcess'
+        operation: 'batchProcess',
+        operationCount: operations.length
       });
       throw error;
     }
+  }
+
+  /**
+   * 按操作类型分组
+   */
+  private groupOperationsByType(operations: VectorOperation[]): {
+    create: VectorOperation[];
+    delete: VectorOperation[];
+  } {
+    return operations.reduce((groups: { create: VectorOperation[]; delete: VectorOperation[] }, op) => {
+      switch (op.type) {
+        case 'create':
+          groups.create.push(op);
+          break;
+        case 'delete':
+          groups.delete.push(op);
+          break;
+      }
+      return groups;
+    }, { create: [], delete: [] });
+  }
+
+  /**
+   * 处理创建操作
+   */
+  private async processCreateOperations(operations: VectorOperation[]): Promise<{
+    processed: number;
+    failed: number;
+    errors: Error[];
+  }> {
+    if (operations.length === 0) {
+      return { processed: 0, failed: 0, errors: [] };
+    }
+
+    this.logger.debug(`Processing ${operations.length} create operations`);
+
+    // 分批处理创建操作
+    const batchSize = 50; // 向量操作可以使用更大的批次
+    const batches: VectorOperation[][] = [];
+    
+    for (let i = 0; i < operations.length; i += batchSize) {
+      batches.push(operations.slice(i, i + batchSize));
+    }
+
+    let totalProcessed = 0;
+    let totalFailed = 0;
+    const allErrors: Error[] = [];
+
+    // 并行处理批次
+    const batchPromises = batches.map(async (batch, batchIndex) => {
+      try {
+        // 尝试批量创建
+        const vectors = batch.map(op => op.data as Vector);
+        await this.repository.createBatch(vectors);
+        
+        this.logger.debug(`Successfully processed create batch ${batchIndex + 1}`, {
+          batchIndex: batchIndex + 1,
+          batchSize: batch.length
+        });
+        
+        return { processed: batch.length, failed: 0, errors: [] };
+      } catch (batchError) {
+        this.logger.warn(`Batch create failed, falling back to individual operations`, {
+          batchIndex: batchIndex + 1,
+          batchSize: batch.length,
+          error: batchError instanceof Error ? batchError.message : String(batchError)
+        });
+
+        // 降级到单个操作处理
+        return this.processIndividualOperations(batch, 'create');
+      }
+    });
+
+    const batchResults = await Promise.allSettled(batchPromises);
+    
+    for (const result of batchResults) {
+      if (result.status === 'fulfilled') {
+        totalProcessed += result.value.processed;
+        totalFailed += result.value.failed;
+        allErrors.push(...result.value.errors);
+      } else {
+        // 整个批次失败
+        const batchSize = batches[batchResults.indexOf(result)]?.length || 0;
+        totalFailed += batchSize;
+        allErrors.push(result.reason instanceof Error ? result.reason : new Error(String(result.reason)));
+      }
+    }
+
+    return {
+      processed: totalProcessed,
+      failed: totalFailed,
+      errors: allErrors
+    };
+  }
+
+  /**
+   * 处理删除操作
+   */
+  private async processDeleteOperations(operations: VectorOperation[]): Promise<{
+    processed: number;
+    failed: number;
+    errors: Error[];
+  }> {
+    if (operations.length === 0) {
+      return { processed: 0, failed: 0, errors: [] };
+    }
+
+    this.logger.debug(`Processing ${operations.length} delete operations`);
+
+    // 分批处理删除操作
+    const batchSize = 100; // 删除操作可以使用更大的批次
+    const batches: VectorOperation[][] = [];
+    
+    for (let i = 0; i < operations.length; i += batchSize) {
+      batches.push(operations.slice(i, i + batchSize));
+    }
+
+    let totalProcessed = 0;
+    let totalFailed = 0;
+    const allErrors: Error[] = [];
+
+    // 并行处理批次
+    const batchPromises = batches.map(async (batch, batchIndex) => {
+      try {
+        // 尝试批量删除
+        const vectorIds = batch.map(op => op.data as string);
+        await this.repository.deleteBatch(vectorIds);
+        
+        this.logger.debug(`Successfully processed delete batch ${batchIndex + 1}`, {
+          batchIndex: batchIndex + 1,
+          batchSize: batch.length
+        });
+        
+        return { processed: batch.length, failed: 0, errors: [] };
+      } catch (batchError) {
+        this.logger.warn(`Batch delete failed, falling back to individual operations`, {
+          batchIndex: batchIndex + 1,
+          batchSize: batch.length,
+          error: batchError instanceof Error ? batchError.message : String(batchError)
+        });
+
+        // 降级到单个操作处理
+        return this.processIndividualOperations(batch, 'delete');
+      }
+    });
+
+    const batchResults = await Promise.allSettled(batchPromises);
+    
+    for (const result of batchResults) {
+      if (result.status === 'fulfilled') {
+        totalProcessed += result.value.processed;
+        totalFailed += result.value.failed;
+        allErrors.push(...result.value.errors);
+      } else {
+        // 整个批次失败
+        const batchSize = batches[batchResults.indexOf(result)]?.length || 0;
+        totalFailed += batchSize;
+        allErrors.push(result.reason instanceof Error ? result.reason : new Error(String(result.reason)));
+      }
+    }
+
+    return {
+      processed: totalProcessed,
+      failed: totalFailed,
+      errors: allErrors
+    };
+  }
+
+  /**
+   * 处理单个操作（降级方案）
+   */
+  private async processIndividualOperations(
+    operations: VectorOperation[],
+    operationType: 'create' | 'delete'
+  ): Promise<{
+    processed: number;
+    failed: number;
+    errors: Error[];
+  }> {
+    let processed = 0;
+    let failed = 0;
+    const errors: Error[] = [];
+
+    for (const op of operations) {
+      try {
+        switch (operationType) {
+          case 'create':
+            const vector = op.data as Vector;
+            await this.repository.create(vector);
+            break;
+          case 'delete':
+            await this.repository.delete(op.data as string);
+            break;
+        }
+        processed++;
+      } catch (error) {
+        failed++;
+        errors.push(error as Error);
+      }
+    }
+
+    return { processed, failed, errors };
+  }
+
+  /**
+   * 聚合批处理结果
+   */
+  private aggregateBatchResults(
+    groupResults: PromiseSettledResult<{
+      processed: number;
+      failed: number;
+      errors: Error[];
+    }>[],
+    startTime: number
+  ): BatchResult {
+    let totalProcessed = 0;
+    let totalFailed = 0;
+    const allErrors: Error[] = [];
+
+    for (const result of groupResults) {
+      if (result.status === 'fulfilled') {
+        totalProcessed += result.value.processed;
+        totalFailed += result.value.failed;
+        allErrors.push(...result.value.errors);
+      } else {
+        // 整个操作组失败
+        totalFailed++;
+        allErrors.push(result.reason instanceof Error ? result.reason : new Error(String(result.reason)));
+      }
+    }
+
+    const executionTime = Date.now() - startTime;
+    const success = totalFailed === 0;
+
+    this.logger.info(`Batch processing completed`, {
+      totalProcessed,
+      totalFailed,
+      executionTime,
+      success
+    });
+
+    return {
+      success,
+      processedCount: totalProcessed,
+      failedCount: totalFailed,
+      errors: allErrors.length > 0 ? allErrors : undefined,
+      executionTime
+    };
   }
 
   async createProjectIndex(projectId: string, options?: ProjectOptions): Promise<boolean> {

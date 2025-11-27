@@ -25,6 +25,7 @@ import {
   getLanguageSpecificStrategies,
   getFileTypeSpecificStrategy
 } from '../../constants/StrategyPriorities';
+import { BatchProcessingCoordinator, BatchProcessingFile, BatchProcessingOptions } from '../batch/BatchProcessingCoordinator';
 
 /**
  * 处理协调器类
@@ -65,6 +66,7 @@ export class ProcessingCoordinator {
     @inject(TYPES.FileFeatureDetector) fileFeatureDetector: FileFeatureDetector,
     @inject(TYPES.DetectionService) detectionService: DetectionService,
     @inject(TYPES.ChunkPostProcessorCoordinator) postProcessorCoordinator: ChunkPostProcessorCoordinator,
+    @inject(BatchProcessingCoordinator) @optional() private batchCoordinator?: BatchProcessingCoordinator,
     @inject(TYPES.LoggerService) @optional() logger?: LoggerService
   ) {
     this.strategyFactory = strategyFactory;
@@ -72,6 +74,7 @@ export class ProcessingCoordinator {
     this.fileFeatureDetector = fileFeatureDetector;
     this.detectionService = detectionService;
     this.postProcessorCoordinator = postProcessorCoordinator;
+    this.batchCoordinator = batchCoordinator;
     this.logger = logger;
     this.performanceStats = this.initializePerformanceStats();
   }
@@ -139,12 +142,78 @@ export class ProcessingCoordinator {
   }
 
   /**
-   * 批量处理多个文件
+   * 批量处理多个文件（增强版本）
    * @param requests 处理请求数组
+   * @param options 批量处理选项
    * @returns 处理结果数组
    */
-  async processBatch(requests: ProcessingRequest[]): Promise<ProcessingResult[]> {
+  async processBatch(
+    requests: ProcessingRequest[],
+    options?: BatchProcessingOptions
+  ): Promise<ProcessingResult[]> {
+    // 如果有批量协调器且启用智能批量处理，使用增强版本
+    if (this.batchCoordinator && options?.enableIntelligentGrouping !== false) {
+      return this.processBatchWithCoordinator(requests, options);
+    }
+
+    // 降级到原始的顺序处理
+    return this.processBatchSequentially(requests);
+  }
+
+  /**
+   * 使用批量协调器处理
+   */
+  private async processBatchWithCoordinator(
+    requests: ProcessingRequest[],
+    options?: BatchProcessingOptions
+  ): Promise<ProcessingResult[]> {
+    try {
+      this.logger?.info(`Processing batch with intelligent coordinator`, {
+        requestCount: requests.length,
+        options
+      });
+
+      // 转换为批量处理文件格式
+      const batchFiles: BatchProcessingFile[] = requests.map(request => ({
+        content: request.content,
+        language: request.language,
+        filePath: request.filePath,
+        features: request.features,
+        ast: request.ast,
+        nodeTracker: request.nodeTracker
+      }));
+
+      // 使用批量协调器处理
+      const batchResult = await this.batchCoordinator!.processBatch(batchFiles, options);
+
+      this.logger?.info(`Batch processing completed with coordinator`, {
+        requestCount: requests.length,
+        successCount: batchResult.successCount,
+        failureCount: batchResult.failureCount,
+        totalDuration: batchResult.totalDuration
+      });
+
+      return batchResult.results;
+    } catch (error) {
+      this.logger?.error(`Batch processing with coordinator failed, falling back to sequential`, {
+        error: error instanceof Error ? error.message : String(error),
+        requestCount: requests.length
+      });
+
+      // 降级到顺序处理
+      return this.processBatchSequentially(requests);
+    }
+  }
+
+  /**
+   * 顺序批量处理（原始方法）
+   */
+  private async processBatchSequentially(requests: ProcessingRequest[]): Promise<ProcessingResult[]> {
     const results: ProcessingResult[] = [];
+
+    this.logger?.info(`Processing batch sequentially`, {
+      requestCount: requests.length
+    });
 
     for (const request of requests) {
       const result = await this.process(
@@ -157,6 +226,15 @@ export class ProcessingCoordinator {
       );
       results.push(result);
     }
+
+    const successCount = results.filter(r => r.success).length;
+    const failureCount = results.filter(r => !r.success).length;
+
+    this.logger?.info(`Sequential batch processing completed`, {
+      requestCount: requests.length,
+      successCount,
+      failureCount
+    });
 
     return results;
   }

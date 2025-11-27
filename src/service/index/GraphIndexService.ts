@@ -14,6 +14,9 @@ import { IndexServiceError } from './errors/IndexServiceErrors';
 import { LANGUAGE_MAP } from '../parser/constants/language-constants';
 import { IGraphIndexPerformanceMonitor } from '../../infrastructure/monitoring/GraphIndexMetrics';
 import { IGraphConstructionService } from '../graph/construction/IGraphConstructionService';
+import { GraphBatchConfigManager } from './batching/GraphBatchConfigManager';
+import { GraphFileGroupingStrategy } from './batching/GraphFileGroupingStrategy';
+import { GraphRetryService } from './batching/GraphRetryService';
 
 export interface GraphIndexOptions {
   maxConcurrency?: number;
@@ -57,7 +60,10 @@ export class GraphIndexService implements IIndexService {
     @inject(TYPES.FileSystemTraversal) private fileTraversalService: FileSystemTraversal,
     @inject(TYPES.BatchProcessingService) private batchProcessor: BatchProcessingService,
     @inject(TYPES.GraphIndexPerformanceMonitor) private performanceMonitor: IGraphIndexPerformanceMonitor,
-    @inject(TYPES.GraphConstructionService) private graphConstructionService: IGraphConstructionService
+    @inject(TYPES.GraphConstructionService) private graphConstructionService: IGraphConstructionService,
+    @inject(GraphBatchConfigManager) private batchConfigManager: GraphBatchConfigManager,
+    @inject(GraphFileGroupingStrategy) private fileGroupingStrategy: GraphFileGroupingStrategy,
+    @inject(GraphRetryService) private retryService: GraphRetryService
   ) { }
 
   /**
@@ -469,7 +475,7 @@ export class GraphIndexService implements IIndexService {
   }
 
   /**
-   * 执行实际的图索引
+   * 执行实际的图索引（改进版本）
    */
   private async performGraphIndexing(
     projectId: string,
@@ -477,83 +483,263 @@ export class GraphIndexService implements IIndexService {
     files: string[],
     options?: IndexOptions
   ): Promise<void> {
+    const startTime = Date.now();
+    
     try {
-      const defaultConfig = this.getDefaultGraphConfig();
-      const maxConcurrency = options?.maxConcurrency || defaultConfig.maxConcurrency;
+      this.logger.info(`Starting enhanced graph indexing for project ${projectId}`, {
+        projectId,
+        totalFiles: files.length,
+        options
+      });
 
-      let processedFiles = 0;
-      let failedFiles = 0;
+      // 1. 智能文件分组
+      const fileGroups = this.fileGroupingStrategy.groupFilesIntelligently(files);
+      
+      // 2. 获取分组建议
+      const recommendation = this.fileGroupingStrategy.getGroupingRecommendation(files);
+      this.logger.info('Using intelligent file grouping', {
+        projectId,
+        recommendation,
+        groupCount: fileGroups.length
+      });
 
-      // 使用高级批处理服务
-      await this.batchProcessor.processBatches(
-        files,
-        async (batch) => {
-          try {
-            // 使用GraphDataService处理文件
-            await this.processGraphFiles(projectPath, batch, projectId);
+      let totalProcessedFiles = 0;
+      let totalFailedFiles = 0;
+      const groupResults: Array<{
+        groupType: string;
+        processed: number;
+        failed: number;
+        duration: number;
+      }> = [];
 
-            processedFiles += batch.length;
-
-            // 更新进度
-            const progress = Math.round((processedFiles / files.length) * 100);
-            await this.projectStateManager.updateGraphIndexingProgress(
-              projectId,
-              progress,
-              processedFiles,
-              failedFiles
-            );
-
-            this.logger.debug(`Processed graph batch for project ${projectId}`, {
-              projectId,
-              processedFiles,
-              totalFiles: files.length,
-              progress
-            });
-
-            return batch.map(file => ({ filePath: file, success: true }));
-          } catch (error) {
-            failedFiles += batch.length;
-            this.logger.error(`Failed to process graph batch for project ${projectId}`, {
-              projectId,
-              error: error instanceof Error ? error.message : String(error)
-            });
-
-            await this.projectStateManager.updateGraphIndexingProgress(
-              projectId,
-              Math.round((processedFiles / files.length) * 100),
-              processedFiles,
-              failedFiles
-            );
-
-            return batch.map(file => ({
-              filePath: file,
-              success: false,
-              error: error instanceof Error ? error.message : String(error)
-            }));
-          }
-        },
-        {
-          batchSize: defaultConfig.batchSize,
-          maxConcurrency,
-          context: { domain: 'database', subType: 'graph' }
+      // 3. 并行处理不同类型的文件组
+      const groupPromises = fileGroups.map(async (group) => {
+        const groupStartTime = Date.now();
+        
+        try {
+          const result = await this.processFileGroup(
+            projectPath,
+            group,
+            projectId,
+            options
+          );
+          
+          const groupDuration = Date.now() - groupStartTime;
+          
+          groupResults.push({
+            groupType: group.groupType,
+            processed: result.processed,
+            failed: result.failed,
+            duration: groupDuration
+          });
+          
+          totalProcessedFiles += result.processed;
+          totalFailedFiles += result.failed;
+          
+          this.logger.debug(`Completed processing group ${group.groupType}`, {
+            projectId,
+            groupType: group.groupType,
+            processed: result.processed,
+            failed: result.failed,
+            duration: groupDuration
+          });
+          
+          return result;
+        } catch (error) {
+          const groupDuration = Date.now() - groupStartTime;
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          
+          this.logger.error(`Failed to process group ${group.groupType}`, {
+            projectId,
+            groupType: group.groupType,
+            error: errorMessage,
+            duration: groupDuration
+          });
+          
+          // 整个组失败
+          const failedCount = group.files.length;
+          totalFailedFiles += failedCount;
+          
+          groupResults.push({
+            groupType: group.groupType,
+            processed: 0,
+            failed: failedCount,
+            duration: groupDuration
+          });
+          
+          throw error;
         }
+      });
+
+      // 4. 等待所有组处理完成
+      await Promise.allSettled(groupPromises);
+
+      // 5. 更新最终进度
+      await this.projectStateManager.updateGraphIndexingProgress(
+        projectId,
+        100,
+        totalProcessedFiles,
+        totalFailedFiles
       );
 
-      // 完成图索引
+      // 6. 完成图索引
       await this.projectStateManager.completeGraphIndexing(projectId);
 
-      this.logger.info(`Completed graph indexing for project ${projectId}`, {
+      const totalDuration = Date.now() - startTime;
+      const successRate = files.length > 0 ? ((totalProcessedFiles - totalFailedFiles) / totalProcessedFiles) * 100 : 0;
+
+      this.logger.info(`Completed enhanced graph indexing for project ${projectId}`, {
         projectId,
-        processedFiles,
         totalFiles: files.length,
-        failedFiles,
-        successRate: ((processedFiles - failedFiles) / processedFiles) * 100
+        processedFiles: totalProcessedFiles,
+        failedFiles: totalFailedFiles,
+        successRate: Math.round(successRate),
+        totalDuration,
+        groupResults: groupResults.map(g => ({
+          groupType: g.groupType,
+          processed: g.processed,
+          failed: g.failed,
+          duration: Math.round(g.duration)
+        }))
+      });
+
+      // 记录性能指标
+      this.performanceMonitor.recordMetric({
+        operation: 'storeFiles',
+        projectId,
+        duration: totalDuration,
+        success: totalFailedFiles === 0,
+        timestamp: Date.now(),
+        metadata: {
+          fileCount: files.length,
+          memoryUsage: this.getMemoryUsage()
+        }
       });
 
     } catch (error) {
-      await this.failGraphIndexing(projectId, error instanceof Error ? error.message : String(error));
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Enhanced graph indexing failed for project ${projectId}`, {
+        projectId,
+        error: errorMessage,
+        duration: Date.now() - startTime
+      });
+      
+      await this.failGraphIndexing(projectId, errorMessage);
       throw error;
     }
+  }
+
+  /**
+   * 处理单个文件组
+   */
+  private async processFileGroup(
+    projectPath: string,
+    group: { groupType: string; files: string[]; priority: number; estimatedProcessingTime: number; metadata: any },
+    projectId: string,
+    options?: IndexOptions
+  ): Promise<{ processed: number; failed: number }> {
+    const config = this.batchConfigManager;
+    const batchSize = await config.calculateOptimalBatchSize(group.files);
+    const concurrency = await config.calculateOptimalConcurrency(group.files);
+
+    this.logger.debug(`Processing file group ${group.groupType}`, {
+      projectId,
+      groupType: group.groupType,
+      fileCount: group.files.length,
+      batchSize,
+      concurrency,
+      priority: group.priority
+    });
+
+    let processedFiles = 0;
+    let failedFiles = 0;
+
+    // 使用批处理服务处理文件组
+    await this.batchProcessor.processBatches(
+      group.files,
+      async (batch) => {
+        try {
+          // 使用重试机制处理当前批次
+          const retryConfig = this.retryService.createRetryConfig({
+            maxRetries: 2,
+            baseDelay: 1000,
+            shouldRetry: (error, attempt) => {
+              // 只对网络相关错误进行重试
+              const errorMessage = error.message.toLowerCase();
+              return errorMessage.includes('network') ||
+                     errorMessage.includes('timeout') ||
+                     errorMessage.includes('connection');
+            }
+          });
+
+          const retryResult = await this.retryService.executeWithRetry(
+            () => this.processGraphFiles(projectPath, batch, projectId),
+            retryConfig,
+            `processGraphFiles-batch-${batch.length}`
+          );
+
+          if (retryResult.success) {
+            processedFiles += batch.length;
+          } else {
+            failedFiles += batch.length;
+            this.logger.error(`Batch processing failed after retries`, {
+              projectId,
+              groupType: group.groupType,
+              batchSize: batch.length,
+              attempts: retryResult.attempts,
+              error: retryResult.error?.message
+            });
+          }
+          
+          // 更新进度（减少更新频率）
+          if (processedFiles % Math.max(1, Math.floor(group.files.length / 10)) === 0) {
+            const totalProgress = Math.round((processedFiles / group.files.length) * 100);
+            await this.projectStateManager.updateGraphIndexingProgress(
+              projectId,
+              totalProgress,
+              processedFiles,
+              failedFiles
+            );
+          }
+          
+          this.logger.debug(`Processed batch for group ${group.groupType}`, {
+            projectId,
+            groupType: group.groupType,
+            batchSize: batch.length,
+            processedFiles,
+            totalFiles: group.files.length
+          });
+          
+          return batch.map(file => ({ filePath: file, success: true }));
+        } catch (error) {
+          failedFiles += batch.length;
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          
+          this.logger.error(`Failed to process batch for group ${group.groupType}`, {
+            projectId,
+            groupType: group.groupType,
+            batchSize: batch.length,
+            error: errorMessage
+          });
+          
+          return batch.map(file => ({
+            filePath: file,
+            success: false,
+            error: errorMessage
+          }));
+        }
+      },
+      {
+        batchSize,
+        maxConcurrency: concurrency,
+        context: {
+          domain: 'database',
+          subType: 'graph',
+        }
+      }
+    );
+
+    return { processed: processedFiles, failed: failedFiles };
   }
 
   /**
