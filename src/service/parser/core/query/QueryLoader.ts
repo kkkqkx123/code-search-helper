@@ -83,8 +83,6 @@ export class QueryLoader {
             // 如果没有找到单独的查询文件，回退到智能分类
             if (languageQueriesMap.size === 0) {
               const categorizedMap = this.categorizeSimpleLanguageQuery(query, language);
-              // 确保至少有functions和classes查询类型
-              this.ensureBasicQueryTypes(categorizedMap, query, language);
               languageQueriesMap.clear();
               for (const [key, value] of Array.from(categorizedMap)) {
                 languageQueriesMap.set(key, value);
@@ -124,8 +122,6 @@ export class QueryLoader {
             if (query) {
               // 对于简单语言，使用智能分类
               const languageQueriesMap = this.categorizeSimpleLanguageQuery(query, language);
-              // 确保至少有functions和classes查询类型
-              this.ensureBasicQueryTypes(languageQueriesMap, query, language);
 
               this.queries.set(normalizedLanguage, languageQueriesMap);
               this.loadedLanguages.add(normalizedLanguage);
@@ -642,48 +638,4 @@ export class QueryLoader {
     return languageQueriesMap;
   }
 
-  /**
-   * 确保基本的查询类型存在
-   * @param languageQueriesMap 语言查询映射
-   * @param query 完整查询字符串
-   * @param language 语言名称
-   */
-  private static ensureBasicQueryTypes(
-    languageQueriesMap: Map<string, string>,
-    query: string,
-    language: string
-  ): void {
-    // 确保至少有functions查询类型
-    if (!languageQueriesMap.has('functions')) {
-      // 从完整查询中提取函数相关的模式
-      const functionPatterns = QueryPatternExtractor.extractPatterns(query, QUERY_PATTERNS.functions);
-
-      if (functionPatterns.length > 0) {
-        languageQueriesMap.set('functions', functionPatterns.join('\n\n'));
-      } else {
-        // 如果没有找到函数模式，使用整个查询
-        languageQueriesMap.set('functions', query);
-      }
-    }
-
-    // 确保至少有classes查询类型
-    if (!languageQueriesMap.has('classes')) {
-      // 从完整查询中提取类相关的模式
-      const classPatterns = QueryPatternExtractor.extractPatterns(query, QUERY_PATTERNS.classes);
-
-      if (classPatterns.length > 0) {
-        languageQueriesMap.set('classes', classPatterns.join('\n\n'));
-      } else {
-        // 如果没有找到类模式，创建一个空的查询
-        languageQueriesMap.set('classes', '; No class patterns found for this language');
-      }
-    }
-  }
-
-  /**
-   * 从查询中提取特定类型的模式
-   * @param query 完整查询字符串
-   * @param keywords 关键词列表
-   * @returns 提取的模式数组
-   */
 }

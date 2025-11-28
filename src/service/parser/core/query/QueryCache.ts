@@ -2,6 +2,7 @@ import Parser from 'tree-sitter';
 import { createCache } from '../../../../utils/cache';
 import { CacheKeyUtils } from '../../../../utils/cache/CacheKeyUtils';
 import { HashUtils } from '../../../../utils/cache/HashUtils';
+import { EntityType, RelationshipType } from './types';
 
 /**
  * 统一查询缓存管理器
@@ -29,6 +30,21 @@ export class QueryCache {
 
   // AST对象缓存
   private static astCache = createCache<string, Parser.SyntaxNode>('stats-decorated', 200, {
+    enableStats: true
+  });
+
+  // 实体结果缓存
+  private static entityCache = createCache<string, any[]>('stats-decorated', 300, {
+    enableStats: true
+  });
+
+  // 关系结果缓存
+  private static relationshipCache = createCache<string, any[]>('stats-decorated', 300, {
+    enableStats: true
+  });
+
+  // 混合结果缓存
+  private static mixedCache = createCache<string, any>('stats-decorated', 200, {
     enableStats: true
   });
 
@@ -88,6 +104,9 @@ export class QueryCache {
     this.queryCache.clear();
     this.resultCache.clear();
     this.astCache.clear();
+    this.entityCache.clear();
+    this.relationshipCache.clear();
+    this.mixedCache.clear();
   }
 
   // 结果缓存管理方法
@@ -116,22 +135,70 @@ export class QueryCache {
     return this.astCache.getStats();
   }
 
+  // 实体缓存管理方法
+  static getEntityResult(key: string): any[] | undefined {
+    return this.entityCache.get(key);
+  }
+
+  static setEntityResult(key: string, result: any[]): void {
+    this.entityCache.set(key, result);
+  }
+
+  static getEntityStats(): any {
+    return this.entityCache.getStats();
+  }
+
+  // 关系缓存管理方法
+  static getRelationshipResult(key: string): any[] | undefined {
+    return this.relationshipCache.get(key);
+  }
+
+  static setRelationshipResult(key: string, result: any[]): void {
+    this.relationshipCache.set(key, result);
+  }
+
+  static getRelationshipStats(): any {
+    return this.relationshipCache.getStats();
+  }
+
+  // 混合缓存管理方法
+  static getMixedResult(key: string): any | undefined {
+    return this.mixedCache.get(key);
+  }
+
+  static setMixedResult(key: string, result: any): void {
+    this.mixedCache.set(key, result);
+  }
+
+  static getMixedStats(): any {
+    return this.mixedCache.getStats();
+  }
+
   // 统一的缓存统计信息
   static getAllStats(): {
     queryCache: any;
     resultCache: any;
     astCache: any;
+    entityCache: any;
+    relationshipCache: any;
+    mixedCache: any;
     combined: any;
   } {
     const queryStats = this.queryCache.getStats();
     const resultStats = this.resultCache.getStats();
     const astStats = this.astCache.getStats();
+    const entityStats = this.entityCache.getStats();
+    const relationshipStats = this.relationshipCache.getStats();
+    const mixedStats = this.mixedCache.getStats();
 
     // 计算合并的统计信息
     const combined = {
-      totalHits: (queryStats?.hits || 0) + (resultStats?.hits || 0) + (astStats?.hits || 0),
-      totalMisses: (queryStats?.misses || 0) + (resultStats?.misses || 0) + (astStats?.misses || 0),
-      totalSize: (queryStats?.size || 0) + (resultStats?.size || 0) + (astStats?.size || 0),
+      totalHits: (queryStats?.hits || 0) + (resultStats?.hits || 0) + (astStats?.hits || 0) +
+                  (entityStats?.hits || 0) + (relationshipStats?.hits || 0) + (mixedStats?.hits || 0),
+      totalMisses: (queryStats?.misses || 0) + (resultStats?.misses || 0) + (astStats?.misses || 0) +
+                   (entityStats?.misses || 0) + (relationshipStats?.misses || 0) + (mixedStats?.misses || 0),
+      totalSize: (queryStats?.size || 0) + (resultStats?.size || 0) + (astStats?.size || 0) +
+                 (entityStats?.size || 0) + (relationshipStats?.size || 0) + (mixedStats?.size || 0),
       overallHitRate: '0.00%'
     };
 
@@ -142,6 +209,9 @@ export class QueryCache {
       queryCache: queryStats,
       resultCache: resultStats,
       astCache: astStats,
+      entityCache: entityStats,
+      relationshipCache: relationshipStats,
+      mixedCache: mixedStats,
       combined
     };
   }
@@ -295,6 +365,43 @@ export class QueryCache {
     }
 
     return null;
+  }
+
+  /**
+   * 为实体查询生成缓存键
+   * @param ast AST节点
+   * @param entityType 实体类型
+   * @param language 语言
+   * @returns 缓存键
+   */
+  static forEntityQuery(ast: Parser.SyntaxNode, entityType: EntityType, language: string): string {
+    const contentHash = this.generateContentHash(ast);
+    return `${this.TREE_SITTER_QUERY_PREFIX}entity:${contentHash}:${entityType}:${language}`;
+  }
+
+  /**
+   * 为关系查询生成缓存键
+   * @param ast AST节点
+   * @param relationshipType 关系类型
+   * @param language 语言
+   * @returns 缓存键
+   */
+  static forRelationshipQuery(ast: Parser.SyntaxNode, relationshipType: RelationshipType, language: string): string {
+    const contentHash = this.generateContentHash(ast);
+    return `${this.TREE_SITTER_QUERY_PREFIX}relationship:${contentHash}:${relationshipType}:${language}`;
+  }
+
+  /**
+   * 为混合查询生成缓存键
+   * @param ast AST节点
+   * @param queryTypes 查询类型数组
+   * @param language 语言
+   * @returns 缓存键
+   */
+  static forMixedQuery(ast: Parser.SyntaxNode, queryTypes: string[], language: string): string {
+    const contentHash = this.generateContentHash(ast);
+    const typesKey = CacheKeyUtils.generateCacheKey(queryTypes.sort());
+    return `${this.TREE_SITTER_QUERY_PREFIX}mixed:${contentHash}:${typesKey}:${language}`;
   }
 }
 
