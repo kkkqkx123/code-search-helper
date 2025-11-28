@@ -1,6 +1,6 @@
 import { GraphDataMappingService } from '../GraphDataMappingService';
 import { GraphRelationshipType, GraphNodeType } from '../IGraphDataMappingService';
-import { StandardizedQueryResult } from '../../../parser/core/normalization/types';
+import { StandardizedQueryResult } from '../../../parser/normalization/types';
 import { TYPE_MAPPING_CONFIG } from '../TypeMappingConfig';
 
 describe('GraphDataMappingService New Architecture Tests', () => {

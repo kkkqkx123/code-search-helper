@@ -14,7 +14,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DataMappingValidator } from './DataMappingValidator';
 import { GraphMappingCache } from '../caching/GraphMappingCache';
 import { BatchProcessingService } from '../../../infrastructure/batching/BatchProcessingService';
-import { StandardizedQueryResult } from '../../parser/core/normalization/types';
+import { StandardizedQueryResult } from '../../parser/normalization/types';
 import { ContentHashUtils } from '../../../utils/cache/ContentHashUtils';
 
 export interface AdvancedMappingOptions {

@@ -1,5 +1,5 @@
 import { CodeChunk } from '../../parser/types';
-import { StandardizedQueryResult } from '../../parser/core/normalization/types';
+import { StandardizedQueryResult } from '../../parser/normalization/types';
 
 // 图节点类型枚举
 export enum GraphNodeType {

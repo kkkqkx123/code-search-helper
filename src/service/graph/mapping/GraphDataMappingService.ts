@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { TYPES } from '../../../types';
 import { ICacheService } from '../../../infrastructure/caching/types';
 import { LoggerService } from '../../../utils/LoggerService';
-import { MetadataBuilder } from '../../parser/core/normalization/utils/MetadataBuilder';
+import { MetadataBuilder } from '../../parser/normalization/utils/MetadataBuilder';
 import {
   IGraphDataMappingService,
   GraphNodeType,
@@ -25,7 +25,7 @@ import {
   GraphEdge
 } from './IGraphDataMappingService';
 import { CodeChunk } from '../../parser/types';
-import { StandardizedQueryResult, SymbolTable } from '../../parser/core/normalization/types';
+import { StandardizedQueryResult, SymbolTable } from '../../parser/normalization/types';
 import { v4 as uuidv4 } from 'uuid';
 import { DataMappingValidator } from './DataMappingValidator';
 import { GraphMappingCache } from '../caching/GraphMappingCache';
@@ -151,7 +151,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
     const result = await this.faultToleranceHandler.executeWithFaultTolerance(
       async () => {
         this.logger.info(`Starting graph mapping for file: ${filePath}`);
-        
+
         const nodes: GraphNode[] = [];
         const edges: GraphEdge[] = [];
 
@@ -168,9 +168,9 @@ export class GraphDataMappingService implements IGraphDataMappingService {
             }
           }
         }
-        
+
         this.logger.info(`Successfully mapped ${nodes.length} nodes and ${edges.length} edges for file: ${filePath}`);
-        
+
         return { nodes, edges };
       },
       'mapToGraph',
@@ -195,13 +195,13 @@ export class GraphDataMappingService implements IGraphDataMappingService {
   private createVertexFromStandardizedNode(node: StandardizedQueryResult, filePath: string): GraphNode {
     // 使用 MetadataBuilder 处理元数据
     const metadataBuilder = MetadataBuilder.fromComplete(node.metadata);
-    
+
     // 添加图数据库特定字段
     metadataBuilder
       .setLocation(filePath, node.startLine, 0)
       .addTag('graph-vertex')
       .setTimestamp('indexedAt', Date.now());
-    
+
     return {
       id: node.nodeId,
       type: this.mapStandardizedTypeToGraphType(node.type),
@@ -260,7 +260,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
       'inheritance': new InheritanceRelationshipProcessor(),
       'implements': new ImplementsRelationshipProcessor()
     };
-    
+
     return processors[relationshipType] || null;
   }
 
@@ -293,12 +293,12 @@ export class GraphDataMappingService implements IGraphDataMappingService {
     if (mappingKey) {
       return GraphRelationshipType[mappingKey as keyof typeof GraphRelationshipType];
     }
-    
+
     // 特殊处理语义关系，需要根据具体类型细化
     if (relationshipType === 'semantic') {
       return GraphRelationshipType.OVERRIDES; // 默认映射，可根据具体类型细化
     }
-    
+
     return GraphRelationshipType.USES;
   }
 
@@ -309,7 +309,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
     try {
       const nodeType = this.mapStandardizedTypeToGraphType(chunk.metadata.type || 'chunk');
       const nodeId = this.generateChunkNodeId(chunk, parentFileId);
-      
+
       const metadataBuilder = new MetadataBuilder()
         .setLanguage(chunk.metadata.language || '')
         .setComplexity(chunk.metadata.complexity || 1)
@@ -374,21 +374,21 @@ export class GraphDataMappingService implements IGraphDataMappingService {
    */
   private generateChunkNodeName(chunk: CodeChunk): string {
     const metadata = chunk.metadata;
-    
+
     // 优先使用tagName
     if (metadata.tagName) {
       return metadata.tagName;
     }
-    
+
     // 使用scriptId或styleId
     if (metadata.scriptId) {
       return `script:${metadata.scriptId}`;
     }
-    
+
     if (metadata.styleId) {
       return `style:${metadata.styleId}`;
     }
-    
+
     // 使用类型和位置信息
     const type = metadata.type || 'chunk';
     const line = metadata.startLine;
@@ -690,7 +690,7 @@ export class GraphDataMappingService implements IGraphDataMappingService {
           const node = await this.createNodeFromChunkAsync(chunk, parentFileId);
           if (node) {
             nodes.push(node);
-            
+
             // 创建文件到块的关系
             const fileToChunkRel: GraphRelationship = {
               id: uuidv4(),

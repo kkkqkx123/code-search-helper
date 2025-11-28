@@ -4,7 +4,7 @@ import {
   NestingInfo,
   StructureMetadata
 } from '../../service/parser/processing/types/HierarchicalTypes';
-import { StandardizedQueryResult } from '../../service/parser/core/normalization/types';
+import { StandardizedQueryResult } from '../../service/parser/normalization/types';
 import { TopLevelStructure, NestedStructure, InternalStructure } from '../types/ContentTypes';
 import { ChunkType } from '../../service/parser/processing/types/CodeChunk';
 import { ChunkTypeMapper } from './ChunkTypeMapper';

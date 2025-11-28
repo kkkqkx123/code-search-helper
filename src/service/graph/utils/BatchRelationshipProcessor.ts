@@ -1,4 +1,4 @@
-import { StandardizedQueryResult } from '../../parser/core/normalization/types';
+import { StandardizedQueryResult } from '../../parser/normalization/types';
 import { DynamicParserManager } from '../../parser/core/parse/DynamicParserManager';
 import { LoggerService } from '../../../utils/LoggerService';
 import { injectable, inject } from 'inversify';
@@ -43,7 +43,7 @@ export class BatchRelationshipProcessor {
     options: BatchExtractionOptions = {}
   ): Promise<RelationshipExtractionResult[]> {
     this.logger.warn('processRelationshipsInBatches is deprecated. Please use standardized modules for relationship extraction.');
-    
+
     const {
       batchSize = 10,
       concurrency = 1,
@@ -117,7 +117,7 @@ export class BatchRelationshipProcessor {
       // Read the file content
       const fs = require('fs');
       const content = fs.readFileSync(filePath, 'utf-8');
-      
+
       // Parse the file using standardized modules
       const parseResult = await this.parserService.parseFile(filePath, content);
       if (!parseResult.success || !parseResult.ast) {
@@ -176,7 +176,7 @@ export class BatchRelationshipProcessor {
     options: BatchExtractionOptions = {}
   ): Promise<StandardizedQueryResult[]> {
     this.logger.info('Processing files using standardized modules');
-    
+
     const {
       batchSize = 10,
       concurrency = 1,
@@ -188,10 +188,10 @@ export class BatchRelationshipProcessor {
     // Process files in batches
     for (let i = 0; i < files.length; i += batchSize) {
       const batch = files.slice(i, i + batchSize);
-      
+
       // Process batch with concurrency control
       const batchResults = await this.processBatchWithStandardizedModules(batch, concurrency, cacheEnabled);
-      
+
       // Extract standardized results from each file result
       for (const fileResult of batchResults) {
         if (!fileResult.error) {

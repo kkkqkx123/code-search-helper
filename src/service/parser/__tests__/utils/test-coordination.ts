@@ -1,6 +1,6 @@
 import Parser from 'tree-sitter';
 import C from 'tree-sitter-c';
-import { CLanguageAdapter } from '../../core/normalization/adapters/CLanguageAdapter';
+import { CLanguageAdapter } from '../../normalization/adapters/CLanguageAdapter';
 import { QueryLoader } from '../../core/query/QueryLoader';
 
 export class CoordinationTester {
@@ -16,7 +16,7 @@ export class CoordinationTester {
   }
 
   async testCoordination(
-    code: string, 
+    code: string,
     queryType: string,
     expectedType: string,
     expectedName?: string
@@ -24,19 +24,19 @@ export class CoordinationTester {
     try {
       // 解析代码
       const tree = this.parser.parse(code);
-      
+
       // 获取查询规则
       const queryPattern = await QueryLoader.getQuery('c', queryType);
       const query = new Parser.Query(this.language, queryPattern);
-      
+
       // 执行查询
       const captures = query.captures(tree.rootNode);
-      
+
       if (captures.length === 0) {
         console.warn(`警告: 查询类型 ${queryType} 未找到匹配项`);
         return null;
       }
-      
+
       // 转换为查询结果格式
       const queryResults = captures.map(capture => ({
         captures: [{
@@ -44,10 +44,10 @@ export class CoordinationTester {
           node: capture.node
         }]
       }));
-      
+
       // 适配器标准化
       const results = await this.adapter.normalize(queryResults, queryType, 'c');
-      
+
       // 验证结果
       if (results.length > 0) {
         const result = results[0];
@@ -60,7 +60,7 @@ export class CoordinationTester {
           typeMatch: result.type === expectedType,
           nameMatch: expectedName ? result.name === expectedName : true
         });
-        
+
         return result;
       } else {
         console.warn(`警告: ${queryType} 适配器返回空结果`);
@@ -74,7 +74,7 @@ export class CoordinationTester {
 
   async runBasicTests() {
     console.log('开始基础协调测试...\n');
-    
+
     // 测试用例
     const testCases = [
       {
@@ -111,9 +111,9 @@ export class CoordinationTester {
         expectedType: 'call'
       }
     ];
-    
+
     const results = [];
-    
+
     for (const testCase of testCases) {
       console.log(`测试: ${testCase.name}`);
       const result = await this.testCoordination(
@@ -129,20 +129,20 @@ export class CoordinationTester {
       });
       console.log('');
     }
-    
+
     // 汇总结果
     const successCount = results.filter(r => r.success).length;
     const totalCount = results.length;
-    
+
     console.log(`\n测试完成: ${successCount}/${totalCount} 通过`);
-    
+
     if (successCount < totalCount) {
       console.log('\n失败的测试:');
       results.filter(r => !r.success).forEach(r => {
         console.log(`- ${r.name}: ${r.queryType}`);
       });
     }
-    
+
     return results;
   }
 }

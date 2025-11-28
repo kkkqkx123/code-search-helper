@@ -1,5 +1,5 @@
 import { CodeChunk } from '../../core/types/ResultTypes';
-import { HtmlRelationship } from '../../../core/normalization/adapters/html-utils/HtmlRelationshipTypes';
+import { HtmlRelationship } from '../../../normalization/adapters/html-utils/HtmlRelationshipTypes';
 
 /**
  * HTML结果合并器

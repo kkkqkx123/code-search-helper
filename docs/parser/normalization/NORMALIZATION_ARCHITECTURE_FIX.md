@@ -1,42 +1,4 @@
-# Normalization 模块架构修正方案
-
-## 问题分析
-
-### 原始设计中的问题
-
-原先的设计文档（`design.md`）建议在 normalization 模块中包含：
-
-```
-src/service/parser/core/normalization/
-├── services/
-│   ├── EntityNormalizer.ts
-│   ├── RelationshipNormalizer.ts
-│   ├── NormalizationCoordinator.ts
-│   └── BatchNormalizer.ts
-├── adapters/
-│   ├── CLanguageAdapter.ts
-│   └── LanguageAdapterFactory.ts
-├── utils/
-│   ├── NodeIdGenerator.ts
-│   ├── PayloadConverter.ts
-│   └── TypeMapper.ts
-└── types/
-    ├── EntityTypes.ts
-    ├── RelationshipTypes.ts
-    ├── VectorTypes.ts        ← ❌ 不应该在这里
-    └── GraphTypes.ts         ← ❌ 不应该在这里
-```
-
-### 这样设计的问题
-
-1. **职责不清**：normalization 既做规范化，又提供服务实现，还定义向量/图类型
-2. **重复定义**：VectorTypes 和 GraphTypes 在各自的 service 中已有，重复定义导致维护复杂
-3. **跨层污染**：normalization（parser 核心模块）依赖 vector/graph（service 模块），形成逆向依赖
-4. **嵌入处理错误**：EmbeddingPipeline 放在 normalization 中，但嵌入是后处理阶段，不是规范化阶段
-
----
-
-## 修正后的架构
+## 架构设计
 
 ### 1. Normalization 模块（正确职责）
 

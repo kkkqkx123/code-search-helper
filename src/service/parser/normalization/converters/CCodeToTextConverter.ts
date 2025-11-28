@@ -3,7 +3,7 @@
  */
 
 import { ICodeToTextConverter } from './ICodeToTextConverter';
-import { CodeToTextConfig, CodeToTextResult } from '../../../../../service/vector/types/VectorTypes';
+import { CodeToTextConfig, CodeToTextResult } from '../../../vector/types/VectorTypes';
 
 /**
  * C语言代码转文本转换器
@@ -30,19 +30,19 @@ export class CCodeToTextConverter implements ICodeToTextConverter {
 
   convertEntity(entity: any, config: CodeToTextConfig = this.defaultConfig): CodeToTextResult {
     const startTime = Date.now();
-    
+
     // 1. 命名风格转换
     const naturalName = this.convertNaming(entity.name, config.namingConversion);
-    
+
     // 2. 提取功能描述
     const description = this.extractDescription(entity, config.textAssembly);
-    
+
     // 3. 提取签名信息
     const signature = this.extractSignature(entity, config.textAssembly);
-    
+
     // 4. 提取上下文信息
     const context = this.extractContext(entity, config.textAssembly);
-    
+
     // 5. 组装文本
     let text = '';
     if (config.textAssembly.includeCodeType) {
@@ -58,12 +58,12 @@ export class CCodeToTextConverter implements ICodeToTextConverter {
     if (config.textAssembly.includeContext && context) {
       text += context;
     }
-    
+
     // 6. 文本清洗
     text = this.cleanText(text, config.textCleaning);
-    
+
     const endTime = Date.now();
-    
+
     return {
       text,
       originalCode: entity.content,
@@ -82,14 +82,14 @@ export class CCodeToTextConverter implements ICodeToTextConverter {
 
   convertRelationship(relationship: any, config: CodeToTextConfig = this.defaultConfig): CodeToTextResult {
     const startTime = Date.now();
-    
+
     // 关系转文本逻辑
     const sourceText = this.convertNaming(relationship.fromNodeId, config.namingConversion);
     const targetText = this.convertNaming(relationship.toNodeId, config.namingConversion);
     const relationshipText = this.convertNaming(relationship.type, config.namingConversion);
-    
+
     let text = `${sourceText} ${relationshipText} ${targetText}`;
-    
+
     // 添加关系特有信息
     if (relationship.properties?.functionName) {
       text += ` via ${relationship.properties.functionName}`;
@@ -97,11 +97,11 @@ export class CCodeToTextConverter implements ICodeToTextConverter {
     if (relationship.properties?.condition) {
       text += ` when ${relationship.properties.condition}`;
     }
-    
+
     text = this.cleanText(text, config.textCleaning);
-    
+
     const endTime = Date.now();
-    
+
     return {
       text,
       originalCode: relationship.properties?.originalCode || '',
@@ -143,15 +143,15 @@ export class CCodeToTextConverter implements ICodeToTextConverter {
 
   private convertNaming(name: string, config: CodeToTextConfig['namingConversion']): string {
     let result = name;
-    
+
     if (config.snakeToNatural && result.includes('_')) {
       result = result.replace(/_/g, ' ');
     }
-    
+
     if (config.camelToNatural) {
       result = result.replace(/([A-Z])/g, ' $1').toLowerCase();
     }
-    
+
     return result.trim();
   }
 
@@ -160,12 +160,12 @@ export class CCodeToTextConverter implements ICodeToTextConverter {
     if (entity.properties?.docstring) {
       return entity.properties.docstring;
     }
-    
+
     // 从注释中提取描述
     if (entity.properties?.comment) {
       return this.cleanComment(entity.properties.comment);
     }
-    
+
     return '';
   }
 
@@ -187,15 +187,15 @@ export class CCodeToTextConverter implements ICodeToTextConverter {
 
   private cleanText(text: string, config: CodeToTextConfig['textCleaning']): string {
     let result = text;
-    
+
     if (config.removeSpecialChars) {
       result = result.replace(/[^\w\s]/g, ' ');
     }
-    
+
     if (config.normalizeWhitespace) {
       result = result.replace(/\s+/g, ' ').trim();
     }
-    
+
     return result;
   }
 
@@ -205,19 +205,19 @@ export class CCodeToTextConverter implements ICodeToTextConverter {
 
   private getUsedRules(item: any, config: CodeToTextConfig): string[] {
     const rules = [];
-    
+
     if (config.namingConversion.camelToNatural) rules.push('camel_to_natural');
     if (config.namingConversion.snakeToNatural) rules.push('snake_to_natural');
     if (config.namingConversion.pascalToNatural) rules.push('pascal_to_natural');
-    
+
     if ('entityType' in item) {
       // 处理实体特定规则
       rules.push('extract_function_signature');
     }
-    
+
     if (config.textCleaning.removeSpecialChars) rules.push('clean_special_chars');
     if (config.textCleaning.normalizeWhitespace) rules.push('normalize_whitespace');
-    
+
     return rules;
   }
 }

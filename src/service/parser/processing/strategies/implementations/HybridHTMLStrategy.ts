@@ -3,9 +3,9 @@ import { ProcessingResult, CodeChunk, ChunkMetadata, ChunkType } from '../../cor
 import { StrategyConfig } from '../../types/Strategy';
 import { Logger } from '../../../../../utils/logger';
 import { IProcessingContext } from '../../core/interfaces/IProcessingContext';
-import { HtmlLanguageAdapter } from '../../../core/normalization/adapters/HtmlLanguageAdapter';
-import { HtmlRelationshipExtractor } from '../../../core/normalization/adapters/html-utils/HtmlRelationshipExtractor';
-import { HtmlRelationship } from '../../../core/normalization/adapters/html-utils/HtmlRelationshipTypes';
+import { HtmlLanguageAdapter } from '../../../normalization/adapters/HtmlLanguageAdapter';
+import { HtmlRelationshipExtractor } from '../../../normalization/adapters/html-utils/HtmlRelationshipExtractor';
+import { HtmlRelationship } from '../../../normalization/adapters/html-utils/HtmlRelationshipTypes';
 import {
     HTMLProcessingUtils,
     ScriptBlock,

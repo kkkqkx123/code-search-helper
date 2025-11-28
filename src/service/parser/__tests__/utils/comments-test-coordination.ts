@@ -1,6 +1,6 @@
 import Parser from 'tree-sitter';
 import C from 'tree-sitter-c';
-import { CLanguageAdapter } from '../../core/normalization/adapters/CLanguageAdapter';
+import { CLanguageAdapter } from '../../normalization/adapters/CLanguageAdapter';
 import { QueryLoader } from '../../core/query/QueryLoader';
 
 export class CommentsCoordinationTester {
@@ -16,7 +16,7 @@ export class CommentsCoordinationTester {
   }
 
   async testCommentCoordination(
-    code: string, 
+    code: string,
     queryType: string,
     expectedType: string,
     expectedName?: string
@@ -24,19 +24,19 @@ export class CommentsCoordinationTester {
     try {
       // 解析代码
       const tree = this.parser.parse(code);
-      
+
       // 获取查询规则
       const queryPattern = await QueryLoader.getQuery('c', queryType);
       const query = new Parser.Query(this.language, queryPattern);
-      
+
       // 执行查询
       const captures = query.captures(tree.rootNode);
-      
+
       if (captures.length === 0) {
         console.warn(`警告: 查询类型 ${queryType} 未找到匹配项`);
         return null;
       }
-      
+
       // 转换为查询结果格式
       const queryResults = captures.map(capture => ({
         captures: [{
@@ -44,10 +44,10 @@ export class CommentsCoordinationTester {
           node: capture.node
         }]
       }));
-      
+
       // 适配器标准化
       const results = await this.adapter.normalize(queryResults, queryType, 'c');
-      
+
       // 验证结果
       if (results.length > 0) {
         const result = results[0];
@@ -60,7 +60,7 @@ export class CommentsCoordinationTester {
           typeMatch: result.type === expectedType,
           nameMatch: expectedName ? result.name === expectedName : true
         });
-        
+
         return result;
       } else {
         console.warn(`警告: ${queryType} 适配器返回空结果`);
@@ -74,10 +74,10 @@ export class CommentsCoordinationTester {
 
   async runCommentTests() {
     console.log('开始注释协调测试...\n');
-    
+
     // 确保C语言查询已加载
     await QueryLoader.loadLanguageQueries('c');
-    
+
     // 测试用例
     const testCases = [
       {
@@ -123,9 +123,9 @@ export class CommentsCoordinationTester {
         expectedName: undefined
       }
     ];
-    
+
     const results = [];
-    
+
     for (const testCase of testCases) {
       console.log(`测试: ${testCase.name}`);
       const result = await this.testCommentCoordination(
@@ -141,29 +141,29 @@ export class CommentsCoordinationTester {
       });
       console.log('');
     }
-    
+
     // 汇总结果
     const successCount = results.filter(r => r.success).length;
     const totalCount = results.length;
-    
+
     console.log(`\n测试完成: ${successCount}/${totalCount} 通过`);
-    
+
     if (successCount < totalCount) {
       console.log('\n失败的测试:');
       results.filter(r => !r.success).forEach(r => {
         console.log(`- ${r.name}: ${r.queryType}`);
       });
     }
-    
+
     return results;
   }
 
   async testCommentTypes() {
     console.log('开始注释类型分类测试...\n');
-    
+
     // 确保C语言查询已加载
     await QueryLoader.loadLanguageQueries('c');
-    
+
     // 测试不同类型的注释
     const testCode = `
       /*
@@ -191,13 +191,13 @@ export class CommentsCoordinationTester {
         return 0;
       }
     `;
-    
+
     try {
       const tree = this.parser.parse(testCode);
       const queryPattern = await QueryLoader.getQuery('c', 'comments');
       const query = new Parser.Query(this.language, queryPattern);
       const captures = query.captures(tree.rootNode);
-      
+
       // 按捕获名称分组
       const groupedCaptures = new Map<string, any[]>();
       captures.forEach(capture => {
@@ -207,7 +207,7 @@ export class CommentsCoordinationTester {
         }
         groupedCaptures.get(name)!.push(capture);
       });
-      
+
       console.log('注释类型分类结果:');
       for (const [captureName, captureList] of groupedCaptures) {
         console.log(`- ${captureName}: ${captureList.length} 个注释`);
@@ -218,7 +218,7 @@ export class CommentsCoordinationTester {
         });
         console.log('');
       }
-      
+
       return groupedCaptures;
     } catch (error) {
       console.error('注释类型分类测试失败:', error);

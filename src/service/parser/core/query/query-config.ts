@@ -15,7 +15,7 @@ import {
   RelationshipTypeRegistry,
   EntityQueryBuilderFactory,
   RelationshipQueryBuilderFactory
-} from '../normalization/types';
+} from './types';
 
 /**
  * 查询类型配置接口
