@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '../../../types';
 import { ProjectIdManager } from '../../../database/ProjectIdManager';
-import { Vector } from '../types/VectorTypes';
+import { Vector, VectorTypeConverter, CodeToTextResult } from '../types/VectorTypes';
 import { CodeChunk } from '../../parser/types';
 import { VectorPoint } from '../../../database/qdrant/IVectorStore';
 import { LoggerService } from '../../../utils/LoggerService';
@@ -73,75 +73,20 @@ export class VectorConversionService {
   }
 
   convertVectorToPoint(vector: Vector): VectorPoint {
-    return {
-      id: vector.id,
-      vector: vector.vector,
-      payload: {
-        content: vector.content,
-        filePath: vector.metadata.filePath || '',
-        language: vector.metadata.language || '',
-        chunkType: vector.metadata.chunkType || [],
-        startLine: vector.metadata.startLine || 0,
-        endLine: vector.metadata.endLine || 0,
-        
-        // 丰富的元数据
-        functionName: vector.metadata.functionName,
-        className: vector.metadata.className,
-        complexity: vector.metadata.complexity,
-        complexityAnalysis: vector.metadata.complexityAnalysis,
-        nestingLevel: vector.metadata.nestingLevel,
-        strategy: vector.metadata.strategy,
-        isSignatureOnly: vector.metadata.isSignatureOnly,
-        originalStructure: vector.metadata.originalStructure,
-        
-        // AST和语义信息
-        astNodes: vector.metadata.astNodes,
-        semanticBoundary: vector.metadata.semanticBoundary,
-        
-        // 其他元数据
-        size: vector.metadata.size,
-        lineCount: vector.metadata.lineCount,
-        snippetMetadata: vector.metadata.snippetMetadata,
-        metadata: {
-          ...vector.metadata.customFields,
-          hash: vector.metadata.hash,
-          overlapInfo: vector.metadata.overlapInfo,
-          contextLines: vector.metadata.contextLines
-        },
-        timestamp: vector.timestamp,
-        projectId: vector.metadata.projectId
-      }
-    };
+    return VectorTypeConverter.toVectorPoint(vector);
   }
 
   convertPointToVector(point: VectorPoint): Vector {
+    return VectorTypeConverter.fromVectorPoint(point);
+  }
+
+  /**
+   * 使用代码转文本结果进行元数据enrichment
+   */
+  enrichVectorWithCodeToText(vector: Vector, textResult: CodeToTextResult): Vector {
     return {
-      id: point.id as string,
-      vector: point.vector,
-      content: point.payload.content,
-      metadata: {
-        projectId: point.payload.projectId || '',
-        filePath: point.payload.filePath,
-        language: point.payload.language,
-        chunkType: point.payload.chunkType,
-        startLine: point.payload.startLine,
-        endLine: point.payload.endLine,
-        functionName: point.payload.functionName,
-        className: point.payload.className,
-        complexity: point.payload.complexity,
-        complexityAnalysis: point.payload.complexityAnalysis,
-        nestingLevel: point.payload.nestingLevel,
-        strategy: point.payload.strategy,
-        isSignatureOnly: point.payload.isSignatureOnly,
-        originalStructure: point.payload.originalStructure,
-        astNodes: point.payload.astNodes,
-        semanticBoundary: point.payload.semanticBoundary,
-        size: point.payload.size,
-        lineCount: point.payload.lineCount,
-        snippetMetadata: point.payload.snippetMetadata,
-        customFields: point.payload.metadata
-      },
-      timestamp: point.payload.timestamp
+      ...vector,
+      metadata: VectorTypeConverter.enrichMetadataWithCodeToText(vector.metadata, textResult)
     };
   }
 

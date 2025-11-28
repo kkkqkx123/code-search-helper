@@ -3,7 +3,6 @@ import { QueryRegistryImpl } from './QueryRegistry';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { QueryCache } from './QueryCache';
 import { QueryPerformanceMonitor } from './QueryPerformanceMonitor';
-import { LANGUAGE_QUERY_MAPPINGS } from '../normalization/QueryTypeMappings';
 
 /**
  * Tree-sitter查询模式定义
@@ -343,36 +342,36 @@ export class TreeSitterQueryEngine {
           // 创建简单的内存缓存服务用于临时使用
           const tempCacheService = {
             getFromCache: () => undefined,
-            setCache: () => {},
+            setCache: () => { },
             deleteFromCache: () => false,
-            clearAllCache: () => {},
+            clearAllCache: () => { },
             getCacheStats: () => ({ totalEntries: 0, hitCount: 0, missCount: 0, hitRate: 0 }),
-            cleanupExpiredEntries: () => {},
+            cleanupExpiredEntries: () => { },
             isGraphCacheHealthy: () => true,
-            checkMemoryUsage: () => {},
-            aggressiveCleanup: () => {},
-            startCleanupInterval: () => {},
-            evictEntries: () => {},
+            checkMemoryUsage: () => { },
+            aggressiveCleanup: () => { },
+            startCleanupInterval: () => { },
+            evictEntries: () => { },
             getGraphStatsCache: () => undefined,
-            setGraphStatsCache: () => {},
-            cacheGraphData: async () => {},
+            setGraphStatsCache: () => { },
+            cacheGraphData: async () => { },
             getGraphData: async () => null,
             hasKey: () => false,
             getKeys: () => [],
             getSize: () => 0,
-            updateConfig: () => {},
-            stopCleanupInterval: () => {},
-            forceCleanup: () => {},
+            updateConfig: () => { },
+            stopCleanupInterval: () => { },
+            forceCleanup: () => { },
             getPerformanceMetrics: () => ({ totalEntries: 0, hitCount: 0, missCount: 0, hitRate: 0, averageTTL: 0, expiredEntries: 0, memoryUsage: 0 }),
-            preloadCache: () => {},
+            preloadCache: () => { },
             getKeysByPattern: () => [],
             deleteByPattern: () => 0,
             getDatabaseSpecificCache: async () => null,
-            setDatabaseSpecificCache: async () => {},
-            invalidateDatabaseCache: async () => {},
-            cacheNebulaGraphData: async () => {},
+            setDatabaseSpecificCache: async () => { },
+            invalidateDatabaseCache: async () => { },
+            cacheNebulaGraphData: async () => { },
             getNebulaGraphData: async () => null,
-            cacheVectorData: async () => {},
+            cacheVectorData: async () => { },
             getVectorData: async () => null
           } as any;
           const dynamicManager = new DynamicParserManager(tempCacheService);

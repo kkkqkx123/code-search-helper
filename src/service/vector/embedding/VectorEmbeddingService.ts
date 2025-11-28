@@ -5,6 +5,9 @@ import { BatchProcessingService } from '../../../infrastructure/batching/BatchPr
 import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
 
+/**
+ * 嵌入选项接口，包含缓存和去重设置
+ */
 export interface EmbeddingOptions {
   provider?: string;
   batchSize?: number;
@@ -76,7 +79,7 @@ export class VectorEmbeddingService {
     options?: EmbeddingOptions
   ): Promise<number[][]> {
     const startTime = Date.now();
-    
+
     try {
       this.logger.info(`Starting enhanced batch embedding generation for ${contents.length} contents`, {
         provider: options?.provider,
@@ -168,12 +171,12 @@ export class VectorEmbeddingService {
   private async calculateOptimalBatchSize(contents: string[], options?: EmbeddingOptions): Promise<number> {
     const provider = options?.provider || 'default';
     const embedderLimits = this.getEmbedderLimits(provider);
-    
+
     // 基于内容长度计算
     const avgContentLength = contents.reduce((sum, content) => sum + content.length, 0) / contents.length;
-    
+
     let optimalBatchSize: number;
-    
+
     if (avgContentLength > 8000) {
       optimalBatchSize = Math.min(5, embedderLimits.maxBatchSize);
     } else if (avgContentLength > 4000) {
@@ -207,13 +210,13 @@ export class VectorEmbeddingService {
     try {
       const provider = options?.provider || 'default';
       const embedder = await this.embedderFactory.getEmbedder(provider);
-      
+
       // 准备输入数据
       const inputs = batch.map(content => ({ text: content }));
-      
+
       // 批量生成嵌入
       const result = await embedder.embed(inputs);
-      
+
       // 处理结果格式
       const embeddings = Array.isArray(result)
         ? result.map(r => r.vector)
@@ -250,7 +253,7 @@ export class VectorEmbeddingService {
           throw individualError;
         }
       }
-      
+
       return embeddings;
     }
   }
@@ -264,7 +267,7 @@ export class VectorEmbeddingService {
     originalLength: number
   ): number[][] {
     const result: number[][] = new Array(originalLength);
-    
+
     uniqueContents.forEach((item, uniqueIndex) => {
       if (uniqueIndex < uniqueEmbeddings.length) {
         result[item.originalIndex] = uniqueEmbeddings[uniqueIndex];
@@ -362,14 +365,14 @@ export class VectorEmbeddingService {
    */
   async warmupCache(contents: string[], options?: EmbeddingOptions): Promise<void> {
     this.logger.info(`Warming up cache with ${contents.length} contents`);
-    
+
     try {
       await this.generateBatchEmbeddings(contents, {
         ...options,
         enableCaching: true,
         enableDeduplication: true
       });
-      
+
       this.logger.info('Cache warmup completed', {
         cacheSize: this.embeddingCache.size
       });

@@ -7,7 +7,7 @@ import { languageExtensionMap } from '../../utils';
 import { DetectionService } from '../../detection/DetectionService';
 import { languageMappingManager } from '../../config/LanguageMappingManager';
 import { FallbackExtractor } from '../../utils/FallbackExtractor';
-import { QueryTypeMapper } from '../normalization/QueryTypeMappings';
+import { QueryTypeMapper } from '../normalization/LegacyQueryMappings';
 import { LANGUAGE_MAPPINGS } from '../../config/LanguageMappingConfig';
 import { TREE_SITTER_LANGUAGE_MAP } from '../../constants/language-constants';
 import { CacheKeyUtils } from '../../../../utils/cache/CacheKeyUtils';

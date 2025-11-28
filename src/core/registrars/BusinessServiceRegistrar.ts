@@ -38,15 +38,6 @@ import { DynamicParserManager } from '../../service/parser/core/parse/DynamicPar
 
 import { SegmentationConfigService } from '../../config/service/SegmentationConfigService';
 
-// 缓存服务
-import { ICacheService } from '../../infrastructure/caching/types';
-
-// 基础设施配置服务
-import { InfrastructureConfigService } from '../../infrastructure/config/InfrastructureConfigService';
-
-// 新的AST结构提取器相关服务
-import { StructureTypeConverter } from '../../service/parser/core/normalization/utils/StructureTypeConverter';
-
 // 通用文件处理服务
 import { UniversalTextStrategy } from '../../service/parser/processing/strategies/implementations/UniversalTextStrategy';
 import { ErrorThresholdInterceptor } from '../../service/parser/processing/utils/protection/ErrorThresholdInterceptor';
@@ -190,10 +181,6 @@ export class BusinessServiceRegistrar {
 
 
       // 标准化服务
-
-      // 新的AST结构提取器相关服务
-      container.bind<StructureTypeConverter>(TYPES.StructureTypeConverter).to(StructureTypeConverter).inSingletonScope();
-
 
       // 分段器模块服务 - 注意：UniversalTextStrategy 现在不使用 @injectable，需要手动实例化
       container.bind<UniversalTextStrategy>(TYPES.UniversalTextStrategy).toDynamicValue(() => {

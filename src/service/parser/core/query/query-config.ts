@@ -1,11 +1,21 @@
 /**
  * 动态查询配置系统
  * 支持运行时配置更新、验证和性能优化
+ * 使用新的实体和关系类型定义体系
  */
 
 import { languageMappingManager } from '../../config/LanguageMappingManager';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { LRUCache } from '../../../../utils/cache/LRUCache';
+import {
+  EntityType,
+  RelationshipCategory,
+  RelationshipType,
+  EntityTypeRegistry,
+  RelationshipTypeRegistry,
+  EntityQueryBuilderFactory,
+  RelationshipQueryBuilderFactory
+} from '../normalization/types';
 
 /**
  * 查询类型配置接口
@@ -29,8 +39,17 @@ export interface QueryTypeConfig {
   /** 支持的语言列表（空数组表示支持所有语言） */
   supportedLanguages: string[];
 
-  /** 查询类型分类 */
-  category: 'structure' | 'behavior' | 'type' | 'import' | 'export' | 'flow' | 'custom';
+  /** 查询类型分类 - 使用新的实体类型体系 */
+  category: 'entity' | 'relationship' | 'structure' | 'behavior' | 'type' | 'import' | 'export' | 'flow' | 'custom';
+
+  /** 关联的实体类型（如果适用） */
+  entityTypes?: EntityType[];
+
+  /** 关联的关系类别（如果适用） */
+  relationshipCategories?: RelationshipCategory[];
+
+  /** 关联的关系类型（如果适用） */
+  relationshipTypes?: RelationshipType[];
 
   /** 依赖的其他查询类型 */
   dependencies: string[];
@@ -74,6 +93,23 @@ export interface ConfigValidationResult {
 }
 
 /**
+ * 查询执行上下文
+ */
+export interface QueryExecutionContext {
+  /** 语言类型 */
+  language: string;
+
+  /** 文件路径 */
+  filePath: string;
+
+  /** 查询类型 */
+  queryType: string;
+
+  /** 自定义参数 */
+  customParams?: Record<string, any>;
+}
+
+/**
  * 动态查询配置管理器
  */
 export class QueryConfigManager {
@@ -84,10 +120,14 @@ export class QueryConfigManager {
   private queryTypeCache: LRUCache<string, string[]>;
   private logger: LoggerService;
   private initialized = false;
+  private entityRegistry: EntityTypeRegistry;
+  private relationshipRegistry: RelationshipTypeRegistry;
 
   private constructor() {
     this.logger = new LoggerService();
     this.queryTypeCache = new LRUCache<string, string[]>(100);
+    this.entityRegistry = EntityTypeRegistry.getInstance();
+    this.relationshipRegistry = RelationshipTypeRegistry.getInstance();
     this.initializeDefaultConfigs();
   }
 
@@ -105,8 +145,8 @@ export class QueryConfigManager {
    * 初始化默认配置
    */
   private initializeDefaultConfigs(): void {
-    // 核心查询类型配置
-    const coreQueryTypes: QueryTypeConfig[] = [
+    // 核心实体查询类型配置
+    const entityQueryTypes: QueryTypeConfig[] = [
       {
         name: 'functions',
         description: '函数定义和声明',
@@ -118,67 +158,28 @@ export class QueryConfigManager {
         priority: 1,
         isCore: true,
         supportedLanguages: [],
-        category: 'structure',
+        category: 'entity',
+        entityTypes: [EntityType.FUNCTION],
         dependencies: [],
-        tags: ['core', 'structure', 'behavior']
+        tags: ['core', 'entity', 'function']
       },
       {
-        name: 'classes',
-        description: '类定义和结构体',
+        name: 'types',
+        description: '类型定义和别名',
         nodeTypes: [
+          'type_declaration', 'type_definition', 'type_alias_declaration',
+          'typedef', 'type_annotation', 'generic_type', 'type_identifier',
           'class_declaration', 'class_definition', 'struct_specifier',
           'struct_item', 'union_specifier', 'enum_specifier',
-          'interface_type', 'struct_type', 'interface_declaration',
-          'type_declaration', 'type_definition', 'abstract_class_declaration'
+          'interface_type', 'struct_type', 'interface_declaration'
         ],
         priority: 2,
         isCore: true,
         supportedLanguages: [],
-        category: 'structure',
+        category: 'entity',
+        entityTypes: [EntityType.TYPE_DEFINITION],
         dependencies: [],
-        tags: ['core', 'structure', 'type']
-      },
-      {
-        name: 'methods',
-        description: '类方法定义',
-        nodeTypes: [
-          'method_definition', 'method_declaration', 'method_spec',
-          'function_definition_statement', 'method_invocation'
-        ],
-        priority: 3,
-        isCore: true,
-        supportedLanguages: [],
-        category: 'behavior',
-        dependencies: ['classes'],
-        tags: ['core', 'behavior', 'structure']
-      },
-      {
-        name: 'imports',
-        description: '导入语句和依赖',
-        nodeTypes: [
-          'import_statement', 'import_declaration', 'use_declaration',
-          'preproc_include', 'require_statement', 'import_expression'
-        ],
-        priority: 4,
-        isCore: true,
-        supportedLanguages: [],
-        category: 'import',
-        dependencies: [],
-        tags: ['core', 'import', 'dependency']
-      },
-      {
-        name: 'exports',
-        description: '导出语句和公开接口',
-        nodeTypes: [
-          'export_statement', 'export_declaration', 'export_default_declaration',
-          'export_clause'
-        ],
-        priority: 5,
-        isCore: true,
-        supportedLanguages: [],
-        category: 'export',
-        dependencies: [],
-        tags: ['core', 'export', 'interface']
+        tags: ['core', 'entity', 'type']
       },
       {
         name: 'variables',
@@ -187,168 +188,222 @@ export class QueryConfigManager {
           'variable_declaration', 'var_declaration', 'let_declaration',
           'assignment_expression', 'local_variable_declaration',
           'variable_assignment', 'declaration', 'const_declaration',
-          'identifier'
+          'identifier', 'field_declaration', 'property_definition'
+        ],
+        priority: 3,
+        isCore: true,
+        supportedLanguages: [],
+        category: 'entity',
+        entityTypes: [EntityType.VARIABLE],
+        dependencies: [],
+        tags: ['core', 'entity', 'variable']
+      },
+      {
+        name: 'preprocessors',
+        description: '预处理器指令和宏定义',
+        nodeTypes: [
+          'preproc_include', 'preproc_def', 'preproc_function_def',
+          'preproc_if', 'preproc_ifdef', 'preproc_else', 'preproc_endif'
+        ],
+        priority: 4,
+        isCore: true,
+        supportedLanguages: ['c', 'cpp'],
+        category: 'entity',
+        entityTypes: [EntityType.PREPROCESSOR],
+        dependencies: [],
+        tags: ['core', 'entity', 'preprocessor']
+      },
+      {
+        name: 'annotations',
+        description: '注解和注释',
+        nodeTypes: [
+          'decorator', 'annotation', 'attribute', 'comment'
+        ],
+        priority: 5,
+        isCore: true,
+        supportedLanguages: ['typescript', 'python', 'java', 'csharp'],
+        category: 'entity',
+        entityTypes: [EntityType.ANNOTATION],
+        dependencies: [],
+        tags: ['core', 'entity', 'annotation']
+      }
+    ];
+
+    // 核心关系查询类型配置
+    const relationshipQueryTypes: QueryTypeConfig[] = [
+      {
+        name: 'calls',
+        description: '函数调用关系',
+        nodeTypes: [
+          'call_expression', 'function_call', 'method_call',
+          'function_invocation', 'method_invocation'
+        ],
+        priority: 1,
+        isCore: true,
+        supportedLanguages: [],
+        category: 'relationship',
+        relationshipCategories: [RelationshipCategory.CALL],
+        relationshipTypes: [RelationshipType.CALL, RelationshipType.METHOD_CALL],
+        dependencies: ['functions'],
+        tags: ['core', 'relationship', 'call']
+      },
+      {
+        name: 'dataFlow',
+        description: '数据流关系',
+        nodeTypes: [
+          'assignment_expression', 'parameter_declaration', 'return_statement',
+          'binary_expression', 'unary_expression'
+        ],
+        priority: 2,
+        isCore: true,
+        supportedLanguages: [],
+        category: 'relationship',
+        relationshipCategories: [RelationshipCategory.DATA_FLOW],
+        relationshipTypes: [RelationshipType.ASSIGNMENT, RelationshipType.PARAMETER_PASSING, RelationshipType.RETURN_VALUE],
+        dependencies: ['functions', 'variables'],
+        tags: ['core', 'relationship', 'dataflow']
+      },
+      {
+        name: 'controlFlow',
+        description: '控制流关系',
+        nodeTypes: [
+          'if_statement', 'for_statement', 'while_statement', 'do_statement',
+          'switch_statement', 'try_statement', 'catch_clause', 'finally_clause',
+          'conditional_expression', 'ternary_expression', 'goto_statement'
+        ],
+        priority: 3,
+        isCore: true,
+        supportedLanguages: [],
+        category: 'relationship',
+        relationshipCategories: [RelationshipCategory.CONTROL_FLOW],
+        relationshipTypes: [RelationshipType.CONDITIONAL, RelationshipType.LOOP, RelationshipType.JUMP],
+        dependencies: [],
+        tags: ['core', 'relationship', 'controlflow']
+      },
+      {
+        name: 'dependencies',
+        description: '依赖关系',
+        nodeTypes: [
+          'import_statement', 'import_declaration', 'use_declaration',
+          'preproc_include', 'require_statement', 'import_expression'
+        ],
+        priority: 4,
+        isCore: true,
+        supportedLanguages: [],
+        category: 'relationship',
+        relationshipCategories: [RelationshipCategory.DEPENDENCY],
+        relationshipTypes: [RelationshipType.INCLUDE, RelationshipType.TYPE_REFERENCE, RelationshipType.FUNCTION_REFERENCE],
+        dependencies: [],
+        tags: ['core', 'relationship', 'dependency']
+      },
+      {
+        name: 'inheritance',
+        description: '继承关系',
+        nodeTypes: [
+          'class_declaration', 'interface_declaration', 'extends_clause',
+          'implements_clause', 'struct_specifier', 'inheritance_specifier'
+        ],
+        priority: 5,
+        isCore: true,
+        supportedLanguages: [],
+        category: 'relationship',
+        relationshipCategories: [RelationshipCategory.INHERITANCE],
+        relationshipTypes: [RelationshipType.EXTENDS, RelationshipType.IMPLEMENTS, RelationshipType.COMPOSITION],
+        dependencies: ['types'],
+        tags: ['core', 'relationship', 'inheritance']
+      },
+      {
+        name: 'lifecycle',
+        description: '生命周期关系',
+        nodeTypes: [
+          'function_call', 'allocation_expression', 'deallocation_expression',
+          'constructor_declaration', 'destructor_declaration'
         ],
         priority: 6,
         isCore: true,
         supportedLanguages: [],
-        category: 'structure',
-        dependencies: [],
-        tags: ['core', 'structure', 'data']
+        category: 'relationship',
+        relationshipCategories: [RelationshipCategory.LIFECYCLE],
+        relationshipTypes: [RelationshipType.INITIALIZATION, RelationshipType.CLEANUP],
+        dependencies: ['functions'],
+        tags: ['core', 'relationship', 'lifecycle']
       },
       {
-        name: 'types',
-        description: '类型定义和别名',
+        name: 'semantic',
+        description: '语义关系',
         nodeTypes: [
-          'type_declaration', 'type_definition', 'type_alias_declaration',
-          'typedef', 'type_annotation', 'generic_type', 'type_identifier'
+          'error_handling', 'resource_management', 'callback_assignment',
+          'error_check', 'cleanup_pattern'
         ],
         priority: 7,
-        isCore: true,
+        isCore: false,
         supportedLanguages: [],
-        category: 'type',
-        dependencies: [],
-        tags: ['core', 'type', 'structure']
+        category: 'relationship',
+        relationshipCategories: [RelationshipCategory.SEMANTIC],
+        relationshipTypes: [RelationshipType.ERROR_HANDLING, RelationshipType.RESOURCE_MANAGEMENT],
+        dependencies: ['functions', 'dataFlow'],
+        tags: ['relationship', 'semantic']
       },
       {
-        name: 'interfaces',
-        description: '接口定义和协议',
+        name: 'references',
+        description: '引用关系',
         nodeTypes: [
-          'interface_declaration', 'interface_definition', 'trait_item',
-          'interface_type', 'protocol_declaration'
+          'identifier', 'type_identifier', 'field_identifier',
+          'variable_reference', 'type_reference'
         ],
         priority: 8,
-        isCore: true,
-        supportedLanguages: [],
-        category: 'type',
-        dependencies: [],
-        tags: ['core', 'type', 'interface']
-      },
-      {
-        name: 'properties',
-        description: '属性和字段定义',
-        nodeTypes: [
-          'field_declaration', 'property_definition', 'public_field_definition',
-          'property_declaration', 'member_declaration', 'property_identifier'
-        ],
-        priority: 9,
-        isCore: true,
-        supportedLanguages: [],
-        category: 'structure',
-        dependencies: ['classes'],
-        tags: ['core', 'structure', 'data']
-      },
-      {
-        name: 'controlFlow',
-        description: '控制流语句',
-        nodeTypes: [
-          'if_statement', 'for_statement', 'while_statement', 'do_statement',
-          'switch_statement', 'try_statement', 'catch_clause', 'finally_clause',
-          'conditional_expression', 'ternary_expression'
-        ],
-        priority: 10,
         isCore: false,
         supportedLanguages: [],
-        category: 'flow',
-        dependencies: [],
-        tags: ['flow', 'control']
-      },
-      {
-        name: 'expression',
-        description: '表达式和运算',
-        nodeTypes: [
-          'binary_expression', 'unary_expression', 'call_expression',
-          'member_expression', 'assignment_expression', 'update_expression',
-          'new_expression', 'await_expression'
-        ],
-        priority: 11,
-        isCore: false,
-        supportedLanguages: [],
-        category: 'behavior',
-        dependencies: [],
-        tags: ['expression', 'behavior']
-      },
-      {
-        name: 'decorator',
-        description: '装饰器和注解',
-        nodeTypes: [
-          'decorator', 'annotation', 'attribute'
-        ],
-        priority: 12,
-        isCore: false,
-        supportedLanguages: ['typescript', 'python', 'java', 'csharp'],
-        category: 'custom',
-        dependencies: ['functions', 'classes'],
-        tags: ['decorator', 'annotation', 'metadata']
+        category: 'relationship',
+        relationshipCategories: [RelationshipCategory.REFERENCE],
+        relationshipTypes: [RelationshipType.REFERENCE],
+        dependencies: ['variables', 'types'],
+        tags: ['relationship', 'reference']
       }
     ];
 
-    // 注册核心查询类型
-    for (const config of coreQueryTypes) {
+    // 注册所有查询类型
+    for (const config of [...entityQueryTypes, ...relationshipQueryTypes]) {
       this.registerQueryType(config);
     }
 
     // 注册复合查询类型
     this.registerCompoundQuery({
-      name: 'functions-types',
-      description: '函数和类型的组合查询',
-      queryTypes: ['functions', 'types'],
+      name: 'entity-relationships',
+      description: '实体和关系的组合查询',
+      queryTypes: ['functions', 'types', 'variables', 'calls', 'dataFlow'],
       mergeStrategy: 'union',
       supportedLanguages: []
     });
 
     this.registerCompoundQuery({
-      name: 'classes-functions',
-      description: '类和函数的组合查询',
-      queryTypes: ['classes', 'functions'],
+      name: 'function-analysis',
+      description: '函数分析组合查询',
+      queryTypes: ['functions', 'calls', 'dataFlow', 'controlFlow'],
       mergeStrategy: 'union',
       supportedLanguages: []
     });
 
     this.registerCompoundQuery({
-      name: 'methods-variables',
-      description: '方法和变量的组合查询',
-      queryTypes: ['methods', 'variables'],
+      name: 'type-analysis',
+      description: '类型分析组合查询',
+      queryTypes: ['types', 'inheritance', 'dependencies'],
       mergeStrategy: 'union',
       supportedLanguages: []
     });
 
     this.registerCompoundQuery({
-      name: 'constructors-properties',
-      description: '构造函数和属性的组合查询',
-      queryTypes: ['methods', 'properties'],
+      name: 'dependency-analysis',
+      description: '依赖分析组合查询',
+      queryTypes: ['dependencies', 'references', 'inheritance'],
       mergeStrategy: 'union',
       supportedLanguages: []
     });
 
     this.registerCompoundQuery({
-      name: 'control-flow-patterns',
-      description: '控制流模式查询',
-      queryTypes: ['controlFlow'],
-      mergeStrategy: 'union',
-      supportedLanguages: []
-    });
-
-    this.registerCompoundQuery({
-      name: 'expressions-control-flow',
-      description: '表达式和控制流的组合查询',
-      queryTypes: ['expression', 'controlFlow'],
-      mergeStrategy: 'union',
-      supportedLanguages: []
-    });
-
-    this.registerCompoundQuery({
-      name: 'types-decorators',
-      description: '类型和装饰器的组合查询',
-      queryTypes: ['types', 'decorator'],
-      mergeStrategy: 'union',
-      supportedLanguages: []
-    });
-
-    this.registerCompoundQuery({
-      name: 'variables-imports',
-      description: '变量和导入的组合查询',
-      queryTypes: ['variables', 'imports'],
+      name: 'lifecycle-analysis',
+      description: '生命周期分析组合查询',
+      queryTypes: ['lifecycle', 'semantic', 'dataFlow'],
       mergeStrategy: 'union',
       supportedLanguages: []
     });
@@ -431,6 +486,34 @@ export class QueryConfigManager {
   }
 
   /**
+   * 获取实体查询类型
+   */
+  getEntityQueryTypes(): string[] {
+    return Array.from(this.queryTypes.values())
+      .filter(config => config.category === 'entity')
+      .map(config => config.name)
+      .sort((a, b) => {
+        const priorityA = this.queryTypes.get(a)!.priority;
+        const priorityB = this.queryTypes.get(b)!.priority;
+        return priorityA - priorityB;
+      });
+  }
+
+  /**
+   * 获取关系查询类型
+   */
+  getRelationshipQueryTypes(): string[] {
+    return Array.from(this.queryTypes.values())
+      .filter(config => config.category === 'relationship')
+      .map(config => config.name)
+      .sort((a, b) => {
+        const priorityA = this.queryTypes.get(a)!.priority;
+        const priorityB = this.queryTypes.get(b)!.priority;
+        return priorityA - priorityB;
+      });
+  }
+
+  /**
    * 获取指定语言支持的查询类型
    */
   getQueryTypesForLanguage(language: string): string[] {
@@ -486,6 +569,39 @@ export class QueryConfigManager {
   }
 
   /**
+   * 获取查询类型关联的实体类型
+   */
+  getQueryTypeEntityTypes(queryType: string): EntityType[] {
+    const config = this.queryTypes.get(queryType);
+    return config?.entityTypes || [];
+  }
+
+  /**
+   * 获取查询类型关联的关系类型
+   */
+  getQueryTypeRelationshipTypes(queryType: string): RelationshipType[] {
+    const config = this.queryTypes.get(queryType);
+    return config?.relationshipTypes || [];
+  }
+
+  /**
+   * 创建查询执行上下文
+   */
+  createExecutionContext(
+    language: string,
+    filePath: string,
+    queryType: string,
+    customParams?: Record<string, any>
+  ): QueryExecutionContext {
+    return {
+      language,
+      filePath,
+      queryType,
+      customParams
+    };
+  }
+
+  /**
    * 检查查询类型是否支持指定语言
    */
   private isQueryTypeSupportedForLanguage(config: QueryTypeConfig, language: string): boolean {
@@ -531,6 +647,24 @@ export class QueryConfigManager {
 
     if (config.priority < 0) {
       errors.push('优先级不能为负数');
+    }
+
+    // 验证实体类型
+    if (config.entityTypes) {
+      for (const entityType of config.entityTypes) {
+        if (!Object.values(EntityType).includes(entityType)) {
+          warnings.push(`未知的实体类型: ${entityType}`);
+        }
+      }
+    }
+
+    // 验证关系类型
+    if (config.relationshipTypes) {
+      for (const relationshipType of config.relationshipTypes) {
+        if (!Object.values(RelationshipType).includes(relationshipType)) {
+          warnings.push(`未知的关系类型: ${relationshipType}`);
+        }
+      }
     }
 
     // 检查依赖的查询类型是否存在
@@ -599,9 +733,13 @@ export class QueryConfigManager {
       totalQueryTypes: this.queryTypes.size,
       totalCompoundQueries: this.compoundQueries.size,
       coreQueryTypes: this.getCoreQueryTypes().length,
+      entityQueryTypes: this.getEntityQueryTypes().length,
+      relationshipQueryTypes: this.getRelationshipQueryTypes().length,
       categoryStats,
       cacheSize: this.queryTypeCache.size(),
-      supportedLanguages: this.languageQueryTypes.size
+      supportedLanguages: this.languageQueryTypes.size,
+      registeredEntityFactories: this.entityRegistry.getRegisteredLanguages().length,
+      registeredRelationshipFactories: this.relationshipRegistry.getRegisteredLanguages().length
     };
   }
 }
@@ -611,8 +749,10 @@ export const queryConfigManager = QueryConfigManager.getInstance();
 
 // 向后兼容的常量导出
 export const COMMON_QUERY_TYPES = queryConfigManager.getCoreQueryTypes();
-export const BASIC_QUERY_TYPES = ['functions', 'classes'] as const;
-export const DEFAULT_QUERY_TYPES = ['functions', 'classes', 'methods', 'imports', 'variables'] as const;
+export const ENTITY_QUERY_TYPES = queryConfigManager.getEntityQueryTypes();
+export const RELATIONSHIP_QUERY_TYPES = queryConfigManager.getRelationshipQueryTypes();
+export const BASIC_QUERY_TYPES = ['functions', 'types'] as const;
+export const DEFAULT_QUERY_TYPES = ['functions', 'types', 'variables', 'calls', 'dataFlow'] as const;
 export const COMMON_LANGUAGES = [...languageMappingManager.getAllSupportedLanguages()] as const;
 
 // 动态生成的复合查询类型
@@ -627,3 +767,6 @@ export const QUERY_PATTERNS: Record<string, string[]> = {};
 for (const queryType of queryConfigManager.getAllQueryTypes()) {
   QUERY_PATTERNS[queryType] = queryConfigManager.getQueryTypePatterns(queryType);
 }
+
+// 导出构建器工厂
+export { EntityQueryBuilderFactory, RelationshipQueryBuilderFactory };

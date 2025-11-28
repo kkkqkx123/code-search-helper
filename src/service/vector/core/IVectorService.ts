@@ -8,7 +8,8 @@ import {
   ProjectOptions,
   VectorStats,
   PerformanceMetrics,
-  ServiceStatus
+  ServiceStatus,
+  VectorPoint
 } from '../types/VectorTypes';
 
 /**
@@ -96,5 +97,5 @@ export interface IVectorService {
   /**
    * 处理文件并生成向量点
    */
-  processFileForEmbedding(filePath: string, projectPath: string): Promise<any[]>;
+  processFileForEmbedding(filePath: string, projectPath: string): Promise<VectorPoint[]>;
 }

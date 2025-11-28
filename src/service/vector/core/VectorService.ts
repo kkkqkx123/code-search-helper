@@ -113,7 +113,7 @@ export class VectorService implements IVectorService {
       );
 
       // 5. 转换为向量点
-      const vectorPoints = vectors.map(vector => VectorTypeConverter.toUnifiedVectorPoint(vector));
+      const vectorPoints = vectors.map(vector => VectorTypeConverter.toVectorPoint(vector));
 
       // 6. 批量存储向量
       await this.repository.createBatch(vectors);

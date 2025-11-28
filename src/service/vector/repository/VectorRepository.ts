@@ -223,9 +223,7 @@ export class VectorRepository implements IVectorRepository {
 
   private convertToVectorPoint(vector: Vector): any {
     // 使用统一的类型转换器，简化转换逻辑
-    return VectorTypeConverter.toVectorPoint(
-      VectorTypeConverter.toUnifiedVectorPoint(vector)
-    );
+    return VectorTypeConverter.toVectorPoint(vector);
   }
 
   private convertFilter(filter?: VectorFilter): any {

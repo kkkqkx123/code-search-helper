@@ -49,7 +49,7 @@ src/service/parser/core/normalization/
 │   ├── NormalizationCoordinator.ts # 标准化协调器
 │   └── BatchNormalizer.ts      # 批量标准化服务
 ├── utils/
-│   ├── NodeIdGenerator.ts      # 节点ID生成器
+│   ├── NodeIdGenerator.ts      # 节点ID生成器(复用src\utils\cache\HashUtils.ts)
 │   ├── PayloadConverter.ts     # Payload转换器
 │   └── TypeMapper.ts           # 类型映射器
 └── index.ts                    # 统一导出
