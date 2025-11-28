@@ -203,7 +203,7 @@ INPUT: 源代码 + 语言
 
 ## 新增的 Normalization 层应该在哪里？
 
-### 答案：在 Processing 层之后，Post-Processing 层之前
+### 答案：在 Post-Processing 层之后
 
 ```
 Processing (分割)
