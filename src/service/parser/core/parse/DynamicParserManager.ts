@@ -2,11 +2,9 @@ import Parser from 'tree-sitter';
 import { inject, injectable } from 'inversify';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
-import { QueryManager } from '../query/QueryManager';
 import { QueryRegistryImpl } from '../query/QueryRegistry';
 import { languageExtensionMap } from '../../utils';
 import { DetectionService } from '../../detection/DetectionService';
-import { QueryRegistryImpl } from '../query/QueryRegistry';
 import { languageMappingManager } from '../../config/LanguageMappingManager';
 import { FallbackExtractor } from '../../utils/FallbackExtractor';
 import { QueryTypeMapper } from '../normalization/QueryTypeMappings';
@@ -15,6 +13,7 @@ import { TREE_SITTER_LANGUAGE_MAP } from '../../constants/language-constants';
 import { CacheKeyUtils } from '../../../../utils/cache/CacheKeyUtils';
 import { ICacheService } from '../../../../infrastructure/caching/types';
 import { TYPES } from '../../../../types';
+import { TreeSitterQueryFacade } from '../query/TreeSitterQueryFacade';
 
 export interface DynamicParserLanguage {
   name: string;
@@ -284,15 +283,8 @@ export class DynamicParserManager {
         return FallbackExtractor.extractFunctions(ast, lang);
       }
 
-      const parser = await this.getParser(lang);
-      if (!parser) {
-        throw new Error(`无法获取 ${lang} 解析器`);
-      }
-
-      const results = QueryManager.executeQuery(ast, lang, 'functions', parser);
-      const functions = results.flatMap(r => r.captures)
-        .filter(c => c.name.includes('function') || c.name.includes('method'))
-        .map(c => c.node);
+      // 使用 TreeSitterQueryFacade 替代 QueryManager
+      const functions = await TreeSitterQueryFacade.findFunctions(ast, lang);
 
       this.logger.debug(`提取到 ${functions.length} 个函数节点`);
       return functions;
@@ -323,19 +315,8 @@ export class DynamicParserManager {
         return FallbackExtractor.extractClasses(ast, lang);
       }
 
-      const parser = await this.getParser(lang);
-      if (!parser) {
-        throw new Error(`无法获取 ${lang} 解析器`);
-      }
-
-      const results = QueryManager.executeQuery(ast, lang, 'classes', parser);
-      const classes = results.flatMap(r => r.captures)
-        .filter(c => c.name.includes('class') ||
-          c.name.includes('interface') ||
-          c.name.includes('struct') ||
-          c.name.includes('trait') ||
-          c.name.includes('object'))
-        .map(c => c.node);
+      // 使用 TreeSitterQueryFacade 替代 QueryManager
+      const classes = await TreeSitterQueryFacade.findClasses(ast, lang);
 
       this.logger.debug(`提取到 ${classes.length} 个类节点`);
       return classes;
@@ -365,15 +346,10 @@ export class DynamicParserManager {
         return FallbackExtractor.extractImportTexts(ast, sourceCode);
       }
 
-      const parser = await this.getParser(lang);
-      if (!parser) {
-        throw new Error(`无法获取 ${lang} 解析器`);
-      }
-
-      const results = QueryManager.executeQuery(ast, lang, 'exports', parser);
-      const exports = results.flatMap(r => r.captures)
-        .filter(c => c.name.includes('export'))
-        .map(c => this.getNodeText(c.node, sourceCode))
+      // 使用 TreeSitterQueryFacade 替代 QueryManager
+      const exportNodes = await TreeSitterQueryFacade.findExports(ast, lang);
+      const exports = exportNodes
+        .map(c => this.getNodeText(c, sourceCode))
         .filter(text => text.trim().length > 0);
 
       this.logger.debug(`提取到 ${exports.length} 个导出`);

@@ -6,7 +6,6 @@ import { LoggerService } from '../../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
 import { LanguageDetector } from '../language-detection/LanguageDetector';
 import { languageExtensionMap } from '../../utils';
-import { QueryManager } from '../query/QueryManager';
 import { QueryRegistryImpl } from '../query/QueryRegistry';
 import { DynamicParserManager, DynamicParserLanguage, DynamicParseResult } from './DynamicParserManager';
 import { TreeSitterQueryFacade } from '../query/TreeSitterQueryFacade';
@@ -570,7 +569,7 @@ export class TreeSitterCoreService {
     if (this.useOptimizedQueries && this.querySystemInitialized) {
       return this.queryEngine.getPerformanceStats();
     }
-    return QueryManager.getCacheStats();
+    return TreeSitterQueryFacade.getPerformanceStats();
   }
 
   /**
@@ -578,7 +577,7 @@ export class TreeSitterCoreService {
    */
   isQuerySupported(language: string, queryType: string): boolean {
     if (this.useOptimizedQueries && this.querySystemInitialized) {
-      return QueryManager.isSupported(language.toLowerCase(), queryType);
+      return QueryRegistryImpl.isSupported(language.toLowerCase(), queryType);
     }
     return false;
   }
@@ -588,7 +587,7 @@ export class TreeSitterCoreService {
    */
   getQuerySupportedLanguages(): string[] {
     if (this.useOptimizedQueries && this.querySystemInitialized) {
-      return QueryManager.getSupportedLanguages();
+      return QueryRegistryImpl.getSupportedLanguages();
     }
     return [];
   }

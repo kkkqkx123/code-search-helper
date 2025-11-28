@@ -1,7 +1,7 @@
 import { TreeSitterCoreService } from '../../core/parse/TreeSitterCoreService';
 import { DynamicParserManager } from '../../core/parse/DynamicParserManager';
-import { QueryManager } from '../../core/query/QueryManager';
 import { QueryRegistryImpl } from '../../core/query/QueryRegistry';
+import { TreeSitterQueryFacade } from '../../core/query/TreeSitterQueryFacade';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
 import { CodeStructureService } from '../../core/structure/CodeStructureService';
 import { ICacheService } from '../../../../infrastructure/caching/types';
@@ -209,10 +209,9 @@ public class Calculator {
 
   describe('查询系统验证', () => {
     test('查询系统初始化验证', async () => {
-      await QueryManager.initialize();
       await QueryRegistryImpl.initialize();
       
-      const queryStats = QueryManager.getCacheStats();
+      const queryStats = TreeSitterQueryFacade.getPerformanceStats();
       const registryStats = QueryRegistryImpl.getStats();
       
       expect(queryStats).toBeTruthy();
@@ -478,6 +477,6 @@ function test() {
     // 清理资源
     coreService.clearCache();
     dynamicManager.clearCache();
-    QueryManager.clearCache();
+    TreeSitterQueryFacade.clearCache();
   });
 });

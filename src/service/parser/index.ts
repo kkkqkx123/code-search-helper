@@ -13,7 +13,6 @@ export { LanguageDetector } from './core/language-detection/LanguageDetector';
 // 查询相关服务
 export { TreeSitterQueryFacade } from './core/query/TreeSitterQueryFacade';
 export { TreeSitterQueryEngine } from './core/query/TreeSitterQueryExecutor';
-export { QueryManager } from './core/query/QueryManager';
 export { QueryRegistryImpl } from './core/query/QueryRegistry';
 
 // 工具类
