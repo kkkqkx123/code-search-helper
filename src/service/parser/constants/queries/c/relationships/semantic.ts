@@ -5,55 +5,108 @@ C Semantic Relationships-specific Tree-Sitter Query Patterns
 */
 export default `
 
-; 错误处理模式 - 使用交替模式
-[
-  (return_statement
-    (identifier) @error.code
-    (#match? @error.code "^(ERROR|FAIL|INVALID|NULL)$")) @semantic.relationship.error.return
-  (if_statement
-    condition: (binary_expression
-      left: (identifier) @checked.variable
-      operator: ["==" "!="]
-      right: (identifier) @error.value)
-    consequence: (compound_statement) @error.handling.block) @semantic.relationship.error.checking
-] @semantic.relationship.error.handling
-
-; 资源管理模式 - 使用锚点确保精确匹配
+; 错误处理返回模式
 (function_definition
   declarator: (function_declarator
-    declarator: (identifier) @resource.constructor)
+    declarator: (identifier) @relationship.semantic.function.from)
   body: (compound_statement
-    (declaration
-      type: (type_identifier) @resource.type
-      declarator: (init_declarator
-        declarator: (identifier) @resource.variable
-        value: (call_expression
-          function: (identifier) @allocation.function))))) @semantic.relationship.resource.initialization
+    (_
+      (return_statement
+        (identifier) @relationship.semantic.error-return.to
+        (#match? @relationship.semantic.error-return.to "^(ERROR|FAIL|INVALID|NULL)$")
+      ) @relationship.semantic.error.return
+    )
+  )
+)
 
-; 清理函数模式 - 简化模式
-; 注意：与lifecycle.ts中的资源清理函数重复，建议移除或合并
+; 错误检查模式
 (function_definition
   declarator: (function_declarator
-    declarator: (identifier) @cleanup.function)
-  parameters: (parameter_list
-    (parameter_declaration
-      type: (primitive_type)
-      declarator: (identifier) @resource.parameter))) @semantic.relationship.cleanup.pattern
+    declarator: (identifier) @relationship.semantic.function.from)
+  body: (compound_statement
+    (_
+      (if_statement
+        condition: (binary_expression
+          left: (identifier) _
+          operator: ["==" "!="]
+          right: (identifier) @relationship.semantic.error-check.to)
+      ) @relationship.semantic.error.checking
+    )
+  )
+)
 
-; 回调函数模式 - 使用锚点确保精确匹配
-[
-  (declaration
-    type: (type_identifier) @callback.type
-    declarator: (init_declarator
-      declarator: (identifier) @callback.variable
-      value: (identifier) @callback.function)) @semantic.relationship.callback.assignment
-  (init_declarator
-    declarator: (identifier) @callback.variable
-    value: (identifier) @callback.function) @semantic.relationship.callback.assignment
-  (type_definition
-    (function_declarator
-      (parenthesized_declarator
-        (pointer_declarator
-          (type_identifier) @callback.type)))) @semantic.relationship.callback.type
-] @semantic.relationship.callback.pattern
+; 资源管理模式
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @relationship.semantic.function.from)
+  body: (compound_statement
+    (_
+      (declaration
+        declarator: (init_declarator
+          declarator: (identifier) @relationship.semantic.resource.to
+          value: (call_expression
+            function: (identifier) _))
+      ) @relationship.semantic.resource.initialization
+    )
+  )
+)
+
+; 清理函数模式
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @relationship.semantic.function.from)
+  body: (compound_statement
+    (_
+      (function_definition
+        declarator: (function_declarator
+          declarator: (identifier) @relationship.semantic.cleanup.to)
+      ) @relationship.semantic.cleanup.pattern
+    )
+  )
+)
+
+; 回调函数赋值模式
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @relationship.semantic.function.from)
+  body: (compound_statement
+    (_
+      (declaration
+        declarator: (init_declarator
+          declarator: (identifier) _
+          value: (identifier) @relationship.semantic.callback.to)
+      ) @relationship.semantic.callback.assignment
+    )
+  )
+)
+
+; 回调函数初始化模式
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @relationship.semantic.function.from)
+  body: (compound_statement
+    (_
+      (init_declarator
+        declarator: (identifier) _
+        value: (identifier) @relationship.semantic.callback-init.to
+      ) @relationship.semantic.callback.assignment
+    )
+  )
+)
+
+; 回调函数类型定义模式
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @relationship.semantic.function.from)
+  body: (compound_statement
+    (_
+      (type_definition
+        (function_declarator
+          (parenthesized_declarator
+            (pointer_declarator
+              (type_identifier) @relationship.semantic.callback-type.to)))
+      ) @relationship.semantic.callback.type
+    )
+  )
+)
 `;

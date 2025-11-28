@@ -5,60 +5,116 @@ C Call Relationships-specific Tree-Sitter Query Patterns
 */
 export default `
 ; 函数调用关系
-(call_expression
-  function: (identifier) @call.function.name
-  arguments: (argument_list
-    (_) @call.argument)*) @relationship.call
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @relationship.call.function.from)
+  body: (compound_statement
+    (_
+      (call_expression
+        function: (identifier) @relationship.call.function.to
+      ) @relationship.call.function
+    )
+  )
+)
 
 ; 函数指针调用关系
-(call_expression
-  function: (pointer_expression
-    argument: (identifier) @call.function.pointer)
-  arguments: (argument_list
-    (_) @call.argument)*) @relationship.call.pointer
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @relationship.call.function.from)
+  body: (compound_statement
+    (_
+      (call_expression
+        function: (pointer_expression
+          argument: (identifier) @relationship.call.pointer.to)
+      ) @relationship.call.pointer
+    )
+  )
+)
 
 ; 结构体方法调用关系
-(call_expression
-  function: (field_expression
-    argument: (identifier) @call.object
-    field: (field_identifier) @call.method)
-  arguments: (argument_list
-    (_) @call.argument)*) @relationship.call.method
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @relationship.call.function.from)
+  body: (compound_statement
+    (_
+      (call_expression
+        function: (field_expression
+          argument: (identifier) @relationship.call.object.to)
+        field: (field_identifier) @relationship.call.method.to)
+      ) @relationship.call.method
+    )
+  )
+)
 
 ; 递归调用关系
-(call_expression
-  function: (identifier) @recursive.function.name
-  arguments: (argument_list
-    (_) @call.argument)*) @relationship.call.recursive
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @relationship.call.function.from)
+  body: (compound_statement
+    (_
+      (call_expression
+        function: (identifier) @relationship.call.recursive.to
+        (#eq? @relationship.call.recursive.to @relationship.call.function.from)
+      ) @relationship.call.recursive
+    )
+  )
+)
 
 ; 链式调用关系
-(call_expression
-  function: (field_expression
-    argument: (call_expression
-      function: (identifier) @chained.call.function
-      arguments: (argument_list))
-    field: (field_identifier) @chained.call.method)
-  arguments: (argument_list
-    (_) @call.argument)*) @relationship.call.chained
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @relationship.call.function.from)
+  body: (compound_statement
+    (_
+      (call_expression
+        function: (field_expression
+          argument: (call_expression
+            function: (identifier) @relationship.call.chained.from)
+          field: (field_identifier) @relationship.call.chained.to)
+      ) @relationship.call.chained
+    )
+  )
+)
 
 ; 条件调用关系
-(call_expression
-  function: (identifier) @conditional.call.function
-  arguments: (argument_list
-    (_) @call.argument)*)
-  (#match? @conditional.call.function "^(if|switch|select)$")) @relationship.call.conditional
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @relationship.call.function.from)
+  body: (compound_statement
+    (_
+      (call_expression
+        function: (identifier) @relationship.call.conditional.to
+        (#match? @relationship.call.conditional.to "^(if|switch|select)$")
+      ) @relationship.call.conditional
+    )
+  )
+)
 
 ; 回调函数调用关系
-(call_expression
-  function: (identifier) @callback.function
-  arguments: (argument_list
-    (identifier) @callback.argument)*)
-  (#match? @callback.function "^(callback|handler|invoke)$")) @relationship.call.callback
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @relationship.call.function.from)
+  body: (compound_statement
+    (_
+      (call_expression
+        function: (identifier) @relationship.call.callback.to
+        (#match? @relationship.call.callback.to "^(callback|handler|invoke)$")
+      ) @relationship.call.callback
+    )
+  )
+)
 
 ; 宏函数调用关系
-(call_expression
-  function: (identifier) @macro.function
-  arguments: (argument_list
-    (_) @macro.argument)*)
-  (#match? @macro.function "^[A-Z_][A-Z0-9_]*$")) @relationship.call.macro
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @relationship.call.function.from)
+  body: (compound_statement
+    (_
+      (call_expression
+        function: (identifier) @relationship.call.macro.to
+        (#match? @relationship.call.macro.to "^[A-Z_][A-Z0-9_]*$")
+      ) @relationship.call.macro
+    )
+  )
+)
 `;

@@ -4,175 +4,202 @@ C Data Flow-specific Tree-Sitter Query Patterns
 优先级3
 */
 export default `
-; 统一的赋值数据流查询 - 使用交替模式，包含声明初始化和赋值表达式
-[
-  (assignment_expression
-    left: [
-      (identifier) @target.variable
-      (field_expression
-        argument: (identifier) @target.object
-        field: (field_identifier) @target.field)
-      (subscript_expression
-        argument: (identifier) @target.array
-        index: (identifier) @target.index)
-      (pointer_expression
-        argument: (identifier) @target.pointer)
-    ]
-    right: [
-      (identifier) @source.variable
+; 赋值数据流查询
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @relationship.data_flow.function.from)
+  body: (compound_statement
+    (_
+      (assignment_expression
+        left: (identifier) @relationship.data_flow.assignment.to
+      ) @relationship.data_flow.assignment
+    )
+  )
+)
+
+; 初始化赋值数据流查询
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @relationship.data_flow.function.from)
+  body: (compound_statement
+    (_
+      (init_declarator
+        declarator: (identifier) @relationship.data_flow.init.to
+      ) @relationship.data_flow.assignment
+    )
+  )
+)
+
+; 复合赋值数据流查询
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @relationship.data_flow.function.from)
+  body: (compound_statement
+    (_
+      (assignment_expression
+        left: (identifier) @relationship.data_flow.compound.to
+        right: (binary_expression
+          operator: ["+" "-" "*" "/" "%" "&" "|" "^" "<<" ">>"]
+        )
+      ) @relationship.data_flow.compound.assignment
+    )
+  )
+)
+
+; 增量数据流查询
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @relationship.data_flow.function.from)
+  body: (compound_statement
+    (_
+      (update_expression
+        argument: (identifier) @relationship.data_flow.increment.to
+        operator: "++"
+      ) @relationship.data_flow.increment
+    )
+  )
+)
+
+; 减量数据流查询
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @relationship.data_flow.function.from)
+  body: (compound_statement
+    (_
+      (update_expression
+        argument: (identifier) @relationship.data_flow.decrement.to
+        operator: "--"
+      ) @relationship.data_flow.decrement
+    )
+  )
+)
+
+; 函数调用数据流查询
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @relationship.data_flow.function.from)
+  body: (compound_statement
+    (_
       (call_expression
-        function: (identifier) @source.function)
-      (binary_expression
-        left: (_) @binary.left
-        right: (_) @binary.right)
-      (unary_expression
-        argument: (_) @unary.argument)
-      (number_literal) @source.literal
-    ]) @data.flow.assignment
-  (init_declarator
-    declarator: (identifier) @target.variable
-    value: [
-      (identifier) @source.variable
+        function: (identifier) @relationship.data_flow.call.to
+      ) @relationship.data_flow.parameter.passing
+    )
+  )
+)
+
+; 返回值数据流查询
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @relationship.data_flow.function.from)
+  body: (compound_statement
+    (_
+      (return_statement
+        (identifier) @relationship.data_flow.return.to
+      ) @relationship.data_flow.return.value
+    )
+  )
+)
+
+; 指针操作数据流查询
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @relationship.data_flow.function.from)
+  body: (compound_statement
+    (_
+      (assignment_expression
+        left: (identifier) @relationship.data_flow.pointer.to
+        right: (pointer_expression
+          argument: (identifier) _
+        )
+      ) @relationship.data_flow.pointer.operation
+    )
+  )
+)
+
+; 类型转换数据流查询
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @relationship.data_flow.function.from)
+  body: (compound_statement
+    (_
+      (cast_expression
+        value: (identifier) @relationship.data_flow.cast.to
+      ) @relationship.data_flow.type.conversion
+    )
+  )
+)
+
+; 条件表达式数据流查询
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @relationship.data_flow.function.from)
+  body: (compound_statement
+    (_
+      (assignment_expression
+        left: (identifier) @relationship.data_flow.conditional.to
+        right: (conditional_expression
+          condition: (identifier) _
+        )
+      ) @relationship.data_flow.conditional.operation
+    )
+  )
+)
+
+; 内存操作数据流查询
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @relationship.data_flow.function.from)
+  body: (compound_statement
+    (_
       (call_expression
-        function: (identifier) @source.function)
-      (binary_expression
-        left: (_) @binary.left
-        right: (_) @binary.right)
-      (unary_expression
-        argument: (_) @unary.argument)
-      (number_literal) @source.literal
-    ]) @data.flow.assignment
-]
+        function: (identifier) @relationship.data_flow.memory.to
+      ) @relationship.data_flow.memory.operation
+    )
+  )
+)
 
-; 复合赋值数据流 - 修复：复合赋值的右边可能是identifier或binary_expression
-(assignment_expression
-  left: (identifier) @target.variable
-  right: [
-    (identifier) @source.variable1
-    (binary_expression
-      left: (identifier) @source.variable1
-      operator: ["+" "-" "*" "/" "%" "&" "|" "^" "<<" ">>"] @compound.operator
-      right: (identifier) @source.variable2)
-  ]) @data.flow.compound.assignment
+; 链式访问数据流查询
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @relationship.data_flow.function.from)
+  body: (compound_statement
+    (_
+      (assignment_expression
+        left: (field_expression
+          argument: (field_expression
+            argument: (identifier) _)
+          field: (field_identifier) _)
+        right: (identifier) @relationship.data_flow.chained.to
+      ) @relationship.data_flow.chained.access
+    )
+  )
+)
 
-; 增量/减量数据流 - 使用交替模式
-[
-  (update_expression
-    argument: (identifier) @variable
-    operator: "++") @data.flow.increment
-  (update_expression
-    argument: (identifier) @variable
-    operator: "--") @data.flow.decrement
-] @data.flow.update
+; 宏调用数据流查询
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @relationship.data_flow.function.from)
+  body: (compound_statement
+    (_
+      (init_declarator
+        declarator: (identifier) @relationship.data_flow.macro.to
+        value: (identifier) _
+      ) @relationship.data_flow.macro.assignment
+    )
+  )
+)
 
-; 函数调用数据流 - 参数化查询
-(call_expression
-  function: [
-    (identifier) @target.function
-    (pointer_expression
-      argument: (identifier) @target.function.pointer)
-    (field_expression
-      argument: (identifier) @target.object
-      field: (field_identifier) @target.method)
-  ]
-  arguments: (argument_list
-    (_) @source.parameter)*) @data.flow.parameter.passing
-
-; 返回值数据流 - 使用锚点操作符
-(return_statement
-  .
-  [
-    (identifier) @source.variable
-    (call_expression
-      function: (identifier) @source.function)
-    (field_expression
-      argument: (identifier) @source.object
-      field: (field_identifier) @source.field)
-    (binary_expression
-      left: (_) @binary.left
-      right: (_) @binary.right)
-    (number_literal) @source.literal
-  ]) @data.flow.return.value
-   
-; 指针操作数据流 - 使用交替模式
-[
-  (assignment_expression
-    left: (identifier) @target.pointer
-    right: (pointer_expression
-      argument: (identifier) @source.variable)) @data.flow.address.assignment
-  (assignment_expression
-    left: (pointer_expression
-      argument: (identifier) @target.pointer)
-    right: (identifier) @source.variable) @data.flow.pointer.assignment
-  (init_declarator
-    declarator: (pointer_declarator
-      declarator: (identifier) @target.pointer)
-    value: (pointer_expression
-      argument: (identifier) @source.variable)) @data.flow.address.assignment
-] @data.flow.pointer.operation
-
-; 类型转换数据流 - 简化模式【待实现】
-(cast_expression
-  type: (type_descriptor) @target.type
-  value: (identifier) @source.variable) @data.flow.type.conversion
-
-; 条件表达式数据流 - 修复：条件表达式可能在init_declarator中
-[
-  (assignment_expression
-    left: (identifier) @target.variable
-    right: (conditional_expression
-      condition: (identifier) @source.condition
-      consequence: (identifier) @source.consequence
-      alternative: (identifier) @source.alternative)) @data.flow.conditional.assignment
-  (init_declarator
-    declarator: (identifier) @target.variable
-    value: (conditional_expression
-      condition: (identifier) @source.condition
-      consequence: (identifier) @source.consequence
-      alternative: (identifier) @source.alternative)) @data.flow.conditional.assignment
-] @data.flow.conditional.operation
-
-; 内存操作数据流 - 移除谓词以避免括号不平衡问题
-(call_expression
-  function: (identifier) @memory.function
-  arguments: (argument_list
-    (_) @memory.argument)*) @data.flow.memory.operation
-
-; 链式访问数据流 - 使用量词操作符
-(assignment_expression
-  left: [
-    (field_expression
-      argument: (field_expression
-        argument: (identifier) @source.object
-        field: (field_identifier) @source.field1)
-      field: (field_identifier) @source.field2))
-    (subscript_expression
-      argument: (subscript_expression
-        argument: (identifier) @source.array
-        index: (identifier) @source.index1)
-      index: (identifier) @source.index2))
-  ]
-  right: (identifier) @target.variable) @data.flow.chained.access
-
-; 宏调用数据流 - 修复：宏展开后是identifier，不是call_expression
-(init_declarator
-  declarator: (identifier) @target.variable
-  value: (identifier) @macro.value) @data.flow.macro.assignment
-
-; sizeof表达式数据流 - 修复：sizeof表达式可能在init_declarator中，且参数可能是parenthesized_expression
-[
-  (assignment_expression
-    left: (identifier) @target.variable
-    right: (sizeof_expression
-      (parenthesized_expression
-        (identifier) @source.variable))) @data.flow.sizeof.assignment
-  (init_declarator
-    declarator: (identifier) @target.variable
-    value: (sizeof_expression
-      (parenthesized_expression
-        (identifier) @source.variable))) @data.flow.sizeof.assignment
-  (sizeof_expression
-    (parenthesized_expression
-      (identifier) @source.variable)) @data.flow.sizeof.expression
-] @data.flow.sizeof.operation
+; sizeof表达式数据流查询
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @relationship.data_flow.function.from)
+  body: (compound_statement
+    (_
+      (sizeof_expression
+        (parenthesized_expression
+          (identifier) @relationship.data_flow.sizeof.to)
+      ) @relationship.data_flow.sizeof.operation
+    )
+  )
+)
 `;
