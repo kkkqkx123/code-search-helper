@@ -80,7 +80,7 @@ export default `
 
 ; 4. 数组和指针声明 -> entity.variable 2
 [
-; 数组查询只能捕获单维数组，但对于多维数组能够覆盖内部结构
+; 数组查询只能捕获单维数组，但对于多维数组能够捕获最外层结构
   (declaration
     type: (_)
     declarator: (array_declarator
@@ -96,11 +96,11 @@ export default `
 [
   (declaration
     type: (_)
-    declarator: (identifier) @name.entity.variable)
+    declarator: (identifier) @entity.name.variable)
   (declaration
     type: (_)
     declarator: (init_declarator
-      declarator: (identifier) @name.entity.variable))
+      declarator: (identifier) @entity.name.variable))
 ] @entity.variable
 
 ; 6. 注释与注解 - 优先级0

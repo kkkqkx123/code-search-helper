@@ -74,19 +74,6 @@ export default `
   )
 )
 
-; 函数调用数据流查询
-(function_definition
-  declarator: (function_declarator
-    declarator: (identifier) @relationship.data_flow.function.from)
-  body: (compound_statement
-    (_
-      (call_expression
-        function: (identifier) @relationship.data_flow.call.to
-      ) @relationship.data_flow.parameter.passing
-    )
-  )
-)
-
 ; 返回值数据流查询
 (function_definition
   declarator: (function_declarator
