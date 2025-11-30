@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
-import { TreeSitterService } from '../core/parse/TreeSitterService';
+import { ParserFacade } from '../core/parse/ParserFacade';
 import { IFileFeatureDetector } from './IFileFeatureDetector';
 import { LanguageDetector } from '../core/language-detection/LanguageDetector';
 import { languageFeatureDetector } from '../utils';
@@ -79,7 +79,7 @@ export class DetectionService {
 
   constructor(
     @inject(TYPES.LoggerService) logger?: LoggerService,
-    @inject(TYPES.TreeSitterService) private treeSitterService?: TreeSitterService,
+    @inject(TYPES.ParserFacade) private parserFacade?: ParserFacade,
     @inject(TYPES.FileFeatureDetector) fileFeatureDetector?: IFileFeatureDetector,
     @inject(TYPES.LanguageDetector) languageDetector?: LanguageDetector,
     @inject(TYPES.EventBus) eventBus?: IEventBus

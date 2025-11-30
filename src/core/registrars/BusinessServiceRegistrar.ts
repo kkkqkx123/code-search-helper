@@ -35,6 +35,7 @@ import { TreeSitterService } from '../../service/parser/core/parse/TreeSitterSer
 import { TreeSitterCoreService } from '../../service/parser/core/parse/TreeSitterCoreService';
 import { TreeSitterQueryEngine } from '../../service/parser/core/query/TreeSitterQueryExecutor';
 import { DynamicParserManager } from '../../service/parser/core/parse/DynamicParserManager';
+import { ParserFacade } from '../../service/parser/core/parse/ParserFacade';
 
 import { SegmentationConfigService } from '../../config/service/SegmentationConfigService';
 
@@ -173,7 +174,18 @@ export class BusinessServiceRegistrar {
       container.bind<SegmentationConfigService>(TYPES.SegmentationConfigService).to(SegmentationConfigService).inSingletonScope();
 
 
-      // 解析服务
+      // 解析服务 - 新的统一接口
+      container.bind<ParserFacade>(TYPES.ParserFacade).toDynamicValue((context: any) => {
+        const cacheService = context.container.get(TYPES.CacheService);
+        return new ParserFacade(cacheService);
+      }).inSingletonScope();
+      
+      container.bind<ParserFacade>(TYPES.ParserCoreService).toDynamicValue((context: any) => {
+        const cacheService = context.container.get(TYPES.CacheService);
+        return new ParserFacade(cacheService);
+      }).inSingletonScope();
+      
+      // 保留旧接口以确保向后兼容（标记为废弃）
       container.bind<DynamicParserManager>(TYPES.TreeSitterService).to(DynamicParserManager).inSingletonScope();
       container.bind<TreeSitterCoreService>(TYPES.TreeSitterCoreService).to(TreeSitterCoreService).inSingletonScope();
       container.bind<TreeSitterService>(TYPES.TreeSitterService).to(TreeSitterService).inSingletonScope();

@@ -96,9 +96,17 @@ export const TYPES = {
   IgnoreRuleManager: Symbol.for('IgnoreRuleManager'),
 
   // 11. Tree-sitter 解析服务
-  TreeSitterService: Symbol.for('TreeSitterService'),
-  TreeSitterCoreService: Symbol.for('TreeSitterCoreService'),
-  TreeSitterQueryEngine: Symbol.for('TreeSitterQueryEngine'),
+  // 新的统一解析器接口
+  ParserFacade: Symbol.for('ParserFacade'),
+  ParserCoreService: Symbol.for('ParserCoreService'), // 替代 TreeSitterCoreService
+  ParserQueryService: Symbol.for('ParserQueryService'),
+  ParserCacheService: Symbol.for('ParserCacheService'),
+  DynamicParserManager: Symbol.for('DynamicParserManager'),
+  
+  // 旧接口（标记为废弃，将在后续版本中移除）
+  TreeSitterService: Symbol.for('TreeSitterService'), // @deprecated 使用 ParserFacade 替代
+  TreeSitterCoreService: Symbol.for('TreeSitterCoreService'), // @deprecated 使用 ParserCoreService 替代
+  TreeSitterQueryEngine: Symbol.for('TreeSitterQueryEngine'), // @deprecated 使用 ParserQueryService 替代
   
   UnifiedGuardCoordinator: Symbol.for('UnifiedGuardCoordinator'),
   IUnifiedGuardCoordinator: Symbol.for('IUnifiedGuardCoordinator'),

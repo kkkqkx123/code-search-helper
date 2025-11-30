@@ -1,5 +1,5 @@
 import { DetectionService, DetectionResult, ProcessingStrategyType } from '../DetectionService';
-import { TreeSitterService } from '../../core/parse/TreeSitterService';
+import { ParserFacade } from '../../core/parse/ParserFacade';
 import { FileFeatureDetector } from '../FileFeatureDetector';
 import { LanguageDetector } from '../../core/language-detection/LanguageDetector';
 import { LoggerService } from '../../../../utils/LoggerService';
@@ -7,7 +7,7 @@ import { LoggerService } from '../../../../utils/LoggerService';
 describe('UnifiedDetectionService', () => {
   let service: DetectionService;
   let mockLogger: LoggerService;
-  let mockTreeSitterService: jest.Mocked<TreeSitterService>;
+  let mockParserFacade: jest.Mocked<ParserFacade>;
   let mockFileFeatureDetector: jest.Mocked<FileFeatureDetector>;
   let mockLanguageDetector: jest.Mocked<LanguageDetector>;
 
@@ -24,8 +24,8 @@ describe('UnifiedDetectionService', () => {
     } as any;
 
 
-    // Create mock TreeSitter service
-    mockTreeSitterService = {
+    // Create mock ParserFacade service
+    mockParserFacade = {
       getSupportedLanguages: jest.fn(),
       parseCode: jest.fn(),
       extractFunctions: jest.fn(),
@@ -59,7 +59,7 @@ describe('UnifiedDetectionService', () => {
     // Create service instance
     service = new DetectionService(
       mockLogger,
-      mockTreeSitterService,
+      mockParserFacade,
       mockFileFeatureDetector,
       mockLanguageDetector
     );
@@ -173,10 +173,10 @@ describe('UnifiedDetectionService', () => {
       mockFileFeatureDetector.hasExports.mockReturnValue(false);
       mockFileFeatureDetector.hasFunctions.mockReturnValue(true);
       mockFileFeatureDetector.hasClasses.mockReturnValue(false);
-      mockTreeSitterService.getSupportedLanguages.mockReturnValue(supportedLanguages);
-      mockTreeSitterService.parseCode.mockResolvedValue(parseResult);
-      mockTreeSitterService.extractFunctions.mockResolvedValue(functions);
-      mockTreeSitterService.extractClasses.mockResolvedValue(classes);
+      mockParserFacade.getSupportedLanguages.mockReturnValue(supportedLanguages);
+      mockParserFacade.parseCode.mockResolvedValue(parseResult);
+      mockParserFacade.extractFunctions.mockResolvedValue(functions);
+      mockParserFacade.extractClasses.mockResolvedValue(classes);
 
       const result = await service.detectFile(filePath, content);
 
@@ -204,9 +204,9 @@ describe('UnifiedDetectionService', () => {
 
       const result = await service.detectFile(filePath, content);
 
-      // TreeSitter service should not be called
-      expect(mockTreeSitterService.getSupportedLanguages).not.toHaveBeenCalled();
-      expect(mockTreeSitterService.parseCode).not.toHaveBeenCalled();
+      // ParserFacade service should not be called
+      expect(mockParserFacade.getSupportedLanguages).not.toHaveBeenCalled();
+      expect(mockParserFacade.parseCode).not.toHaveBeenCalled();
     });
 
     it('should detect files without caching', async () => {

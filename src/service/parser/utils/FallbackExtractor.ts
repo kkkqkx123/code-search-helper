@@ -102,7 +102,7 @@ export class FallbackExtractor {
           const functions = await TreeSitterQueryFacade.findFunctions(ast, lang);
           if (functions.length > 0) {
             this.logger.debug(`使用语言特定查询提取到 ${functions.length} 个函数 (${lang})`);
-            return functions;
+            // 回退到通用节点类型遍历，因为EntityQueryResult不是SyntaxNode
           }
         } catch (error) {
           this.logger.warn(`语言特定查询失败 (${lang}):`, error);
@@ -138,7 +138,7 @@ export class FallbackExtractor {
           const classes = await TreeSitterQueryFacade.findClasses(ast, lang);
           if (classes.length > 0) {
             this.logger.debug(`使用语言特定查询提取到 ${classes.length} 个类 (${lang})`);
-            return classes;
+            // 回退到通用节点类型遍历，因为EntityQueryResult不是SyntaxNode
           }
         } catch (error) {
           this.logger.warn(`语言特定查询失败 (${lang}):`, error);
@@ -174,7 +174,7 @@ export class FallbackExtractor {
           const imports = await TreeSitterQueryFacade.findImports(ast, lang);
           if (imports.length > 0) {
             this.logger.debug(`使用语言特定查询提取到 ${imports.length} 个导入 (${lang})`);
-            return imports;
+            // 回退到通用节点类型遍历，因为EntityQueryResult不是SyntaxNode
           }
         } catch (error) {
           this.logger.warn(`语言特定查询失败 (${lang}):`, error);
@@ -210,7 +210,7 @@ export class FallbackExtractor {
           const exports = await TreeSitterQueryFacade.findExports(ast, lang);
           if (exports.length > 0) {
             this.logger.debug(`使用语言特定查询提取到 ${exports.length} 个导出 (${lang})`);
-            return exports;
+            // 回退到通用节点类型遍历，因为EntityQueryResult不是SyntaxNode
           }
         } catch (error) {
           this.logger.warn(`语言特定查询失败 (${lang}):`, error);

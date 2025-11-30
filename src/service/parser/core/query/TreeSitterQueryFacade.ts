@@ -212,6 +212,27 @@ export class TreeSitterQueryFacade {
   }
 
   /**
+   * 查找类 - 简化方法
+   */
+  static async findClasses(ast: Parser.SyntaxNode, language: string): Promise<EntityQueryResult[]> {
+    return this.executeEntityQuery(ast, EntityType.TYPE_DEFINITION, language);
+  }
+
+  /**
+   * 查找导入 - 简化方法
+   */
+  static async findImports(ast: Parser.SyntaxNode, language: string): Promise<EntityQueryResult[]> {
+    return this.executeRelationshipQuery(ast, RelationshipType.INCLUDE, language) as Promise<any>;
+  }
+
+  /**
+   * 查找导出 - 简化方法
+   */
+  static async findExports(ast: Parser.SyntaxNode, language: string): Promise<EntityQueryResult[]> {
+    return this.executeEntityQuery(ast, EntityType.FUNCTION, language);
+  }
+
+  /**
    * 查找调用关系 - 简化方法
    */
   static async findCalls(ast: Parser.SyntaxNode, language: string): Promise<RelationshipQueryResult[]> {

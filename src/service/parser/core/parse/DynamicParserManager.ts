@@ -263,6 +263,7 @@ export class DynamicParserManager {
   }
 
   /**
+   * @deprecated 使用 ParserQueryService 或 ParserFacade 替代
    * 提取函数
    */
   async extractFunctions(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
@@ -295,6 +296,7 @@ export class DynamicParserManager {
   }
 
   /**
+   * @deprecated 使用 ParserQueryService 或 ParserFacade 替代
    * 提取类
    */
   async extractClasses(ast: Parser.SyntaxNode, language?: string): Promise<Parser.SyntaxNode[]> {
@@ -327,6 +329,7 @@ export class DynamicParserManager {
   }
 
   /**
+   * @deprecated 使用 ParserQueryService 或 ParserFacade 替代
    * 提取导出
    */
   async extractExports(ast: Parser.SyntaxNode, sourceCode?: string, language?: string): Promise<string[]> {
@@ -349,8 +352,8 @@ export class DynamicParserManager {
       // 使用 TreeSitterQueryFacade 替代 QueryManager
       const exportNodes = await TreeSitterQueryFacade.findExports(ast, lang);
       const exports = exportNodes
-        .map(c => this.getNodeText(c, sourceCode))
-        .filter(text => text.trim().length > 0);
+        .map((c: Parser.SyntaxNode) => this.getNodeText(c, sourceCode))
+        .filter((text: { trim: () => { (): any; new(): any; length: number; }; }) => text.trim().length > 0);
 
       this.logger.debug(`提取到 ${exports.length} 个导出`);
       return exports;
@@ -375,7 +378,22 @@ export class DynamicParserManager {
   }
 
   /**
-   * 等待查询系统初始化
+   * 等待管理器初始化完成（公开方法，供外部使用）
+   */
+  async waitForInitialization(timeout = 10000): Promise<void> {
+    const startTime = Date.now();
+
+    while (!this.initialized && Date.now() - startTime < timeout) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    if (!this.initialized) {
+      throw new Error('DynamicParserManager 初始化超时');
+    }
+  }
+
+  /**
+   * 等待查询系统初始化（私有方法）
    */
   private async waitForQuerySystem(timeout = 5000): Promise<void> {
     const startTime = Date.now();

@@ -2,7 +2,7 @@ import { GraphConstructionService } from '../GraphConstructionService';
 import { IGraphConstructionService } from '../IGraphConstructionService';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
-import { TreeSitterService } from '../../../parser/core/parse/TreeSitterService';
+import { ParserFacade } from '../../../parser/core/parse/ParserFacade';
 import { IGraphDataMappingService, GraphNodeType, GraphRelationshipType } from '../../mapping/IGraphDataMappingService';
 import { InfrastructureConfigService } from '../../../../infrastructure/config/InfrastructureConfigService';
 import { IGraphIndexPerformanceMonitor } from '../../../../infrastructure/monitoring/GraphIndexMetrics';
@@ -16,7 +16,7 @@ describe('GraphConstructionService', () => {
   let container: Container;
   let mockLogger: jest.Mocked<LoggerService>;
   let mockErrorHandler: jest.Mocked<ErrorHandlerService>;
-  let mockTreeSitterService: jest.Mocked<TreeSitterService>;
+  let mockParserFacade: jest.Mocked<ParserFacade>;
   let mockGraphMappingService: jest.Mocked<IGraphDataMappingService>;
   let mockConfigService: jest.Mocked<InfrastructureConfigService>;
   let mockPerformanceMonitor: jest.Mocked<IGraphIndexPerformanceMonitor>;
@@ -36,7 +36,7 @@ describe('GraphConstructionService', () => {
       handleError: jest.fn()
     } as any;
 
-    mockTreeSitterService = {
+    mockParserFacade = {
       detectLanguage: jest.fn(),
       parseCode: jest.fn()
     } as any;
@@ -56,7 +56,7 @@ describe('GraphConstructionService', () => {
     // 绑定依赖
     container.bind(TYPES.LoggerService).toConstantValue(mockLogger);
     container.bind(TYPES.ErrorHandlerService).toConstantValue(mockErrorHandler);
-    container.bind(TYPES.TreeSitterService).toConstantValue(mockTreeSitterService);
+    container.bind(TYPES.ParserFacade).toConstantValue(mockParserFacade);
     container.bind(TYPES.GraphDataMappingService).toConstantValue(mockGraphMappingService);
     container.bind(TYPES.InfrastructureConfigService).toConstantValue(mockConfigService);
     container.bind(TYPES.GraphIndexPerformanceMonitor).toConstantValue(mockPerformanceMonitor);
@@ -71,8 +71,8 @@ describe('GraphConstructionService', () => {
       const files = ['/test/file1.ts', '/test/file2.ts'];
       const projectPath = '/test';
       
-      mockTreeSitterService.detectLanguage.mockResolvedValue({ name: 'typescript' } as any);
-      mockTreeSitterService.parseCode.mockResolvedValue({ ast: {} } as any);
+      mockParserFacade.detectLanguage.mockResolvedValue({ name: 'typescript' } as any);
+      mockParserFacade.parseCode.mockResolvedValue({ ast: {} } as any);
       mockGraphMappingService.mapToGraph.mockResolvedValue({
         nodes: [{ id: 'node1', type: GraphNodeType.FUNCTION, properties: {} }],
         edges: [{ id: 'edge1', type: GraphRelationshipType.CALLS, sourceNodeId: 'node1', targetNodeId: 'node2', properties: {} }]
@@ -105,7 +105,7 @@ describe('GraphConstructionService', () => {
       const files = ['/test/file1.ts'];
       const projectPath = '/test';
       
-      mockTreeSitterService.detectLanguage.mockRejectedValue(new Error('Language detection failed'));
+      mockParserFacade.detectLanguage.mockRejectedValue(new Error('Language detection failed'));
       mockErrorHandler.handleError.mockImplementation(() => {
         throw new Error('Language detection failed');
       });

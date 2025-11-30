@@ -10,7 +10,7 @@ import Parser from 'tree-sitter';
 import { CodeChunk, ChunkType } from '../../types/CodeChunk';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { ChunkTypeMapper } from '../../../../../utils/parser/ChunkTypeMapper';
-import { TreeSitterService } from '../../../../parser/core/parse/TreeSitterService';
+import { ParserFacade } from '../../../../parser/core/parse/ParserFacade';
 import { DetectionService } from '../../../detection/DetectionService';
 import { TYPES } from '../../../../../types';
 import { ChunkFactory } from '../../../../../utils/parser/ChunkFactory';
@@ -36,7 +36,7 @@ export class ASTCodeSplitter {
   private parallelProcessor: ParallelProcessor;
 
   constructor(
-    @inject(TYPES.TreeSitterService) private treeSitterService: TreeSitterService,
+    @inject(TYPES.ParserFacade) private parserFacade: ParserFacade,
     @inject(TYPES.DetectionService) private detectionService: DetectionService,
     @inject(TYPES.LoggerService) private logger: LoggerService,
     @inject(TYPES.SegmentationConfigService) private segmentationConfigService: SegmentationConfigService,
@@ -125,7 +125,7 @@ export class ASTCodeSplitter {
       if (!ast) {
         // 缓存未命中，执行AST解析
         const parseStartTime = Date.now();
-        const parseResult = await this.treeSitterService.parseCode(content, language);
+        const parseResult = await this.parserFacade.parseCode(content, language);
         parseTime = Date.now() - parseStartTime;
 
         if (!parseResult) {
