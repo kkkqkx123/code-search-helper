@@ -1,0 +1,363 @@
+```markdown
+# Payload
+Qdrant 的一项重要特性是能够与向量一起存储附加信息。在 Qdrant 术语中，此信息称为 **payload**。
+Qdrant 允许您存储任何可以使用 JSON 表示的信息。
+这是一个典型 Payload 的示例：
+```json
+{
+    "name": "jacket",
+    "colors": ["red", "blue"],
+    "count": 10,
+    "price": 11.99,
+    "locations": [
+        {
+            "lon": 52.5200, 
+            "lat": 13.4050
+        }
+    ],
+    "reviews": [
+        {
+            "user": "alice",
+            "score": 4
+        },
+        {
+            "user": "bob",
+            "score": 5
+        }
+    ]
+}
+```
+## Payload 类型
+除了存储 Payload 外，Qdrant 还允许您基于特定类型的值进行搜索。此功能作为搜索期间的附加过滤器实现，使您能够在语义相似性之上加入自定义逻辑。
+在过滤过程中，Qdrant 将检查与过滤条件类型匹配的值是否满足条件。如果存储的值类型不符合过滤条件，则认为不满足条件。
+例如，如果您对字符串数据应用范围条件，您将获得一个空输出。
+但是，数组（同类型的多个值）的处理方式略有不同。当我们对数组应用过滤器时，如果数组中至少有一个值满足条件，则过滤成功。
+过滤过程在[过滤章节](https://qdrant.tech/documentation/filtering/)中详细讨论。
+让我们看看 Qdrant 支持用于搜索的数据类型：
+### 整数
+`integer` - 64 位整数，范围从 -9223372036854775808 到 9223372036854775807。
+单个和多个 `integer` 值的示例：
+```json
+{
+    "count": 10,
+    "sizes": [35, 36, 38]
+}
+```
+### 浮点数
+`float` - 64 位浮点数。
+单个和多个 `float` 值的示例：
+```json
+{
+    "price": 11.99,
+    "ratings": [9.1, 9.2, 9.4]
+}
+```
+### 布尔值
+`Bool` - 二进制值。等于 `true` 或 `false`。
+单个和多个 `bool` 值的示例：
+```json
+{
+    "is_delivered": true,
+    "responses": [false, false, true, false]
+}
+```
+### 关键字
+`keyword` - 字符串值。
+单个和多个 `keyword` 值的示例：
+```json
+{
+    "name": "Alice",
+    "friends": [
+        "bob",
+        "eva",
+        "jack"
+    ]
+}
+```
+### 地理位置
+`geo` 用于表示地理坐标。
+单个和多个 `geo` 值的示例：
+```json
+{
+    "location": {
+        "lon": 52.5200,
+        "lat": 13.4050
+    },
+    "cities": [
+        {
+            "lon": 51.5072,
+            "lat": 0.1276
+        },
+        {
+            "lon": 40.7128,
+            "lat": 74.0060
+        }
+    ]
+}
+```
+坐标应描述为一个包含两个字段的对象：`lon` 用于经度，`lat` 用于纬度。
+### 日期时间
+*从 v1.8.0 版本开始可用*
+`datetime` - RFC 3339 格式的日期和时间。
+请看以下单个和多个 `datetime` 值的示例：
+```json
+{
+    "created_at": "2023-02-08T10:49:00Z",
+    "updated_at": [
+        "2023-02-08T13:52:00Z",
+        "2023-02-21T21:23:00Z"
+    ]
+}
+```
+支持以下格式：
+* `"2023-02-08T10:49:00Z"` (RFC 3339，UTC)
+* `"2023-02-08T11:49:00+01:00"` (RFC 3339，带时区)
+* `"2023-02-08T10:49:00"` (不带时区，假定为 UTC)
+* `"2023-02-08T10:49"` (不带时区和秒)
+* `"2023-02-08"` (仅日期，假定为午夜)
+#### 关于格式的注意事项
+* `T` 可以用空格代替。
+* `T` 和 `Z` 符号不区分大小写。
+* 未指定时区时，始终假定为 UTC。
+* 时区可以采用以下格式：`±HH:MM`、`±HHMM`、`±HH` 或 `Z`。
+* 秒最多可以有 6 位小数，因此 datetime 的最精细粒度为微秒。
+### UUID
+*从 v1.11.0 版本开始可用*
+除了基本的 `keyword` 类型外，Qdrant 还支持 `uuid` 类型来存储 UUID 值。功能上，它的工作方式与 `keyword` 相同，内部存储解析后的 UUID 值。
+```json
+{
+    "uuid": "550e8400-e29b-41d4-a716-446655440000",
+    "uuids": [
+        "550e8400-e29b-41d4-a716-446655440000",
+        "550e8400-e29b-41d4-a716-446655440001"
+    ]
+}
+```
+UUID 的字符串表示（例如 `550e8400-e29b-41d4-a716-446655440000`）占用 36 字节。但当使用数字表示时，只有 128 位（16 字节）。
+建议在 Payload 较大的集合中使用 `uuid` 索引类型，以节省 RAM 并提高搜索性能。
+## 创建带有 Payload 的点
+### REST API (Schema)
+```http
+PUT /collections/{collection_name}/points
+{
+    "points": [
+        {
+            "id": 1,
+            "vector": [0.05, 0.61, 0.76, 0.74],
+            "payload": {"city": "Berlin", "price": 1.99}
+        },
+        {
+            "id": 2,
+            "vector": [0.19, 0.81, 0.75, 0.11],
+            "payload": {"city": ["Berlin", "London"], "price": 1.99}
+        },
+        {
+            "id": 3,
+            "vector": [0.36, 0.55, 0.47, 0.94],
+            "payload": {"city": ["Berlin", "Moscow"], "price": [1.99, 2.99]}
+        }
+    ]
+}
+```
+## 更新 Payload
+Qdrant 中的 Payload 更新提供了灵活的方法来管理向量元数据。**设置 Payload** 方法更新特定字段，同时保留其他字段不变，而**覆盖**方法则替换整个 Payload。开发人员还可以使用**清除 Payload** 删除所有元数据，或使用**删除字段**来删除特定键而不影响其余部分。这些选项提供了精确的控制，以适应动态数据集。
+### 设置 Payload
+仅设置点上给定的 Payload 值。
+#### REST API (Schema)
+```http
+POST /collections/{collection_name}/points/payload
+{
+    "payload": {
+        "property1": "string",
+        "property2": "string"
+    },
+    "points": [
+        0, 3, 100
+    ]
+}
+```
+您无需知道要修改的点的 ID。另一种方法是使用过滤器。
+```http
+POST /collections/{collection_name}/points/payload
+{
+    "payload": {
+        "property1": "string",
+        "property2": "string"
+    },
+    "filter": {
+        "must": [
+            {
+                "key": "color",
+                "match": {
+                    "value": "red"
+                }
+            }
+        ]
+    }
+}
+```
+*从 v1.8.0 版本开始可用*
+通过使用 `key` 参数，可以只修改 Payload 的特定键。
+例如，给定点上的以下 Payload JSON 对象：
+```json
+{
+    "property1": {
+        "nested_property": "foo",
+    },
+    "property2": {
+        "nested_property": "bar",
+    }
+}
+```
+您可以使用以下请求修改 `property1` 的 `nested_property`：
+```http
+POST /collections/{collection_name}/points/payload
+{
+    "payload": {
+        "nested_property": "qux",
+    },
+    "key": "property1",
+    "points": [1]
+}
+```
+结果 Payload 如下：
+```json
+{
+    "property1": {
+        "nested_property": "qux",
+    },
+    "property2": {
+        "nested_property": "bar",
+    }
+}
+```
+### 覆盖 Payload
+用给定的 Payload 完全替换任何现有 Payload。
+#### REST API (Schema)
+```http
+PUT /collections/{collection_name}/points/payload
+{
+    "payload": {
+        "property1": "string",
+        "property2": "string"
+    },
+    "points": [
+        0, 3, 100
+    ]
+}
+```
+与设置 Payload 类似，您无需知道要修改的点的 ID。另一种方法是使用过滤器。
+### 清除 Payload
+此方法从指定点移除所有 Payload 键。
+#### REST API (Schema)
+```http
+POST /collections/{collection_name}/points/payload/clear
+{
+    "points": [0, 3, 100]
+}
+```
+您也可以使用 `models.FilterSelector` 删除符合给定过滤条件的点，而不是提供 ID。
+### 删除 Payload 键
+从点删除指定的 Payload 键。
+#### REST API (Schema)
+```http
+POST /collections/{collection_name}/points/payload/delete
+{
+    "keys": ["color", "price"],
+    "points": [0, 3, 100]
+}
+```
+或者，您可以使用过滤器从点删除 Payload 键。
+```http
+POST /collections/{collection_name}/points/payload/delete
+{
+    "keys": ["color", "price"],
+    "filter": {
+        "must": [
+            {
+                "key": "color",
+                "match": {
+                    "value": "red"
+                }
+            }
+        ]
+    }
+}
+```
+## Payload 索引
+为了更有效地使用过滤器进行搜索，Qdrant 允许您通过指定 Payload 字段的名称和预期类型来为其创建索引。
+索引字段也会影响向量索引。有关详细信息，请参见[索引](https://qdrant.tech/documentation/indexing/#payload-index)。
+在实践中，我们建议对那些可能最大限度地约束结果的字段创建索引。例如，对对象 ID 使用索引将比按颜色索引（颜色只有少数可能的值）效率高得多，因为对象 ID 对于每条记录都是唯一的。
+在涉及多个字段的复合查询中，Qdrant 将首先尝试使用限制性最强的索引。
+要为字段创建索引，您可以使用以下方法：
+#### REST API (Schema)
+```http
+PUT /collections/{collection_name}/index
+{
+    "field_name": "name_of_the_field_to_index",
+    "field_schema": "keyword"
+}
+```
+索引使用标志在 Payload 模式中通过集合信息 API 显示。
+Payload 模式示例：
+```json
+{
+    "payload_schema": {
+        "property1": {
+            "data_type": "keyword"
+        },
+        "property2": {
+            "data_type": "integer"
+        }
+    }
+}
+```
+## 分面计数
+*从 v1.12.0 版本开始可用*
+分面是一种特殊的计数技术，可用于多种目的：
+* 了解 Payload 键存在哪些唯一值。
+* 了解包含每个唯一值的点数。
+* 了解通过匹配特定值，过滤器会变得多么严格。
+具体来说，它是对字段中值的计数聚合，类似于 SQL 中的 `GROUP BY` 和 `COUNT(*)` 命令。
+特定字段的这些结果称为“分面”。例如，当您查看电商搜索结果页面时，您可能会在侧边栏看到一个品牌列表，显示每个品牌的商品数量。这将是 `brand` 字段的分面。
+在 Qdrant 中，只有在为字段创建了支持 `MatchValue` 条件的字段索引（例如 `keyword` 索引）时，才能对该字段进行分面。
+要获取字段的分面计数，您可以使用以下方法：
+> **注意**：默认情况下，返回的 hits 数量限制为 10。要更改此限制，请使用 `limit` 参数。在检查 Payload 字段包含的唯一值数量时，请记住这一点。
+### REST API (Facet)
+```http
+POST /collections/{collection_name}/facet
+{
+    "key": "size",
+    "filter": {
+      "must": {
+        "key": "color",
+        "match": { "value": "red" }
+      }
+    }
+}
+```
+响应将包含字段中每个唯一值的计数：
+```json
+{
+  "response": {
+    "hits": [
+      {"value": "L", "count": 19},
+      {"value": "S", "count": 10},
+      {"value": "M", "count": 5},
+      {"value": "XL", "count": 1},
+      {"value": "XXL", "count": 1}
+    ]
+  },
+  "time": 0.0001
+}
+```
+结果按计数降序排序，然后按值升序排序。仅返回非零计数值。
+默认情况下，Qdrant 对每个值的计数是近似的，以实现快速结果。这对于大多数情况来说已经足够准确，但如果您需要调试存储，可以使用 `exact` 参数获取精确计数。
+```http
+POST /collections/{collection_name}/facet
+{
+    "key": "size",
+    "exact": true
+}
+```
+```

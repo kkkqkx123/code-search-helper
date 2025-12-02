@@ -31,8 +31,6 @@ import { HybridIndexService } from '../../service/index/HybridIndexService';
 import { PerformanceOptimizerService } from '../../service/optimization/PerformanceOptimizerService';
 
 // 解析服务
-import { TreeSitterService } from '../../service/parser/core/parse/TreeSitterService';
-import { TreeSitterCoreService } from '../../service/parser/core/parse/TreeSitterCoreService';
 import { TreeSitterQueryEngine } from '../../service/parser/core/query/TreeSitterQueryExecutor';
 import { DynamicParserManager } from '../../service/parser/core/parse/DynamicParserManager';
 import { ParserFacade } from '../../service/parser/core/parse/ParserFacade';
@@ -59,8 +57,6 @@ import { LanguageDetector } from '../../service/parser/core/language-detection/L
 import { DetectionService } from '../../service/parser/detection/DetectionService';
 
 // 新增的依赖倒置和事件系统
-import { IServiceContainer } from '../../interfaces/IServiceContainer';
-import { ServiceContainerAdapter } from '../../infrastructure/container/ServiceContainerAdapter';
 import { IEventBus } from '../../interfaces/IEventBus';
 import { EventBus } from '../../infrastructure/events/EventBus';
 import { IFileFeatureDetector } from '../../service/parser/detection/IFileFeatureDetector';
@@ -179,17 +175,11 @@ export class BusinessServiceRegistrar {
         const cacheService = context.container.get(TYPES.CacheService);
         return new ParserFacade(cacheService);
       }).inSingletonScope();
-      
+
       container.bind<ParserFacade>(TYPES.ParserCoreService).toDynamicValue((context: any) => {
         const cacheService = context.container.get(TYPES.CacheService);
         return new ParserFacade(cacheService);
       }).inSingletonScope();
-      
-      // 保留旧接口以确保向后兼容（标记为废弃）
-      container.bind<DynamicParserManager>(TYPES.TreeSitterService).to(DynamicParserManager).inSingletonScope();
-      container.bind<TreeSitterCoreService>(TYPES.TreeSitterCoreService).to(TreeSitterCoreService).inSingletonScope();
-      container.bind<TreeSitterService>(TYPES.TreeSitterService).to(TreeSitterService).inSingletonScope();
-      container.bind<TreeSitterQueryEngine>(TYPES.TreeSitterQueryEngine).to(TreeSitterQueryEngine).inSingletonScope();
 
 
       // 标准化服务
@@ -345,11 +335,6 @@ export class BusinessServiceRegistrar {
         return context.get<GuardCoordinator>(TYPES.UnifiedGuardCoordinator);
       }).inSingletonScope();
 
-      // 服务容器适配器
-      container.bind<IServiceContainer>(TYPES.ServiceContainer).toDynamicValue(context => {
-        return new ServiceContainerAdapter((context as any).container);
-      }).inSingletonScope();
-
       // 事件总线
       container.bind<IEventBus>(TYPES.EventBus).to(EventBus).inSingletonScope();
 
@@ -373,7 +358,9 @@ export class BusinessServiceRegistrar {
         const memoryMonitorService = context.get<IMemoryMonitorService>(TYPES.MemoryMonitorService);
         const errorThresholdInterceptor = context.get<ErrorThresholdInterceptor>(TYPES.ErrorThresholdManager);
         const cleanupManager = context.get<CleanupManager>(TYPES.CleanupManager);
-        const serviceContainer = context.get<IServiceContainer>(TYPES.ServiceContainer);
+        const languageDetector = context.get<LanguageDetector>(TYPES.LanguageDetector);
+        const strategyFactory = context.get<StrategyFactory>(TYPES.StrategyFactory);
+        const intelligentFallbackEngine = context.get<IntelligentFallbackEngine>(TYPES.IntelligentFallbackEngine);
         const logger = context.get<LoggerService>(TYPES.LoggerService);
 
         const memoryLimitMB = context.get<number>(TYPES.MemoryLimitMB);
@@ -383,7 +370,9 @@ export class BusinessServiceRegistrar {
           memoryMonitorService,
           errorThresholdInterceptor,
           cleanupManager,
-          serviceContainer,
+          languageDetector,
+          strategyFactory,
+          intelligentFallbackEngine,
           memoryLimitMB,
           memoryCheckIntervalMs,
           logger

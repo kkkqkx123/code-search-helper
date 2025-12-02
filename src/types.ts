@@ -370,8 +370,7 @@ export const TYPES = {
   PriorityManager: Symbol.for('PriorityManager'),
   SmartStrategySelector: Symbol.for('SmartStrategySelector'),
 
-  // 43. 服务容器和依赖倒置
-  ServiceContainer: Symbol.for('ServiceContainer'),
+  // 43. 依赖倒置
   ErrorThresholdInterceptor: Symbol.for('ErrorThresholdInterceptor'),
   StrategyRegistry: Symbol.for('StrategyRegistry'),
   EventBus: Symbol.for('EventBus'),

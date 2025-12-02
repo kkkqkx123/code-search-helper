@@ -434,6 +434,3 @@ export interface SystemHealth {
   /** 最后更新时间 */
   lastUpdated: Date;
 }
-
-// 重新导出实体类型定义
-export * from '../normalization';

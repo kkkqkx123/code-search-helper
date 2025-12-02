@@ -8,7 +8,9 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { IMemoryMonitorService } from '../../memory/interfaces/IMemoryMonitorService';
 import { ErrorThresholdInterceptor } from '../processing/utils/protection/ErrorThresholdInterceptor';
 import { CleanupManager } from '../../../infrastructure/cleanup/CleanupManager';
-import { IServiceContainer } from '../../../interfaces/IServiceContainer';
+import { LanguageDetector } from '../core/language-detection/LanguageDetector';
+import { StrategyFactory } from '../processing/StrategyFactory';
+import { IntelligentFallbackEngine } from './IntelligentFallbackEngine';
 import {
   IGuardCoordinator,
   MemoryStatus,
@@ -29,7 +31,9 @@ export class GuardCoordinator implements IGuardCoordinator {
   private memoryMonitorService: IMemoryMonitorService;
   private errorThresholdInterceptor: ErrorThresholdInterceptor;
   private cleanupManager: CleanupManager;
-  private serviceContainer: IServiceContainer;
+  private languageDetector: LanguageDetector;
+  private strategyFactory: StrategyFactory;
+  private intelligentFallbackEngine: IntelligentFallbackEngine;
   private memoryLimitMB: number;
   private memoryCheckIntervalMs: number;
 
@@ -37,7 +41,9 @@ export class GuardCoordinator implements IGuardCoordinator {
     memoryMonitorService: IMemoryMonitorService,
     errorThresholdInterceptor: ErrorThresholdInterceptor,
     cleanupManager: CleanupManager,
-    serviceContainer: IServiceContainer,
+    languageDetector: LanguageDetector,
+    strategyFactory: StrategyFactory,
+    intelligentFallbackEngine: IntelligentFallbackEngine,
     memoryLimitMB: number,
     memoryCheckIntervalMs: number,
     logger?: LoggerService
@@ -45,7 +51,9 @@ export class GuardCoordinator implements IGuardCoordinator {
     this.memoryMonitorService = memoryMonitorService;
     this.errorThresholdInterceptor = errorThresholdInterceptor;
     this.cleanupManager = cleanupManager;
-    this.serviceContainer = serviceContainer;
+    this.languageDetector = languageDetector;
+    this.strategyFactory = strategyFactory;
+    this.intelligentFallbackEngine = intelligentFallbackEngine;
     this.memoryLimitMB = memoryLimitMB;
     this.memoryCheckIntervalMs = memoryCheckIntervalMs;
     this.logger = logger;
@@ -58,7 +66,9 @@ export class GuardCoordinator implements IGuardCoordinator {
     memoryMonitorService: IMemoryMonitorService,
     errorThresholdInterceptor: ErrorThresholdInterceptor,
     cleanupManager: CleanupManager,
-    serviceContainer: IServiceContainer,
+    languageDetector: LanguageDetector,
+    strategyFactory: StrategyFactory,
+    intelligentFallbackEngine: IntelligentFallbackEngine,
     memoryLimitMB: number,
     memoryCheckIntervalMs: number,
     logger?: LoggerService
@@ -68,7 +78,9 @@ export class GuardCoordinator implements IGuardCoordinator {
         memoryMonitorService,
         errorThresholdInterceptor,
         cleanupManager,
-        serviceContainer,
+        languageDetector,
+        strategyFactory,
+        intelligentFallbackEngine,
         memoryLimitMB,
         memoryCheckIntervalMs,
         logger
@@ -249,14 +261,8 @@ export class GuardCoordinator implements IGuardCoordinator {
    * @returns 处理结果
    */
   async processFileWithDetection(filePath: string, content: string): Promise<any> {
-    // 从serviceContainer获取需要的服务
-    const languageDetector = this.serviceContainer.get('LanguageDetector') as any;
-    const strategyFactory = this.serviceContainer.get('StrategyFactory') as any;
-    const intelligentFallbackEngine = this.serviceContainer.get('IntelligentFallbackEngine') as any;
-
     try {
-
-      const languageDetection = await languageDetector.detectLanguage(filePath, content);
+      const languageDetection = await this.languageDetector.detectLanguage(filePath, content);
       
       // 转换为DetectionResult格式
       const detection = {
@@ -284,7 +290,7 @@ export class GuardCoordinator implements IGuardCoordinator {
         }
       };
       
-      const strategy = strategyFactory.createStrategy(detection);
+      const strategy = this.strategyFactory.createStrategy(detection.processingStrategy);
       
       // 创建上下文对象
       const context = {
@@ -333,7 +339,7 @@ export class GuardCoordinator implements IGuardCoordinator {
       this.logger?.error(`Processing failed: ${error}`);
       
       // 使用降级引擎
-      const fallbackStrategy = await intelligentFallbackEngine.determineFallbackStrategy(
+      const fallbackStrategy = await this.intelligentFallbackEngine.determineFallbackStrategy(
         filePath, 
         error as Error, 
         {

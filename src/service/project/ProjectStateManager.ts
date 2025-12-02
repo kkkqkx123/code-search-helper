@@ -6,7 +6,6 @@ import { ErrorHandlerService } from '../../utils/ErrorHandlerService';
 import { ConfigService } from '../../config/ConfigService';
 import { ProjectStateStorageUtils } from './utils/ProjectStateStorageUtils';
 import { ProjectStateValidator } from './utils/ProjectStateValidator';
-import { ProjectStateListenerManager } from './listeners/ProjectStateListenerManager';
 import { CoreStateService } from './services/CoreStateService';
 import { StorageStateService } from './services/StorageStateService';
 import { SqliteStateManager } from '../../database/splite/SqliteStateManager';
@@ -89,7 +88,6 @@ export class ProjectStateManager {
   private projectStates: Map<string, ProjectState> = new Map();
   private storagePath: string;
   private isInitialized: boolean = false;
-  private listenerManager: ProjectStateListenerManager;
 
   constructor(
     @inject(TYPES.LoggerService) private logger: LoggerService,
@@ -101,9 +99,6 @@ export class ProjectStateManager {
   ) {
     // 存储路径将在initialize方法中设置
     this.storagePath = './data/project-states.json'; // 默认路径
-
-    // 初始化监听器管理器 - 将在 initialize 方法中设置
-    this.listenerManager = null as any;
   }
 
   /**
@@ -126,20 +121,6 @@ export class ProjectStateManager {
 
       // 加载项目状态
       await this.loadProjectStates();
-
-      // 初始化监听器管理器
-      this.listenerManager = new ProjectStateListenerManager(
-        this.logger,
-        this.projectStates,
-        (projectId: string, status: ProjectState['status']) => this.updateProjectStatus(projectId, status),
-        (projectId: string, progress: number) => this.updateProjectIndexingProgress(projectId, progress),
-        (projectId: string) => this.updateProjectLastIndexed(projectId),
-        (projectId: string, metadata: Record<string, any>) => this.updateProjectMetadata(projectId, metadata),
-        (projectId: string, status: Partial<any>) => this.updateVectorStatus(projectId, status),
-        (projectId: string, status: Partial<any>) => this.updateGraphStatus(projectId, status)
-      );
-      // 设置索引同步服务监听器
-      this.listenerManager.setupIndexSyncListeners();
 
       this.isInitialized = true;
       this.logger.info('Project state manager initialized', {
@@ -358,11 +339,6 @@ export class ProjectStateManager {
     // 保存状态到SQLite和JSON
     await this.saveProjectStates();
 
-    // 更新监听器管理器的项目状态引用
-    if (this.listenerManager) {
-      this.listenerManager.updateProjectStatesReference(this.projectStates);
-    }
-
     return state;
   }
 
@@ -451,11 +427,6 @@ export class ProjectStateManager {
       await this.sqliteStateManager.deleteProjectState(projectId);
       
       await this.saveProjectStatesToJson(); // 保持JSON备份
-      
-      // 更新监听器管理器的项目状态引用
-      if (this.listenerManager) {
-        this.listenerManager.updateProjectStatesReference(this.projectStates);
-      }
     }
     return result;
   }
@@ -536,10 +507,6 @@ export class ProjectStateManager {
   async refreshAllProjectStates(): Promise<void> {
     await this.coreStateService.refreshAllProjectStates(this.projectStates, this.storagePath);
     await this.saveProjectStates();
-    // 更新监听器管理器的项目状态引用
-    if (this.listenerManager) {
-      this.listenerManager.updateProjectStatesReference(this.projectStates);
-    }
   }
 
   /**
@@ -549,10 +516,6 @@ export class ProjectStateManager {
     const removedCount = await this.coreStateService.cleanupInvalidStates(this.projectStates, this.storagePath);
     if (removedCount > 0) {
       await this.saveProjectStates();
-      // 更新监听器管理器的项目状态引用
-      if (this.listenerManager) {
-        this.listenerManager.updateProjectStatesReference(this.projectStates);
-      }
     }
     return removedCount;
   }
