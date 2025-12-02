@@ -96,12 +96,6 @@ export class FileFeatureDetector implements IFileFeatureDetector {
     return this.isStructuredFile(content, language);
   }
 
-  /**
-   * 根据扩展名检测语言
-   */
-  detectLanguageByExtension(extension: string, languageMap: Record<string, string>): string {
-    return languageMap[extension] || 'unknown';
-  }
 
   /**
    * 计算内容复杂度

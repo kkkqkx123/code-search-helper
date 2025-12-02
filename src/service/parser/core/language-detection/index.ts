@@ -1,1 +1,0 @@
-export { LanguageDetector, ILanguageDetector, LanguageDetectionResult } from './LanguageDetector';

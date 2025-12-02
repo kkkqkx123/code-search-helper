@@ -1,7 +1,7 @@
 import { TreeSitterCoreService } from '../../core/parse/TreeSitterCoreService';
 import { DynamicParserManager } from '../../core/parse/DynamicParserManager';
 import { TreeSitterService } from '../../core/parse/TreeSitterService';
-import { CodeStructureService } from '../../core/structure/CodeStructureService';
+import { CodeStructureService } from '../../structure/CodeStructureService';
 import { ICacheService } from '../../../../infrastructure/caching/types';
 
 /**

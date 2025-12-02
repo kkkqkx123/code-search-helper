@@ -53,8 +53,7 @@ import { MarkdownChunker } from '../../service/parser/processing/utils/md/Markdo
 
 import { HTMLContentExtractor } from '../../service/parser/processing/utils/html/HTMLContentExtractor';
 
-import { LanguageDetector } from '../../service/parser/core/language-detection/LanguageDetector';
-import { DetectionService } from '../../service/parser/detection/DetectionService';
+import { LanguageDetector } from '../../service/parser/detection/LanguageDetector';
 
 // 新增的依赖倒置和事件系统
 import { IEventBus } from '../../interfaces/IEventBus';
@@ -286,7 +285,7 @@ export class BusinessServiceRegistrar {
       container.bind<ProcessingCoordinator>(TYPES.UnifiedProcessingCoordinator).toDynamicValue(context => {
         const strategyFactory = context.get<StrategyFactory>(TYPES.StrategyFactory);
         const fileFeatureDetector = context.get<FileFeatureDetector>(TYPES.FileFeatureDetector);
-        const detectionService = context.get<DetectionService>(TYPES.DetectionService);
+        const detectionService = context.get<LanguageDetector>(TYPES.LanguageDetector);
         const postProcessorCoordinator = context.get<ChunkPostProcessorCoordinator>(TYPES.ChunkPostProcessorCoordinator);
         const logger = context.get<LoggerService>(TYPES.LoggerService);
 
@@ -344,8 +343,6 @@ export class BusinessServiceRegistrar {
       // 语言检测服务
       container.bind<LanguageDetector>(TYPES.LanguageDetector).to(LanguageDetector).inSingletonScope();
 
-      // 文件检测服务
-      container.bind<DetectionService>(TYPES.DetectionService).to(DetectionService).inSingletonScope();
 
       // 智能降级引擎
       container.bind<IntelligentFallbackEngine>(TYPES.IntelligentFallbackEngine).toDynamicValue(context => {

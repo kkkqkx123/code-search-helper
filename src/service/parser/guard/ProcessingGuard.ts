@@ -3,8 +3,7 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
 import { ErrorThresholdInterceptor } from '../processing/utils/protection/ErrorThresholdInterceptor';
 import { MemoryGuard } from './MemoryGuard';
-import { DetectionService, DetectionResult } from '../detection/DetectionService';
-import { ProcessingStrategyType } from '../detection/DetectionService';
+import { LanguageDetector, DetectionResult, ProcessingStrategyType } from '../detection/LanguageDetector';
 import { IntelligentFallbackEngine } from './IntelligentFallbackEngine';
 import { createStrategy } from '../processing/strategies/index';
 
@@ -24,7 +23,7 @@ export class ProcessingGuard {
    private errorManager: ErrorThresholdInterceptor;
    private memoryGuard: MemoryGuard;
    private logger?: LoggerService;
-   private detectionService: DetectionService;
+   private detectionService: LanguageDetector;
    private fallbackEngine: IntelligentFallbackEngine;
    private isInitialized: boolean = false;
 
@@ -32,7 +31,7 @@ export class ProcessingGuard {
     @inject(TYPES.LoggerService) logger?: LoggerService,
     @inject(TYPES.ErrorThresholdManager) errorManager?: ErrorThresholdInterceptor,
     @inject(TYPES.MemoryGuard) memoryGuard?: MemoryGuard,
-    @inject(TYPES.DetectionService) detectionService?: DetectionService,
+    @inject(TYPES.LanguageDetector) detectionService?: LanguageDetector,
     @inject(TYPES.IntelligentFallbackEngine) fallbackEngine?: IntelligentFallbackEngine
   ) {
     this.logger = logger;
@@ -66,7 +65,7 @@ export class ProcessingGuard {
       } as any,
       100, logger || new LoggerService()
     );
-    this.detectionService = detectionService || new DetectionService(logger);
+    this.detectionService = detectionService || new LanguageDetector(logger);
     this.fallbackEngine = fallbackEngine || new IntelligentFallbackEngine(logger);
   }
 
@@ -78,7 +77,7 @@ export class ProcessingGuard {
     logger?: LoggerService,
     errorManager?: ErrorThresholdInterceptor,
     memoryGuard?: MemoryGuard,
-    detectionService?: DetectionService
+    detectionService?: LanguageDetector
   ): ProcessingGuard {
     if (!ProcessingGuard.instance) {
       ProcessingGuard.instance = new ProcessingGuard(

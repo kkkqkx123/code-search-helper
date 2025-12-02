@@ -4,7 +4,7 @@ import { LoggerService } from '../../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
 import { QueryRegistryImpl } from '../query/QueryRegistry';
 import { languageExtensionMap } from '../../utils';
-import { DetectionService } from '../../detection/DetectionService';
+import { LanguageDetector } from '../../detection/LanguageDetector';
 import { languageMappingManager } from '../../config/LanguageMappingManager';
 import { FallbackExtractor } from '../../utils/FallbackExtractor';
 import { QueryTypeMapper } from '../../normalization/LegacyQueryMappings';
@@ -54,7 +54,7 @@ export class DynamicParserManager {
   private logger = new LoggerService();
   private errorHandler: ErrorHandlerService;
   private querySystemInitialized = false;
-  private detectionService: DetectionService;
+  private detectionService: LanguageDetector;
   private cacheService: ICacheService;
   public nodeCache: Map<string, Parser.SyntaxNode[]>; // 添加节点缓存属性
 
@@ -62,7 +62,7 @@ export class DynamicParserManager {
     @inject(TYPES.CacheService) cacheService: ICacheService
   ) {
     this.errorHandler = new ErrorHandlerService(this.logger);
-    this.detectionService = new DetectionService(this.logger);
+    this.detectionService = new LanguageDetector(this.logger);
     this.nodeCache = new Map<string, Parser.SyntaxNode[]>(); // 初始化节点缓存
     this.cacheService = cacheService;
     this.initializeLanguageLoaders();
@@ -255,7 +255,7 @@ export class DynamicParserManager {
   private async detectLanguageFromContent(content: string, filePath?: string): Promise<string | null> {
     // 使用检测服务进行内容检测
     const detectionResult = await this.detectionService.detectFile(filePath || 'unknown', content);
-    if (detectionResult && detectionResult.language && detectionResult.confidence > 0.5) {
+    if (detectionResult && detectionResult.language) {
       return detectionResult.language;
     }
 

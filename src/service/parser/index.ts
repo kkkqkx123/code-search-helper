@@ -13,7 +13,7 @@ export { DynamicParserManager } from './core/parse/DynamicParserManager';
 // @deprecated 使用 ParserFacade 替代
 export { TreeSitterCoreService } from './core/parse/TreeSitterCoreService';
 // @deprecated 使用 ParserQueryService 替代
-export { CodeStructureService } from './core/structure/CodeStructureService';
+export { CodeStructureService } from './structure/CodeStructureService';
 
 // 语言检测服务
 export { LanguageDetector } from './core/language-detection/LanguageDetector';

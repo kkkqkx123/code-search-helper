@@ -102,12 +102,12 @@ export const TYPES = {
   ParserQueryService: Symbol.for('ParserQueryService'),
   ParserCacheService: Symbol.for('ParserCacheService'),
   DynamicParserManager: Symbol.for('DynamicParserManager'),
-  
+
   // 旧接口（标记为废弃，将在后续版本中移除）
   TreeSitterService: Symbol.for('TreeSitterService'), // @deprecated 使用 ParserFacade 替代
   TreeSitterCoreService: Symbol.for('TreeSitterCoreService'), // @deprecated 使用 ParserCoreService 替代
   TreeSitterQueryEngine: Symbol.for('TreeSitterQueryEngine'), // @deprecated 使用 ParserQueryService 替代
-  
+
   UnifiedGuardCoordinator: Symbol.for('UnifiedGuardCoordinator'),
   IUnifiedGuardCoordinator: Symbol.for('IUnifiedGuardCoordinator'),
 
@@ -342,7 +342,7 @@ export const TYPES = {
   // 37. 优化的降级处理相关服务
   OptimizedProcessingGuard: Symbol.for('OptimizedProcessingGuard'),
   UnifiedDetectionService: Symbol.for('UnifiedDetectionService'),
-  DetectionService: Symbol.for('DetectionService'),
+  LanguageDetector: Symbol.for('LanguageDetector'),
   IntelligentFallbackEngine: Symbol.for('IntelligentFallbackEngine'),
 
   // 38. 特殊格式文本分割器
@@ -355,9 +355,6 @@ export const TYPES = {
   SegmentationConfigService: Symbol.for('SegmentationConfigService'),
 
   UnifiedProcessingCoordinator: Symbol.for('UnifiedProcessingCoordinator'),
-
-  // 40. 向后兼容（已移至DetectionService）
-  LanguageDetector: Symbol.for('LanguageDetector'),
 
   // 42. 分段策略提供者
   ASTCodeSplitter: Symbol.for('ASTCodeSplitter'),
@@ -420,4 +417,4 @@ export const TYPES = {
   ChangeGroupingService: Symbol.for('ChangeGroupingService'),
   VectorIndexBatchProcessor: Symbol.for('VectorIndexBatchProcessor'),
   GraphIndexBatchProcessor: Symbol.for('GraphIndexBatchProcessor'),
-  };
+};

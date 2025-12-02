@@ -4,7 +4,6 @@
 
 import { fileUtils } from './FileUtils';
 import { languageExtensionMap } from './LanguageExtensionMap';
-import { languageFeatureDetector } from './LanguageFeatureDetector';
 import { languageWeightsProvider } from './LanguageWeights';
 
 // 基础工具类
@@ -17,7 +16,7 @@ export type { IFileUtils } from './FileUtils';
 export { LanguageWeights, LanguageWeightsProvider, languageWeightsProvider } from './LanguageWeights';
 export type { ILanguageWeights } from './LanguageWeights';
 
-export { LanguageFeatureDetector, languageFeatureDetector } from './LanguageFeatureDetector';
+export { LanguageFeatureDetector } from './LanguageFeatureDetector';
 export type { ILanguageFeatureDetector } from './LanguageFeatureDetector';
 
 // 便捷导出

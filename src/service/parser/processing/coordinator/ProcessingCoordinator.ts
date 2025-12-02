@@ -16,7 +16,7 @@ import { PostProcessingContext } from '../../post-processing/IChunkPostProcessor
 import { LoggerService } from '../../../../utils/LoggerService';
 import { injectable, inject, optional } from 'inversify';
 import { FileFeatureDetector } from '../../detection/FileFeatureDetector';
-import { DetectionService } from '../../detection/DetectionService';
+import { LanguageDetector } from '../../detection/LanguageDetector';
 import { TYPES } from '../../../../types';
 import {
   UNIFIED_STRATEGY_PRIORITIES,
@@ -47,7 +47,7 @@ export class ProcessingCoordinator {
   private fileFeatureDetector: FileFeatureDetector;
 
   /** 检测服务 */
-  private detectionService: DetectionService;
+  private detectionService: LanguageDetector;
 
   /** 性能监控 */
   private performanceStats: ProcessingPerformanceStats;
@@ -63,7 +63,7 @@ export class ProcessingCoordinator {
     @inject(TYPES.StrategyFactory) strategyFactory: IStrategyFactory,
     @inject(TYPES.ConfigurationManager) config: ProcessingConfig,
     @inject(TYPES.FileFeatureDetector) fileFeatureDetector: FileFeatureDetector,
-    @inject(TYPES.DetectionService) detectionService: DetectionService,
+    @inject(TYPES.LanguageDetector) detectionService: LanguageDetector,
     @inject(TYPES.ChunkPostProcessorCoordinator) postProcessorCoordinator: ChunkPostProcessorCoordinator,
     @inject(TYPES.LoggerService) @optional() logger?: LoggerService
   ) {

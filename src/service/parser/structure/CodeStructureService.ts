@@ -1,8 +1,8 @@
 import Parser from 'tree-sitter';
 import { TreeSitterCoreService } from '../parse/TreeSitterCoreService';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { ParseOptions } from '../../types';
-import { TREE_SITTER_LANGUAGE_MAP } from '../../constants/language-constants';
+import { LoggerService } from '../../../utils/LoggerService';
+import { ParseOptions } from '../types';
+import { TREE_SITTER_LANGUAGE_MAP } from '../constants/language-constants';
 
 /**
  * 代码结构服务
@@ -12,7 +12,7 @@ import { TREE_SITTER_LANGUAGE_MAP } from '../../constants/language-constants';
 export class CodeStructureService {
   private logger = new LoggerService();
 
-  constructor(private coreService: TreeSitterCoreService) {}
+  constructor(private coreService: TreeSitterCoreService) { }
 
   /**
    * 提取函数节点
@@ -27,16 +27,16 @@ export class CodeStructureService {
         this.logger.warn('无法检测语言，使用通用查询');
         return this.coreService.findNodeByType(ast, 'function_declaration');
       }
-      
+
       // 使用通用查询接口，通过查询系统获取结果
       const result = await this.coreService.findNodeByTypeAsync(ast, 'functions');
-      
+
       // 如果查询系统返回空结果，回退到直接使用节点类型
       if (result.length === 0) {
         this.logger.warn('查询系统未找到函数，回退到节点类型匹配');
         return this.coreService.findNodeByType(ast, 'function_declaration');
       }
-      
+
       return result;
     } catch (error) {
       this.logger.error('提取函数失败:', error);
@@ -58,16 +58,16 @@ export class CodeStructureService {
         this.logger.warn('无法检测语言，使用通用查询');
         return this.coreService.findNodeByType(ast, 'type_declaration');
       }
-      
+
       // 使用通用查询接口，通过查询系统获取结果
       const result = await this.coreService.findNodeByTypeAsync(ast, 'classes');
-      
+
       // 如果查询系统返回空结果，回退到直接使用节点类型
       if (result.length === 0) {
         this.logger.warn('查询系统未找到类，回退到节点类型匹配');
         return this.coreService.findNodeByType(ast, 'type_declaration');
       }
-      
+
       return result;
     } catch (error) {
       this.logger.error('提取类失败:', error);
@@ -89,7 +89,7 @@ export class CodeStructureService {
         this.logger.warn('无法检测语言，使用通用查询');
         return this.coreService.findNodeByType(ast, 'import');
       }
-      
+
       // 使用通用查询接口，通过查询系统获取结果
       return await this.coreService.findNodeByTypeAsync(ast, 'imports');
     } catch (error) {
@@ -112,7 +112,7 @@ export class CodeStructureService {
         this.logger.warn('无法检测语言，使用通用查询');
         return this.coreService.findNodeByType(ast, 'export');
       }
-      
+
       // 使用通用查询接口，通过查询系统获取结果
       return await this.coreService.findNodeByTypeAsync(ast, 'exports');
     } catch (error) {
@@ -142,10 +142,10 @@ export class CodeStructureService {
         this.logger.warn('无法检测语言，跳过语义关系提取');
         return [];
       }
-      
+
       // 使用通用查询接口，通过查询系统获取语义关系结果
       const result = await this.coreService.findNodeByTypeAsync(ast, 'semantic-relationships');
-      
+
       this.logger.debug(`提取到 ${result.length} 个语义关系节点`);
       return result;
     } catch (error) {
@@ -170,12 +170,12 @@ export class CodeStructureService {
     if (options?.extractRelationships === false) {
       return false;
     }
-    
+
     // 如果没有显式设置选项，则根据 NEBULA_ENABLED 决定（此时已确认为 true）
     if (options?.extractRelationships === undefined) {
       return true;
     }
-    
+
     // 如果显式启用了关系提取，则返回 true
     return options.extractRelationships === true;
   }
@@ -236,7 +236,7 @@ export class CodeStructureService {
         this.logger.warn('无法检测语言，使用通用查询');
         return this.coreService.findNodeByType(ast, 'method');
       }
-      
+
       // 使用通用查询接口，通过查询系统获取结果
       return await this.coreService.findNodeByTypeAsync(ast, 'methods');
     } catch (error) {
@@ -259,7 +259,7 @@ export class CodeStructureService {
         this.logger.warn('无法检测语言，使用通用查询');
         return this.coreService.findNodeByType(ast, 'interface');
       }
-      
+
       // 使用通用查询接口，通过查询系统获取结果
       return await this.coreService.findNodeByTypeAsync(ast, 'interfaces');
     } catch (error) {
@@ -282,7 +282,7 @@ export class CodeStructureService {
         this.logger.warn('无法检测语言，使用通用查询');
         return this.coreService.findNodeByType(ast, 'type');
       }
-      
+
       // 使用通用查询接口，通过查询系统获取结果
       return await this.coreService.findNodeByTypeAsync(ast, 'types');
     } catch (error) {

@@ -37,10 +37,10 @@ describe('ContentAnalyzer', () => {
 
     mockDetectionService = {
       detectFile: jest.fn(),
-      detectLanguageByExtension: jest.fn(),
+      detectLanguage: jest.fn(),
+      detectLanguageSync: jest.fn(),
       getSupportedLanguages: jest.fn(),
       isLanguageSupportedForAST: jest.fn(),
-      validateLanguageDetection: jest.fn(),
       getFileExtension: jest.fn(),
       detectLanguageByParserConfig: jest.fn()
     } as any;

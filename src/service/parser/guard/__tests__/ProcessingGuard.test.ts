@@ -55,7 +55,7 @@ const mockMemoryGuard: MemoryGuard = {
 } as unknown as MemoryGuard;
 
 
-// Mock LanguageDetectionService
+// Mock LanguageDetector
 const mockDetectionService = {
   detectLanguage: jest.fn().mockResolvedValue({
     language: 'javascript',

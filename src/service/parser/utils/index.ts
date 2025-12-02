@@ -12,7 +12,7 @@ export * from './language';
 export * from './syntax';
 
 // 明确导出常用工具
-export { languageExtensionMap, fileUtils, languageFeatureDetector } from './language';
+export { languageExtensionMap, fileUtils } from './language';
 
 // 便捷导出
 export { languageUtils } from './language';

@@ -125,16 +125,12 @@ export { ProcessingCoordinator, ProcessingRequest, ProcessingPerformanceStats } 
 
 // 检测服务导入和导出 - 从上级目录导入
 export {
-  DetectionService as UnifiedDetectionService,
+  LanguageDetector as UnifiedDetectionService,
   DetectionResult,
+  LanguageDetectionResult,
+  FileFeatures,
   ProcessingStrategyType
-} from '../detection/DetectionService';
-
-// 重新导出检测相关的FileFeatures类型以避免冲突
-export type { FileFeatures as DetectionFileFeatures } from '../detection/DetectionService';
-
-// 语言检测信息
-export type { LanguageDetectionInfo } from '../detection/DetectionService';
+} from '../detection/LanguageDetector';
 
 // 后处理器导出
 export { ChunkPostProcessorCoordinator } from '../post-processing/ChunkPostProcessorCoordinator';
@@ -151,14 +147,14 @@ export * from './strategies';
 
 // 导入所需的类用于默认导出
 import { ProcessingCoordinator } from './coordinator';
-import { DetectionService } from '../detection/DetectionService';
+import { LanguageDetector } from '../detection/LanguageDetector';
 import { ChunkPostProcessorCoordinator } from '../post-processing/ChunkPostProcessorCoordinator';
 
 // 默认导出
 export default {
   // 主要类
   ProcessingCoordinator,
-  UnifiedDetectionService: DetectionService,
+  UnifiedDetectionService: LanguageDetector,
   ChunkPostProcessorCoordinator,
 
   // 版本信息
