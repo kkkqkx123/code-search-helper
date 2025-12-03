@@ -1,15 +1,15 @@
-type BaseNode = {
+export type BaseNode = {
   type: string;
   named: boolean;
 };
 
-type ChildNode = {
+export type ChildNode = {
   multiple: boolean;
   required: boolean;
   types: BaseNode[];
 };
 
-type NodeInfo =
+export type NodeInfo =
   | (BaseNode & {
       subtypes: BaseNode[];
     })
@@ -18,7 +18,7 @@ type NodeInfo =
       children: ChildNode[];
     });
 
-type Language = {
- language: unknown;
+export type Language = {
+  language: unknown;
   nodeTypeInfo: NodeInfo[];
 };

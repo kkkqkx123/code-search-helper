@@ -5,14 +5,14 @@ import { HashUtils } from '../../../utils/cache/HashUtils';
 import { LoggerService } from '../../../utils/LoggerService';
 
 /**
- * 实体类型枚举
+ * 实体类型 - 接受字符串值
  */
-export type EntityType = 'function' | 'class' | 'interface' | 'variable' | 'constant' | 'method' | 'property' | 'enum' | 'type';
+export type EntityType = string;
 
 /**
- * 关系类型枚举
+ * 关系类型 - 接受字符串值
  */
-export type RelationshipType = 'calls' | 'contains' | 'extends' | 'implements' | 'imports' | 'exports' | 'uses' | 'references';
+export type RelationshipType = string;
 
 /**
  * 缓存统计信息

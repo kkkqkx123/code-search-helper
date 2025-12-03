@@ -290,7 +290,7 @@ export class DynamicParserManager {
       const functions = await QueryExecutor.getInstance().findFunctions(ast, lang);
 
       this.logger.debug(`提取到 ${functions.length} 个函数节点`);
-      return functions;
+      return functions.map(f => (f as any).node || f as any) as Parser.SyntaxNode[];
     } catch (error) {
       this.logger.error('函数提取失败:', error);
       return FallbackExtractor.extractFunctions(ast, lang);
@@ -323,7 +323,7 @@ export class DynamicParserManager {
       const classes = await QueryExecutor.getInstance().findClasses(ast, lang);
 
       this.logger.debug(`提取到 ${classes.length} 个类节点`);
-      return classes;
+      return classes.map(c => (c as any).node || c as any) as Parser.SyntaxNode[];
     } catch (error) {
       this.logger.error('类提取失败:', error);
       return FallbackExtractor.extractClasses(ast, lang);
@@ -354,7 +354,7 @@ export class DynamicParserManager {
       // 使用 QueryExecutor 替代 QueryManager
       const exportNodes = await QueryExecutor.getInstance().findExports(ast, lang);
       const exports = exportNodes
-        .map((c: Parser.SyntaxNode) => this.getNodeText(c, sourceCode))
+        .map((c: any) => this.getNodeText((c as any).node || c as any, sourceCode))
         .filter((text: string) => text.trim().length > 0);
 
       this.logger.debug(`提取到 ${exports.length} 个导出`);

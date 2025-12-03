@@ -11,7 +11,7 @@ import {
   RelationshipQueryResult,
   EntityTypeRegistry,
   RelationshipTypeRegistry
-} from './types';
+} from './types/index';
 import { queryConfigManager } from './QueryConfig';
 import { initializeLanguageFactories } from './types/languages';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';

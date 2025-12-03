@@ -12,7 +12,7 @@ import { LoggerService } from '../../../../../utils/LoggerService';
 import { ChunkTypeMapper } from '../../../../../utils/parser/ChunkTypeMapper';
 import { DynamicParserManager } from '../../../../parser/parsing/DynamicParserManager';
 import { QueryExecutor } from '../../../../parser/parsing/QueryExecutor';
-import { DetectionService } from '../../../parser/parsing/detection/DetectionService';
+import { LanguageDetector } from '../../../detection/LanguageDetector';
 import { TYPES } from '../../../../../types';
 import { ChunkFactory } from '../../../../../utils/parser/ChunkFactory';
 import { ValidationUtils } from '../../../../../utils/parser/validation/ValidationUtils';
@@ -40,7 +40,7 @@ export class ASTCodeSplitter {
 
   constructor(
     @inject(TYPES.CacheService) private cacheService: ICacheService,
-    @inject(TYPES.DetectionService) private detectionService: DetectionService,
+    @inject(TYPES.LanguageDetector) private detectionService: LanguageDetector,
     @inject(TYPES.LoggerService) private logger: LoggerService,
     @inject(TYPES.SegmentationConfigService) private segmentationConfigService: SegmentationConfigService,
     @inject(TYPES.UnifiedContentAnalyzer) private unifiedContentAnalyzer: any,

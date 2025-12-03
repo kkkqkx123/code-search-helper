@@ -12,7 +12,7 @@ import {
   RelationshipTypeRegistry,
   EntityQueryBuilderFactory,
   RelationshipQueryBuilderFactory
-} from './types';
+} from './types/index';
 import { queryConfigManager } from './QueryConfig';
 
 /**

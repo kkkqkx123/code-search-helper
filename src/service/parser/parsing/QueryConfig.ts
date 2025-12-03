@@ -598,8 +598,23 @@ export const BASIC_QUERY_TYPES = ['functions', 'types'] as const;
 export const DEFAULT_QUERY_TYPES = ['functions', 'types', 'variables', 'calls', 'dataFlow'] as const;
 export const COMMON_LANGUAGES = [...languageMappingManager.getAllSupportedLanguages()] as const;
 
+/**
+ * 获取所有复合查询配置
+ */
+function getAllCompoundQueries(): CompoundQueryConfig[] {
+  const queries: CompoundQueryConfig[] = [];
+  const compoundNames = ['entity-relationships', 'function-analysis', 'type-analysis', 'dependency-analysis'];
+  for (const name of compoundNames) {
+    const config = queryConfigManager.getCompoundQueryConfig(name);
+    if (config) {
+      queries.push(config);
+    }
+  }
+  return queries;
+}
+
 // 动态生成的复合查询类型
-export const COMPOUND_QUERY_TYPES = Array.from(queryConfigManager.compoundQueries.values())
+export const COMPOUND_QUERY_TYPES = getAllCompoundQueries()
   .map(config => ({
     file: config.name,
     queries: config.queryTypes

@@ -79,6 +79,16 @@ export class QueryManager {
   }
 
   /**
+   * 获取所有支持的语言
+   */
+  private static getSupportedLanguages(): string[] {
+    return [
+      'javascript', 'typescript', 'python', 'java', 'go', 'rust',
+      'cpp', 'c', 'csharp', 'swift', 'kotlin', 'ruby', 'php', 'scala', 'embedded-template'
+    ];
+  }
+
+  /**
    * 从查询文件加载查询模式
    */
   private static async loadFromQueryFiles(): Promise<void> {
@@ -101,7 +111,7 @@ export class QueryManager {
       );
 
       // 记录结果
-      results.forEach((result: { status: string; reason: any; }, index: string | number) => {
+      results.forEach((result, index) => {
         const language = batch[index];
         if (result.status === 'rejected') {
           this.logger.warn(`加载 ${language} 语言查询失败:`, result.reason);
