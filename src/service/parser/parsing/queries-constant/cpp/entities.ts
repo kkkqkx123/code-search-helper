@@ -20,7 +20,7 @@ export default `
 ] @entity.preprocessor
 
 ; 2. 结构体、联合体、枚举、类型别名定义 -> entity.type 4
-
+[
   (struct_specifier
     name: (type_identifier) @type.name
     body: (field_declaration_list
@@ -38,30 +38,45 @@ export default `
     body: (enumerator_list
       (enumerator
         name: (identifier) @enum.constant)*)) @entity.enum
-
+; 类型别名
+  (type_entity
+    type: (_)
+    declarator: (type_identifier) @alias.name) @entity.type.alias
+] @entity.type
 
 ; 3. 函数声明 -> entity.function 3
 [
-  (function_definition
+  (function_entity
     declarator: (function_declarator
       declarator: (identifier) @function.name)
     body: (compound_statement) @function.body) @entity.function
 
-  (function_definition
+  (declaration
     type: (primitive_type)
     declarator: (function_declarator
       declarator: (identifier) @function.name
       parameters: (parameter_list) @function.parameters)) @entity.function.prototype
 
   ; 函数指针查询 - 修复：函数指针声明的正确结构
-  (declaration
+  (function_entity
     type: (primitive_type) @return.type
-    declarator: (function_declarator
-      declarator: (parenthesized_declarator
-        (pointer_declarator
-          declarator: (identifier) @function.pointer.name))
-      parameters: (parameter_list))) @entity.function.pointer
+      declarator: (pointer_declarator
+        declarator: (function_declarator
+          declarator: (identifier) @function.name
+          parameters: (parameter_list) @function.parameters))) @entity.function.pointer
 ] @entity.function
+
+; 资源析构函数模式
+(function_definition
+  declarator: (function_declarator
+    declarator: (identifier) @resource.destructor
+    parameters: (parameter_list
+      (parameter_declaration
+        type: (type_identifier)
+        declarator: (pointer_declarator declarator: (identifier)) @resource.pointer)))
+  body: (compound_statement)
+  (#eq? @resource.destructor "destroy_resource")
+  (#set! "operation" "destruct")) @lifecycle.entity.resource.destructor
 
 ; 4. 数组和指针声明 -> entity.variable 2
 [

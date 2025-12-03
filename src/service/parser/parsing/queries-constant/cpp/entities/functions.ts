@@ -24,6 +24,18 @@ export default `
     declarator: (field_identifier) @method.name)
   body: (compound_statement) @method.body) @definition.method
 
+; 构造函数和析构函数查询 - 使用交替模式
+[
+  (function_definition
+    declarator: (function_declarator
+      declarator: (identifier) @constructor.name)
+    body: (compound_statement) @constructor.body) @definition.constructor
+  (function_definition
+    declarator: (function_declarator
+      declarator: (destructor_name) @destructor.name)
+    body: (compound_statement) @destructor.body) @definition.destructor
+] @definition.constructor_or_destructor
+
 ; 带参数的函数查询 - 使用量词操作符
 (function_definition
   declarator: (function_declarator
@@ -39,13 +51,8 @@ export default `
   parameters: (template_parameter_list)
   (function_definition
     declarator: (function_declarator
-      declarator: (identifier) @template.function.name))
-  (#match? @template.function.name "^[a-z][a-zA-Z0-9_]*$")) @definition.template.function
-
-; Lambda 表达式查询 - 简化模式
-(lambda_expression
-  parameters: (lambda_parameters)? @lambda.params
-  body: (_) @lambda.body) @definition.lambda
+      declarator: (identifier) @template.function.name)
+    body: (compound_statement) @template.function.body)) @definition.template.function
 
 ; 运算符重载查询 - 使用交替模式
 [
@@ -75,27 +82,7 @@ export default `
       declarator: (field_identifier) @virtual.method)) @definition.virtual.method
 ] @definition.special.function
 
-; 协程查询 - 使用交替模式
-[
-  (co_await_expression
-    expression: (_) @await.expression) @definition.co_await
-  (co_yield_expression
-    expression: (_) @yield.expression) @definition.co_yield
-  (co_return_statement
-    expression: (_) @co_return.expression) @definition.co_return
-] @definition.coroutine
 
-; 构造函数和析构函数查询 - 使用交替模式
-[
-  (function_definition
-    declarator: (function_declarator
-      declarator: (identifier) @constructor.name)
-    (#eq? @constructor.name @class.name)) @definition.constructor
-  (function_definition
-    declarator: (function_declarator
-      declarator: (destructor_name) @destructor.name)
-    (#match? @destructor.name "^~.*")) @definition.destructor
-] @definition.constructor_or_destructor
 
 ; 虚函数重写查询 - 使用谓词过滤
 (function_definition
