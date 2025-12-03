@@ -48,17 +48,16 @@ export default `
 ] @semantic.delegate.relationship
 
 ; 设计模式查询 - 参数化模式
-(class_specifier
-  name: (type_identifier) @pattern.class
-  body: (field_declaration_list
+(class_declaration
+ name: (identifier) @pattern.class
+  body: (declaration_list
     (field_declaration
-      declarator: (field_declarator
-        declarator: (field_identifier) @pattern.field)
-      type: (type_identifier) @pattern.type)*
-    (function_definition
-      declarator: (function_declarator
-        declarator: (field_identifier) @pattern.method))*)) @semantic.design.pattern
-  (#match? @pattern.class "^(Observer|Subject|Strategy|Factory|Singleton|Builder|Adapter|Decorator)$")
+      type: (identifier) @pattern.type
+      declarators: (variable_declarator_list
+        (variable_declarator
+          name: (identifier) @pattern.field)))*
+    (method_declaration
+      name: (identifier) @pattern.method)*)) @semantic.design.pattern
 
 ; 依赖注入关系查询 - 使用锚点和谓词
 [

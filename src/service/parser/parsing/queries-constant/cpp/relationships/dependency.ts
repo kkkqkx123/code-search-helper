@@ -51,31 +51,6 @@ export default `
     declarator: (function_declarator
       declarator: (identifier) @dependency.friend.function))) @dependency.relationship.friend.function
 
-; ===== C# 特定依赖关系 =====
-
-; using指令依赖关系
-(using_directive
-  name: (identifier) @dependency.using.namespace) @dependency.relationship.using.namespace
-
-; using静态指令依赖关系
-(using_directive
-  static: (identifier) @dependency.using.static.class
-  name: (identifier) @dependency.using.static.member) @dependency.relationship.using.static
-
-; using别名指令依赖关系
-(using_directive
-  name: (identifier) @dependency.using.alias.name
-  equality: "="
-  type: (identifier) @dependency.using.alias.type) @dependency.relationship.using.alias
-
-; 程序集引用依赖关系
-(attribute_list
-  (attribute
-    name: (identifier) @dependency.assembly.reference
-    arguments: (attribute_argument_list
-      (attribute_argument
-        (string_literal) @dependency.assembly.name)))) @dependency.relationship.assembly.reference
-
 ; ===== 共享依赖关系 =====
 
 ; 类型引用依赖关系
@@ -145,39 +120,4 @@ export default `
   from_clause: (from_clause
     identifier: (identifier) @dependency.linq.variable
     expression: (identifier) @dependency.linq.source))) @dependency.relationship.linq.query
-
-; 特性依赖关系
-(attribute
-  name: (identifier) @dependency.attribute.name
-  arguments: (attribute_argument_list
-    (attribute_argument) @dependency.attribute.argument)*) @dependency.relationship.attribute.usage
-
-; 委托依赖关系
-(delegate_declaration
-  name: (identifier) @dependency.delegate.name
-  parameters: (parameter_list
-    (parameter_declaration
-      type: (type_identifier) @dependency.delegate.parameter.type)*) 
-  return_type: (type_identifier) @dependency.delegate.return.type) @dependency.relationship.delegate.definition
-
-; Lambda表达式依赖关系
-(lambda_expression
-  parameters: (lambda_parameters
-    (lambda_parameter
-      name: (identifier) @dependency.lambda.parameter)
-    (type_annotation
-      type: (type_identifier) @dependency.lambda.parameter.type))*) @dependency.relationship.lambda.expression
-
-; 异步方法依赖关系
-(method_declaration
-  (modifier) @async.modifier
-  name: (identifier) @async.method.name
-  return_type: (generic_type
-    name: (type_identifier) @dependency.async.return.type
-    arguments: (type_argument_list
-      (type_identifier) @dependency.async.type.argument)))) @dependency.relationship.async.method
-
-; await表达式依赖关系
-(await_expression
-  expression: (identifier) @dependency.awaited.expression) @dependency.relationship.await.expression
 `;

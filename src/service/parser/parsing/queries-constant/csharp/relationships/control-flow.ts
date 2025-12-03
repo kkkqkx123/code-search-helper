@@ -125,7 +125,7 @@ export default `
     (query_clause) @linq.clause*
     (select_clause
       expression: (_) @linq.select.expression)
-    (group_by_clause
+    (group_clause
       group: (_) @linq.group.expression
       by: (_) @linq.group.by)?)) @definition.linq.query
 

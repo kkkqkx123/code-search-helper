@@ -9,16 +9,22 @@ export default `
   name: (identifier) @method.name
   body: (block) @method.body) @method.definition.with.annotation
 
-; 虚方法和重写注解
+; 虚方法注解
 (method_declaration
   (modifier) @virtual.modifier
   name: (identifier) @virtual.method
-  (#match? @virtual.modifier "virtual|override")) @method.virtual.annotation
+  (#match? @virtual.modifier "virtual")) @method.virtual.annotation
+
+; 重写方法注解
+(method_declaration
+  (modifier) @override.modifier
+ name: (identifier) @override.method
+  (#match? @override.modifier "override")) @method.override.annotation
 
 ; 访问修饰符注解
 (method_declaration
   (modifier) @access.modifier
- name: (identifier) @access.method
+  name: (identifier) @access.method
   (#match? @access.modifier "public|private|protected|internal")) @method.access.annotation
 
 ; 特殊修饰符注解

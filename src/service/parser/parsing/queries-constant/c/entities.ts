@@ -1,44 +1,43 @@
 export default `
 ; 1. 预处理器 -> entity.preprocessor 5
 [
+  [
   (preproc_def
     name: (identifier) @name.entity.macro)
   (preproc_function_def
     name: (identifier) @name.entity.macro)
   (preproc_ifdef
     name: (identifier) @name.entity.preproc_ifdef) @entity.preproc_ifdef
-  (preproc_if
-    condition: (_) @name.entity.preproc_condition) @entity.preproc_condition
-  (preproc_elif
-    condition: (_) @name.entity.preproc_condition) @entity.preproc_condition
-  (preproc_else
-    condition: (_) @name.entity.preproc_condition) @entity.preproc_condition
+  ]
+
+  [
+    (preproc_if
+      condition: (_) @name.entity.preproc_condition) @entity.preproc_condition
+    (preproc_elif
+      condition: (_) @name.entity.preproc_condition) @entity.preproc_condition
+    (preproc_else) @entity.preproc_condition
+  ]
+  
+  [
   (preproc_include
     path: (system_lib_string) @name.entity.include_lib)
-  (preproc_includeW
+  (preproc_include
     path: (string_literal)@name.included)
+  ]
 ] @entity.preprocessor
 
-; 2. 结构体、联合体、枚举、类型别名定义 -> entity.type 4
-
+; 2. 结构体、联合体、枚举定义 -> entity.type 4
+[
+    (class_specifier
+    name: (type_identifier) @type.name
+    body: (field_declaration_list) @type.body) @entity.class
   (struct_specifier
     name: (type_identifier) @type.name
-    body: (field_declaration_list
-      (field_declaration
-        type: (_) @field.type
-        declarator: (field_identifier) @field.name)*)) @entity.struct
+    body: (field_declaration_list) @type.body) @entity.struct
   (union_specifier
     name: (type_identifier) @type.name
-    body: (field_declaration_list
-      (field_declaration
-        type: (_) @field.type
-        declarator: (field_identifier) @field.name)*)) @entity.union
-  (enum_specifier
-    name: (type_identifier) @type.name
-    body: (enumerator_list
-      (enumerator
-        name: (identifier) @enum.constant)*)) @entity.enum
-
+    body: (field_declaration_list) @type.body) @entity.union
+]
 
 ; 3. 函数声明 -> entity.function 3
 [

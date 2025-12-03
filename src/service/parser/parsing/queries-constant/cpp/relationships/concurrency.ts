@@ -57,7 +57,7 @@ export default `
     parameters: (parameter_list
       (parameter_declaration
         (type_identifier) @locked.mutex)))
-  (#match? @lock_guard.type "^(lock_guard|unique_lock|shared_lock)$")) @concurrency_relationship_lock_guard
+  (#match? @lock_guard.type "^(lock_guard|unique_lock|shared_lock)$")) @concurrency.relationship.lock_guard
 
 ; 条件变量等待
 (call_expression
@@ -160,6 +160,7 @@ export default `
   function: (field_expression
     (identifier) @future.object
     (field_identifier) @future.method))
+  arguments: (argument_list)
   (#match? @future.method "wait")) @concurrency.relationship.future.wait
 
 ; 异步任务获取结果
@@ -167,6 +168,7 @@ export default `
   function: (field_expression
     (identifier) @future.object
     (field_identifier) @future.method))
+  arguments: (argument_list)
   (#match? @future.method "get")) @concurrency.relationship.future.get
 
 ; 共享异步任务获取结果
@@ -174,6 +176,7 @@ export default `
   function: (field_expression
     (identifier) @shared.future.object
     (field_identifier) @shared.future.method))
+  arguments: (argument_list)
   (#match? @shared.future.method "get")) @concurrency.relationship.shared.future.get
 
 ; 承诺设置值
@@ -208,34 +211,6 @@ export default `
   arguments: (argument_list
     (identifier) @memory.order)
   (#match? @atomic.function "atomic_thread_fence")) @concurrency.relationship.memory.fence
-
-; 竞态条件更新变量检测
-(assignment_expression
-  left: (field_expression
-    argument: (identifier) @shared.variable
-    field: (field_identifier) @shared.field)
-
-  right: (binary_expression
-    left: (field_expression
-      argument: (identifier) @shared.variable.read
-      field: (field_identifier) @shared.field.read)
-    right: (number_literal) @increment.value)
-
-  ; 谓词确保被读取的变量和被写入的变量是同一个
-  ; 1. 对象名必须相同 (e.g., "counter" == "counter")
-  (#eq? @shared.variable @shared.variable.read)
-  ; 2. 字段名必须相同 (e.g., "value" == "value")
-  (#eq? @shared.field @shared.field.read)
-) @concurrency.relationship.race.condition
-
-
-; 死锁模式（多个锁获取）
-(call_expression
-  function: (field_expression
-    (identifier) @first.lock
-    (field_identifier) @lock.method)
-  arguments: (argument_list)
-  (#match? @lock.method "lock")) @concurrency.relationship.deadlock.pattern
 
 ; 类似生产者-消费者模式的同步模式
 ;; 已弃用

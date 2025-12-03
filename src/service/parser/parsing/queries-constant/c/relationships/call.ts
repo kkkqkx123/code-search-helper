@@ -75,46 +75,4 @@ export default `
     )
   )
 )
-
-; 条件调用关系
-(function_definition
-  declarator: (function_declarator
-    declarator: (identifier) @relationship.call.function.from)
-  body: (compound_statement
-    (_
-      (call_expression
-        function: (identifier) @relationship.call.conditional.to
-        (#match? @relationship.call.conditional.to "^(if|switch|select)$")
-      ) @relationship.call.conditional
-    )
-  )
-)
-
-; 回调函数调用关系
-(function_definition
-  declarator: (function_declarator
-    declarator: (identifier) @relationship.call.function.from)
-  body: (compound_statement
-    (_
-      (call_expression
-        function: (identifier) @relationship.call.callback.to
-        (#match? @relationship.call.callback.to "^(callback|handler|invoke)$")
-      ) @relationship.call.callback
-    )
-  )
-)
-
-; 宏函数调用关系
-(function_definition
-  declarator: (function_declarator
-    declarator: (identifier) @relationship.call.function.from)
-  body: (compound_statement
-    (_
-      (call_expression
-        function: (identifier) @relationship.call.macro.to
-        (#match? @relationship.call.macro.to "^[A-Z_][A-Z0-9_]*$")
-      ) @relationship.call.macro
-    )
-  )
-)
 `;

@@ -12,7 +12,7 @@ export default `
     (_
       (call_expression
         function: (identifier) @relationship.concurrency.create.to
-        (#match? @relationship.concurrency.create.to "^(pthread_create|CreateThread|_beginthread)$")
+        (#match? @relationship.concurrency.create.to "^(pthread_create)$")
       ) @relationship.concurrency.thread.create
     )
   )
@@ -26,7 +26,7 @@ export default `
     (_
       (call_expression
         function: (identifier) @relationship.concurrency.wait.to
-        (#match? @relationship.concurrency.wait.to "^(pthread_join|WaitForSingleObject)$")
+        (#match? @relationship.concurrency.wait.to "^(pthread_join)$")
       ) @relationship.concurrency.thread.wait
     )
   )
@@ -82,7 +82,7 @@ export default `
     (_
       (call_expression
         function: (identifier) @relationship.concurrency.mutex.to
-        (#match? @relationship.concurrency.mutex.to "^(pthread_mutex_init|InitializeCriticalSection)$")
+        (#match? @relationship.concurrency.mutex.to "^(pthread_mutex_init)$")
       ) @relationship.concurrency.mutex.create
     )
   )
@@ -96,7 +96,7 @@ export default `
     (_
       (call_expression
         function: (identifier) @relationship.concurrency.operation.to
-        (#match? @relationship.concurrency.operation.to "^(pthread_mutex_lock|pthread_mutex_trylock|pthread_mutex_unlock|pthread_mutex_destroy|EnterCriticalSection|LeaveCriticalSection|DeleteCriticalSection)$")
+        (#match? @relationship.concurrency.operation.to "^(pthread_mutex_lock|pthread_mutex_trylock|pthread_mutex_unlock|pthread_mutex_destroy)$")
       ) @relationship.concurrency.mutex.operation
     )
   )
@@ -143,5 +143,4 @@ export default `
     )
   )
 )
-
-`;
+`;

@@ -7,6 +7,7 @@ Index for all C# language queries including shared queries
 import CLASSES_QUERY from './entities/classes';
 import METHODS_QUERY from './entities/methods';
 import PROPERTIES_QUERY from './entities/properties';
+import VARIABLES_QUERY from './entities/variables';
 import LINQ_QUERY from './entities/linq';
 import PATTERNS_QUERY from './entities/patterns';
 import EXPRESSIONS_QUERY from './entities/expressions';
@@ -30,6 +31,7 @@ export const CSHARP_QUERIES = {
   'entities/classes': CLASSES_QUERY,
   'entities/methods': METHODS_QUERY,
   'entities/properties': PROPERTIES_QUERY,
+  'entities/variables': VARIABLES_QUERY,
   'entities/linq': LINQ_QUERY,
   'entities/patterns': PATTERNS_QUERY,
   'entities/expressions': EXPRESSIONS_QUERY,
@@ -53,6 +55,7 @@ export {
   CLASSES_QUERY,
   METHODS_QUERY,
   PROPERTIES_QUERY,
+  VARIABLES_QUERY,
   LINQ_QUERY,
   PATTERNS_QUERY,
   EXPRESSIONS_QUERY,

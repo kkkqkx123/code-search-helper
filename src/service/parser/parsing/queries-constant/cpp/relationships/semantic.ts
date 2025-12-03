@@ -12,8 +12,6 @@ export default `
       declarator: (function_declarator
         declarator: (field_identifier) @overloaded.method)
       parameters: (parameter_list) @method.params)+)) @semantic.function.overload
-  (#eq? @overloaded.method @overloaded.method)
-
 ; 模板特化查询 - 简化模式
 (explicit_specialization
   (template_declaration

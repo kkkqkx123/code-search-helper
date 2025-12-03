@@ -83,21 +83,6 @@ export default `
     accessors: (accessor_list) @event.accessors) @definition.event.declaration
 ] @definition.event
 
-; 属性声明查询 - 使用锚点确保精确匹配
-(property_declaration
-  name: (identifier) @property.name
-  type: (identifier) @property.type
-  accessors: (accessor_list
-    (accessor_declaration) @property.accessor)*) @definition.property
-
-; 索引器声明查询 - 简化模式
-(indexer_declaration
-  name: (identifier) @indexer.name
-  type: (identifier) @indexer.type
-  parameters: (bracketed_parameter_list
-    (parameter) @indexer.param)*
-  accessors: (accessor_list) @indexer.accessors) @definition.indexer
-
 ; 特性声明查询 - 使用交替模式
 [
   (attribute

@@ -32,49 +32,6 @@ export default `
   )
 )
 
-; 资源析构函数模式
-(function_definition
-  declarator: (function_declarator
-    declarator: (identifier) @relationship.lifecycle.function.from)
-  body: (compound_statement
-    (_
-      (function_definition
-        declarator: (function_declarator
-          declarator: (identifier) @relationship.lifecycle.destructor.to
-          (#eq? @relationship.lifecycle.destructor.to "destroy_resource"))
-      ) @relationship.lifecycle.resource.destructor
-    )
-  )
-)
-
-; 资源初始化函数模式
-(function_definition
-  declarator: (function_declarator
-    declarator: (identifier) @relationship.lifecycle.function.from)
-  body: (compound_statement
-    (_
-      (function_definition
-        declarator: (function_declarator
-          declarator: (identifier) @relationship.lifecycle.init.to)
-      ) @relationship.lifecycle.resource.init
-    )
-  )
-)
-
-; 资源清理函数模式
-(function_definition
-  declarator: (function_declarator
-    declarator: (identifier) @relationship.lifecycle.function.from)
-  body: (compound_statement
-    (_
-      (function_definition
-        declarator: (function_declarator
-          declarator: (identifier) @relationship.lifecycle.cleanup.to)
-      ) @relationship.lifecycle.resource.cleanup
-    )
-  )
-)
-
 ; 局部变量作用域开始
 (function_definition
   declarator: (function_declarator

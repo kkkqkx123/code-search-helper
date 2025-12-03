@@ -19,51 +19,56 @@ export default `
     path: (string_literal)@name.included)
 ] @entity.preprocessor
 
-; 2. 结构体、联合体、枚举、类型别名定义 -> entity.type 4
+; 2. 命名空间定义 -> entity.namespace 5
+; Namespace definitions - primary code organization
+(namespace_definition
+  name: (namespace_identifier) @name.definition.namespace) @definition.namespace
+
+; Using declarations - important for name resolution
+(using_declaration) @definition.using
+
+; 3. 结构体、联合体、枚举、类型别名定义 -> entity.type 4
 [
   (struct_specifier
-    name: (type_identifier) @type.name
+    name: (type_identifier) @name.struct
     body: (field_declaration_list
       (field_declaration
         type: (_) @field.type
         declarator: (field_identifier) @field.name)*)) @entity.struct
   (union_specifier
-    name: (type_identifier) @type.name
+    name: (type_identifier) @name.union
     body: (field_declaration_list
       (field_declaration
         type: (_) @field.type
         declarator: (field_identifier) @field.name)*)) @entity.union
   (enum_specifier
-    name: (type_identifier) @type.name
+    name: (type_identifier) @name.enum
     body: (enumerator_list
       (enumerator
         name: (identifier) @enum.constant)*)) @entity.enum
-; 类型别名
-  (type_entity
-    type: (_)
-    declarator: (type_identifier) @alias.name) @entity.type.alias
-] @entity.type
+]
 
 ; 3. 函数声明 -> entity.function 3
 [
-  (function_entity
+  (function_definition
     declarator: (function_declarator
       declarator: (identifier) @function.name)
     body: (compound_statement) @function.body) @entity.function
 
-  (declaration
+  (function_definition
     type: (primitive_type)
     declarator: (function_declarator
       declarator: (identifier) @function.name
       parameters: (parameter_list) @function.parameters)) @entity.function.prototype
 
   ; 函数指针查询 - 修复：函数指针声明的正确结构
-  (function_entity
+  (declaration
     type: (primitive_type) @return.type
-      declarator: (pointer_declarator
-        declarator: (function_declarator
-          declarator: (identifier) @function.name
-          parameters: (parameter_list) @function.parameters))) @entity.function.pointer
+    declarator: (function_declarator
+      declarator: (parenthesized_declarator
+        (pointer_declarator
+          declarator: (identifier) @function.pointer.name))
+      parameters: (parameter_list))) @entity.function.pointer
 ] @entity.function
 
 ; 资源析构函数模式

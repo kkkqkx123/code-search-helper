@@ -9,11 +9,9 @@ export default `
   declarator: (function_declarator
     declarator: (identifier) @relationship.control_flow.function.from)
   body: (compound_statement
-    (_
-      (if_statement
-        condition: (identifier) @relationship.control_flow.if.to
-      ) @relationship.control_flow.if
-    )
+    (if_statement
+      condition: (identifier) @relationship.control_flow.if.to
+    ) @relationship.control_flow.if
   )
 )
 
@@ -22,13 +20,11 @@ export default `
   declarator: (function_declarator
     declarator: (identifier) @relationship.control_flow.function.from)
   body: (compound_statement
-    (_
-      (if_statement
-        condition: (identifier) @relationship.control_flow.else.to
-        alternative: (else_clause
-          (statement) _)
-      ) @relationship.control_flow.if.else
-    )
+    (if_statement
+      condition: (identifier) @relationship.control_flow.else.to
+      alternative: (else_clause
+        (statement) _)
+    ) @relationship.control_flow.if.else
   )
 )
 
@@ -37,14 +33,12 @@ export default `
   declarator: (function_declarator
     declarator: (identifier) @relationship.control_flow.function.from)
   body: (compound_statement
-    (_
-      (if_statement
-        condition: (identifier) @relationship.control_flow.nested.to
-        consequence: (compound_statement
-          (if_statement
-            condition: (identifier) _))
-      ) @relationship.control_flow.nested.if
-    )
+    (if_statement
+      condition: (identifier) @relationship.control_flow.nested.to
+      consequence: (compound_statement
+        (if_statement
+          condition: (identifier) _))
+    ) @relationship.control_flow.nested.if
   )
 )
 
@@ -53,14 +47,12 @@ export default `
   declarator: (function_declarator
     declarator: (identifier) @relationship.control_flow.function.from)
   body: (compound_statement
-    (_
-      (if_statement
-        condition: (identifier) @relationship.control_flow.elseif.to
-        alternative: (else_clause
-          (if_statement
-            condition: (identifier) _))
-      ) @relationship.control_flow.else.if
-    )
+    (if_statement
+      condition: (identifier) @relationship.control_flow.elseif.to
+      alternative: (else_clause
+        (if_statement
+          condition: (identifier) _))
+    ) @relationship.control_flow.else.if
   )
 )
 
@@ -69,11 +61,9 @@ export default `
   declarator: (function_declarator
     declarator: (identifier) @relationship.control_flow.function.from)
   body: (compound_statement
-    (_
-      (switch_statement
-        condition: (identifier) @relationship.control_flow.switch.to
-      ) @relationship.control_flow.switch
-    )
+    (switch_statement
+      condition: (identifier) @relationship.control_flow.switch.to
+    ) @relationship.control_flow.switch
   )
 )
 
@@ -82,11 +72,9 @@ export default `
   declarator: (function_declarator
     declarator: (identifier) @relationship.control_flow.function.from)
   body: (compound_statement
-    (_
-      (case_statement
-        value: (identifier) @relationship.control_flow.case.to
-      ) @relationship.control_flow.switch.case
-    )
+    (case_statement
+      value: (identifier) @relationship.control_flow.case.to
+    ) @relationship.control_flow.switch.case
   )
 )
 
@@ -95,11 +83,9 @@ export default `
   declarator: (function_declarator
     declarator: (identifier) @relationship.control_flow.function.from)
   body: (compound_statement
-    (_
-      (while_statement
-        condition: (identifier) @relationship.control_flow.while.to
-      ) @relationship.control_flow.while
-    )
+    (while_statement
+      condition: (identifier) @relationship.control_flow.while.to
+    ) @relationship.control_flow.while
   )
 )
 
@@ -108,11 +94,9 @@ export default `
   declarator: (function_declarator
     declarator: (identifier) @relationship.control_flow.function.from)
   body: (compound_statement
-    (_
-      (do_statement
-        condition: (identifier) @relationship.control_flow.dowhile.to
-      ) @relationship.control_flow.do.while
-    )
+    (do_statement
+      condition: (identifier) @relationship.control_flow.dowhile.to
+    ) @relationship.control_flow.do.while
   )
 )
 
@@ -121,11 +105,9 @@ export default `
   declarator: (function_declarator
     declarator: (identifier) @relationship.control_flow.function.from)
   body: (compound_statement
-    (_
-      (for_statement
-        condition: (identifier) @relationship.control_flow.for.to
-      ) @relationship.control_flow.for
-    )
+    (for_statement
+      condition: (identifier) @relationship.control_flow.for.to
+    ) @relationship.control_flow.for
   )
 )
 
@@ -134,9 +116,7 @@ export default `
   declarator: (function_declarator
     declarator: (identifier) @relationship.control_flow.function.from)
   body: (compound_statement
-    (_
-      (break_statement) @relationship.control_flow.loop.break
-    )
+    (break_statement) @relationship.control_flow.loop.break
   )
 )
 
@@ -145,9 +125,7 @@ export default `
   declarator: (function_declarator
     declarator: (identifier) @relationship.control_flow.function.from)
   body: (compound_statement
-    (_
-      (continue_statement) @relationship.control_flow.loop.continue
-    )
+    (continue_statement) @relationship.control_flow.loop.continue
   )
 )
 
@@ -156,11 +134,9 @@ export default `
   declarator: (function_declarator
     declarator: (identifier) @relationship.control_flow.function.from)
   body: (compound_statement
-    (_
-      (goto_statement
-        (statement_identifier) @relationship.control_flow.goto.to
-      ) @relationship.control_flow.goto
-    )
+    (goto_statement
+      (statement_identifier) @relationship.control_flow.goto.to
+    ) @relationship.control_flow.goto
   )
 )
 
@@ -169,11 +145,9 @@ export default `
   declarator: (function_declarator
     declarator: (identifier) @relationship.control_flow.function.from)
   body: (compound_statement
-    (_
-      (labeled_statement
-        label: (statement_identifier) @relationship.control_flow.label.to
-      ) @relationship.control_flow.label
-    )
+    (labeled_statement
+      label: (statement_identifier) @relationship.control_flow.label.to
+    ) @relationship.control_flow.label
   )
 )
 
@@ -182,11 +156,9 @@ export default `
   declarator: (function_declarator
     declarator: (identifier) @relationship.control_flow.function.from)
   body: (compound_statement
-    (_
-      (return_statement
-        (identifier) @relationship.control_flow.return.to
-      ) @relationship.control_flow.return
-    )
+    (return_statement
+      (identifier) @relationship.control_flow.return.to
+    ) @relationship.control_flow.return
   )
 )
 
@@ -195,11 +167,9 @@ export default `
   declarator: (function_declarator
     declarator: (identifier) @relationship.control_flow.function.from)
   body: (compound_statement
-    (_
-      (conditional_expression
-        condition: (identifier) @relationship.control_flow.conditional.to
-      ) @relationship.control_flow.conditional.expression
-    )
+    (conditional_expression
+      condition: (identifier) @relationship.control_flow.conditional.to
+    ) @relationship.control_flow.conditional.expression
   )
 )
 
@@ -208,12 +178,10 @@ export default `
   declarator: (function_declarator
     declarator: (identifier) @relationship.control_flow.function.from)
   body: (compound_statement
-    (_
-      (binary_expression
-        left: (identifier) @relationship.control_flow.logical.to
-        operator: ["&&" "||"]
-      ) @relationship.control_flow.logical.operator
-    )
+    (binary_expression
+      left: (identifier) @relationship.control_flow.logical.to
+      operator: ["&&" "||"]
+    ) @relationship.control_flow.logical.operator
   )
 )
 
@@ -222,12 +190,9 @@ export default `
   declarator: (function_declarator
     declarator: (identifier) @relationship.control_flow.function.from)
   body: (compound_statement
-    (_
-      (comma_expression
-        left: (identifier) @relationship.control_flow.comma.to
-      ) @relationship.control_flow.comma.expression
-    )
+    (comma_expression
+      left: (identifier) @relationship.control_flow.comma.to
+    ) @relationship.control_flow.comma.expression
   )
 )
-
-`;
+`;

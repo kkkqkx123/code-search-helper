@@ -51,20 +51,6 @@ export default `
   )
 )
 
-; 清理函数模式
-(function_definition
-  declarator: (function_declarator
-    declarator: (identifier) @relationship.semantic.function.from)
-  body: (compound_statement
-    (_
-      (function_definition
-        declarator: (function_declarator
-          declarator: (identifier) @relationship.semantic.cleanup.to)
-      ) @relationship.semantic.cleanup.pattern
-    )
-  )
-)
-
 ; 回调函数赋值模式
 (function_definition
   declarator: (function_declarator

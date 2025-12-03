@@ -133,14 +133,14 @@ export default `
       expression: (identifier) @linq.result))) @data.flow.linq.query
 
 ; 类型转换数据流 - 使用交替模式
-[
-  (cast_expression
-    type: (identifier) @target.type
-    value: (identifier) @source.variable) @data.flow.cast
-  (as_expression
-    type: (identifier) @target.type
-    expression: (identifier) @source.expression) @data.flow.as.cast
-] @data.flow.type.conversion
+(cast_expression
+  type: (identifier) @target.type
+  value: (identifier) @source.variable) @data.flow.cast
+
+; as表达式数据流
+(as_expression
+  type: (identifier) @target.type
+  expression: (identifier) @source.expression) @data.flow.as.cast
 
 ; 空值处理数据流 - 使用交替模式
 [

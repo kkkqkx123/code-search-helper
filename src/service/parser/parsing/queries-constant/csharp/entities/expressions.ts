@@ -4,8 +4,10 @@ Optimized for code chunking and vector embedding
 */
 export default `
 ; Using directives - important for namespace imports
-(using_directive) @definition.using
-(using_statement) @definition.using
+(using_directive) @definition.using_directive
+
+; Using statements - important for resource management
+(using_statement) @definition.using_statement
 
 ; Type aliases - important for external aliases
 (extern_alias_directive) @definition.extern_alias
@@ -80,12 +82,10 @@ export default `
 
 ; Basic expressions - important for fundamental operations
 (parenthesized_expression) @definition.parenthesized
-(identifier) @definition.identifier
 (this_expression) @definition.this
 (base_expression) @definition.base
 
 ; Literals - important for constant values
-(literal) @definition.literal
 (string_literal) @definition.string_literal
 (character_literal) @definition.character_literal
 (numeric_literal) @definition.numeric_literal

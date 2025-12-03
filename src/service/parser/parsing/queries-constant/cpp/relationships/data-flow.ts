@@ -92,10 +92,7 @@ export default `
     (capture_default
       (identifier) @capture.source)?
     (capture
-      (identifier) @captured.variable)*)
-  body: (compound_statement
-    (expression_statement
-      (identifier) @captured.usage))) @data.flow.lambda.capture
+      (identifier) @captured.variable)*)) @data.flow.lambda.capture
 
 ; 范围for循环数据流 - 使用字段名和锚点
 (range_based_for_statement

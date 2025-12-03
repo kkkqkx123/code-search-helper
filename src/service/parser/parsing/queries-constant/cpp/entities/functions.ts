@@ -18,34 +18,6 @@ export default `
       parameters: (parameter_list))) @definition.function.prototype
 ] @definition.function
 
-; 方法查询 - 使用锚点确保精确匹配
-(function_definition
-  declarator: (function_declarator
-    declarator: (field_identifier) @method.name)
-  body: (compound_statement) @method.body) @definition.method
-
-; 构造函数和析构函数查询 - 使用交替模式
-[
-  (function_definition
-    declarator: (function_declarator
-      declarator: (identifier) @constructor.name)
-    body: (compound_statement) @constructor.body) @definition.constructor
-  (function_definition
-    declarator: (function_declarator
-      declarator: (destructor_name) @destructor.name)
-    body: (compound_statement) @destructor.body) @definition.destructor
-] @definition.constructor_or_destructor
-
-; 带参数的函数查询 - 使用量词操作符
-(function_definition
-  declarator: (function_declarator
-    declarator: (identifier) @function.name
-    parameters: (parameter_list
-      (parameter_declaration
-        type: (_)
-        declarator: (identifier) @param.name)*))
-  body: (compound_statement) @function.body) @definition.function.with_params
-
 ; 模板函数查询 - 使用谓词过滤
 (template_declaration
   parameters: (template_parameter_list)

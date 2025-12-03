@@ -55,45 +55,6 @@ export default `
   )
 )
 
-; 条件编译依赖关系
-(function_definition
-  declarator: (function_declarator
-    declarator: (identifier) @relationship.dependency.function.from)
-  body: (compound_statement
-    (_
-      (preproc_if
-        condition: (identifier) @relationship.dependency.conditional.to
-      ) @relationship.dependency.conditional
-    )
-  )
-)
-
-; 条件编译ifdef依赖关系
-(function_definition
-  declarator: (function_declarator
-    declarator: (identifier) @relationship.dependency.function.from)
-  body: (compound_statement
-    (_
-      (preproc_ifdef
-        name: (identifier) @relationship.dependency.ifdef.to
-      ) @relationship.dependency.ifdef
-    )
-  )
-)
-
-; 条件编译elif依赖关系
-(function_definition
-  declarator: (function_declarator
-    declarator: (identifier) @relationship.dependency.function.from)
-  body: (compound_statement
-    (_
-      (preproc_elif
-        condition: (identifier) @relationship.dependency.elif.to
-      ) @relationship.dependency.elif
-    )
-  )
-)
-
 ; 类型引用依赖关系
 (function_definition
   declarator: (function_declarator

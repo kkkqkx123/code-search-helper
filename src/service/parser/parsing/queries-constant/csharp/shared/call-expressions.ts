@@ -23,11 +23,11 @@ export default `
 (invocation_expression
   function: (identifier) @call.function
   arguments: (argument_list
-    (_) @call.argument)*) @call.expression
+    (_) @call.argument)*) @call.expression.function
 
 ; 构造函数调用表达式
 (object_creation_expression
-  type: (identifier) @call.constructor
+ type: (identifier) @call.constructor
   arguments: (argument_list
     (_) @call.argument)*) @call.expression.constructor
 

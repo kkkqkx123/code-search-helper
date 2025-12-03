@@ -8,14 +8,9 @@ export default `
   type: (_)
   declarator: (type_identifier) @name.definition.type) @definition.type
 
-; Type aliases using 'using' - important for type aliases
-(type_alias_declaration
-  name: (identifier) @name.definition.type_alias) @definition.type_alias
-
 ; Enum declarations - important for enumerated types
 (enum_specifier
   name: (type_identifier) @name.definition.enum) @definition.enum
-
 
 ; Concept definitions (C++20) - important for template constraints
 (concept_definition
