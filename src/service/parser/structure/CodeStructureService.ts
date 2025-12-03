@@ -2,8 +2,8 @@ import Parser from 'tree-sitter';
 import { LoggerService } from '../../../utils/LoggerService';
 import { ParseOptions } from '../types';
 import { TREE_SITTER_LANGUAGE_MAP } from '../constants/language-constants';
-import { DynamicParserManager } from '../parsing/DynamicParserManager';
-import { QueryExecutor } from '../parsing/QueryExecutor';
+import { DynamicParserManager } from '../query/DynamicParserManager';
+import { QueryExecutor } from '../query/QueryExecutor';
 
 /**
  * 代码结构服务
@@ -36,7 +36,7 @@ export class CodeStructureService {
 
       // 使用查询引擎执行函数查询
       const result = await this.queryEngine.executeEntityQuery(ast, 'function', lang, {});
-      
+
       // 如果查询系统返回空结果，回退到直接使用节点类型
       if (result.length === 0) {
         this.logger.warn('查询系统未找到函数，回退到节点类型匹配');
@@ -311,13 +311,13 @@ export class CodeStructureService {
    */
   private findNodeByType(ast: Parser.SyntaxNode, nodeType: string): Parser.SyntaxNode[] {
     const nodes: Parser.SyntaxNode[] = [];
-    
+
     // 递归遍历AST查找指定类型的节点
     const traverse = (node: Parser.SyntaxNode) => {
       if (node.type === nodeType) {
         nodes.push(node);
       }
-      
+
       for (let i = 0; i < node.childCount; i++) {
         const child = node.child(i);
         if (child) {
@@ -325,7 +325,7 @@ export class CodeStructureService {
         }
       }
     };
-    
+
     traverse(ast);
     return nodes;
   }

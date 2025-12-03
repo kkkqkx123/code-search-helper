@@ -1,5 +1,5 @@
 import Parser from 'tree-sitter';
-import { QueryExecutor } from '../parsing/QueryExecutor';
+import { QueryExecutor } from '../query/QueryExecutor';
 import { LoggerService } from '../../../utils/LoggerService';
 import { languageMappingManager } from '../config/LanguageMappingManager';
 
@@ -97,7 +97,7 @@ export class FallbackExtractor {
           this.logger.debug(`跳过函数提取 (${lang}): 该语言类型通常不包含函数定义`);
           return [];
         }
-        
+
         try {
           const functions = await QueryExecutor.getInstance().findFunctions(ast, lang);
           if (functions.length > 0) {
@@ -133,7 +133,7 @@ export class FallbackExtractor {
           this.logger.debug(`跳过类提取 (${lang}): 该语言类型通常不包含类定义`);
           return [];
         }
-        
+
         try {
           const classes = await QueryExecutor.getInstance().findClasses(ast, lang);
           if (classes.length > 0) {
@@ -169,7 +169,7 @@ export class FallbackExtractor {
           this.logger.debug(`跳过导入提取 (${lang}): 该语言类型通常不包含导入语句`);
           return [];
         }
-        
+
         try {
           const imports = await QueryExecutor.getInstance().findImports(ast, lang);
           if (imports.length > 0) {
@@ -205,7 +205,7 @@ export class FallbackExtractor {
           this.logger.debug(`跳过导出提取 (${lang}): 该语言类型通常不包含导出语句`);
           return [];
         }
-        
+
         try {
           const exports = await QueryExecutor.getInstance().findExports(ast, lang);
           if (exports.length > 0) {
@@ -391,10 +391,10 @@ export class FallbackExtractor {
    */
   private static extractNodeNameByLanguage(node: Parser.SyntaxNode, language: string): string {
     const lang = language.toLowerCase();
-    
+
     // 尝试从不同的捕获中提取名称
     const nameFields = this.getNameFieldsByLanguage(lang);
-    
+
     for (const fieldName of nameFields) {
       const nameNode = node.childForFieldName?.(fieldName);
       if (nameNode?.text) {
@@ -421,7 +421,7 @@ export class FallbackExtractor {
    */
   private static getNameFieldsByLanguage(language: string): string[] {
     const commonFields = ['name', 'identifier'];
-    
+
     const languageSpecificFields: Record<string, string[]> = {
       'python': ['name', 'identifier'],
       'javascript': ['id', 'name', 'identifier'],
@@ -443,7 +443,7 @@ export class FallbackExtractor {
    */
   private static getNameTypesByLanguage(language: string): string[] {
     const commonTypes = ['identifier', 'type_identifier'];
-    
+
     const languageSpecificTypes: Record<string, string[]> = {
       'python': ['identifier'],
       'javascript': ['identifier', 'property_identifier'],

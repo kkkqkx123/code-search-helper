@@ -31,8 +31,8 @@ import { HybridIndexService } from '../../service/index/HybridIndexService';
 import { PerformanceOptimizerService } from '../../service/optimization/PerformanceOptimizerService';
 
 // 解析服务
-import { QueryExecutor } from '../../service/parser/parsing/QueryExecutor';
-import { DynamicParserManager } from '../../service/parser/parsing/DynamicParserManager';
+import { QueryExecutor } from '../../service/parser/query/QueryExecutor';
+import { DynamicParserManager } from '../../service/parser/query/DynamicParserManager';
 
 import { SegmentationConfigService } from '../../config/service/SegmentationConfigService';
 

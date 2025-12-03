@@ -2,8 +2,8 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../utils/LoggerService';
 import { TYPES } from '../../types';
 import { LanguageDetector, DetectionResult } from './detection/LanguageDetector';
-import { DynamicParserManager, DynamicParseResult } from './parsing/DynamicParserManager';
-import { QueryExecutor } from './parsing/QueryExecutor';
+import { DynamicParserManager, DynamicParseResult } from './query/DynamicParserManager';
+import { QueryExecutor } from './query/QueryExecutor';
 import { CodeStructureService } from './structure/CodeStructureService';
 import { ICacheService } from '../../infrastructure/caching/types';
 
@@ -43,7 +43,7 @@ export class ParserService {
     this.parserManager = new DynamicParserManager(cacheService);
     this.queryEngine = new TreeSitterQueryEngine();
     this.structureService = new CodeStructureService();
-    
+
     this.logger.debug('ParserService 初始化完成');
   }
 
@@ -55,19 +55,19 @@ export class ParserService {
    */
   async parseFile(filePath: string, content: string): Promise<ParseResult> {
     const startTime = Date.now();
-    
+
     try {
       // 1. 语言检测
       const languageResult = await this.languageDetector.detectFile(filePath, content);
-      
+
       // 2. 解析代码
       const parseResult = await this.parserManager.parseCode(content, languageResult.language);
-      
+
       // 3. 提取结构
       const structure = await this.structureService.extractStructure(parseResult.ast, languageResult.language);
-      
+
       const totalTime = Date.now() - startTime;
-      
+
       return {
         ast: parseResult.ast,
         language: languageResult.language,
@@ -79,7 +79,7 @@ export class ParserService {
       };
     } catch (error) {
       this.logger.error(`解析文件失败: ${filePath}`, error);
-      
+
       return {
         ast: {},
         language: 'unknown',
@@ -178,7 +178,7 @@ export class ParserService {
   getPerformanceStats(): any {
     const parserStats = this.parserManager.getPerformanceStats();
     const queryStats = this.queryEngine.getPerformanceStats();
-    
+
     return {
       parser: parserStats,
       query: queryStats,

@@ -2,8 +2,8 @@ import { injectable, inject } from 'inversify';
 import { TYPES } from '../../../types';
 import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
-import { DynamicParserManager } from '../../parser/parsing/DynamicParserManager';
-import { QueryExecutor } from '../../parser/parsing/QueryExecutor';
+import { DynamicParserManager } from '../../parser/query/DynamicParserManager';
+import { QueryExecutor } from '../../parser/query/QueryExecutor';
 import { IGraphDataMappingService } from '../mapping/IGraphDataMappingService';
 import { InfrastructureConfigService } from '../../../infrastructure/config/InfrastructureConfigService';
 import { IGraphIndexPerformanceMonitor } from '../../../infrastructure/monitoring/GraphIndexMetrics';
@@ -41,7 +41,7 @@ export class GraphConstructionService implements IGraphConstructionService {
   async buildGraphStructure(files: string[], projectPath: string): Promise<GraphData> {
     const operationId = `buildGraphStructure_${Date.now()}`;
     const startTime = Date.now();
-    
+
     try {
       this.logger.info(`Starting graph structure construction for ${files.length} files`, {
         projectPath,
@@ -50,12 +50,12 @@ export class GraphConstructionService implements IGraphConstructionService {
 
       const nodes: GraphNode[] = [];
       const relationships: GraphRelationship[] = [];
-      
+
       for (const filePath of files) {
         try {
           const fileNodes = await this.convertToGraphNodesFromFile(filePath);
           const fileRelationships = await this.convertToGraphRelationshipsFromFile(filePath);
-          
+
           nodes.push(...fileNodes);
           relationships.push(...fileRelationships);
         } catch (error) {
@@ -67,7 +67,7 @@ export class GraphConstructionService implements IGraphConstructionService {
           });
         }
       }
-      
+
       const result: GraphData = {
         nodes,
         relationships,
@@ -126,7 +126,7 @@ export class GraphConstructionService implements IGraphConstructionService {
    */
   convertToGraphNodes(chunks: CodeChunk[]): GraphNode[] {
     const nodes: GraphNode[] = [];
-    
+
     for (const chunk of chunks) {
       const symbolName = this.extractNameFromChunk(chunk);
       const filePath = chunk.metadata.filePath || 'unknown_file';
@@ -146,10 +146,10 @@ export class GraphConstructionService implements IGraphConstructionService {
           timestamp: chunk.metadata.timestamp
         }
       };
-      
+
       nodes.push(node);
     }
-    
+
     return nodes;
   }
 
@@ -158,21 +158,21 @@ export class GraphConstructionService implements IGraphConstructionService {
    */
   convertToGraphRelationships(chunks: CodeChunk[]): GraphRelationship[] {
     const relationships: GraphRelationship[] = [];
-    
+
     // 基于代码块之间的关系创建图关系
     for (let i = 0; i < chunks.length; i++) {
       const currentChunk = chunks[i];
       const currentSymbolName = this.extractNameFromChunk(currentChunk);
       const currentFilePath = currentChunk.metadata.filePath || 'unknown_file';
       const currentId = NodeIdGenerator.forSymbol(currentSymbolName, currentChunk.metadata.type, currentFilePath, currentChunk.metadata.startLine);
-      
+
       // 检查与其他代码块的关系
       for (let j = i + 1; j < chunks.length; j++) {
         const otherChunk = chunks[j];
         const otherSymbolName = this.extractNameFromChunk(otherChunk);
         const otherFilePath = otherChunk.metadata.filePath || 'unknown_file';
         const otherId = NodeIdGenerator.forSymbol(otherSymbolName, otherChunk.metadata.type, otherFilePath, otherChunk.metadata.startLine);
-        
+
         // 检查包含关系
         if (this.isContaining(currentChunk, otherChunk)) {
           relationships.push({
@@ -186,7 +186,7 @@ export class GraphConstructionService implements IGraphConstructionService {
             }
           });
         }
-        
+
         // 检查调用关系
         if (this.isCalling(currentChunk, otherChunk)) {
           relationships.push({
@@ -202,7 +202,7 @@ export class GraphConstructionService implements IGraphConstructionService {
         }
       }
     }
-    
+
     return relationships;
   }
 
@@ -213,7 +213,7 @@ export class GraphConstructionService implements IGraphConstructionService {
     try {
       const content = await fs.readFile(filePath, 'utf-8');
       const language = await this.dynamicParserManager.detectLanguage(filePath);
-      
+
       if (!language) {
         this.logger.warn(`Unsupported language for file: ${filePath}`);
         return [];
@@ -235,7 +235,7 @@ export class GraphConstructionService implements IGraphConstructionService {
       // 使用图映射服务处理文件内容
       const parseResult = await this.dynamicParserManager.parseCode(content, language);
       const mappingResult = await this.graphMappingService.mapToGraph(filePath, []);
-      
+
       return [fileNode, ...mappingResult.nodes];
     } catch (error) {
       this.logger.error(`Failed to convert file to graph nodes: ${filePath}`, { error });
@@ -250,7 +250,7 @@ export class GraphConstructionService implements IGraphConstructionService {
     try {
       const content = await fs.readFile(filePath, 'utf-8');
       const language = await this.dynamicParserManager.detectLanguage(filePath);
-      
+
       if (!language) {
         return [];
       }
@@ -326,7 +326,7 @@ export class GraphConstructionService implements IGraphConstructionService {
       'enum': 'Enum',
       'module': 'Module'
     };
-    
+
     return typeMapping[chunkType] || 'Generic';
   }
 
@@ -335,8 +335,8 @@ export class GraphConstructionService implements IGraphConstructionService {
    */
   private isContaining(parent: CodeChunk, child: CodeChunk): boolean {
     return parent.metadata.startLine <= child.metadata.startLine &&
-           parent.metadata.endLine >= child.metadata.endLine &&
-           parent.metadata.filePath === child.metadata.filePath;
+      parent.metadata.endLine >= child.metadata.endLine &&
+      parent.metadata.filePath === child.metadata.filePath;
   }
 
   /**
