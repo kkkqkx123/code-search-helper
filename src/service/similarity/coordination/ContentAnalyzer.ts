@@ -13,7 +13,7 @@ import { CacheService } from '../../../infrastructure/caching/CacheService';
 import { createHash } from 'crypto';
 import { PerformanceMonitor } from '../../../infrastructure/monitoring/PerformanceMonitor';
 import { InfrastructureConfigService } from '../../../infrastructure/config/InfrastructureConfigService';
-import { DetectionService } from '../../../service/parser/detection/DetectionService';
+import { LanguageDetector } from '../../../service/parser/detection/LanguageDetector';
 import { ComplexityCalculator, CodeComplexityConfig } from '../../../utils/parser/ComplexityCalculator';
 
 /**
@@ -24,12 +24,12 @@ import { ComplexityCalculator, CodeComplexityConfig } from '../../../utils/parse
 export class ContentAnalyzer implements IContentAnalyzer {
   private readonly cacheService: CacheService;
   private performanceMonitor: PerformanceMonitor;
-  private detectionService: DetectionService;
+  private detectionService: LanguageDetector;
 
   constructor(
     @inject(TYPES.LoggerService) private logger: LoggerService,
     @inject(TYPES.InfrastructureConfigService) private configService: InfrastructureConfigService,
-    @inject(TYPES.DetectionService) detectionService: DetectionService
+    @inject(TYPES.LanguageDetector) detectionService: LanguageDetector
   ) {
     this.cacheService = new CacheService(logger);
     this.performanceMonitor = new PerformanceMonitor(logger, configService);
@@ -152,7 +152,7 @@ export class ContentAnalyzer implements IContentAnalyzer {
       // 使用detectFile方法，传入临时文件名
       const detectionResult = await this.detectionService.detectFile('temp_file', content);
 
-      if (detectionResult.language && detectionResult.language !== 'unknown' && detectionResult.confidence > 0.5) {
+      if (detectionResult.language && detectionResult.language !== 'unknown') {
         // 如果检测到了编程语言，则认为是代码
         return 'code';
       }

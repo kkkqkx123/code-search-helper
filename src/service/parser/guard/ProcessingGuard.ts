@@ -3,8 +3,9 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
 import { ErrorThresholdInterceptor } from '../processing/utils/protection/ErrorThresholdInterceptor';
 import { MemoryGuard } from './MemoryGuard';
-import { LanguageDetector, ProcessingStrategyType, LanguageDetectionResult } from '../detection/LanguageDetector';
+import { LanguageDetector, ProcessingStrategyType } from '../detection/LanguageDetector';
 import { DetectionResult } from '../detection/IFileFeatureDetector';
+import { LanguageDetectionResult } from '../utils/syntax/SyntaxPatternMatcher';
 import { IntelligentFallbackEngine } from './IntelligentFallbackEngine';
 import { createStrategy } from '../processing/strategies/index';
 

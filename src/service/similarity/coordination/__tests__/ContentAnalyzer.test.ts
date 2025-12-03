@@ -2,14 +2,14 @@ import { ContentAnalyzer } from '../ContentAnalyzer';
 import { LoggerService } from '../../../../utils/LoggerService';
 import { SimilarityOptions } from '../../types/SimilarityTypes';
 import { ContentFeature } from '../types/CoordinationTypes';
-import { DetectionService } from '../../../parser/detection/DetectionService';
+import { LanguageDetector } from '../../../parser/detection/LanguageDetector';
 import { InfrastructureConfigService } from '../../../../infrastructure/config/InfrastructureConfigService';
 
 describe('ContentAnalyzer', () => {
   let analyzer: ContentAnalyzer;
   let mockLogger: jest.Mocked<LoggerService>;
   let mockConfigService: jest.Mocked<InfrastructureConfigService>;
-  let mockDetectionService: jest.Mocked<DetectionService>;
+  let mockDetectionService: jest.Mocked<LanguageDetector>;
 
   beforeEach(() => {
     mockLogger = {
@@ -86,8 +86,7 @@ describe('ContentAnalyzer', () => {
       // 模拟DetectionService返回低置信度结果
       mockDetectionService.detectFile.mockResolvedValue({
         language: 'unknown',
-        confidence: 0.3,
-        detectionMethod: 'content',
+        detectionMethod: 'extension',
         metadata: {}
       });
 
@@ -144,8 +143,7 @@ describe('ContentAnalyzer', () => {
       // 模拟DetectionService返回JavaScript检测结果
       mockDetectionService.detectFile.mockResolvedValue({
         language: 'javascript',
-        confidence: 0.9,
-        detectionMethod: 'content',
+        detectionMethod: 'extension',
         metadata: {}
       });
 
@@ -170,8 +168,7 @@ describe('ContentAnalyzer', () => {
       // 模拟DetectionService返回低置信度结果
       mockDetectionService.detectFile.mockResolvedValue({
         language: 'unknown',
-        confidence: 0.2,
-        detectionMethod: 'content',
+        detectionMethod: 'extension',
         metadata: {}
       });
 

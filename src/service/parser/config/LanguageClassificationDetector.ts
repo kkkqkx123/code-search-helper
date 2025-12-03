@@ -4,7 +4,7 @@
  */
 import { LoggerService } from '../../../utils/LoggerService';
 import { languageMappingManager } from './LanguageMappingManager';
-import { LanguageDetectionResult } from '../core/language-detection/LanguageDetector';
+import { LanguageDetectionResult } from '../utils/syntax/SyntaxPatternMatcher';
 
 export interface LanguageQueryScoring {
   language: string;

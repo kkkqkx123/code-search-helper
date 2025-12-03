@@ -46,11 +46,11 @@ describe('VectorEmbeddingService', () => {
       const expectedVector = [0.1, 0.2, 0.3, 0.4];
 
       mockEmbedderFactory.getEmbedder.mockResolvedValue(mockEmbedder);
-      mockEmbedder.embed.mockResolvedValue({ 
-        vector: expectedVector, 
-        dimensions: expectedVector.length, 
-        model: 'test-model', 
-        processingTime: 100 
+      mockEmbedder.embed.mockResolvedValue({
+        vector: expectedVector,
+        dimensions: expectedVector.length,
+        model: 'test-model',
+        processingTime: 100
       });
 
       // Act
@@ -68,11 +68,11 @@ describe('VectorEmbeddingService', () => {
       const expectedVector = [0.1, 0.2, 0.3, 0.4];
 
       mockEmbedderFactory.getEmbedder.mockResolvedValue(mockEmbedder);
-      mockEmbedder.embed.mockResolvedValue({ 
-        vector: expectedVector, 
-        dimensions: expectedVector.length, 
-        model: 'test-model', 
-        processingTime: 100 
+      mockEmbedder.embed.mockResolvedValue({
+        vector: expectedVector,
+        dimensions: expectedVector.length,
+        model: 'test-model',
+        processingTime: 100
       });
 
       // Act
@@ -89,11 +89,11 @@ describe('VectorEmbeddingService', () => {
       const expectedVector = [0.1, 0.2, 0.3, 0.4];
 
       mockEmbedderFactory.getEmbedder.mockResolvedValue(mockEmbedder);
-      mockEmbedder.embed.mockResolvedValue([{ 
-        vector: expectedVector, 
-        dimensions: expectedVector.length, 
-        model: 'test-model', 
-        processingTime: 100 
+      mockEmbedder.embed.mockResolvedValue([{
+        vector: expectedVector,
+        dimensions: expectedVector.length,
+        model: 'test-model',
+        processingTime: 100
       }]);
 
       // Act
@@ -126,7 +126,7 @@ describe('VectorEmbeddingService', () => {
         [0.9, 1.0, 1.1, 1.2]
       ];
 
-      mockBatchProcessor.processBatches.mockImplementation(async (items, processor) => {
+      mockBatchProcessor.processBatches.mockImplementation(async (items: any, processor: (arg0: any[]) => any) => {
         const results = [];
         for (const item of items) {
           const embeddingResults = await processor([item]);
@@ -158,7 +158,7 @@ describe('VectorEmbeddingService', () => {
       const contents = ['content1'];
       const expectedEmbeddings = [[0.1, 0.2, 0.3, 0.4]];
 
-      mockBatchProcessor.processBatches.mockImplementation(async (items, processor) => {
+      mockBatchProcessor.processBatches.mockImplementation(async (items: any, processor: (arg0: any) => any) => {
         return await processor(items);
       });
 

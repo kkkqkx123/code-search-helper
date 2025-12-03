@@ -11,12 +11,12 @@ import { ParserEvents, FileDetectedEvent, FileDetectionFailedEvent } from '../ev
  */
 export interface ILanguageDetector {
   /**
-   * 检测语言
+   * 智能文件检测（主要入口）
    * @param filePath 文件路径
-   * @param content 代码内容（可选）
-   * @returns 语言检测结果
+   * @param content 文件内容
+   * @returns 完整的检测结果
    */
-  detectLanguage(filePath: string, content?: string): Promise<LanguageDetectionResult>;
+  detectFile(filePath: string, content: string): Promise<DetectionResult>;
 
   /**
    * 同步检测语言 - 仅基于文件扩展名
@@ -50,20 +50,6 @@ export enum ProcessingStrategyType {
   BRACKET = 'bracket',
   LINE = 'line',
   TEXT = 'text',
-}
-
-/**
- * 语言检测结果接口（向后兼容）
- */
-export interface LanguageDetectionResult {
-  language: string | undefined;
-  method: 'extension' | 'content' | 'backup' | 'hybrid' | 'fallback' | 'query_analysis';
-  metadata?: {
-    originalExtension?: string;
-    indicators?: string[];
-    queryMatches?: number;
-    totalQueries?: number;
-  };
 }
 
 /**
@@ -144,28 +130,6 @@ export class LanguageDetector implements ILanguageDetector {
       fallbackResult.filePath = filePath;
       return fallbackResult;
     }
-  }
-
-  /**
-   * 检测语言（简化版）
-   */
-  async detectLanguage(filePath: string, content?: string): Promise<LanguageDetectionResult> {
-    // 仅基于扩展名检测，移除内容检测
-    const extensionResult = this.detectLanguageSync(filePath);
-    if (extensionResult && extensionResult !== 'unknown' && languageMappingManager.isLanguageSupported(extensionResult)) {
-      return {
-        language: extensionResult,
-        method: 'extension',
-        metadata: {
-          originalExtension: this.getFileExtension(filePath)
-        }
-      };
-    }
-
-    return {
-      language: undefined,
-      method: 'fallback'
-    };
   }
 
   /**

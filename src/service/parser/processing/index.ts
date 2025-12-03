@@ -126,11 +126,11 @@ export { ProcessingCoordinator, ProcessingRequest, ProcessingPerformanceStats } 
 // 检测服务导入和导出 - 从上级目录导入
 export {
   LanguageDetector as UnifiedDetectionService,
-  DetectionResult,
-  LanguageDetectionResult,
-  FileFeatures,
   ProcessingStrategyType
 } from '../detection/LanguageDetector';
+import { LanguageDetectionResult } from '../utils/syntax/SyntaxPatternMatcher';
+import { DetectionResult, FileFeatures } from '../detection/IFileFeatureDetector';
+export { LanguageDetectionResult, DetectionResult, FileFeatures };
 
 // 后处理器导出
 export { ChunkPostProcessorCoordinator } from '../post-processing/ChunkPostProcessorCoordinator';

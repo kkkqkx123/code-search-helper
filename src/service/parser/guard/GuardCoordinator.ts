@@ -262,22 +262,22 @@ export class GuardCoordinator implements IGuardCoordinator {
    */
   async processFileWithDetection(filePath: string, content: string): Promise<any> {
     try {
-      const languageDetection = await this.languageDetector.detectLanguage(filePath, content);
+      const detectionResult = await this.languageDetector.detectFile(filePath, content);
       
-      // 转换为DetectionResult格式
+      // 使用detectFile返回的DetectionResult格式
       const detection = {
-        language: languageDetection.language || 'text',
-        detectionMethod: this.mapDetectionMethod(languageDetection.method),
-        fileType: 'normal' as const,
-        processingStrategy: 'line',
+        language: detectionResult.language || 'text',
+        detectionMethod: detectionResult.detectionMethod,
+        fileType: detectionResult.fileType || 'normal' as const,
+        processingStrategy: detectionResult.processingStrategy || 'line',
         metadata: {
           fileFeatures: {
-            isCodeFile: this.isCodeFile(languageDetection.language),
+            isCodeFile: this.isCodeFile(detectionResult.language),
             isTextFile: true,
             isMarkdownFile: this.isMarkdownFile(filePath),
             isXMLFile: this.isXMLFile(filePath),
-            isStructuredFile: this.isStructuredFile(content, languageDetection.language),
-            isHighlyStructured: this.isHighlyStructured(content, languageDetection.language),
+            isStructuredFile: this.isStructuredFile(content, detectionResult.language),
+            isHighlyStructured: this.isHighlyStructured(content, detectionResult.language),
             complexity: this.calculateComplexity(content),
             lineCount: content.split('\n').length,
             size: content.length,
@@ -389,16 +389,6 @@ export class GuardCoordinator implements IGuardCoordinator {
     }
   }
 
-  // 辅助方法
-  private mapDetectionMethod(method: 'extension' | 'content' | 'backup' | 'hybrid' | 'fallback' | 'query_analysis'): 'extension' | 'content' | 'backup' | 'hybrid' {
-    switch (method) {
-      case 'fallback':
-      case 'query_analysis':
-        return 'hybrid';
-      default:
-        return method;
-    }
-  }
 
   private createDefaultProcessingConfig(detection: any): any {
     return {
