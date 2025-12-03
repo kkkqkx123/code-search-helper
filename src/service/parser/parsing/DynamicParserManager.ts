@@ -1,19 +1,19 @@
 import Parser from 'tree-sitter';
 import { inject, injectable } from 'inversify';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { ErrorHandlerService } from '../../../../utils/ErrorHandlerService';
-import { QueryRegistryImpl } from '../query/QueryRegistry';
-import { languageExtensionMap } from '../../utils';
-import { LanguageDetector } from '../../detection/LanguageDetector';
-import { languageMappingManager } from '../../config/LanguageMappingManager';
-import { FallbackExtractor } from '../../utils/FallbackExtractor';
-import { QueryTypeMapper } from '../../normalization/LegacyQueryMappings';
-import { LANGUAGE_MAPPINGS } from '../../config/LanguageMappingConfig';
-import { TREE_SITTER_LANGUAGE_MAP } from '../../constants/language-constants';
-import { CacheKeyUtils } from '../../../../utils/cache/CacheKeyUtils';
-import { ICacheService } from '../../../../infrastructure/caching/types';
-import { TYPES } from '../../../../types';
-import { TreeSitterQueryFacade } from '../query/TreeSitterQueryFacade';
+import { LoggerService } from '../../../utils/LoggerService';
+import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
+import { QueryRegistryImpl } from './QueryRegistry';
+import { languageExtensionMap } from '../utils';
+import { LanguageDetector } from '../detection/LanguageDetector';
+import { languageMappingManager } from '../config/LanguageMappingManager';
+import { FallbackExtractor } from '../utils/FallbackExtractor';
+import { QueryTypeMapper } from '../normalization/LegacyQueryMappings';
+import { LANGUAGE_MAPPINGS } from '../config/LanguageMappingConfig';
+import { TREE_SITTER_LANGUAGE_MAP } from '../constants/language-constants';
+import { CacheKeyUtils } from '../../../utils/cache/CacheKeyUtils';
+import { ICacheService } from '../../../infrastructure/caching/types';
+import { TYPES } from '../../../types';
+import { TreeSitterQueryFacade } from './TreeSitterQueryFacade';
 
 export interface DynamicParserLanguage {
   name: string;

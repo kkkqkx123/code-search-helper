@@ -1,5 +1,5 @@
 import { QueryLoader } from './QueryLoader';
-import { LoggerService } from '../../../../utils/LoggerService';
+import { LoggerService } from '../../../utils/LoggerService';
 
 /**
  * 查询注册表 - 管理所有语言的查询模式
@@ -20,24 +20,24 @@ export class QueryRegistryImpl {
     if (this.initialized) {
       return true;
     }
-    
+
     // 如果正在初始化，等待初始化完成
     if (this.initializing) {
       // 等待最多5秒
       const maxWaitTime = 5000;
       const startTime = Date.now();
-      
+
       while (this.initializing && (Date.now() - startTime) < maxWaitTime) {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
-      
+
       return this.initialized;
     }
-    
+
     // 开始初始化
     this.initializing = true;
     this.logger.info('开始全局查询系统初始化...');
-    
+
     try {
       // 从查询文件加载
       try {
@@ -51,12 +51,12 @@ export class QueryRegistryImpl {
         });
         throw error;
       }
-      
+
       this.initialized = true;
       this.initializing = false;
       this.logger.info(`全局查询系统初始化完成，支持 ${this.patterns.size} 种语言`);
       return true;
-      
+
     } catch (error) {
       this.initializing = false;
       this.logger.error('全局查询系统初始化失败:', {
@@ -68,7 +68,7 @@ export class QueryRegistryImpl {
       return false;
     }
   }
-  
+
   /**
    * 重新初始化查询系统
    */
@@ -76,7 +76,7 @@ export class QueryRegistryImpl {
     this.initialized = false;
     return await this.initialize();
   }
-  
+
   /**
    * 获取初始化状态
    */
@@ -93,7 +93,7 @@ export class QueryRegistryImpl {
   private static async loadFromQueryFiles(): Promise<void> {
     const languages = this.getSupportedLanguages();
     this.logger.info(`开始加载 ${languages.length} 种语言的查询模式...`);
-    
+
     // 使用Promise.allSettled并行加载，但限制并发数
     const batchSize = 5; // 限制并发数避免资源竞争
     for (let i = 0; i < languages.length; i += batchSize) {
@@ -108,7 +108,7 @@ export class QueryRegistryImpl {
           }
         })
       );
-      
+
       // 记录结果
       results.forEach((result, index) => {
         const language = batch[index];
@@ -117,7 +117,7 @@ export class QueryRegistryImpl {
         }
       });
     }
-    
+
     this.logger.info(`查询模式加载完成，成功加载 ${this.patterns.size} 种语言`);
   }
 
@@ -126,16 +126,16 @@ export class QueryRegistryImpl {
    */
   private static async loadLanguageQueries(language: string): Promise<void> {
     this.logger.debug(`加载 ${language} 语言查询...`);
-    
+
     try {
       // 使用QueryLoader加载查询（支持新结构和旧结构）
       await QueryLoader.loadLanguageQueries(language);
-      
+
       // 如果QueryLoader成功加载，直接使用其查询
       if (QueryLoader.isLanguageLoaded(language)) {
         const queryTypes = QueryLoader.getQueryTypesForLanguage(language);
         const languagePatterns = new Map<string, string>();
-        
+
         for (const queryType of queryTypes) {
           try {
             const query = QueryLoader.getQuery(language, queryType);
@@ -144,7 +144,7 @@ export class QueryRegistryImpl {
             this.logger.warn(`获取 ${language}.${queryType} 查询失败:`, error);
           }
         }
-        
+
         this.patterns.set(language, languagePatterns);
         this.logger.debug(`成功加载 ${language} 语言的 ${languagePatterns.size} 种查询模式`);
       }
@@ -224,11 +224,11 @@ export class QueryRegistryImpl {
    */
   static async reloadLanguageQueries(language: string): Promise<void> {
     this.logger.info(`重新加载 ${language} 语言查询...`);
-    
+
     // 清除相关缓存
     this.patterns.delete(language.toLowerCase());
     await QueryLoader.reloadLanguageQueries(language);
-    
+
     // 重新加载
     await this.loadLanguageQueries(language);
     this.logger.info(`${language} 语言查询重新加载完成`);
@@ -263,11 +263,11 @@ export class QueryRegistryImpl {
     if (!langPatterns) {
       return false;
     }
-    
+
     if (queryType) {
       return langPatterns.has(queryType);
     }
-    
+
     return true;
   }
 
@@ -276,13 +276,13 @@ export class QueryRegistryImpl {
    */
   static getAllQueryTypes(): string[] {
     const allTypes = new Set<string>();
-    
+
     for (const patterns of this.patterns.values()) {
       for (const type of patterns.keys()) {
         allTypes.add(type);
       }
     }
-    
+
     return Array.from(allTypes);
   }
 
@@ -292,12 +292,12 @@ export class QueryRegistryImpl {
   static clearCache(): void {
     this.patterns.clear();
     QueryLoader.clearAllQueries();
-    
+
     this.initialized = false;
     this.logger.info('QueryRegistry 缓存已清除');
   }
 
-  
+
 
   /**
    * 获取查询加载器统计信息

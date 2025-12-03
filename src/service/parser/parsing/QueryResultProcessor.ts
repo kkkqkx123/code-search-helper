@@ -1,5 +1,5 @@
 import Parser from 'tree-sitter';
-import { LoggerService } from '../../../../utils/LoggerService';
+import { LoggerService } from '../../../utils/LoggerService';
 import {
   EntityType,
   RelationshipType,

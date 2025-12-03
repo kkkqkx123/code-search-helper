@@ -1,6 +1,6 @@
-import { PerformanceMonitor } from '../../../../infrastructure/monitoring/PerformanceMonitor';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { InfrastructureConfigService } from '../../../../infrastructure/config/InfrastructureConfigService';
+import { PerformanceMonitor } from '../../../infrastructure/monitoring/PerformanceMonitor';
+import { LoggerService } from '../../../utils/LoggerService';
+import { InfrastructureConfigService } from '../../../infrastructure/config/InfrastructureConfigService';
 
 /**
  * 查询性能监控器
@@ -24,7 +24,7 @@ export class QueryPerformanceMonitor {
   static recordQuery(queryType: string, executionTime: number): void {
     // 使用现有的性能监控器记录查询执行时间
     this.performanceMonitor.recordQueryExecution(executionTime);
-    
+
     // 维护查询类型的详细统计
     const current = this.queryMetrics.get(queryType) || {
       count: 0,
