@@ -166,8 +166,8 @@ export const XML_LANGUAGES = [
 import { LanguageConfig, LanguageStrategy } from '../config/LanguageCore';
 
 export const TEXT_FORMAT_STRATEGY: LanguageStrategy = {
-  primary: 'universal-text-segmentation',
-  fallback: ['line-segmentation'],
+  primary: 'text',
+  fallback: ['line'],
   skipComplexQueries: true,
   skipASTParsing: true,
   maxQueryDepth: 1,

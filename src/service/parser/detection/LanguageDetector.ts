@@ -2,7 +2,7 @@ import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
 import { languageMappingManager } from '../config/LanguageMappingManager';
-import { IFileFeatureDetector } from './IFileFeatureDetector';
+import { IFileFeatureDetector, FileFeatures, DetectionResult } from './IFileFeatureDetector';
 import { IEventBus } from '../../../interfaces/IEventBus';
 import { ParserEvents, FileDetectedEvent, FileDetectionFailedEvent } from '../events/ParserEvents';
 
@@ -40,52 +40,16 @@ export interface ILanguageDetector {
 }
 
 export enum ProcessingStrategyType {
-  TREESITTER_AST = 'treesitter_ast',
-  UNIVERSAL_SEMANTIC_FINE = 'universal_semantic_fine',
-  UNIVERSAL_SEMANTIC = 'universal_semantic',
-  UNIVERSAL_BRACKET = 'universal_bracket',
-  UNIVERSAL_LINE = 'universal_line',
-  UNIVERSAL_TEXT = 'universal-text-segmentation',
-  MARKDOWN_SPECIALIZED = 'markdown_specialized',
-  XML_SPECIALIZED = 'xml_specialized',
-  HTML_LAYERED = 'html_layered',
-  EMERGENCY_SINGLE_CHUNK = 'emergency_single_chunk'
-}
-
-/**
- * 检测结果接口
- */
-export interface DetectionResult {
-  language: string;
-  detectionMethod: 'extension';
-  fileType?: 'backup' | 'normal' | 'extensionless' | 'unknown';
-  processingStrategy?: string;
-  filePath?: string;
-  metadata: {
-    originalExtension?: string;
-    overrideReason?: string;
-    fileFeatures?: FileFeatures;
-    processingStrategy?: string;
-  };
-}
-
-/**
- * 文件特征接口
- */
-export interface FileFeatures {
-  isCodeFile: boolean;
-  isTextFile: boolean;
-  isMarkdownFile: boolean;
-  isXMLFile: boolean;
-  isStructuredFile: boolean;
-  isHighlyStructured: boolean;
-  complexity: number;
-  lineCount: number;
-  size: number;
-  hasImports: boolean;
-  hasExports: boolean;
-  hasFunctions: boolean;
-  hasClasses: boolean;
+  // 简化的策略名称
+  BINARY = 'binary',
+  MARKDOWN = 'markdown',
+  XML = 'xml',
+  HTML = 'html',
+  AST = 'ast',
+  SEMANTIC = 'semantic',
+  BRACKET = 'bracket',
+  LINE = 'line',
+  TEXT = 'text',
 }
 
 /**
@@ -149,11 +113,11 @@ export class LanguageDetector implements ILanguageDetector {
       };
 
       // 3. 文件特征分析（保留基本的特征分析）
-      const fileFeatures = this.fileFeatureDetector ? this.analyzeFileFeaturesWithDetector(content, finalResult.language) : this.createDefaultFileFeatures(content);
+      const fileFeatures = this.fileFeatureDetector.analyzeFileFeatures(content, finalResult.language);
       finalResult.metadata.fileFeatures = fileFeatures;
 
       // 4. 处理策略推荐
-      finalResult.metadata.processingStrategy = this.fileFeatureDetector ? this.recommendProcessingStrategyWithDetector(finalResult, fileFeatures) : 'universal-line';
+      finalResult.metadata.processingStrategy = this.fileFeatureDetector.recommendProcessingStrategy(finalResult, fileFeatures);
       finalResult.processingStrategy = finalResult.metadata.processingStrategy;
 
       // 确保fileType有值
@@ -176,7 +140,7 @@ export class LanguageDetector implements ILanguageDetector {
       };
       this.eventBus?.emit(ParserEvents.FILE_DETECTION_FAILED, errorEventData);
 
-      const fallbackResult = this.createFallbackResult(filePath, content);
+      const fallbackResult = this.fileFeatureDetector.createFallbackResult(filePath, content);
       fallbackResult.filePath = filePath;
       return fallbackResult;
     }

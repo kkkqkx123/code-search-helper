@@ -5,8 +5,8 @@
 import { LanguageConfig, LanguageStrategy } from './LanguageCore';
 
 export const ADVANCED_PROGRAMMING_STRATEGY: LanguageStrategy = {
-  primary: 'treesitter_ast',
-  fallback: ['structure_aware', 'function'],
+  primary: 'ast',
+  fallback: ['semantic', 'bracket'],
   useFullAST: true,
   supportedQueryTypes: [
     'functions', 'classes', 'methods', 'imports', 'exports', 

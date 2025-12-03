@@ -4,7 +4,6 @@
  */
 
 import { PythonIndentChecker } from './structure/PythonIndentChecker';
-import { SYNTAX_PATTERNS } from '../service/parser/constants/processing-constants';
 
 /**
  * 换行符类型枚举
@@ -40,29 +39,7 @@ export interface BinaryDetectionResult {
   bytesChecked: number;
 }
 
-/**
- * 代码检测结果接口
- */
-export interface CodeDetectionResult {
-  /** 是否为代码文件 */
-  isCode: boolean;
-  /** 匹配的语言类型 */
-  detectedLanguages: string[];
-  /** 匹配的模式数量 */
-  matchedPatterns: number;
-}
 
-/**
- * 缩进检测结果接口
- */
-export interface IndentDetectionResult {
-  /** 缩进类型 */
-  type: IndentType;
-  /** 缩进大小 */
-  size: number;
-  /** 是否一致 */
-  isConsistent: boolean;
-}
 
 /**
  * 文件内容检测结果接口
@@ -70,12 +47,8 @@ export interface IndentDetectionResult {
 export interface FileContentAnalysisResult {
   /** 二进制检测结果 */
   binaryDetection: BinaryDetectionResult;
-  /** 代码检测结果 */
-  codeDetection: CodeDetectionResult;
   /** 换行符类型 */
   lineEndingType: LineEndingType;
-  /** 缩进检测结果 */
-  indentDetection: IndentDetectionResult;
 }
 
 /**
@@ -83,14 +56,95 @@ export interface FileContentAnalysisResult {
  */
 export class FileContentDetector {
   /**
+   * 常见文件类型的魔数定义
+   * 格式：[魔数字节序列, 文件类型描述]
+   */
+  private static readonly MAGIC_NUMBERS: Array<{
+    pattern: number[];
+    type: string;
+    description: string;
+  }> = [
+    // 图片格式
+    { pattern: [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A], type: 'png', description: 'PNG图像' },
+    { pattern: [0xFF, 0xD8, 0xFF], type: 'jpeg', description: 'JPEG图像' },
+    { pattern: [0x47, 0x49, 0x46, 0x38], type: 'gif', description: 'GIF图像' },
+    { pattern: [0x42, 0x4D], type: 'bmp', description: 'BMP图像' },
+    { pattern: [0x52, 0x49, 0x46, 0x46], type: 'webp', description: 'WebP图像' }, // RIFF...
+    { pattern: [0x49, 0x49, 0x2A, 0x00], type: 'tiff', description: 'TIFF图像' }, // II*.
+    { pattern: [0x4D, 0x4D, 0x00, 0x2A], type: 'tiff', description: 'TIFF图像' }, // MM.*
+
+    // 文档格式
+    { pattern: [0x25, 0x50, 0x44, 0x46], type: 'pdf', description: 'PDF文档' },
+    { pattern: [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1], type: 'office', description: 'Microsoft Office文档' }, // DOC, XLS, PPT等
+    { pattern: [0x50, 0x4B, 0x03, 0x04], type: 'zip', description: 'ZIP压缩文件' }, // 也包括DOCX, XLSX等
+    { pattern: [0x50, 0x4B, 0x05, 0x06], type: 'zip', description: 'ZIP压缩文件' },
+    { pattern: [0x50, 0x4B, 0x07, 0x08], type: 'zip', description: 'ZIP压缩文件' },
+
+    // 音频格式
+    { pattern: [0x49, 0x44, 0x33], type: 'mp3', description: 'MP3音频' }, // ID3
+    { pattern: [0xFF, 0xFB], type: 'mp3', description: 'MP3音频' }, // MPEG audio
+    { pattern: [0xFF, 0xF3], type: 'mp3', description: 'MP3音频' },
+    { pattern: [0xFF, 0xF2], type: 'mp3', description: 'MP3音频' },
+    { pattern: [0x4F, 0x67, 0x67, 0x53], type: 'ogg', description: 'OGG音频' }, // OggS
+    { pattern: [0x52, 0x49, 0x46, 0x46], type: 'wav', description: 'WAV音频' }, // RIFF (需要进一步检查)
+    { pattern: [0x66, 0x4C, 0x61, 0x43], type: 'flac', description: 'FLAC音频' }, // fLaC
+
+    // 视频格式
+    { pattern: [0x1A, 0x45, 0xDF, 0xA3], type: 'mkv', description: 'MKV视频' }, // EBML
+    { pattern: [0x46, 0x4C, 0x56], type: 'flv', description: 'FLV视频' }, // FLV
+    { pattern: [0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70], type: 'mp4', description: 'MP4视频' }, // ftyp
+    { pattern: [0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70], type: 'mp4', description: 'MP4视频' },
+    { pattern: [0x1A, 0x45, 0xDF, 0xA3], type: 'webm', description: 'WebM视频' },
+
+    // 可执行文件
+    { pattern: [0x4D, 0x5A], type: 'exe', description: 'Windows可执行文件' }, // MZ
+    { pattern: [0x7F, 0x45, 0x4C, 0x46], type: 'elf', description: 'Linux可执行文件' }, // ELF
+    { pattern: [0xFE, 0xED, 0xFA, 0xCE], type: 'macho', description: 'macOS可执行文件' }, // Mach-O
+    { pattern: [0xFE, 0xED, 0xFA, 0xCF], type: 'macho', description: 'macOS可执行文件' },
+
+    // 其他常见二进制格式
+    { pattern: [0x42, 0x45, 0x47, 0x49, 0x4E], type: 'sqlite', description: 'SQLite数据库' } // BEGIN
+  ];
+
+  /**
+   * 基于文件扩展名的二进制文件类型
+   * 这些扩展名通常表示二进制文件，即使内容检测可能认为是文本
+   */
+  private static readonly BINARY_EXTENSIONS = new Set([
+    // Office文档
+    'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp',
+    // 图片
+    'jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'tif', 'webp', 'ico', 'svg',
+    // 音频
+    'mp3', 'wav', 'flac', 'ogg', 'aac', 'm4a', 'wma',
+    // 视频
+    'mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm', 'm4v', '3gp',
+    // 压缩文件
+    'zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'lzma',
+    // 可执行文件
+    'exe', 'dll', 'so', 'dylib', 'app', 'deb', 'rpm', 'dmg', 'iso',
+    // 数据库
+    'db', 'sqlite', 'sqlite3', 'mdb',
+    // 字体
+    'ttf', 'otf', 'woff', 'woff2', 'eot',
+    // 其他二进制格式
+    'pdf', 'psd', 'ai', 'eps', 'swf', 'class', 'jar', 'war', 'ear'
+  ]);
+
+  /**
    * 检测是否为二进制内容
-   * 使用增强的检测算法，不仅检查null字节，还检查不可打印字符比例
+   * 使用增强的检测算法，不仅检查null字节，还检查不可打印字符比例和UTF-8有效性
    * 
    * @param content 文件内容，可以是字符串或Buffer
+   * @param filePath 文件路径（可选，用于扩展名检测）
    * @param checkBytes 检查的字节数，默认1024
    * @returns 二进制检测结果
    */
-  static detectBinaryContent(content: string | Buffer, checkBytes: number = 1024): BinaryDetectionResult {
+  static detectBinaryContent(
+    content: string | Buffer, 
+    filePath?: string, 
+    checkBytes: number = 1024
+  ): BinaryDetectionResult {
     // 如果是字符串，转换为Buffer
     const buffer = typeof content === 'string' 
       ? Buffer.from(content, 'utf8') 
@@ -99,7 +153,8 @@ export class FileContentDetector {
     // 检查前N个字节
     const checkLength = Math.min(buffer.length, checkBytes);
     let nullByteCount = 0;
-    let nonPrintableCount = 0;
+    let controlCharCount = 0;
+    let highBitCount = 0;
 
     for (let i = 0; i < checkLength; i++) {
       const byte = buffer[i];
@@ -109,83 +164,144 @@ export class FileContentDetector {
         nullByteCount++;
       }
 
-      // 检查不可打印字符 (ASCII < 32 且不是常见的控制字符)
+      // 检查控制字符 (ASCII < 32 且不是常见的控制字符)
       // 允许的控制字符: 9(TAB), 10(LF), 13(CR)
       if (byte < 32 && byte !== 9 && byte !== 10 && byte !== 13) {
-        nonPrintableCount++;
+        controlCharCount++;
       }
 
       // 检查高位字节 (可能的多字节字符或二进制数据)
       if (byte > 127) {
-        // 这里可以添加UTF-8编码有效性检查
-        // 简单起见，暂时只统计
-        nonPrintableCount += 0.5; // 给高位字符较低的权重
+        highBitCount++;
       }
     }
 
     const nullByteRatio = nullByteCount / checkLength;
-    const nonPrintableRatio = nonPrintableCount / checkLength;
+    const controlCharRatio = controlCharCount / checkLength;
+    const highBitRatio = highBitCount / checkLength;
 
-    // 判断标准：
-    // 1. null字节比例超过1%
-    // 2. 不可打印字符比例超过5%
-    // 3. 或者同时有null字节和不可打印字符
-    const isBinary = nullByteRatio > 0.01 || 
-                    nonPrintableRatio > 0.05 || 
-                    (nullByteRatio > 0 && nonPrintableRatio > 0.02);
+    // UTF-8有效性检查
+    const isValidUTF8 = highBitCount > 0 ? this.isValidUTF8(buffer, 0, checkLength) : true;
+
+    // 扩展名检测（如果提供了文件路径）
+    const isBinaryByExtension = filePath ? this.isBinaryByExtension(filePath) : false;
+
+    // 魔数检测
+    const magicResult = this.detectByMagicNumber(buffer);
+    const hasBinaryMagicNumber = magicResult && magicResult.type !== 'binary';
+
+    // 改进的判断逻辑：
+    // 1. 扩展名表明是二进制文件
+    // 2. null字节比例超过0.1% (降低阈值)
+    // 3. 控制字符比例超过3% (降低阈值)
+    // 4. 高位字节比例高且不是有效的UTF-8
+    // 5. 魔数检测到二进制格式
+    const isBinary = isBinaryByExtension ||
+                    nullByteRatio > 0.001 || 
+                    controlCharRatio > 0.03 || 
+                    (highBitRatio > 0.1 && !isValidUTF8) ||
+                    hasBinaryMagicNumber ||
+                    (nullByteRatio > 0 && controlCharRatio > 0.02);
 
     return {
       isBinary,
       nullByteRatio,
-      nonPrintableRatio,
+      nonPrintableRatio: (controlCharCount + highBitCount) / checkLength,
       bytesChecked: checkLength
     };
   }
 
   /**
-   * 检测是否为代码内容
-   * 使用 processing-constants.ts 中定义的语法模式进行检测
+   * 检查Buffer是否包含有效的UTF-8编码
    * 
-   * @param content 文件内容
-   * @param languageHint 语言提示（可选）
-   * @returns 代码检测结果
+   * @param buffer 要检查的Buffer
+   * @param offset 起始偏移量
+   * @param length 检查长度
+   * @returns 是否为有效的UTF-8编码
    */
-  static detectCodeContent(content: string, languageHint?: string): CodeDetectionResult {
-    const detectedLanguages: string[] = [];
-    let totalMatchedPatterns = 0;
-
-    // 如果提供了语言提示，优先检查该语言
-    if (languageHint && SYNTAX_PATTERNS[languageHint]) {
-      const patterns = SYNTAX_PATTERNS[languageHint];
-      const matchedPatterns = patterns.filter(pattern => pattern.test(content));
+  private static isValidUTF8(buffer: Buffer, offset: number, length: number): boolean {
+    let i = 0;
+    while (i < length) {
+      const byte = buffer[offset + i];
       
-      if (matchedPatterns.length > 0) {
-        detectedLanguages.push(languageHint);
-        totalMatchedPatterns += matchedPatterns.length;
+      if ((byte & 0x80) === 0) {
+        // ASCII字符 (0xxxxxxx)
+        i++;
+      } else if ((byte & 0xE0) === 0xC0) {
+        // 2字节UTF-8 (110xxxxx 10xxxxxx)
+        if (i + 1 >= length) return false;
+        if ((buffer[offset + i + 1] & 0xC0) !== 0x80) return false;
+        i += 2;
+      } else if ((byte & 0xF0) === 0xE0) {
+        // 3字节UTF-8 (1110xxxx 10xxxxxx 10xxxxxx)
+        if (i + 2 >= length) return false;
+        if ((buffer[offset + i + 1] & 0xC0) !== 0x80) return false;
+        if ((buffer[offset + i + 2] & 0xC0) !== 0x80) return false;
+        i += 3;
+      } else if ((byte & 0xF8) === 0xF0) {
+        // 4字节UTF-8 (11110xxx 10xxxxxx 10xxxxxx 10xxxxxx)
+        if (i + 3 >= length) return false;
+        if ((buffer[offset + i + 1] & 0xC0) !== 0x80) return false;
+        if ((buffer[offset + i + 2] & 0xC0) !== 0x80) return false;
+        if ((buffer[offset + i + 3] & 0xC0) !== 0x80) return false;
+        i += 4;
+      } else {
+        // 无效的UTF-8起始字节
+        return false;
       }
-    } else {
-      // 检查所有语言模式
-      for (const [language, patterns] of Object.entries(SYNTAX_PATTERNS)) {
-        const matchedPatterns = patterns.filter(pattern => pattern.test(content));
-        
-        if (matchedPatterns.length > 0) {
-          detectedLanguages.push(language);
-          totalMatchedPatterns += matchedPatterns.length;
+    }
+    return true;
+  }
+
+  /**
+   * 通过魔数检测文件类型
+   * 
+   * @param buffer 文件内容Buffer
+   * @returns 检测到的文件类型信息，如果没有匹配则返回null
+   */
+  private static detectByMagicNumber(buffer: Buffer): { type: string; description: string } | null {
+    for (const { pattern, type, description } of this.MAGIC_NUMBERS) {
+      if (buffer.length >= pattern.length) {
+        let match = true;
+        for (let i = 0; i < pattern.length; i++) {
+          if (buffer[i] !== pattern[i]) {
+            match = false;
+            break;
+          }
+        }
+        if (match) {
+          return { type, description };
         }
       }
     }
-
-    // 如果匹配的模式数量超过阈值，认为是代码文件
-    // 降低阈值以便更好地检测代码
-    const isCode = totalMatchedPatterns >= 1 || 
-                   (detectedLanguages.length > 0 && totalMatchedPatterns > 0);
-
-    return {
-      isCode,
-      detectedLanguages,
-      matchedPatterns: totalMatchedPatterns
-    };
+    return null;
   }
+
+  /**
+   * 基于文件扩展名判断是否为二进制文件
+   * 
+   * @param filePath 文件路径
+   * @returns 是否为已知的二进制文件类型
+   */
+  private static isBinaryByExtension(filePath: string): boolean {
+    const extension = this.getFileExtension(filePath);
+    return this.BINARY_EXTENSIONS.has(extension);
+  }
+
+  /**
+   * 获取文件扩展名
+   * 
+   * @param filePath 文件路径
+   * @returns 小写的文件扩展名（不包含点号）
+   */
+  private static getFileExtension(filePath: string): string {
+    const lastDot = filePath.lastIndexOf('.');
+    if (lastDot === -1 || lastDot === filePath.length - 1) {
+      return '';
+    }
+    return filePath.substring(lastDot + 1).toLowerCase();
+  }
+
 
   /**
    * 检测换行符类型
@@ -209,103 +325,24 @@ export class FileContentDetector {
     }
   }
 
-  /**
-   * 检测缩进类型和大小
-   * 复用 PythonIndentChecker 的实现，并优化缩进大小计算
-   * 
-   * @param content 文件内容
-   * @returns 缩进检测结果
-   */
-  static detectIndentationType(content: string): IndentDetectionResult {
-    // 使用 PythonIndentChecker 的检测功能
-    const indentStyle = PythonIndentChecker.detectIndentStyle(content);
-    const isConsistent = PythonIndentChecker.isIndentConsistent(content);
-
-    // 转换为接口期望的格式
-    let type: IndentType;
-    switch (indentStyle.type) {
-      case 'spaces':
-        type = IndentType.SPACES;
-        break;
-      case 'tabs':
-        type = IndentType.TABS;
-        break;
-      case 'mixed':
-        type = IndentType.MIXED;
-        break;
-      default:
-        type = IndentType.NONE;
-    }
-
-    // 优化缩进大小计算：使用最常见的缩进大小而不是平均值
-    let optimizedSize = indentStyle.size;
-    if (type === IndentType.SPACES && indentStyle.size > 0) {
-      const lines = content.split('\n');
-      const indentSizes: number[] = [];
-      
-      for (const line of lines) {
-        const match = line.match(/^(\s+)/);
-        if (match && match[1].length > 0) {
-          indentSizes.push(match[1].length);
-        }
-      }
-      
-      if (indentSizes.length > 0) {
-        // 找出最常见的缩进大小
-        const sizeFrequency: Record<number, number> = {};
-        indentSizes.forEach(size => {
-          sizeFrequency[size] = (sizeFrequency[size] || 0) + 1;
-        });
-        
-        // 找出出现频率最高的缩进大小
-        let maxFrequency = 0;
-        let mostCommonSize = 0;
-        for (const [size, frequency] of Object.entries(sizeFrequency)) {
-          if (frequency > maxFrequency) {
-            maxFrequency = frequency;
-            mostCommonSize = parseInt(size);
-          }
-        }
-        
-        // 如果最常见的缩进大小是2的倍数，优先使用它
-        if (mostCommonSize > 0 && mostCommonSize % 2 === 0) {
-          optimizedSize = mostCommonSize;
-        }
-      }
-    }
-
-    // 处理无缩进内容的情况
-    if (optimizedSize === 0 && type === IndentType.SPACES) {
-      // 检查是否真的没有缩进
-      const hasAnyIndentation = /^\s/m.test(content);
-      if (!hasAnyIndentation) {
-        type = IndentType.NONE;
-      }
-    }
-
-    return {
-      type,
-      size: optimizedSize,
-      isConsistent
-    };
-  }
 
   /**
    * 全面分析文件内容
-   * 
+   *
    * @param content 文件内容
-   * @param languageHint 语言提示（可选）
+   * @param filePath 文件路径（可选，用于更准确的二进制检测）
    * @returns 完整的文件内容分析结果
    */
-  static analyzeFileContent(content: string | Buffer, languageHint?: string): FileContentAnalysisResult {
+  static analyzeFileContent(
+    content: string | Buffer,
+    filePath?: string
+  ): FileContentAnalysisResult {
     // 确保内容是字符串格式（除了二进制检测）
     const stringContent = typeof content === 'string' ? content : content.toString('utf8');
 
     return {
-      binaryDetection: this.detectBinaryContent(content),
-      codeDetection: this.detectCodeContent(stringContent, languageHint),
-      lineEndingType: this.detectLineEndingType(stringContent),
-      indentDetection: this.detectIndentationType(stringContent)
+      binaryDetection: this.detectBinaryContent(content, filePath),
+      lineEndingType: this.detectLineEndingType(stringContent)
     };
   }
 
@@ -314,21 +351,11 @@ export class FileContentDetector {
    * 只返回布尔值，用于快速判断
    * 
    * @param content 文件内容
+   * @param filePath 文件路径（可选）
    * @returns 是否为二进制文件
    */
-  static isBinaryContent(content: string | Buffer): boolean {
-    return this.detectBinaryContent(content).isBinary;
+  static isBinaryContent(content: string | Buffer, filePath?: string): boolean {
+    return this.detectBinaryContent(content, filePath).isBinary;
   }
 
-  /**
-   * 快速检查是否为代码文件
-   * 只返回布尔值，用于快速判断
-   * 
-   * @param content 文件内容
-   * @param languageHint 语言提示（可选）
-   * @returns 是否为代码文件
-   */
-  static isCodeContent(content: string, languageHint?: string): boolean {
-    return this.detectCodeContent(content, languageHint).isCode;
-  }
 }

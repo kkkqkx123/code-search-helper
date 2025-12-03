@@ -227,18 +227,16 @@ It's just regular content.
         '.java': 'java'
       };
 
-      expect(detector.detectLanguageByExtension('.js', languageMap)).toBe('javascript');
-      expect(detector.detectLanguageByExtension('.py', languageMap)).toBe('python');
-      expect(detector.detectLanguageByExtension('.java', languageMap)).toBe('java');
+      // 测试 isCodeLanguage 方法
+      expect(detector.isCodeLanguage('javascript')).toBe(true);
+      expect(detector.isCodeLanguage('python')).toBe(true);
+      expect(detector.isCodeLanguage('java')).toBe(true);
     });
 
-    it('should return unknown for unrecognized extensions', () => {
-      const languageMap = {
-        '.js': 'javascript',
-        '.py': 'python'
-      };
-
-      expect(detector.detectLanguageByExtension('.unknown', languageMap)).toBe('unknown');
+    it('should return false for non-code languages', () => {
+      // 测试非代码语言
+      expect(detector.isCodeLanguage('text')).toBe(false);
+      expect(detector.isCodeLanguage('markdown')).toBe(false);
     });
   });
 

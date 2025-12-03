@@ -8,6 +8,7 @@ npm run build
 
 # Test
 npm test <relative-path>    # Run tests for a specific file or directory
+# never run full test. always run specific test file or directory
 
 # Type Check
 npm run typecheck

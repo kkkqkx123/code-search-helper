@@ -18,7 +18,7 @@ export const SPECIAL_PROCESSING_LANGUAGES: LanguageConfig[] = [
       skipASTParsing: true,
       specializedProcessor: 'MarkdownProcessor',
       maxQueryDepth: 1,
-      fallback: ['universal_line']
+      fallback: ['line']
     }
   },
 
@@ -35,7 +35,7 @@ export const SPECIAL_PROCESSING_LANGUAGES: LanguageConfig[] = [
       skipASTParsing: true,
       specializedProcessor: 'XMLTextStrategy',
       maxQueryDepth: 1,
-      fallback: ['universal_line']
+      fallback: ['line']
     }
   }
 ];

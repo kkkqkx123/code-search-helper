@@ -5,8 +5,8 @@
 import { LanguageConfig, LanguageStrategy } from './LanguageCore';
 
 export const DATA_FORMAT_STRATEGY: LanguageStrategy = {
-  primary: 'universal_bracket',
-  fallback: ['universal_line'],
+  primary: 'bracket',
+  fallback: ['line'],
   skipComplexQueries: true,
   maxQueryDepth: 2
 };

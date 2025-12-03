@@ -23,34 +23,74 @@ export type { StrategyConfig, StrategyPerformanceStats } from '../types/Strategy
 import { UNIFIED_STRATEGY_PRIORITIES } from '../../constants/StrategyPriorities';
 
 /**
- * 策略工厂函数
+ * 策略工厂函数 - 简化版本
  * 根据策略名称创建策略实例
  */
 export function createStrategy(strategyName: string, config?: any): any {
   switch (strategyName) {
-    case 'line':
-    case 'line-strategy':
-      return new (require('./implementations/LineSegmentationStrategy').LineSegmentationStrategy)(config);
+    // 核心策略映射 - 直接映射到实现类
+    case 'binary':
+      return {
+        execute: async (content: string) => ({
+          chunks: [{ content, metadata: { type: 'binary' } }],
+          success: true
+        })
+      };
 
-    // 移除的策略: semantic, ast, function, class, import, ast-segmentation
-
-    case 'bracket-segmentation':
-      return new (require('./implementations/BracketSegmentationStrategy').BracketSegmentationStrategy)(config);
-
-    case 'layered-html':
-      return new (require('./implementations/HybridHTMLStrategy').HybridHTMLStrategy)(config);
-
-    case 'line-segmentation':
-      return new (require('./implementations/LineSegmentationStrategy').LineSegmentationStrategy)(config);
-
-    case 'markdown-segmentation':
+    case 'markdown':
       return new (require('./implementations/MarkdownSegmentationStrategy').MarkdownSegmentationStrategy)(config);
 
-    case 'xml-segmentation':
+    case 'xml':
       return new (require('./implementations/XMLSegmentationStrategy').XMLSegmentationStrategy)(config);
 
+    case 'html':
+      return new (require('./implementations/HybridHTMLStrategy').HybridHTMLStrategy)(config);
+
+    case 'ast':
+      return new (require('./implementations/ASTCodeSplitter').ASTCodeSplitter)(config);
+
+    case 'bracket':
+      return new (require('./implementations/BracketSegmentationStrategy').BracketSegmentationStrategy)(config);
+
+    case 'line':
+      return new (require('./implementations/LineSegmentationStrategy').LineSegmentationStrategy)(config);
+
+    case 'text':
+      return new (require('./implementations/UniversalTextStrategy').UniversalTextStrategy)(config);
+
+    // 语义策略映射到括号策略
+    case 'semantic':
+      return new (require('./implementations/BracketSegmentationStrategy').BracketSegmentationStrategy)(config);
+
+    // 最小化兼容性映射 - 只保留必要的
     case 'universal-text-segmentation':
       return new (require('./implementations/UniversalTextStrategy').UniversalTextStrategy)(config);
+
+    case 'treesitter_ast':
+      return new (require('./implementations/ASTCodeSplitter').ASTCodeSplitter)(config);
+
+    case 'markdown_specialized':
+      return new (require('./implementations/MarkdownSegmentationStrategy').MarkdownSegmentationStrategy)(config);
+
+    case 'xml_specialized':
+      return new (require('./implementations/XMLSegmentationStrategy').XMLSegmentationStrategy)(config);
+
+    case 'html_layered':
+      return new (require('./implementations/HybridHTMLStrategy').HybridHTMLStrategy)(config);
+
+    case 'universal_bracket':
+      return new (require('./implementations/BracketSegmentationStrategy').BracketSegmentationStrategy)(config);
+
+    case 'universal_line':
+      return new (require('./implementations/LineSegmentationStrategy').LineSegmentationStrategy)(config);
+
+    case 'emergency_single_chunk':
+      return {
+        execute: async (content: string) => ({
+          chunks: [{ content, metadata: { type: 'emergency' } }],
+          success: true
+        })
+      };
 
     default:
       throw new Error(`Unknown strategy: ${strategyName}`);
@@ -65,49 +105,49 @@ export function getAvailableStrategies(): string[] {
 }
 
 /**
- * 策略配置预设
+ * 策略配置预设 - 更新为简化名称
  */
 export const StrategyPresets = {
   /**
-  * 小文件策略配置 - 优化后
+  * 小文件策略配置
   */
   smallFile: {
-    'bracket-segmentation': {
+    'bracket': {
       maxChunkSize: 800,
       minChunkSize: 50,
       maxImbalance: 1
     },
-    'line-segmentation': {
+    'line': {
       maxChunkSize: 500,
       minChunkSize: 50
     }
   },
 
   /**
-  * 中等文件策略配置 - 优化后
+  * 中等文件策略配置
   */
   mediumFile: {
-    'bracket-segmentation': {
+    'bracket': {
       maxChunkSize: 1500,
       minChunkSize: 100,
       maxImbalance: 2
     },
-    'line-segmentation': {
+    'line': {
       maxChunkSize: 1000,
       minChunkSize: 100
     }
   },
 
   /**
-  * 大文件策略配置 - 优化后
+  * 大文件策略配置
   */
   largeFile: {
-    'bracket-segmentation': {
+    'bracket': {
       maxChunkSize: 3000,
       minChunkSize: 200,
       maxImbalance: 3
     },
-    'line-segmentation': {
+    'line': {
       maxChunkSize: 2000,
       minChunkSize: 200
     }

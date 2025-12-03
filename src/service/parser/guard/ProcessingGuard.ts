@@ -3,7 +3,8 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
 import { ErrorThresholdInterceptor } from '../processing/utils/protection/ErrorThresholdInterceptor';
 import { MemoryGuard } from './MemoryGuard';
-import { LanguageDetector, DetectionResult, ProcessingStrategyType } from '../detection/LanguageDetector';
+import { LanguageDetector, ProcessingStrategyType, LanguageDetectionResult } from '../detection/LanguageDetector';
+import { DetectionResult } from '../detection/IFileFeatureDetector';
 import { IntelligentFallbackEngine } from './IntelligentFallbackEngine';
 import { createStrategy } from '../processing/strategies/index';
 
@@ -177,9 +178,8 @@ export class ProcessingGuard {
       const languageDetection = await this.detectionService.detectFile(filePath, content);
       detection = {
         language: languageDetection.language || 'text',
-        confidence: languageDetection.confidence,
-        detectionMethod: this.mapDetectionMethod(languageDetection.detectionMethod),
-        fileType: 'normal' as const,
+        detectionMethod: languageDetection.detectionMethod || 'extension',
+        fileType: languageDetection.fileType || 'normal' as const,
         processingStrategy: this.selectProcessingStrategy(languageDetection),
         metadata: {
           fileFeatures: {
@@ -234,7 +234,7 @@ export class ProcessingGuard {
 
     try {
       // 3. 策略选择（基于检测结果）
-      const strategy = createStrategy(detection.processingStrategy || 'universal-text-segmentation');
+      const strategy = createStrategy(detection.processingStrategy || 'text');
 
       // 4. 执行处理
       const context = {
@@ -353,9 +353,8 @@ export class ProcessingGuard {
         const languageDetection = await this.detectionService.detectFile(filePath, content);
         detection = {
           language: languageDetection.language || 'text',
-          confidence: languageDetection.confidence,
-          detectionMethod: this.mapDetectionMethod(languageDetection.detectionMethod),
-          fileType: 'normal',
+          detectionMethod: languageDetection.detectionMethod || 'extension',
+          fileType: languageDetection.fileType || 'normal',
           processingStrategy: this.selectProcessingStrategy(languageDetection),
           metadata: {
             fileFeatures: {
@@ -381,7 +380,7 @@ export class ProcessingGuard {
       this.logger?.info(`Using intelligent fallback strategy: ${fallbackStrategy.strategy} for ${filePath}`);
 
       // 创建对应策略并执行
-      const strategy = createStrategy(fallbackStrategy.strategy || 'universal-text-segmentation');
+      const strategy = createStrategy(fallbackStrategy.strategy || 'text');
 
       const context = {
         content,
@@ -504,7 +503,7 @@ export class ProcessingGuard {
         maxChunkSize: 2000,
         minChunkSize: 100,
         overlapSize: 50,
-        strategy: detection.processingStrategy || 'universal-text-segmentation'
+        strategy: detection.processingStrategy || 'text'
       },
       features: {
         enableSyntaxAnalysis: true,
@@ -548,20 +547,20 @@ export class ProcessingGuard {
 
   private selectProcessingStrategy(languageDetection: DetectionResult): ProcessingStrategyType {
     if (!languageDetection.language || languageDetection.language === 'text') {
-      return ProcessingStrategyType.UNIVERSAL_TEXT;
+      return ProcessingStrategyType.TEXT;
     }
     
-    // 对于纯文本格式文件，直接使用通用文本策略，跳过复杂处理
+    // 对于纯文本格式文件，直接使用文本策略，跳过复杂处理
     const textFormatLanguages = ['text', 'ini', 'csv', 'log', 'env', 'properties', 'dockerfile', 'gitignore', 'makefile', 'readme'];
     if (textFormatLanguages.includes(languageDetection.language.toLowerCase())) {
-      return ProcessingStrategyType.UNIVERSAL_TEXT;
+      return ProcessingStrategyType.TEXT;
     }
     
-    if (languageDetection.confidence > 0.8 && this.isCodeFile(languageDetection.language)) {
-      return ProcessingStrategyType.TREESITTER_AST;
+    if (this.isCodeFile(languageDetection.language)) {
+      return ProcessingStrategyType.AST;
     }
     
-    return ProcessingStrategyType.UNIVERSAL_TEXT;
+    return ProcessingStrategyType.TEXT;
   }
 
   private isCodeFile(language?: string): boolean {

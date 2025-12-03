@@ -186,7 +186,7 @@ export class BusinessServiceRegistrar {
       // 分段器模块服务 - 注意：UniversalTextStrategy 现在不使用 @injectable，需要手动实例化
       container.bind<UniversalTextStrategy>(TYPES.UniversalTextStrategy).toDynamicValue(() => {
         return new UniversalTextStrategy({
-          name: 'universal-text-segmentation',
+          name: 'text',
           supportedLanguages: ['*'],
           enabled: true,
           description: 'Universal Text Segmentation Strategy',

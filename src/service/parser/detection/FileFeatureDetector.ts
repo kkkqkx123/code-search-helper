@@ -1,9 +1,11 @@
 import { injectable, inject } from 'inversify';
 import { LoggerService } from '../../../utils/LoggerService';
 import { TYPES } from '../../../types';
-import { IFileFeatureDetector } from './IFileFeatureDetector';
+import { IFileFeatureDetector, FileFeatures, DetectionResult } from './IFileFeatureDetector';
 import { ComplexityCalculator } from '../../../utils/parser/ComplexityCalculator';
 import { FileContentDetector, LineEndingType, IndentType } from '../../../utils/FileContentDetector';
+import { syntaxPatternMatcher } from '../utils/syntax/SyntaxPatternMatcher';
+import { PythonIndentChecker } from '../../../utils/structure/PythonIndentChecker';
 import {
   CODE_LANGUAGES,
   STRUCTURED_LANGUAGES,
@@ -30,7 +32,7 @@ export class FileFeatureDetector implements IFileFeatureDetector {
   * 检查是否为代码语言
   */
   isCodeLanguage(language: string): boolean {
-  return CODE_LANGUAGES.includes(language.toLowerCase());
+    return CODE_LANGUAGES.includes(language.toLowerCase());
   }
 
   /**
@@ -58,17 +60,17 @@ export class FileFeatureDetector implements IFileFeatureDetector {
   * 检查是否可以使用TreeSitter
   */
   canUseTreeSitter(language: string): boolean {
-  return TREE_SITTER_SUPPORTED_LANGUAGES.includes(language.toLowerCase());
+    return TREE_SITTER_SUPPORTED_LANGUAGES.includes(language.toLowerCase());
   }
 
   /**
   * 检查是否为结构化文件
   */
   isStructuredFile(content: string, language: string): boolean {
-  // 如果是已知结构化语言，直接返回true
-  if (STRUCTURED_LANGUAGES.includes(language.toLowerCase())) {
-    return true;
-  }
+    // 如果是已知结构化语言，直接返回true
+    if (STRUCTURED_LANGUAGES.includes(language.toLowerCase())) {
+      return true;
+    }
 
     // 检查内容是否包含大量括号或标签
     const bracketCount = (content.match(/[{}()\[\]]/g) || []).length;
@@ -203,18 +205,23 @@ export class FileFeatureDetector implements IFileFeatureDetector {
   }
   /**
    * 检查是否为二进制内容
+   * 使用增强的检测算法，包括UTF-8验证、魔数检测和扩展名检测
+   *
+   * @param content 文件内容
+   * @param filePath 文件路径（可选，用于更准确的检测）
+   * @returns 是否为二进制文件
    */
-  isBinaryContent(content: string): boolean {
-    // 使用全局工具类的增强二进制检测
-    return FileContentDetector.isBinaryContent(content);
+  isBinaryContent(content: string, filePath?: string): boolean {
+    return FileContentDetector.isBinaryContent(content, filePath);
   }
 
   /**
    * 检查是否为代码内容
    */
   isCodeContent(content: string): boolean {
-    // 使用全局工具类的增强代码检测，基于 processing-constants.ts 中的语法模式
-    return FileContentDetector.isCodeContent(content);
+    // 使用 SyntaxPatternMatcher 进行代码检测
+    const result = syntaxPatternMatcher.detectLanguageByContent(content);
+    return result.language !== undefined && result.confidence > 0.3;
   }
 
   /**
@@ -229,11 +236,175 @@ export class FileFeatureDetector implements IFileFeatureDetector {
    * 检测缩进类型
    */
   detectIndentationType(content: string): { type: IndentType; size: number } {
-    // 使用全局工具类的缩进检测
-    const result = FileContentDetector.detectIndentationType(content);
+    // 直接使用 PythonIndentChecker 进行缩进检测
+    const indentStyle = PythonIndentChecker.detectIndentStyle(content);
+    
+    // 转换为接口期望的格式
+    let type: IndentType;
+    switch (indentStyle.type) {
+      case 'spaces':
+        type = IndentType.SPACES;
+        break;
+      case 'tabs':
+        type = IndentType.TABS;
+        break;
+      case 'mixed':
+        type = IndentType.MIXED;
+        break;
+      default:
+        type = IndentType.NONE;
+    }
+    
     return {
-      type: result.type,
-      size: result.size
+      type,
+      size: indentStyle.size
     };
+  }
+
+  /**
+   * 分析文件特征
+   */
+  analyzeFileFeatures(content: string, language: string): FileFeatures {
+    const stats = this.getFileStats(content);
+
+    return {
+      isCodeFile: this.isCodeLanguage(language) || this.isCodeContent(content),
+      isTextFile: this.isTextLanguage(language),
+      isMarkdownFile: this.isMarkdown(language),
+      isXMLFile: this.isXML(language),
+      isStructuredFile: this.isStructuredFile(content, language),
+      isHighlyStructured: this.isHighlyStructured(content, language),
+      complexity: stats.complexity,
+      lineCount: stats.lineCount,
+      size: stats.contentLength,
+      hasImports: this.hasImports(content, language),
+      hasExports: this.hasExports(content, language),
+      hasFunctions: this.hasFunctions(content, language),
+      hasClasses: this.hasClasses(content, language)
+    };
+  }
+
+  /**
+   * 推荐处理策略
+   */
+  recommendProcessingStrategy(
+    detectionResult: DetectionResult,
+    fileFeatures: FileFeatures,
+    filePath?: string,
+    content?: string | Buffer
+  ): string {
+    const { language } = detectionResult;
+
+    // 使用增强的二进制检测方法
+    // 如果提供了内容，使用增强检测；否则回退到基础检测
+    let isBinary = false;
+    if (content) {
+      isBinary = this.isBinaryContent(content as string, filePath);
+    } else {
+      // 回退到原有的检测逻辑
+      isBinary = language === 'binary' || !fileFeatures.isTextFile;
+    }
+
+    // 如果是二进制内容，使用紧急单块处理
+    if (isBinary) {
+      return 'binary';
+    }
+
+    // 如果是Markdown，使用专门的Markdown处理
+    if (fileFeatures.isMarkdownFile) {
+      return 'markdown';
+    }
+
+    // 如果是XML类语言，使用专门的XML处理
+    if (fileFeatures.isXMLFile) {
+      return 'xml';
+    }
+
+    // 如果是HTML，使用分层处理
+    if (language === 'html') {
+      return 'html';
+    }
+
+    // 如果可以使用TreeSitter且是代码文件，使用AST处理
+    if (this.canUseTreeSitter(language) && fileFeatures.isCodeFile) {
+      return 'ast';
+    }
+
+    // 如果是高度结构化的代码文件，使用语义处理
+    if (fileFeatures.isHighlyStructured && fileFeatures.isCodeFile) {
+      return 'semantic';
+    }
+
+    // 如果是结构化文件，使用语义处理
+    if (fileFeatures.isStructuredFile) {
+      return 'semantic';
+    }
+
+    // 如果是代码文件，使用括号处理
+    if (fileFeatures.isCodeFile) {
+      return 'bracket';
+    }
+
+    // 如果是文本文件，使用行处理
+    if (fileFeatures.isTextFile) {
+      return 'line';
+    }
+
+    // 默认使用通用文本处理
+    return 'text';
+  }
+
+  /**
+   * 创建默认文件特征
+   */
+  createDefaultFileFeatures(content: string): FileFeatures {
+    const stats = this.getFileStats(content);
+
+    return {
+      isCodeFile: this.isCodeContent(content),
+      isTextFile: true, // 默认认为是文本文件
+      isMarkdownFile: false,
+      isXMLFile: false,
+      isStructuredFile: false,
+      isHighlyStructured: false,
+      complexity: stats.complexity,
+      lineCount: stats.lineCount,
+      size: stats.contentLength,
+      hasImports: false,
+      hasExports: false,
+      hasFunctions: false,
+      hasClasses: false
+    };
+  }
+
+  /**
+   * 创建回退检测结果
+   */
+  createFallbackResult(filePath: string, content: string): DetectionResult {
+    const fileFeatures = this.createDefaultFileFeatures(content);
+
+    return {
+      language: 'unknown',
+      detectionMethod: 'extension',
+      fileType: 'unknown',
+      filePath: filePath,
+      metadata: {
+        originalExtension: this.getFileExtension(filePath),
+        overrideReason: 'fallback_result',
+        fileFeatures: fileFeatures,
+        processingStrategy: this.recommendProcessingStrategy(
+          { language: 'unknown', detectionMethod: 'extension' } as DetectionResult,
+          fileFeatures
+        )
+      }
+    };
+  }
+
+  /**
+   * 获取文件扩展名
+   */
+  private getFileExtension(filePath: string): string {
+    const lastDot = filePath.lastIndexOf('.');
+    return lastDot !== -1 ? filePath.substring(lastDot).toLowerCase() : '';
   }
 }

@@ -24,9 +24,9 @@ export class FileUtils {
    */
   static async isBinaryFile(filePath: string, logger?: LoggerService): Promise<boolean> {
     try {
-      // 使用全局工具类的增强二进制检测
+      // 使用全局工具类的增强二进制检测，传入文件路径以利用扩展名检测
       const buffer = await fs.readFile(filePath, { encoding: null });
-      return FileContentDetector.isBinaryContent(buffer);
+      return FileContentDetector.isBinaryContent(buffer, filePath);
     } catch (error) {
       if (logger) {
         logger.debug(`[DEBUG] Error checking if file is binary: ${filePath}`, { error: error instanceof Error ? error.message : String(error) });

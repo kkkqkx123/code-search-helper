@@ -8,7 +8,7 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { IMemoryMonitorService } from '../../memory/interfaces/IMemoryMonitorService';
 import { ErrorThresholdInterceptor } from '../processing/utils/protection/ErrorThresholdInterceptor';
 import { CleanupManager } from '../../../infrastructure/cleanup/CleanupManager';
-import { LanguageDetector } from '../core/language-detection/LanguageDetector';
+import { LanguageDetector } from '../detection/LanguageDetector';
 import { StrategyFactory } from '../processing/StrategyFactory';
 import { IntelligentFallbackEngine } from './IntelligentFallbackEngine';
 import {
@@ -267,10 +267,9 @@ export class GuardCoordinator implements IGuardCoordinator {
       // 转换为DetectionResult格式
       const detection = {
         language: languageDetection.language || 'text',
-        confidence: languageDetection.confidence,
         detectionMethod: this.mapDetectionMethod(languageDetection.method),
         fileType: 'normal' as const,
-        processingStrategy: 'universal-line',
+        processingStrategy: 'line',
         metadata: {
           fileFeatures: {
             isCodeFile: this.isCodeFile(languageDetection.language),
@@ -290,7 +289,7 @@ export class GuardCoordinator implements IGuardCoordinator {
         }
       };
       
-      const strategy = this.strategyFactory.createStrategy(detection.processingStrategy);
+      const strategy = this.strategyFactory.createStrategy(detection.processingStrategy || 'text');
       
       // 创建上下文对象
       const context = {
@@ -347,7 +346,7 @@ export class GuardCoordinator implements IGuardCoordinator {
           confidence: 0.1,
           detectionMethod: 'hybrid' as const,
           fileType: 'normal' as const,
-          processingStrategy: 'universal-line',
+          processingStrategy: 'line',
           metadata: {
             fileFeatures: {
               isCodeFile: false,
@@ -407,7 +406,7 @@ export class GuardCoordinator implements IGuardCoordinator {
         maxChunkSize: 2000,
         minChunkSize: 100,
         overlapSize: 50,
-        strategy: detection.processingStrategy || 'universal-line'
+        strategy: detection.processingStrategy || 'text'
       },
       features: {
         enableSyntaxAnalysis: true,

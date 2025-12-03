@@ -5,8 +5,8 @@
 import { LanguageConfig, LanguageStrategy } from './LanguageCore';
 
 export const BASIC_PROGRAMMING_STRATEGY: LanguageStrategy = {
-  primary: 'treesitter_ast',
-  fallback: ['universal_line'],
+  primary: 'ast',
+  fallback: ['line'],
   useSimplifiedAST: true,
   supportedQueryTypes: ['functions', 'classes'],
   maxQueryDepth: 3

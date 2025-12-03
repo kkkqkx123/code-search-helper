@@ -1,6 +1,42 @@
 import { LineEndingType, IndentType } from '../../../utils/FileContentDetector';
 
 /**
+ * 文件特征接口
+ */
+export interface FileFeatures {
+  isCodeFile: boolean;
+  isTextFile: boolean;
+  isMarkdownFile: boolean;
+  isXMLFile: boolean;
+  isStructuredFile: boolean;
+  isHighlyStructured: boolean;
+  complexity: number;
+  lineCount: number;
+  size: number;
+  hasImports: boolean;
+  hasExports: boolean;
+  hasFunctions: boolean;
+  hasClasses: boolean;
+}
+
+/**
+ * 检测结果接口
+ */
+export interface DetectionResult {
+  language: string;
+  detectionMethod: 'extension';
+  fileType?: 'backup' | 'normal' | 'extensionless' | 'unknown';
+  processingStrategy?: string;
+  filePath?: string;
+  metadata: {
+    originalExtension?: string;
+    overrideReason?: string;
+    fileFeatures?: FileFeatures;
+    processingStrategy?: string;
+  };
+}
+
+/**
  * 文件特征检测器接口
  * 定义文件特征检测的抽象接口
  */
@@ -134,4 +170,35 @@ export interface IFileFeatureDetector {
     tagCount: number;
     complexity: number;
   };
+
+  /**
+   * 分析文件特征
+   * @param content 文件内容
+   * @param language 语言名称
+   * @returns 文件特征对象
+   */
+  analyzeFileFeatures(content: string, language: string): FileFeatures;
+
+  /**
+   * 推荐处理策略
+   * @param detectionResult 检测结果
+   * @param fileFeatures 文件特征
+   * @returns 处理策略名称
+   */
+  recommendProcessingStrategy(detectionResult: DetectionResult, fileFeatures: FileFeatures): string;
+
+  /**
+   * 创建默认文件特征
+   * @param content 文件内容
+   * @returns 默认文件特征对象
+   */
+  createDefaultFileFeatures(content: string): FileFeatures;
+
+  /**
+   * 创建回退检测结果
+   * @param filePath 文件路径
+   * @param content 文件内容
+   * @returns 回退检测结果
+   */
+  createFallbackResult(filePath: string, content: string): DetectionResult;
 }
