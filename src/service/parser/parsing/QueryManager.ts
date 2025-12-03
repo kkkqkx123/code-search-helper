@@ -1,34 +1,119 @@
 import { LoggerService } from '../../../utils/LoggerService';
-import { QueryPatternExtractor } from './QueryPatternExtractor';
-import {
-  COMMON_QUERY_TYPES,
-  COMPOUND_QUERY_TYPES,
-  QUERY_PATTERNS,
-  DEFAULT_QUERY_TYPES,
-  COMMON_LANGUAGES
-} from './QueryConfig';
+import { QUERY_PATTERNS } from './QueryConfig';
 
 /**
- * 查询发现错误类
+ * 统一查询管理器
+ * 整合了 QueryLoader、QueryRegistry 和 QueryPatternExtractor 的功能
+ * 提供统一的查询模式管理和加载接口
  */
-class QueryDiscoveryError extends Error {
-  constructor(message: string, public context: any) {
-    super(message);
-    this.name = 'QueryDiscoveryError';
-  }
-}
-
-/**
- * 查询加载器 - 支持新的目录结构
- */
-export class QueryLoader {
-  private static queries = new Map<string, Map<string, string>>();
+export class QueryManager {
+  private static patterns: Map<string, Map<string, string>> = new Map();
   private static logger = new LoggerService();
+  private static initialized = false;
+  private static initializing = false;
   private static loadedLanguages = new Set<string>();
 
   /**
-   * 加载指定语言的查询文件
-   * @param language 语言名称
+   * 初始化查询系统（全局单次初始化）
+   */
+  static async initialize(): Promise<boolean> {
+    // 如果已经初始化完成，直接返回
+    if (this.initialized) {
+      return true;
+    }
+
+    // 如果正在初始化，等待初始化完成
+    if (this.initializing) {
+      // 等待最多5秒
+      const maxWaitTime = 5000;
+      const startTime = Date.now();
+
+      while (this.initializing && (Date.now() - startTime) < maxWaitTime) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      return this.initialized;
+    }
+
+    // 开始初始化
+    this.initializing = true;
+    this.logger.info('开始全局查询系统初始化...');
+
+    try {
+      // 从查询文件加载
+      await this.loadFromQueryFiles();
+
+      this.initialized = true;
+      this.initializing = false;
+      this.logger.info(`全局查询系统初始化完成，支持 ${this.patterns.size} 种语言`);
+      return true;
+
+    } catch (error) {
+      this.initializing = false;
+      this.logger.error('全局查询系统初始化失败:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        name: error instanceof Error ? error.name : 'Unknown',
+        type: typeof error
+      });
+      return false;
+    }
+  }
+
+  /**
+   * 重新初始化查询系统
+   */
+  static async reinitialize(): Promise<boolean> {
+    this.initialized = false;
+    return await this.initialize();
+  }
+
+  /**
+   * 获取初始化状态
+   */
+  static getStatus(): { initialized: boolean; initializing: boolean } {
+    return {
+      initialized: this.initialized,
+      initializing: this.initializing
+    };
+  }
+
+  /**
+   * 从查询文件加载查询模式
+   */
+  private static async loadFromQueryFiles(): Promise<void> {
+    const languages = this.getSupportedLanguages();
+    this.logger.info(`开始加载 ${languages.length} 种语言的查询模式...`);
+
+    // 使用Promise.allSettled并行加载，但限制并发数
+    const batchSize = 5; // 限制并发数避免资源竞争
+    for (let i = 0; i < languages.length; i += batchSize) {
+      const batch = languages.slice(i, i + batchSize);
+      const results = await Promise.allSettled(
+        batch.map(async (language: string) => {
+          try {
+            await this.loadLanguageQueries(language);
+          } catch (error) {
+            this.logger.warn(`加载 ${language} 语言查询失败:`, error);
+            throw error; // 重新抛出错误，以便Promise.allSettled能捕获
+          }
+        })
+      );
+
+      // 记录结果
+      results.forEach((result: { status: string; reason: any; }, index: string | number) => {
+        const language = batch[index];
+        if (result.status === 'rejected') {
+          this.logger.warn(`加载 ${language} 语言查询失败:`, result.reason);
+        }
+      });
+    }
+
+    this.logger.info(`查询模式加载完成，成功加载 ${this.patterns.size} 种语言`);
+  }
+
+  /**
+   * 加载指定语言的查询
    */
   static async loadLanguageQueries(language: string): Promise<void> {
     const normalizedLanguage = language.toLowerCase();
@@ -89,7 +174,7 @@ export class QueryLoader {
               }
             }
 
-            this.queries.set(normalizedLanguage, languageQueriesMap);
+            this.patterns.set(normalizedLanguage, languageQueriesMap);
             this.loadedLanguages.add(normalizedLanguage);
             return;
           }
@@ -123,7 +208,7 @@ export class QueryLoader {
               // 对于简单语言，使用智能分类
               const languageQueriesMap = this.categorizeSimpleLanguageQuery(query, language);
 
-              this.queries.set(normalizedLanguage, languageQueriesMap);
+              this.patterns.set(normalizedLanguage, languageQueriesMap);
               this.loadedLanguages.add(normalizedLanguage);
               return;
             }
@@ -143,8 +228,7 @@ export class QueryLoader {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
         name: error instanceof Error ? error.name : 'Unknown',
-        type: typeof error,
-        constructor: error?.constructor?.name
+        type: typeof error
       });
       throw error;
     }
@@ -152,7 +236,6 @@ export class QueryLoader {
 
   /**
    * 批量加载多种语言的查询
-   * @param languages 语言数组
    */
   static async loadMultipleLanguages(languages: string[]): Promise<void> {
     const loadPromises = languages.map(lang => this.loadLanguageQueries(lang));
@@ -161,13 +244,10 @@ export class QueryLoader {
 
   /**
    * 获取指定语言的查询字符串
-   * @param language 语言名称
-   * @param queryType 查询类型
-   * @returns 查询字符串
    */
   static getQuery(language: string, queryType: string): string {
     const normalizedLanguage = language.toLowerCase();
-    const languageQueries = this.queries.get(normalizedLanguage);
+    const languageQueries = this.patterns.get(normalizedLanguage);
     if (!languageQueries) {
       throw new Error(`${language}语言的查询未加载`);
     }
@@ -182,20 +262,57 @@ export class QueryLoader {
 
   /**
    * 检查特定查询类型是否存在
-   * @param language 语言名称
-   * @param queryType 查询类型
-   * @returns 是否存在
    */
   static hasQueryType(language: string, queryType: string): boolean {
     const normalizedLanguage = language.toLowerCase();
-    const languageQueries = this.queries.get(normalizedLanguage);
+    const languageQueries = this.patterns.get(normalizedLanguage);
     return languageQueries ? languageQueries.has(queryType) : false;
   }
 
   /**
+   * 检查是否支持特定语言和查询类型
+   */
+  static isSupported(language: string, queryType?: string): boolean {
+    const langPatterns = this.patterns.get(language.toLowerCase());
+    if (!langPatterns) {
+      return false;
+    }
+
+    if (queryType) {
+      return langPatterns.has(queryType);
+    }
+
+    return true;
+  }
+
+  /**
+   * 获取指定语言的查询模式
+   */
+  static async getPattern(language: string, queryType: string): Promise<string | null> {
+    if (!this.initialized) {
+      await this.initialize();
+      if (!this.initialized) {
+        return null;
+      }
+    }
+
+    const langPatterns = this.patterns.get(language.toLowerCase());
+    if (!langPatterns) {
+      this.logger.warn(`语言 ${language} 的查询模式未加载`);
+      return null;
+    }
+
+    const pattern = langPatterns.get(queryType);
+    if (!pattern) {
+      this.logger.debug(`查询类型 ${queryType} 在语言 ${language} 中不存在`);
+      return null;
+    }
+
+    return pattern;
+  }
+
+  /**
    * 检查语言是否已加载
-   * @param language 语言名称
-   * @returns 是否已加载
    */
   static isLanguageLoaded(language: string): boolean {
     return this.loadedLanguages.has(language.toLowerCase());
@@ -203,7 +320,6 @@ export class QueryLoader {
 
   /**
    * 获取已加载的语言列表
-   * @returns 已加载的语言列表
    */
   static getLoadedLanguages(): string[] {
     return Array.from(this.loadedLanguages);
@@ -211,12 +327,10 @@ export class QueryLoader {
 
   /**
    * 获取指定语言支持的所有查询类型
-   * @param language 语言名称
-   * @returns 查询类型列表
    */
   static getQueryTypesForLanguage(language: string): string[] {
     const normalizedLanguage = language.toLowerCase();
-    const languageQueries = this.queries.get(normalizedLanguage);
+    const languageQueries = this.patterns.get(normalizedLanguage);
     return languageQueries ? Array.from(languageQueries.keys()) : [];
   }
 
@@ -224,16 +338,19 @@ export class QueryLoader {
    * 预加载常用语言的查询
    */
   static async preloadCommonLanguages(): Promise<void> {
-    await this.loadMultipleLanguages([...COMMON_LANGUAGES]);
+    const commonLanguages = [
+      'javascript', 'typescript', 'python', 'java', 'go', 'rust',
+      'cpp', 'c', 'csharp', 'swift', 'kotlin', 'ruby', 'php', 'scala', 'embedded-template'
+    ];
+    await this.loadMultipleLanguages(commonLanguages);
   }
 
   /**
    * 重新加载指定语言的查询
-   * @param language 语言名称
    */
   static async reloadLanguageQueries(language: string): Promise<void> {
     this.loadedLanguages.delete(language.toLowerCase());
-    this.queries.delete(language.toLowerCase());
+    this.patterns.delete(language.toLowerCase());
     await this.loadLanguageQueries(language);
   }
 
@@ -241,14 +358,12 @@ export class QueryLoader {
    * 清除所有已加载的查询
    */
   static clearAllQueries(): void {
-    this.queries.clear();
+    this.patterns.clear();
     this.loadedLanguages.clear();
   }
 
   /**
    * 动态发现查询类型
-   * @param language 语言名称
-   * @returns 查询类型数组
    */
   static async discoverQueryTypes(language: string): Promise<string[]> {
     const queryDir = `../../../constants/queries/${this.getQueryFileName(language)}`;
@@ -292,26 +407,22 @@ export class QueryLoader {
       this.logger.error('Query type discovery failed', errorContext);
 
       // 向用户返回友好的错误信息
-      throw new QueryDiscoveryError(
+      throw new Error(
         `无法发现 ${language} 语言的查询类型，将使用默认查询类型`,
-        errorContext
+        { cause: error }
       );
     }
   }
 
   /**
    * 获取默认查询类型
-   * @returns 默认查询类型数组
    */
   private static getDefaultQueryTypes(): string[] {
-    return [...DEFAULT_QUERY_TYPES];
+    return ['functions', 'types', 'variables', 'calls', 'dataFlow'];
   }
 
   /**
    * 检查查询类型是否存在
-   * @param language 语言名称
-   * @param queryType 查询类型
-   * @returns 是否存在
    */
   static async queryTypeExists(language: string, queryType: string): Promise<boolean> {
     try {
@@ -346,13 +457,13 @@ export class QueryLoader {
    */
   static getStats() {
     const languageStats: Record<string, number> = {};
-    for (const [language, queries] of Array.from(this.queries)) {
+    for (const [language, queries] of Array.from(this.patterns)) {
       languageStats[language] = queries.size;
     }
 
     return {
       loadedLanguages: this.loadedLanguages.size,
-      totalQueries: Array.from(this.queries.values()).reduce((sum, queries) => sum + queries.size, 0),
+      totalQueries: Array.from(this.patterns.values()).reduce((sum, queries) => sum + queries.size, 0),
       languages: Array.from(this.loadedLanguages),
       languageStats
     };
@@ -360,8 +471,6 @@ export class QueryLoader {
 
   /**
    * 验证查询语法
-   * @param query 查询字符串
-   * @returns 验证结果
    */
   static validateQuerySyntax(query: string): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
@@ -465,9 +574,6 @@ export class QueryLoader {
 
   /**
    * 根据字符位置获取行号
-   * @param text 文本
-   * @param position 字符位置
-   * @returns 行号
    */
   private static getLineNumber(text: string, position: number): number {
     const before = text.substring(0, position);
@@ -476,8 +582,6 @@ export class QueryLoader {
 
   /**
    * 获取查询文件名
-   * @param language 语言名称
-   * @returns 查询文件名
    */
   private static getQueryFileName(language: string): string {
     const fileMap: Record<string, string> = {
@@ -495,14 +599,11 @@ export class QueryLoader {
 
   /**
    * 智能分类简单语言的查询(例如lua)
-   * @param query 查询字符串
-   * @param language 语言名称
-   * @returns 分类后的查询映射
    */
   private static categorizeSimpleLanguageQuery(query: string, language: string): Map<string, string> {
     try {
-      // 使用QueryPatternExtractor提取所有模式
-      const languageQueriesMap = QueryPatternExtractor.extractAllPatterns(query, QUERY_PATTERNS);
+      // 使用 QUERY_PATTERNS 提取所有模式
+      const languageQueriesMap = this.extractAllPatterns(query, QUERY_PATTERNS);
 
       // 如果没有找到任何分类，将整个查询作为通用查询
       if (languageQueriesMap.size === 0) {
@@ -521,16 +622,15 @@ export class QueryLoader {
 
   /**
    * 加载结构化查询（新目录结构）
-   * @param queryFileName 查询文件名
-   * @param language 语言名称
-   * @returns 查询映射
    */
   private static async loadStructuredQueries(queryFileName: string, language: string): Promise<Map<string, string>> {
     const languageQueriesMap = new Map<string, string>();
 
     try {
       // 尝试加载常见的查询类型
-      for (const queryType of COMMON_QUERY_TYPES) {
+      const commonQueryTypes = ['functions', 'types', 'variables', 'calls', 'dataFlow', 'controlFlow', 'dependencies', 'inheritance'];
+
+      for (const queryType of commonQueryTypes) {
         try {
           const modulePath = require('path');
           const absolutePath = modulePath.join(__dirname, `../../constants/queries/${queryFileName}/${queryType}`);
@@ -551,37 +651,6 @@ export class QueryLoader {
           }
         } catch (error) {
           // 某些查询类型可能不存在，这是正常的
-        }
-      }
-
-      // 尝试加载复合查询类型
-      for (const compoundType of COMPOUND_QUERY_TYPES) {
-        try {
-          const modulePath = require('path');
-          const absolutePath = modulePath.join(__dirname, `../../constants/queries/${queryFileName}/${compoundType.file}`);
-
-          // 将绝对路径转换为file:// URL格式，以便在Windows上使用
-          const fs = require('fs');
-          const urlModule = require('url');
-
-          // 检查文件是否存在
-          if (fs.existsSync(absolutePath + '.ts') || fs.existsSync(absolutePath + '.js')) {
-            const fileUrl = urlModule.pathToFileURL(absolutePath).href;
-            const queryModule = await import(fileUrl);
-            const query = queryModule.default;
-
-            if (query) {
-              // 为复合查询类型中的每个查询类型创建查询
-              const categorizedQueries = this.categorizeSimpleLanguageQuery(query, language);
-              for (const queryType of compoundType.queries) {
-                if (categorizedQueries.has(queryType) && !languageQueriesMap.has(queryType)) {
-                  languageQueriesMap.set(queryType, categorizedQueries.get(queryType)!);
-                }
-              }
-            }
-          }
-        } catch (error) {
-          // 某些复合查询类型可能不存在，这是正常的
         }
       }
 
@@ -638,4 +707,107 @@ export class QueryLoader {
     return languageQueriesMap;
   }
 
+  /**
+   * 从查询字符串中提取特定关键词的模式
+   */
+  private static extractPatterns(query: string, keywords: string[]): string[] {
+    try {
+      const lines = query.split('\n');
+      const patterns: string[] = [];
+      let currentPattern: string[] = [];
+      let inPattern = false;
+      let parenDepth = 0;
+
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+
+        // 跳过空行和注释
+        if (!trimmedLine || trimmedLine.startsWith(';') || trimmedLine.startsWith('//')) {
+          if (currentPattern.length > 0 && parenDepth === 0) {
+            patterns.push(currentPattern.join('\n'));
+            currentPattern = [];
+            inPattern = false;
+          }
+          continue;
+        }
+
+        // 检查是否包含目标关键词
+        const hasKeyword = keywords.some(keyword =>
+          trimmedLine.includes(`(${keyword}`) ||
+          trimmedLine.includes(` ${keyword} `) ||
+          trimmedLine.includes(`@${keyword}`)
+        );
+
+        if (hasKeyword || inPattern) {
+          currentPattern.push(line);
+          inPattern = true;
+
+          // 计算括号深度
+          parenDepth += (line.match(/\(/g) || []).length;
+          parenDepth -= (line.match(/\)/g) || []).length;
+
+          // 如果括号平衡，可能是一个完整的模式
+          if (parenDepth === 0 && currentPattern.length > 0) {
+            patterns.push(currentPattern.join('\n'));
+            currentPattern = [];
+            inPattern = false;
+          }
+        }
+      }
+
+      // 处理未完成的模式
+      if (currentPattern.length > 0 && parenDepth === 0) {
+        patterns.push(currentPattern.join('\n'));
+      }
+
+      return patterns;
+    } catch (error) {
+      console.error('QueryManager.extractPatterns error:', error);
+      return []; // 返回空数组以避免错误传播
+    }
+  }
+
+  /**
+   * 根据查询类型和关键词映射提取所有模式
+   */
+  private static extractAllPatterns(
+    query: string,
+    queryPatterns: Record<string, string[]>
+  ): Map<string, string> {
+    try {
+      const result = new Map<string, string>();
+
+      for (const [queryType, keywords] of Object.entries(queryPatterns)) {
+        const patterns = this.extractPatterns(query, keywords);
+        if (patterns.length > 0) {
+          result.set(queryType, patterns.join('\n\n'));
+        }
+      }
+
+      return result;
+    } catch (error) {
+      console.error('QueryManager.extractAllPatterns error:', error);
+      return new Map<string, string>(); // 返回空映射以避免错误传播
+    }
+  }
+
+  /**
+   * 清除缓存
+   */
+  static clearCache(): void {
+    this.patterns.clear();
+    this.loadedLanguages.clear();
+    this.initialized = false;
+    this.logger.info('QueryManager 缓存已清除');
+  }
+
+  /**
+   * 获取查询加载器统计信息
+   */
+  static getLoaderStats() {
+    return this.getStats();
+  }
 }
+
+// 为了保持向后兼容性，导出别名
+export const QueryRegistryImpl = QueryManager;

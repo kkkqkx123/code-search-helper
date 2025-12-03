@@ -31,9 +31,8 @@ import { HybridIndexService } from '../../service/index/HybridIndexService';
 import { PerformanceOptimizerService } from '../../service/optimization/PerformanceOptimizerService';
 
 // 解析服务
-import { TreeSitterQueryEngine } from '../../service/parser/core/query/TreeSitterQueryExecutor';
-import { DynamicParserManager } from '../../service/parser/core/parse/DynamicParserManager';
-import { ParserFacade } from '../../service/parser/core/parse/ParserFacade';
+import { QueryExecutor } from '../../service/parser/parsing/QueryExecutor';
+import { DynamicParserManager } from '../../service/parser/parsing/DynamicParserManager';
 
 import { SegmentationConfigService } from '../../config/service/SegmentationConfigService';
 
@@ -44,7 +43,6 @@ import { MemoryGuard } from '../../service/parser/guard/MemoryGuard';
 import { OverlapPostProcessor } from '../../service/parser/post-processing/OverlapPostProcessor';
 import { ASTNodeTracker } from '../../service/parser/processing/utils/AST/ASTNodeTracker';
 import { ChunkRebalancer } from '../../service/parser/processing/utils/ChunkRebalancer';
-// ProcessingGuard 现在是 UnifiedGuardCoordinator 的别名，通过类型定义处理
 import { CleanupManager } from '../../infrastructure/cleanup/CleanupManager';
 import { GuardCoordinator } from '../../service/parser/guard/GuardCoordinator';
 import { IntelligentFallbackEngine } from '../../service/parser/guard/IntelligentFallbackEngine';
@@ -170,14 +168,12 @@ export class BusinessServiceRegistrar {
 
 
       // 解析服务 - 新的统一接口
-      container.bind<ParserFacade>(TYPES.ParserFacade).toDynamicValue((context: any) => {
-        const cacheService = context.container.get(TYPES.CacheService);
-        return new ParserFacade(cacheService);
+      container.bind<QueryExecutor>(TYPES.ParserFacade).toDynamicValue((context: any) => {
+        return QueryExecutor.getInstance();
       }).inSingletonScope();
 
-      container.bind<ParserFacade>(TYPES.ParserCoreService).toDynamicValue((context: any) => {
-        const cacheService = context.container.get(TYPES.CacheService);
-        return new ParserFacade(cacheService);
+      container.bind<QueryExecutor>(TYPES.ParserCoreService).toDynamicValue((context: any) => {
+        return QueryExecutor.getInstance();
       }).inSingletonScope();
 
 

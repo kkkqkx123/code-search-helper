@@ -2,7 +2,8 @@ import { injectable, inject } from 'inversify';
 import { TYPES } from '../../../types';
 import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
-import { ParserFacade } from '../../parser/core/parse/ParserFacade';
+import { DynamicParserManager } from '../../parser/parsing/DynamicParserManager';
+import { QueryExecutor } from '../../parser/parsing/QueryExecutor';
 import { IGraphDataMappingService } from '../mapping/IGraphDataMappingService';
 import { InfrastructureConfigService } from '../../../infrastructure/config/InfrastructureConfigService';
 import { IGraphIndexPerformanceMonitor } from '../../../infrastructure/monitoring/GraphIndexMetrics';
@@ -19,14 +20,20 @@ import * as fs from 'fs/promises';
  */
 @injectable()
 export class GraphConstructionService implements IGraphConstructionService {
+  private dynamicParserManager: DynamicParserManager;
+  private queryExecutor: QueryExecutor;
+
   constructor(
     @inject(TYPES.LoggerService) private logger: LoggerService,
     @inject(TYPES.ErrorHandlerService) private errorHandler: ErrorHandlerService,
-    @inject(TYPES.ParserFacade) private parserFacade: ParserFacade,
+    @inject(TYPES.CacheService) private cacheService: any,
     @inject(TYPES.GraphDataMappingService) private graphMappingService: IGraphDataMappingService,
     @inject(TYPES.InfrastructureConfigService) private configService: InfrastructureConfigService,
     @inject(TYPES.GraphIndexPerformanceMonitor) private performanceMonitor: IGraphIndexPerformanceMonitor
-  ) {}
+  ) {
+    this.dynamicParserManager = new DynamicParserManager(cacheService);
+    this.queryExecutor = QueryExecutor.getInstance();
+  }
 
   /**
    * 构建图结构
@@ -205,7 +212,7 @@ export class GraphConstructionService implements IGraphConstructionService {
   private async convertToGraphNodesFromFile(filePath: string): Promise<GraphNode[]> {
     try {
       const content = await fs.readFile(filePath, 'utf-8');
-      const language = await this.parserFacade.detectLanguage(filePath);
+      const language = await this.dynamicParserManager.detectLanguage(filePath);
       
       if (!language) {
         this.logger.warn(`Unsupported language for file: ${filePath}`);
@@ -219,14 +226,14 @@ export class GraphConstructionService implements IGraphConstructionService {
         properties: {
           name: this.getFileName(filePath),
           path: filePath,
-          language: language.name,
+          language: language,
           size: content.length,
           lastModified: (await fs.stat(filePath)).mtime.getTime()
         }
       };
 
       // 使用图映射服务处理文件内容
-      const parseResult = await this.parserFacade.parseCode(content, language.name);
+      const parseResult = await this.dynamicParserManager.parseCode(content, language);
       const mappingResult = await this.graphMappingService.mapToGraph(filePath, []);
       
       return [fileNode, ...mappingResult.nodes];
@@ -242,7 +249,7 @@ export class GraphConstructionService implements IGraphConstructionService {
   private async convertToGraphRelationshipsFromFile(filePath: string): Promise<GraphRelationship[]> {
     try {
       const content = await fs.readFile(filePath, 'utf-8');
-      const language = await this.parserFacade.detectLanguage(filePath);
+      const language = await this.dynamicParserManager.detectLanguage(filePath);
       
       if (!language) {
         return [];

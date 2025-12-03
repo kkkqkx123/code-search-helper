@@ -13,7 +13,7 @@ import {
   EntityQueryBuilderFactory,
   RelationshipQueryBuilderFactory
 } from './types';
-import { queryConfigManager } from './query-config';
+import { queryConfigManager } from './QueryConfig';
 
 /**
  * 查询结果处理器

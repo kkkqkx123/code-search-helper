@@ -2,18 +2,19 @@ import Parser from 'tree-sitter';
 import { inject, injectable } from 'inversify';
 import { LoggerService } from '../../../utils/LoggerService';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
-import { QueryRegistryImpl } from './QueryRegistry';
+import { QueryManager } from './QueryManager';
 import { languageExtensionMap } from '../utils';
 import { LanguageDetector } from '../detection/LanguageDetector';
 import { languageMappingManager } from '../config/LanguageMappingManager';
 import { FallbackExtractor } from '../utils/FallbackExtractor';
-import { QueryTypeMapper } from '../normalization/LegacyQueryMappings';
+// QueryTypeMapper functionality now handled by LanguageMappingManager
+// This import has been removed as part of the refactoring
 import { LANGUAGE_MAPPINGS } from '../config/LanguageMappingConfig';
 import { TREE_SITTER_LANGUAGE_MAP } from '../constants/language-constants';
 import { CacheKeyUtils } from '../../../utils/cache/CacheKeyUtils';
 import { ICacheService } from '../../../infrastructure/caching/types';
 import { TYPES } from '../../../types';
-import { TreeSitterQueryFacade } from './TreeSitterQueryFacade';
+import { QueryExecutor } from './QueryExecutor';
 
 export interface DynamicParserLanguage {
   name: string;
@@ -77,8 +78,9 @@ export class DynamicParserManager {
 
     // 初始化语言配置
     for (const language of supportedLanguages) {
-      const mapping = QueryTypeMapper.getLanguageMapping(language);
-      if (!mapping) continue;
+      // Mapping validation is now handled by languageMappingManager
+      const isSupported = languageMappingManager.isLanguageSupported(language);
+      if (!isSupported) continue;
 
       this.parsers.set(language, {
         name: language, // 使用原始语言名称，保持小写格式
@@ -98,7 +100,7 @@ export class DynamicParserManager {
   private async initializeQuerySystem(): Promise<void> {
     try {
       // 使用查询注册表初始化避免重复初始化
-      const success = await QueryRegistryImpl.initialize();
+      const success = await QueryManager.initialize();
       if (success) {
         this.querySystemInitialized = true;
         this.logger.info('查询系统初始化完成');
@@ -278,14 +280,14 @@ export class DynamicParserManager {
         await this.waitForQuerySystem();
       }
 
-      const functionQuery = await QueryRegistryImpl.getPattern(lang, 'functions');
+      const functionQuery = await QueryManager.getPattern(lang, 'functions');
       if (!functionQuery) {
         this.logger.warn(`未找到 ${lang} 语言的函数查询模式，使用回退机制`);
         return FallbackExtractor.extractFunctions(ast, lang);
       }
 
-      // 使用 TreeSitterQueryFacade 替代 QueryManager
-      const functions = await TreeSitterQueryFacade.findFunctions(ast, lang);
+      // 使用 QueryExecutor 替代 QueryManager
+      const functions = await QueryExecutor.getInstance().findFunctions(ast, lang);
 
       this.logger.debug(`提取到 ${functions.length} 个函数节点`);
       return functions;
@@ -311,14 +313,14 @@ export class DynamicParserManager {
         await this.waitForQuerySystem();
       }
 
-      const classQuery = await QueryRegistryImpl.getPattern(lang, 'classes');
+      const classQuery = await QueryManager.getPattern(lang, 'classes');
       if (!classQuery) {
         this.logger.warn(`未找到 ${lang} 语言的类查询模式，使用回退机制`);
         return FallbackExtractor.extractClasses(ast, lang);
       }
 
-      // 使用 TreeSitterQueryFacade 替代 QueryManager
-      const classes = await TreeSitterQueryFacade.findClasses(ast, lang);
+      // 使用 QueryExecutor 替代 QueryManager
+      const classes = await QueryExecutor.getInstance().findClasses(ast, lang);
 
       this.logger.debug(`提取到 ${classes.length} 个类节点`);
       return classes;
@@ -343,17 +345,17 @@ export class DynamicParserManager {
         await this.waitForQuerySystem();
       }
 
-      const exportQuery = await QueryRegistryImpl.getPattern(lang, 'exports');
+      const exportQuery = await QueryManager.getPattern(lang, 'exports');
       if (!exportQuery) {
         this.logger.warn(`未找到 ${lang} 语言的导出查询模式，使用回退机制`);
         return FallbackExtractor.extractImportTexts(ast, sourceCode);
       }
 
-      // 使用 TreeSitterQueryFacade 替代 QueryManager
-      const exportNodes = await TreeSitterQueryFacade.findExports(ast, lang);
+      // 使用 QueryExecutor 替代 QueryManager
+      const exportNodes = await QueryExecutor.getInstance().findExports(ast, lang);
       const exports = exportNodes
         .map((c: Parser.SyntaxNode) => this.getNodeText(c, sourceCode))
-        .filter((text: { trim: () => { (): any; new(): any; length: number; }; }) => text.trim().length > 0);
+        .filter((text: string) => text.trim().length > 0);
 
       this.logger.debug(`提取到 ${exports.length} 个导出`);
       return exports;
@@ -508,7 +510,7 @@ export class DynamicParserManager {
   getQuerySystemStatus() {
     return {
       initialized: this.querySystemInitialized,
-      stats: QueryRegistryImpl.getStats()
+      stats: QueryManager.getStats()
     };
   }
 }

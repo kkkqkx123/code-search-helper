@@ -10,8 +10,9 @@ import Parser from 'tree-sitter';
 import { CodeChunk, ChunkType } from '../../types/CodeChunk';
 import { LoggerService } from '../../../../../utils/LoggerService';
 import { ChunkTypeMapper } from '../../../../../utils/parser/ChunkTypeMapper';
-import { ParserFacade } from '../../../../parser/core/parse/ParserFacade';
-import { DetectionService } from '../../../detection/DetectionService';
+import { DynamicParserManager } from '../../../../parser/parsing/DynamicParserManager';
+import { QueryExecutor } from '../../../../parser/parsing/QueryExecutor';
+import { DetectionService } from '../../../parser/parsing/detection/DetectionService';
 import { TYPES } from '../../../../../types';
 import { ChunkFactory } from '../../../../../utils/parser/ChunkFactory';
 import { ValidationUtils } from '../../../../../utils/parser/validation/ValidationUtils';
@@ -34,16 +35,20 @@ export class ASTCodeSplitter {
   private astCache: ASTCache;
   private complexityCalculator: UnifiedComplexityCalculator;
   private parallelProcessor: ParallelProcessor;
+  private dynamicParserManager: DynamicParserManager;
+  private queryExecutor: QueryExecutor;
 
   constructor(
-    @inject(TYPES.ParserFacade) private parserFacade: ParserFacade,
+    @inject(TYPES.CacheService) private cacheService: ICacheService,
     @inject(TYPES.DetectionService) private detectionService: DetectionService,
     @inject(TYPES.LoggerService) private logger: LoggerService,
     @inject(TYPES.SegmentationConfigService) private segmentationConfigService: SegmentationConfigService,
     @inject(TYPES.UnifiedContentAnalyzer) private unifiedContentAnalyzer: any,
-    @inject(TYPES.CacheService) private cacheService?: ICacheService,
     @inject(TYPES.PerformanceMonitor) private performanceMonitor?: IPerformanceMonitor
   ) {
+    // 创建底层服务实例
+    this.dynamicParserManager = new DynamicParserManager(cacheService);
+    this.queryExecutor = QueryExecutor.getInstance();
     // 初始化优化工具类
     this.astCache = new ASTCache(this.logger, {
       maxSize: this.config.performance?.maxCacheSize || 1000,
@@ -125,7 +130,7 @@ export class ASTCodeSplitter {
       if (!ast) {
         // 缓存未命中，执行AST解析
         const parseStartTime = Date.now();
-        const parseResult = await this.parserFacade.parseCode(content, language);
+        const parseResult = await this.dynamicParserManager.parseCode(content, language);
         parseTime = Date.now() - parseStartTime;
 
         if (!parseResult) {

@@ -1,12 +1,11 @@
 /**
- * 动态查询配置系统
+ * 简化的查询配置系统
  * 支持运行时配置更新、验证和性能优化
  * 使用新的实体和关系类型定义体系
  */
 
-import { languageMappingManager } from '../../config/LanguageMappingManager';
-import { LoggerService } from '../../../../utils/LoggerService';
-import { LRUCache } from '../../../../utils/cache/LRUCache';
+import { languageMappingManager } from '../config/LanguageMappingManager';
+import { LoggerService } from '../../../utils/LoggerService';
 import {
   EntityType,
   RelationshipCategory,
@@ -15,7 +14,7 @@ import {
   RelationshipTypeRegistry,
   EntityQueryBuilderFactory,
   RelationshipQueryBuilderFactory
-} from './types';
+} from './types/index';
 
 /**
  * 查询类型配置接口
@@ -39,14 +38,11 @@ export interface QueryTypeConfig {
   /** 支持的语言列表（空数组表示支持所有语言） */
   supportedLanguages: string[];
 
-  /** 查询类型分类 - 使用新的实体类型体系 */
+  /** 查询类型分类 */
   category: 'entity' | 'relationship' | 'structure' | 'behavior' | 'type' | 'import' | 'export' | 'flow' | 'custom';
 
   /** 关联的实体类型（如果适用） */
   entityTypes?: EntityType[];
-
-  /** 关联的关系类别（如果适用） */
-  relationshipCategories?: RelationshipCategory[];
 
   /** 关联的关系类型（如果适用） */
   relationshipTypes?: RelationshipType[];
@@ -93,31 +89,12 @@ export interface ConfigValidationResult {
 }
 
 /**
- * 查询执行上下文
- */
-export interface QueryExecutionContext {
-  /** 语言类型 */
-  language: string;
-
-  /** 文件路径 */
-  filePath: string;
-
-  /** 查询类型 */
-  queryType: string;
-
-  /** 自定义参数 */
-  customParams?: Record<string, any>;
-}
-
-/**
- * 动态查询配置管理器
+ * 简化的查询配置管理器
  */
 export class QueryConfigManager {
   private static instance: QueryConfigManager;
   private queryTypes: Map<string, QueryTypeConfig> = new Map();
-  public compoundQueries: Map<string, CompoundQueryConfig> = new Map();
-  private languageQueryTypes: Map<string, Set<string>> = new Map();
-  private queryTypeCache: LRUCache<string, string[]>;
+  private compoundQueries: Map<string, CompoundQueryConfig> = new Map();
   private logger: LoggerService;
   private initialized = false;
   private entityRegistry: EntityTypeRegistry;
@@ -125,7 +102,6 @@ export class QueryConfigManager {
 
   private constructor() {
     this.logger = new LoggerService();
-    this.queryTypeCache = new LRUCache<string, string[]>(100);
     this.entityRegistry = EntityTypeRegistry.getInstance();
     this.relationshipRegistry = RelationshipTypeRegistry.getInstance();
     this.initializeDefaultConfigs();
@@ -242,7 +218,6 @@ export class QueryConfigManager {
         isCore: true,
         supportedLanguages: [],
         category: 'relationship',
-        relationshipCategories: [RelationshipCategory.CALL],
         relationshipTypes: [RelationshipType.CALL, RelationshipType.METHOD_CALL],
         dependencies: ['functions'],
         tags: ['core', 'relationship', 'call']
@@ -258,7 +233,6 @@ export class QueryConfigManager {
         isCore: true,
         supportedLanguages: [],
         category: 'relationship',
-        relationshipCategories: [RelationshipCategory.DATA_FLOW],
         relationshipTypes: [RelationshipType.ASSIGNMENT, RelationshipType.PARAMETER_PASSING, RelationshipType.RETURN_VALUE],
         dependencies: ['functions', 'variables'],
         tags: ['core', 'relationship', 'dataflow']
@@ -275,7 +249,6 @@ export class QueryConfigManager {
         isCore: true,
         supportedLanguages: [],
         category: 'relationship',
-        relationshipCategories: [RelationshipCategory.CONTROL_FLOW],
         relationshipTypes: [RelationshipType.CONDITIONAL, RelationshipType.LOOP, RelationshipType.JUMP],
         dependencies: [],
         tags: ['core', 'relationship', 'controlflow']
@@ -291,7 +264,6 @@ export class QueryConfigManager {
         isCore: true,
         supportedLanguages: [],
         category: 'relationship',
-        relationshipCategories: [RelationshipCategory.DEPENDENCY],
         relationshipTypes: [RelationshipType.INCLUDE, RelationshipType.TYPE_REFERENCE, RelationshipType.FUNCTION_REFERENCE],
         dependencies: [],
         tags: ['core', 'relationship', 'dependency']
@@ -307,58 +279,9 @@ export class QueryConfigManager {
         isCore: true,
         supportedLanguages: [],
         category: 'relationship',
-        relationshipCategories: [RelationshipCategory.INHERITANCE],
         relationshipTypes: [RelationshipType.EXTENDS, RelationshipType.IMPLEMENTS, RelationshipType.COMPOSITION],
         dependencies: ['types'],
         tags: ['core', 'relationship', 'inheritance']
-      },
-      {
-        name: 'lifecycle',
-        description: '生命周期关系',
-        nodeTypes: [
-          'function_call', 'allocation_expression', 'deallocation_expression',
-          'constructor_declaration', 'destructor_declaration'
-        ],
-        priority: 6,
-        isCore: true,
-        supportedLanguages: [],
-        category: 'relationship',
-        relationshipCategories: [RelationshipCategory.LIFECYCLE],
-        relationshipTypes: [RelationshipType.INITIALIZATION, RelationshipType.CLEANUP],
-        dependencies: ['functions'],
-        tags: ['core', 'relationship', 'lifecycle']
-      },
-      {
-        name: 'semantic',
-        description: '语义关系',
-        nodeTypes: [
-          'error_handling', 'resource_management', 'callback_assignment',
-          'error_check', 'cleanup_pattern'
-        ],
-        priority: 7,
-        isCore: false,
-        supportedLanguages: [],
-        category: 'relationship',
-        relationshipCategories: [RelationshipCategory.SEMANTIC],
-        relationshipTypes: [RelationshipType.ERROR_HANDLING, RelationshipType.RESOURCE_MANAGEMENT],
-        dependencies: ['functions', 'dataFlow'],
-        tags: ['relationship', 'semantic']
-      },
-      {
-        name: 'references',
-        description: '引用关系',
-        nodeTypes: [
-          'identifier', 'type_identifier', 'field_identifier',
-          'variable_reference', 'type_reference'
-        ],
-        priority: 8,
-        isCore: false,
-        supportedLanguages: [],
-        category: 'relationship',
-        relationshipCategories: [RelationshipCategory.REFERENCE],
-        relationshipTypes: [RelationshipType.REFERENCE],
-        dependencies: ['variables', 'types'],
-        tags: ['relationship', 'reference']
       }
     ];
 
@@ -400,14 +323,6 @@ export class QueryConfigManager {
       supportedLanguages: []
     });
 
-    this.registerCompoundQuery({
-      name: 'lifecycle-analysis',
-      description: '生命周期分析组合查询',
-      queryTypes: ['lifecycle', 'semantic', 'dataFlow'],
-      mergeStrategy: 'union',
-      supportedLanguages: []
-    });
-
     this.initialized = true;
     this.logger.info(`QueryConfigManager 初始化完成，注册了 ${this.queryTypes.size} 种查询类型`);
   }
@@ -422,18 +337,6 @@ export class QueryConfigManager {
     }
 
     this.queryTypes.set(config.name, config);
-
-    // 更新语言查询类型映射
-    for (const language of this.getSupportedLanguagesForQueryType(config)) {
-      if (!this.languageQueryTypes.has(language)) {
-        this.languageQueryTypes.set(language, new Set());
-      }
-      this.languageQueryTypes.get(language)!.add(config.name);
-    }
-
-    // 清除相关缓存
-    this.queryTypeCache.clear();
-
     this.logger.debug(`注册查询类型: ${config.name}`);
   }
 
@@ -517,14 +420,6 @@ export class QueryConfigManager {
    * 获取指定语言支持的查询类型
    */
   getQueryTypesForLanguage(language: string): string[] {
-    const cacheKey = `language:${language}`;
-
-    // 检查缓存
-    const cached = this.queryTypeCache.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
     const supportedTypes: string[] = [];
 
     for (const [name, config] of this.queryTypes) {
@@ -539,9 +434,6 @@ export class QueryConfigManager {
       const priorityB = this.queryTypes.get(b)!.priority;
       return priorityA - priorityB;
     });
-
-    // 缓存结果
-    this.queryTypeCache.set(cacheKey, supportedTypes);
 
     return supportedTypes;
   }
@@ -561,14 +453,6 @@ export class QueryConfigManager {
   }
 
   /**
-   * 获取查询类型的节点类型映射
-   */
-  getQueryTypePatterns(queryType: string): string[] {
-    const config = this.queryTypes.get(queryType);
-    return config ? config.nodeTypes : [];
-  }
-
-  /**
    * 获取查询类型关联的实体类型
    */
   getQueryTypeEntityTypes(queryType: string): EntityType[] {
@@ -585,44 +469,13 @@ export class QueryConfigManager {
   }
 
   /**
-   * 创建查询执行上下文
-   */
-  createExecutionContext(
-    language: string,
-    filePath: string,
-    queryType: string,
-    customParams?: Record<string, any>
-  ): QueryExecutionContext {
-    return {
-      language,
-      filePath,
-      queryType,
-      customParams
-    };
-  }
-
-  /**
    * 检查查询类型是否支持指定语言
    */
   private isQueryTypeSupportedForLanguage(config: QueryTypeConfig, language: string): boolean {
-    // 如果支持的语言列表为空，表示支持所有语言
-    if (config.supportedLanguages.length === 0) {
+    if (!config.supportedLanguages || config.supportedLanguages.length === 0) {
       return true;
     }
-
     return config.supportedLanguages.includes(language.toLowerCase());
-  }
-
-  /**
-   * 获取查询类型支持的语言列表
-   */
-  private getSupportedLanguagesForQueryType(config: QueryTypeConfig): string[] {
-    if (config.supportedLanguages.length === 0) {
-      // 如果没有指定支持的语言，返回所有支持的语言
-      return languageMappingManager.getAllSupportedLanguages();
-    }
-
-    return config.supportedLanguages;
   }
 
   /**
@@ -712,14 +565,6 @@ export class QueryConfigManager {
   }
 
   /**
-   * 清除缓存
-   */
-  clearCache(): void {
-    this.queryTypeCache.clear();
-    this.logger.debug('查询配置缓存已清除');
-  }
-
-  /**
    * 获取配置统计信息
    */
   getStats() {
@@ -736,8 +581,6 @@ export class QueryConfigManager {
       entityQueryTypes: this.getEntityQueryTypes().length,
       relationshipQueryTypes: this.getRelationshipQueryTypes().length,
       categoryStats,
-      cacheSize: this.queryTypeCache.size(),
-      supportedLanguages: this.languageQueryTypes.size,
       registeredEntityFactories: this.entityRegistry.getRegisteredLanguages().length,
       registeredRelationshipFactories: this.relationshipRegistry.getRegisteredLanguages().length
     };
@@ -765,7 +608,7 @@ export const COMPOUND_QUERY_TYPES = Array.from(queryConfigManager.compoundQuerie
 // 动态生成的查询模式映射
 export const QUERY_PATTERNS: Record<string, string[]> = {};
 for (const queryType of queryConfigManager.getAllQueryTypes()) {
-  QUERY_PATTERNS[queryType] = queryConfigManager.getQueryTypePatterns(queryType);
+  QUERY_PATTERNS[queryType] = queryConfigManager.getQueryTypeEntityTypes(queryType).map(type => type.toString());
 }
 
 // 导出构建器工厂

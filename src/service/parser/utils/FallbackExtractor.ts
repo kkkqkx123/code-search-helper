@@ -1,5 +1,5 @@
 import Parser from 'tree-sitter';
-import { TreeSitterQueryFacade } from '../core/query/TreeSitterQueryFacade';
+import { QueryExecutor } from '../parsing/QueryExecutor';
 import { LoggerService } from '../../../utils/LoggerService';
 import { languageMappingManager } from '../config/LanguageMappingManager';
 
@@ -99,7 +99,7 @@ export class FallbackExtractor {
         }
         
         try {
-          const functions = await TreeSitterQueryFacade.findFunctions(ast, lang);
+          const functions = await QueryExecutor.getInstance().findFunctions(ast, lang);
           if (functions.length > 0) {
             this.logger.debug(`使用语言特定查询提取到 ${functions.length} 个函数 (${lang})`);
             // 回退到通用节点类型遍历，因为EntityQueryResult不是SyntaxNode
@@ -135,7 +135,7 @@ export class FallbackExtractor {
         }
         
         try {
-          const classes = await TreeSitterQueryFacade.findClasses(ast, lang);
+          const classes = await QueryExecutor.getInstance().findClasses(ast, lang);
           if (classes.length > 0) {
             this.logger.debug(`使用语言特定查询提取到 ${classes.length} 个类 (${lang})`);
             // 回退到通用节点类型遍历，因为EntityQueryResult不是SyntaxNode
@@ -171,7 +171,7 @@ export class FallbackExtractor {
         }
         
         try {
-          const imports = await TreeSitterQueryFacade.findImports(ast, lang);
+          const imports = await QueryExecutor.getInstance().findImports(ast, lang);
           if (imports.length > 0) {
             this.logger.debug(`使用语言特定查询提取到 ${imports.length} 个导入 (${lang})`);
             // 回退到通用节点类型遍历，因为EntityQueryResult不是SyntaxNode
@@ -207,7 +207,7 @@ export class FallbackExtractor {
         }
         
         try {
-          const exports = await TreeSitterQueryFacade.findExports(ast, lang);
+          const exports = await QueryExecutor.getInstance().findExports(ast, lang);
           if (exports.length > 0) {
             this.logger.debug(`使用语言特定查询提取到 ${exports.length} 个导出 (${lang})`);
             // 回退到通用节点类型遍历，因为EntityQueryResult不是SyntaxNode

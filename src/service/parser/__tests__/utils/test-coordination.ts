@@ -1,7 +1,7 @@
 import Parser from 'tree-sitter';
 import C from 'tree-sitter-c';
 import { CLanguageAdapter } from '../../normalization/adapters/CLanguageAdapter';
-import { QueryLoader } from '../../core/query/QueryLoader';
+import { QueryManager } from '../../parsing/QueryManager';
 
 export class CoordinationTester {
   private parser: Parser;

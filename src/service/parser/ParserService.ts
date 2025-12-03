@@ -3,7 +3,7 @@ import { LoggerService } from '../../utils/LoggerService';
 import { TYPES } from '../../types';
 import { LanguageDetector, DetectionResult } from './detection/LanguageDetector';
 import { DynamicParserManager, DynamicParseResult } from './parsing/DynamicParserManager';
-import { TreeSitterQueryEngine } from './parsing/TreeSitterQueryExecutor';
+import { QueryExecutor } from './parsing/QueryExecutor';
 import { CodeStructureService } from './structure/CodeStructureService';
 import { ICacheService } from '../../infrastructure/caching/types';
 

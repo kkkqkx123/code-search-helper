@@ -3,7 +3,7 @@ import { LoggerService } from '../../../utils/LoggerService';
 import { ParseOptions } from '../types';
 import { TREE_SITTER_LANGUAGE_MAP } from '../constants/language-constants';
 import { DynamicParserManager } from '../parsing/DynamicParserManager';
-import { TreeSitterQueryEngine } from '../parsing/TreeSitterQueryExecutor';
+import { QueryExecutor } from '../parsing/QueryExecutor';
 
 /**
  * 代码结构服务
