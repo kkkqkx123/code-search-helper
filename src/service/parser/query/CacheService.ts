@@ -1,5 +1,7 @@
 import Parser from 'tree-sitter';
-import { createCache } from '../../../utils/cache';
+import { injectable, inject } from 'inversify';
+import { TYPES } from '../../../types';
+import { ICacheService } from '../../../infrastructure/caching/types';
 import { CacheKeyUtils } from '../../../utils/cache/CacheKeyUtils';
 import { HashUtils } from '../../../utils/cache/HashUtils';
 import { LoggerService } from '../../../utils/LoggerService';
@@ -41,78 +43,36 @@ export interface PerformanceStatistics {
 }
 
 /**
- * 缓存配置
+ * 查询缓存配置
  */
-export interface CacheConfig {
-  parserCacheTTL: number;      // 解析器缓存有效期（毫秒）
+export interface QueryCacheConfig {
   astCacheTTL: number;         // AST缓存有效期
   queryCacheTTL: number;       // 查询结果缓存有效期
-  nodeCacheSize: number;       // 节点缓存最大条目数
 }
 
 /**
- * 统一缓存服务
- * 整合了原有的 ParserCacheService 和 QueryCache 的功能
- * 使用静态设计，支持配置和统计功能
+ * 查询专用缓存服务
+ * 专注于查询模块特有的缓存需求，使用基础设施层缓存服务
  */
-export class CacheService {
-  private static logger = new LoggerService();
+@injectable()
+export class QueryCacheService {
+  private logger: LoggerService;
+  private cacheService: ICacheService;
 
   // 缓存键前缀，用于区分不同引擎
-  private static readonly SIMPLE_QUERY_PREFIX = 'simple:';
-  private static readonly TREE_SITTER_QUERY_PREFIX = 'treesitter:';
-  private static readonly BATCH_QUERY_PREFIX = 'batch:';
-  private static readonly AST_PREFIX = 'ast:';
-  private static readonly PARSER_PREFIX = 'parser:';
+  private readonly SIMPLE_QUERY_PREFIX = 'query:simple:';
+  private readonly TREE_SITTER_QUERY_PREFIX = 'query:treesitter:';
+  private readonly BATCH_QUERY_PREFIX = 'query:batch:';
+  private readonly AST_PREFIX = 'query:ast:';
+  private readonly ENTITY_PREFIX = 'query:entity:';
+  private readonly RELATIONSHIP_PREFIX = 'query:relationship:';
+  private readonly MIXED_PREFIX = 'query:mixed:';
 
-  // 解析器对象缓存
-  private static parserCache = createCache<string, Parser>('stats-decorated', 50, {
-    enableStats: true
-  });
-
-  // 预编译查询对象缓存
-  private static queryCache = createCache<string, Parser.Query>('stats-decorated', 200, {
-    enableStats: true
-  });
-
-  // 查询结果缓存
-  private static resultCache = createCache<string, any>('stats-decorated', 500, {
-    enableStats: true
-  });
-
-  // AST对象缓存
-  private static astCache = createCache<string, Parser.SyntaxNode>('stats-decorated', 200, {
-    enableStats: true
-  });
-
-  // 实体结果缓存
-  private static entityCache = createCache<string, any[]>('stats-decorated', 300, {
-    enableStats: true
-  });
-
-  // 关系结果缓存
-  private static relationshipCache = createCache<string, any[]>('stats-decorated', 300, {
-    enableStats: true
-  });
-
-  // 混合结果缓存
-  private static mixedCache = createCache<string, any>('stats-decorated', 200, {
-    enableStats: true
-  });
-
-  // 节点缓存
-  private static nodeCache: Map<string, Parser.SyntaxNode[]> = new Map();
-
-  // 缓存配置
-  private static cacheConfig: CacheConfig = {
-    parserCacheTTL: 30 * 60 * 1000,      // 30分钟
-    astCacheTTL: 10 * 60 * 1000,         // 10分钟
-    queryCacheTTL: 5 * 60 * 1000,        // 5分钟
-    nodeCacheSize: 1000,                 // 最多1000个节点
-  };
+  // 预编译查询对象缓存（使用Map，因为基础设施层缓存不适合频繁访问的小对象）
+  private queryCache: Map<string, Parser.Query> = new Map();
 
   // 性能统计
-  private static performanceStats = {
+  private performanceStats = {
     totalParseTime: 0,
     totalParseCount: 0,
     averageParseTime: 0,
@@ -122,6 +82,14 @@ export class CacheService {
     totalQueryCount: 0,
     averageQueryTime: 0,
   };
+
+  constructor(
+    @inject(TYPES.LoggerService) logger: LoggerService,
+    @inject(TYPES.CacheService) cacheService: ICacheService
+  ) {
+    this.logger = logger;
+    this.cacheService = cacheService;
+  }
 
   /**
    * 配置缓存参数

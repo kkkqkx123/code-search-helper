@@ -124,31 +124,4 @@ export default `
   )
 )
 
-; 外部变量依赖关系
-(function_definition
-  declarator: (function_declarator
-    declarator: (identifier) @relationship.dependency.function.from)
-  body: (compound_statement
-    (_
-      (declaration
-        (storage_class_specifier) _
-        declarator: (identifier) @relationship.dependency.extern.to
-      ) @relationship.dependency.extern
-    )
-  )
-)
-
-; 静态变量依赖关系
-(function_definition
-  declarator: (function_declarator
-    declarator: (identifier) @relationship.dependency.function.from)
-  body: (compound_statement
-    (_
-      (declaration
-        (storage_class_specifier) _
-        declarator: (identifier) @relationship.dependency.static.to
-      ) @relationship.dependency.static
-    )
-  )
-)
 `;
