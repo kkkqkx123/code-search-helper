@@ -89,7 +89,7 @@ export interface QueryStats {
 
 /**
  * 整合查询执行器
- * 合并了 TreeSitterQueryExecutor、TreeSitterQueryFacade 和 ParserQueryService 的功能
+ * 合并了原有的查询执行器功能
  * 提供统一的查询接口，支持多种查询策略和优先级管理
  */
 @injectable()
@@ -1001,7 +1001,3 @@ export class QueryExecutor {
     return HashUtils.fnv1aHash(queryTypes.sort().join(','));
   }
 }
-
-// 为了保持向后兼容性，导出别名
-export const TreeSitterQueryEngine = QueryExecutor;
-export const TreeSitterQueryFacade = QueryExecutor;

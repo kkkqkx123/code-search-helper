@@ -106,7 +106,7 @@ export const TYPES = {
   // 旧接口（标记为废弃，将在后续版本中移除）
   TreeSitterService: Symbol.for('TreeSitterService'), // @deprecated 使用 ParserFacade 替代
   TreeSitterCoreService: Symbol.for('TreeSitterCoreService'), // @deprecated 使用 ParserCoreService 替代
-  TreeSitterQueryEngine: Symbol.for('TreeSitterQueryEngine'), // @deprecated 使用 ParserQueryService 替代
+  QueryExecutor: Symbol.for('QueryExecutor'), // 替代 TreeSitterQueryEngine
 
   UnifiedGuardCoordinator: Symbol.for('UnifiedGuardCoordinator'),
   IUnifiedGuardCoordinator: Symbol.for('IUnifiedGuardCoordinator'),

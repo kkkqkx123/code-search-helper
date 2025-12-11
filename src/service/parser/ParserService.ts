@@ -28,7 +28,7 @@ export interface ParseResult {
 export class ParserService {
   private languageDetector: LanguageDetector;
   private parserManager: DynamicParserManager;
-  private queryEngine: TreeSitterQueryEngine;
+  private queryEngine: QueryExecutor;
   private structureService: CodeStructureService;
   private cacheService: ICacheService;
   private logger: LoggerService;
@@ -41,7 +41,7 @@ export class ParserService {
     this.cacheService = cacheService;
     this.languageDetector = new LanguageDetector(logger);
     this.parserManager = new DynamicParserManager(cacheService);
-    this.queryEngine = new TreeSitterQueryEngine();
+    this.queryEngine = new QueryExecutor();
     this.structureService = new CodeStructureService();
 
     this.logger.debug('ParserService 初始化完成');

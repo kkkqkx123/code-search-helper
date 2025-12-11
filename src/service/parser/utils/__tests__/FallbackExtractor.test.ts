@@ -1,9 +1,9 @@
 import Parser from 'tree-sitter';
 import { FallbackExtractor } from '../FallbackExtractor';
 
-// Mock TreeSitterQueryFacade
-jest.mock('../../core/query/TreeSitterQueryFacade', () => ({
-  TreeSitterQueryFacade: {
+// Mock QueryExecutor
+jest.mock('../../query/QueryExecutor', () => ({
+  QueryExecutor: {
     findFunctions: jest.fn(),
     findClasses: jest.fn(),
     findImports: jest.fn(),
@@ -76,62 +76,62 @@ describe('FallbackExtractor', () => {
   describe('特殊语言处理', () => {
     test('配置文件语言应该跳过函数提取', async () => {
       mockTree.language.name = 'json';
-      const { TreeSitterQueryFacade } = require('../../core/query/TreeSitterQueryFacade');
+      const { QueryExecutor } = require('../../query/QueryExecutor');
       
       const result = await FallbackExtractor.extractFunctions(mockAST);
       
       expect(result).toEqual([]);
-      expect(TreeSitterQueryFacade.findFunctions).not.toHaveBeenCalled();
+      expect(QueryExecutor.findFunctions).not.toHaveBeenCalled();
     });
 
     test('前端语言应该正常提取函数', async () => {
       mockTree.language.name = 'tsx';
-      const { TreeSitterQueryFacade } = require('../../core/query/TreeSitterQueryFacade');
-      TreeSitterQueryFacade.findFunctions.mockResolvedValue([]);
+      const { QueryExecutor } = require('../../query/QueryExecutor');
+      QueryExecutor.findFunctions.mockResolvedValue([]);
       
       await FallbackExtractor.extractFunctions(mockAST);
       
-      expect(TreeSitterQueryFacade.findFunctions).toHaveBeenCalledWith(mockAST, 'tsx');
+      expect(QueryExecutor.findFunctions).toHaveBeenCalledWith(mockAST, 'tsx');
     });
 
     test('配置文件语言应该跳过类提取', async () => {
       mockTree.language.name = 'yaml';
-      const { TreeSitterQueryFacade } = require('../../core/query/TreeSitterQueryFacade');
+      const { QueryExecutor } = require('../../query/QueryExecutor');
       
       const result = await FallbackExtractor.extractClasses(mockAST);
       
       expect(result).toEqual([]);
-      expect(TreeSitterQueryFacade.findClasses).not.toHaveBeenCalled();
+      expect(QueryExecutor.findClasses).not.toHaveBeenCalled();
     });
 
     test('标记语言应该跳过导入提取', async () => {
       mockTree.language.name = 'html';
-      const { TreeSitterQueryFacade } = require('../../core/query/TreeSitterQueryFacade');
+      const { QueryExecutor } = require('../../query/QueryExecutor');
       
       const result = await FallbackExtractor.extractImports(mockAST);
       
       expect(result).toEqual([]);
-      expect(TreeSitterQueryFacade.findImports).not.toHaveBeenCalled();
+      expect(QueryExecutor.findImports).not.toHaveBeenCalled();
     });
 
     test('后端语言应该跳过导出提取', async () => {
       mockTree.language.name = 'python';
-      const { TreeSitterQueryFacade } = require('../../core/query/TreeSitterQueryFacade');
+      const { QueryExecutor } = require('../../query/QueryExecutor');
       
       const result = await FallbackExtractor.extractExports(mockAST);
       
       expect(result).toEqual([]);
-      expect(TreeSitterQueryFacade.findExports).not.toHaveBeenCalled();
+      expect(QueryExecutor.findExports).not.toHaveBeenCalled();
     });
 
     test('JavaScript 应该正常提取导出', async () => {
       mockTree.language.name = 'javascript';
-      const { TreeSitterQueryFacade } = require('../../core/query/TreeSitterQueryFacade');
-      TreeSitterQueryFacade.findExports.mockResolvedValue([]);
+      const { QueryExecutor } = require('../../query/QueryExecutor');
+      QueryExecutor.findExports.mockResolvedValue([]);
       
       await FallbackExtractor.extractExports(mockAST);
       
-      expect(TreeSitterQueryFacade.findExports).toHaveBeenCalledWith(mockAST, 'javascript');
+      expect(QueryExecutor.findExports).toHaveBeenCalledWith(mockAST, 'javascript');
     });
   });
 

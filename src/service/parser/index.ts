@@ -19,8 +19,7 @@ export { CodeStructureService } from './structure/CodeStructureService';
 export { LanguageDetector } from './core/language-detection/LanguageDetector';
 
 // 查询相关服务
-export { TreeSitterQueryFacade } from './core/query/TreeSitterQueryFacade';
-export { TreeSitterQueryEngine } from './core/query/TreeSitterQueryExecutor';
+export { QueryExecutor } from './query/QueryExecutor';
 export { QueryRegistryImpl } from './core/query/QueryRegistry';
 
 // 工具类

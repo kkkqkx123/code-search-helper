@@ -129,28 +129,29 @@ class MockQueryCache {
 }
 
 class MockBatchProcessingService implements IBatchProcessingService {
-  processBatches = jest.fn().mockResolvedValue([]);
-  processBatch = jest.fn().mockResolvedValue([]);
-  processSimilarityBatch = jest.fn().mockResolvedValue([]);
-  processEmbeddingBatch = jest.fn().mockResolvedValue([]);
-  processDatabaseBatch = jest.fn().mockResolvedValue([]);
-  processFileBatch = jest.fn().mockResolvedValue([]);
-  processIndexingBatch = jest.fn().mockResolvedValue([]);
-  processQueryBatch = jest.fn().mockResolvedValue([]);
   executeBatch = jest.fn().mockResolvedValue([]);
+  executeDatabaseBatch = jest.fn().mockResolvedValue([]);
+  executeEmbeddingBatch = jest.fn().mockResolvedValue([]);
+  executeSimilarityBatch = jest.fn().mockResolvedValue({});
+  executeHotReloadBatch = jest.fn().mockResolvedValue({});
+  executeBatchWithRetry = jest.fn().mockResolvedValue([]);
+  executeBatchWithMonitoring = jest.fn().mockResolvedValue([]);
   executeWithRetry = jest.fn().mockImplementation(async (fn) => await fn());
   executeWithMonitoring = jest.fn().mockImplementation(async (fn) => await fn());
   updateConfig = jest.fn();
-  getPerformanceStats = jest.fn().mockReturnValue({});
-  getCurrentBatchSize = jest.fn().mockReturnValue(0);
-  optimizeMemory = jest.fn().mockReturnValue(undefined);
-  getStats = jest.fn().mockReturnValue({
-    totalBatches: 0,
-    successfulBatches: 0,
-    failedBatches: 0,
-    averageBatchSize: 0,
-    averageProcessingTime: 0
+  getPerformanceStats = jest.fn().mockReturnValue({
+    count: 0,
+    successRate: 0,
+    averageDuration: 0,
+    minDuration: 0,
+    maxDuration: 0,
+    p95Duration: 0,
+    p99Duration: 0
   });
+  getCurrentBatchSize = jest.fn().mockReturnValue(0);
+  optimizeMemory = jest.fn().mockResolvedValue(undefined);
+  optimizeBatchSize = jest.fn().mockResolvedValue(0);
+  resetPerformanceStats = jest.fn();
 }
 
 class MockRetryStrategy implements IRetryStrategy {
@@ -363,8 +364,8 @@ describe('QueryRunner', () => {
       ];
       
       // Mock the batch processing service to return results
-      (mockBatchProcessingService.processBatches as jest.Mock).mockImplementationOnce(async (queries, processor) => {
-        return await processor(queries);
+      (mockBatchProcessingService.executeBatch as jest.Mock).mockImplementationOnce(async (items, processor) => {
+        return await processor(items);
       });
       
       // Mock the execute method to return results
@@ -391,7 +392,7 @@ describe('QueryRunner', () => {
       const results = await queryRunner.executeBatch(queries);
 
       expect(results).toHaveLength(2);
-      expect(mockBatchProcessingService.processBatches).toHaveBeenCalledWith(
+      expect(mockBatchProcessingService.executeBatch).toHaveBeenCalledWith(
         expect.any(Array),
         expect.any(Function),
         expect.any(Object)
@@ -404,7 +405,7 @@ describe('QueryRunner', () => {
         { query: 'SHOW HOSTS' }
       ];
       const error = new Error('Batch execution failed');
-      (mockBatchProcessingService.processBatches as jest.Mock).mockRejectedValueOnce(error);
+      (mockBatchProcessingService.executeBatch as jest.Mock).mockRejectedValueOnce(error);
 
       await expect(queryRunner.executeBatch(queries)).rejects.toThrow('Batch execution failed');
       expect(mockErrorHandler.handleError).toHaveBeenCalledWith(

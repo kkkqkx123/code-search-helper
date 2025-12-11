@@ -20,7 +20,21 @@ describe('NebulaDataBatchProcessor', () => {
 
   beforeEach(() => {
     mockBatchService = {
-      processDatabaseBatch: jest.fn(),
+      executeBatch: jest.fn(),
+      executeDatabaseBatch: jest.fn(),
+      executeEmbeddingBatch: jest.fn(),
+      executeSimilarityBatch: jest.fn(),
+      executeHotReloadBatch: jest.fn(),
+      executeBatchWithRetry: jest.fn(),
+      executeBatchWithMonitoring: jest.fn(),
+      executeWithRetry: jest.fn(),
+      executeWithMonitoring: jest.fn(),
+      updateConfig: jest.fn(),
+      getPerformanceStats: jest.fn(),
+      getCurrentBatchSize: jest.fn(),
+      optimizeMemory: jest.fn(),
+      optimizeBatchSize: jest.fn(),
+      resetPerformanceStats: jest.fn(),
     } as any;
 
     mockQueryService = {
@@ -71,14 +85,14 @@ describe('NebulaDataBatchProcessor', () => {
         results: [{ success: true }]
       };
 
-      mockBatchService.processDatabaseBatch.mockResolvedValue(mockBatchResult);
+      mockBatchService.executeDatabaseBatch.mockResolvedValue(mockBatchResult.results);
 
       // Act
       const result = await processor.insertNodes(nodes);
 
       // Assert
       expect(result).toBe(true);
-      expect(mockBatchService.processDatabaseBatch).toHaveBeenCalledWith(
+      expect(mockBatchService.executeDatabaseBatch).toHaveBeenCalledWith(
         nodes,
         DatabaseType.NEBULA,
         expect.objectContaining({
@@ -104,7 +118,7 @@ describe('NebulaDataBatchProcessor', () => {
 
       // Assert
       expect(result).toBe(true);
-      expect(mockBatchService.processDatabaseBatch).not.toHaveBeenCalled();
+      expect(mockBatchService.executeDatabaseBatch).not.toHaveBeenCalled();
     });
   });
 
@@ -129,14 +143,14 @@ describe('NebulaDataBatchProcessor', () => {
         results: [{ success: true }]
       };
 
-      mockBatchService.processDatabaseBatch.mockResolvedValue(mockBatchResult);
+      mockBatchService.executeDatabaseBatch.mockResolvedValue(mockBatchResult.results);
 
       // Act
       const result = await processor.insertRelationships(relationships);
 
       // Assert
       expect(result).toBe(true);
-      expect(mockBatchService.processDatabaseBatch).toHaveBeenCalledWith(
+      expect(mockBatchService.executeDatabaseBatch).toHaveBeenCalledWith(
         relationships,
         DatabaseType.NEBULA,
         expect.objectContaining({

@@ -666,9 +666,9 @@ export class CacheService implements ICacheService {
   }
 
   /**
-   * 为TreeSitterQueryEngine生成缓存键
+   * 为QueryExecutor生成缓存键
    */
-  forTreeSitterQuery(contentHash: string, patternName: string, language: string): string {
+  forQueryExecutor(contentHash: string, patternName: string, language: string): string {
     return `${this.QUERY_TREE_SITTER_PREFIX}${contentHash}:${patternName}:${language}`;
   }
 

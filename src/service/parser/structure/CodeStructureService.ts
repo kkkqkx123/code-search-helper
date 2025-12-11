@@ -13,11 +13,11 @@ import { QueryExecutor } from '../query/QueryExecutor';
 export class CodeStructureService {
   private logger = new LoggerService();
   private parserManager: DynamicParserManager;
-  private queryEngine: TreeSitterQueryEngine;
+  private queryEngine: QueryExecutor;
 
   constructor() {
     this.parserManager = new DynamicParserManager();
-    this.queryEngine = new TreeSitterQueryEngine();
+    this.queryEngine = new QueryExecutor();
   }
 
   /**
