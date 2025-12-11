@@ -43,6 +43,7 @@ export class CacheStrategyManager {
     this.cacheStrategies.set('parser', new ParserCacheStrategy(this.cacheService, this.keyGenerator));
     this.cacheStrategies.set('vector', new VectorCacheStrategy(this.cacheService, this.keyGenerator));
     this.cacheStrategies.set('graph', new GraphCacheStrategy(this.cacheService, this.keyGenerator));
+    this.cacheStrategies.set('query', new QueryCacheStrategy(this.cacheService, this.keyGenerator));
     this.cacheStrategies.set('default', new DefaultCacheStrategy(this.cacheService, this.keyGenerator));
   }
 
@@ -144,6 +145,8 @@ export class CacheStrategyManager {
       return this.cacheStrategies.get('vector')!;
     } else if (key.startsWith('graph:')) {
       return this.cacheStrategies.get('graph')!;
+    } else if (key.startsWith('query:')) {
+      return this.cacheStrategies.get('query')!;
     }
     
     return this.cacheStrategies.get('default')!;
@@ -317,6 +320,34 @@ class DefaultCacheStrategy implements CacheStrategy {
 
   async set<T>(key: string, value: T, ttl?: number): Promise<void> {
     const effectiveTTL = ttl || 300000;
+    this.cacheService.setCache(key, value, effectiveTTL);
+  }
+
+  async invalidate(pattern: string): Promise<void> {
+    const regex = new RegExp(pattern);
+    const keys = this.cacheService.getKeysByPattern(regex);
+    
+    for (const key of keys) {
+      this.cacheService.deleteFromCache(key);
+    }
+  }
+}
+
+/**
+ * 查询缓存策略
+ */
+class QueryCacheStrategy implements CacheStrategy {
+  constructor(
+    private cacheService: CacheService,
+    private keyGenerator: CacheKeyGenerator
+  ) {}
+
+  async get<T>(key: string): Promise<T | null> {
+    return this.cacheService.getFromCache<T>(key) || null;
+  }
+
+  async set<T>(key: string, value: T, ttl?: number): Promise<void> {
+    const effectiveTTL = ttl || 300000; // 5分钟默认TTL
     this.cacheService.setCache(key, value, effectiveTTL);
   }
 

@@ -1,7 +1,7 @@
 import Parser from 'tree-sitter';
+import { injectable, inject } from 'inversify';
 import { QueryManager } from './QueryManager';
 import { LoggerService } from '../../../utils/LoggerService';
-import { CacheService } from './CacheService';
 import { QueryPerformanceMonitor } from './QueryPerformanceMonitor';
 import { QueryResultProcessor, QueryMatch } from './QueryResultProcessor';
 import {
@@ -15,6 +15,9 @@ import {
 import { queryConfigManager } from './QueryConfig';
 import { initializeLanguageFactories } from './types/languages';
 import { ErrorHandlerService } from '../../../utils/ErrorHandlerService';
+import { TYPES } from '../../../types';
+import { ICacheService } from '../../../infrastructure/caching/types';
+import { HashUtils } from '../../../utils/cache/HashUtils';
 
 /**
  * 混合查询结果
@@ -89,11 +92,13 @@ export interface QueryStats {
  * 合并了 TreeSitterQueryExecutor、TreeSitterQueryFacade 和 ParserQueryService 的功能
  * 提供统一的查询接口，支持多种查询策略和优先级管理
  */
+@injectable()
 export class QueryExecutor {
   private static instance: QueryExecutor;
   private queryManager = QueryManager;
-  private logger = new LoggerService();
+  private logger: LoggerService;
   private errorHandler: ErrorHandlerService;
+  private cacheService: ICacheService;
   private initialized = false;
   private querySystemInitialized = false;
   private resultProcessor: QueryResultProcessor;
@@ -109,7 +114,12 @@ export class QueryExecutor {
     totalExecutionTime: 0,
   };
 
-  private constructor() {
+  private constructor(
+    @inject(TYPES.LoggerService) logger: LoggerService,
+    @inject(TYPES.CacheService) cacheService: ICacheService
+  ) {
+    this.logger = logger;
+    this.cacheService = cacheService;
     this.errorHandler = new ErrorHandlerService(this.logger);
     // 初始化语言工厂
     initializeLanguageFactories();
@@ -126,7 +136,8 @@ export class QueryExecutor {
    */
   static getInstance(): QueryExecutor {
     if (!QueryExecutor.instance) {
-      QueryExecutor.instance = new QueryExecutor();
+      // 这里需要通过依赖注入容器获取实例
+      throw new Error('QueryExecutor should be resolved through dependency injection container');
     }
     return QueryExecutor.instance;
   }
@@ -247,8 +258,9 @@ export class QueryExecutor {
     try {
       // 检查缓存
       if (useCache) {
-        const cacheKey = CacheService.forEntityQuery(ast, entityType, language);
-        const cached = CacheService.getEntityResult(cacheKey);
+        const contentHash = this.generateContentHash(ast);
+        const cacheKey = (this.cacheService as any).forEntityQuery(contentHash, entityType, language);
+        const cached = await (this.cacheService as any).getEntityResult(cacheKey);
         if (cached) {
           QueryPerformanceMonitor.recordCacheHit(true);
           this.queryStats.cacheHits++;
@@ -270,12 +282,12 @@ export class QueryExecutor {
 
       const executionTime = Date.now() - startTime;
       QueryPerformanceMonitor.recordQuery(`entity_${entityType}_${language}`, executionTime);
-      CacheService.recordQueryTime(executionTime);
 
       // 缓存结果
       if (useCache) {
-        const cacheKey = CacheService.forEntityQuery(ast, entityType, language);
-        CacheService.setEntityResult(cacheKey, allEntities);
+        const contentHash = this.generateContentHash(ast);
+        const cacheKey = (this.cacheService as any).forEntityQuery(contentHash, entityType, language);
+        await (this.cacheService as any).setEntityResult(cacheKey, allEntities);
       }
 
       // 更新统计
@@ -310,8 +322,9 @@ export class QueryExecutor {
     try {
       // 检查缓存
       if (useCache) {
-        const cacheKey = CacheService.forRelationshipQuery(ast, relationshipType, language);
-        const cached = CacheService.getRelationshipResult(cacheKey);
+        const contentHash = this.generateContentHash(ast);
+        const cacheKey = (this.cacheService as any).forRelationshipQuery(contentHash, relationshipType, language);
+        const cached = await (this.cacheService as any).getRelationshipResult(cacheKey);
         if (cached) {
           QueryPerformanceMonitor.recordCacheHit(true);
           this.queryStats.cacheHits++;
@@ -333,12 +346,12 @@ export class QueryExecutor {
 
       const executionTime = Date.now() - startTime;
       QueryPerformanceMonitor.recordQuery(`relationship_${relationshipType}_${language}`, executionTime);
-      CacheService.recordQueryTime(executionTime);
 
       // 缓存结果
       if (useCache) {
-        const cacheKey = CacheService.forRelationshipQuery(ast, relationshipType, language);
-        CacheService.setRelationshipResult(cacheKey, allRelationships);
+        const contentHash = this.generateContentHash(ast);
+        const cacheKey = (this.cacheService as any).forRelationshipQuery(contentHash, relationshipType, language);
+        await (this.cacheService as any).setRelationshipResult(cacheKey, allRelationships);
       }
 
       // 更新统计
@@ -373,8 +386,10 @@ export class QueryExecutor {
     try {
       // 检查缓存
       if (useCache) {
-        const cacheKey = CacheService.forMixedQuery(ast, queryTypes, language);
-        const cached = CacheService.getMixedResult(cacheKey);
+        const contentHash = this.generateContentHash(ast);
+        const typesKey = this.generateTypesKey(queryTypes);
+        const cacheKey = (this.cacheService as any).forMixedQuery(contentHash, typesKey, language);
+        const cached = await (this.cacheService as any).getMixedResult(cacheKey);
         if (cached) {
           QueryPerformanceMonitor.recordCacheHit(true);
           this.queryStats.cacheHits++;
@@ -418,7 +433,6 @@ export class QueryExecutor {
 
       const executionTime = Date.now() - startTime;
       QueryPerformanceMonitor.recordQuery(`mixed_${language}`, executionTime);
-      CacheService.recordQueryTime(executionTime);
 
       const result: MixedQueryResult = {
         entities: allEntities,
@@ -429,8 +443,10 @@ export class QueryExecutor {
 
       // 缓存结果
       if (useCache) {
-        const cacheKey = CacheService.forMixedQuery(ast, queryTypes, language);
-        CacheService.setMixedResult(cacheKey, result);
+        const contentHash = this.generateContentHash(ast);
+        const typesKey = this.generateTypesKey(queryTypes);
+        const cacheKey = (this.cacheService as any).forMixedQuery(contentHash, typesKey, language);
+        await (this.cacheService as any).setMixedResult(cacheKey, result);
       }
 
       // 更新统计
@@ -629,16 +645,14 @@ export class QueryExecutor {
    * 获取性能统计信息
    */
   getPerformanceStats() {
-    const allCacheStats = CacheService.getAllStats();
-    const resultCacheStats = allCacheStats.entityCache || { hits: 0, misses: 0, evictions: 0, sets: 0, size: 0, memoryUsage: 0 };
+    const cacheStats = this.cacheService.getCacheStats();
 
     return {
       queryMetrics: QueryPerformanceMonitor.getMetrics(),
       querySummary: QueryPerformanceMonitor.getSummary(),
       systemMetrics: QueryPerformanceMonitor.getSystemMetrics(),
-      cacheStats: CacheService.getCacheStatistics(),
-      engineCacheSize: resultCacheStats.size,
-      allCacheStats: allCacheStats,
+      cacheStats: cacheStats,
+      engineCacheSize: cacheStats.totalEntries,
       queryStats: this.queryStats
     };
   }
@@ -654,7 +668,7 @@ export class QueryExecutor {
    * 清理缓存
    */
   clearCache(): void {
-    CacheService.clearAll();
+    (this.cacheService as any).clearQueryCache();
   }
 
   /**
@@ -840,7 +854,8 @@ export class QueryExecutor {
         return [];
       }
 
-      const query = CacheService.getQuery(languageObj, pattern);
+      // 创建查询对象（这里需要实现查询对象的缓存）
+      const query = new Parser.Query(languageObj, pattern);
       const matches = query.matches(ast);
 
       return matches.map(match => ({
@@ -942,6 +957,48 @@ export class QueryExecutor {
     }
     this.queryStats.totalExecutionTime += executionTime;
     this.queryStats.averageExecutionTime = this.queryStats.totalExecutionTime / this.queryStats.totalQueries;
+  }
+
+  /**
+   * 生成AST内容的哈希值
+   */
+  private generateContentHash(ast: Parser.SyntaxNode): string {
+    if (!ast) {
+      return 'invalid-ast';
+    }
+
+    if ((ast as any)._stableId) {
+      return (ast as any)._stableId;
+    }
+
+    const text = ast.text || '';
+    const structure = this.extractNodeStructure(ast);
+    const combined = `${ast.type}:${text.length}:${structure}`;
+
+    return HashUtils.fnv1aHash(combined);
+  }
+
+  /**
+   * 提取节点结构信息用于哈希计算
+   */
+  private extractNodeStructure(node: Parser.SyntaxNode, depth: number = 0, maxDepth: number = 3): string {
+    if (depth > maxDepth) return '...';
+
+    let structure = `${node.type}[${node.childCount}]`;
+    if (node.childCount > 0 && depth < maxDepth) {
+      const childTypes = Array.from(node.children).slice(0, 5).map(child => child.type);
+      structure += `(${childTypes.join(',')})`;
+    }
+
+    return structure;
+  }
+
+  /**
+   * 生成查询类型键
+   */
+  private generateTypesKey(queryTypes: string[]): string {
+    // 使用CacheKeyUtils生成键，但这里直接实现简单版本
+    return HashUtils.fnv1aHash(queryTypes.sort().join(','));
   }
 }
 

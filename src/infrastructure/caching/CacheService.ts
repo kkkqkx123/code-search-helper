@@ -3,6 +3,7 @@ import { TYPES } from '../../types';
 import { LoggerService } from '../../utils/LoggerService';
 import { DatabaseType } from '../types';
 import { CompressionUtils } from '../../utils/cache/CompressionUtils';
+import { CacheKeyUtils } from '../../utils/cache/CacheKeyUtils';
 import { ICacheService, CacheEntry, CacheConfig, GraphAnalysisResult } from './types';
 
 @injectable()
@@ -642,5 +643,228 @@ export class CacheService implements ICacheService {
   async getVectorData(collectionName: string): Promise<any | null> {
     const key = `qdrant:vector:${collectionName}`;
     return await this.getDatabaseSpecificCache(key, DatabaseType.QDRANT);
+  }
+
+  // ==================== 查询特定缓存方法 ====================
+
+  // 查询缓存前缀常量
+  private readonly QUERY_SIMPLE_PREFIX = 'query:simple:';
+  private readonly QUERY_TREE_SITTER_PREFIX = 'query:treesitter:';
+  private readonly QUERY_BATCH_PREFIX = 'query:batch:';
+  private readonly QUERY_AST_PREFIX = 'query:ast:';
+  private readonly QUERY_ENTITY_PREFIX = 'query:entity:';
+  private readonly QUERY_RELATIONSHIP_PREFIX = 'query:relationship:';
+  private readonly QUERY_MIXED_PREFIX = 'query:mixed:';
+  private readonly QUERY_PARSER_PREFIX = 'query:parser:';
+  private readonly QUERY_NODE_PREFIX = 'query:node:';
+
+  /**
+   * 为SimpleQueryEngine生成缓存键
+   */
+  forSimpleQuery(contentHash: string, queryType: string, language: string): string {
+    return `${this.QUERY_SIMPLE_PREFIX}${contentHash}:${queryType}:${language}`;
+  }
+
+  /**
+   * 为TreeSitterQueryEngine生成缓存键
+   */
+  forTreeSitterQuery(contentHash: string, patternName: string, language: string): string {
+    return `${this.QUERY_TREE_SITTER_PREFIX}${contentHash}:${patternName}:${language}`;
+  }
+
+  /**
+   * 为批量查询生成缓存键
+   */
+  forBatchQuery(contentHash: string, typesKey: string, language: string): string {
+    return `${this.QUERY_BATCH_PREFIX}${contentHash}:batch:${typesKey}:${language}`;
+  }
+
+  /**
+   * 为AST对象生成缓存键
+   */
+  forAst(filePath: string, contentHash: string): string {
+    const normalizedKey = CacheKeyUtils.generateCacheKey(filePath, contentHash);
+    return `${this.QUERY_AST_PREFIX}${normalizedKey}`;
+  }
+
+  /**
+   * 为实体查询生成缓存键
+   */
+  forEntityQuery(contentHash: string, entityType: string, language: string): string {
+    return `${this.QUERY_TREE_SITTER_PREFIX}entity:${contentHash}:${entityType}:${language}`;
+  }
+
+  /**
+   * 为关系查询生成缓存键
+   */
+  forRelationshipQuery(contentHash: string, relationshipType: string, language: string): string {
+    return `${this.QUERY_TREE_SITTER_PREFIX}relationship:${contentHash}:${relationshipType}:${language}`;
+  }
+
+  /**
+   * 为混合查询生成缓存键
+   */
+  forMixedQuery(contentHash: string, typesKey: string, language: string): string {
+    return `${this.QUERY_TREE_SITTER_PREFIX}mixed:${contentHash}:${typesKey}:${language}`;
+  }
+
+  /**
+   * 为解析器生成缓存键
+   */
+  forParser(language: string): string {
+    return `${this.QUERY_PARSER_PREFIX}${language.toLowerCase()}`;
+  }
+
+  /**
+   * 为AST生成缓存键
+   */
+  forCachedAST(language: string, codeHash: string): string {
+    return `${this.QUERY_AST_PREFIX}${language.toLowerCase()}:${codeHash}`;
+  }
+
+  /**
+   * 为节点生成缓存键
+   */
+  forNode(nodeHash: string, queryType: string): string {
+    return `${this.QUERY_NODE_PREFIX}${nodeHash}:${queryType}`;
+  }
+
+  /**
+   * 获取查询结果
+   */
+  async getQueryResult<T>(key: string): Promise<T | null> {
+    return this.getFromCache<T>(key) || null;
+  }
+
+  /**
+   * 设置查询结果
+   */
+  async setQueryResult<T>(key: string, result: T, ttl?: number): Promise<void> {
+    const effectiveTTL = ttl || this.config.defaultTTL;
+    this.setCache(key, result, effectiveTTL);
+  }
+
+  /**
+   * 获取实体结果
+   */
+  async getEntityResult<T>(key: string): Promise<T | null> {
+    return this.getFromCache<T>(key) || null;
+  }
+
+  /**
+   * 设置实体结果
+   */
+  async setEntityResult<T>(key: string, result: T, ttl?: number): Promise<void> {
+    const effectiveTTL = ttl || this.config.defaultTTL;
+    this.setCache(key, result, effectiveTTL);
+  }
+
+  /**
+   * 获取关系结果
+   */
+  async getRelationshipResult<T>(key: string): Promise<T | null> {
+    return this.getFromCache<T>(key) || null;
+  }
+
+  /**
+   * 设置关系结果
+   */
+  async setRelationshipResult<T>(key: string, result: T, ttl?: number): Promise<void> {
+    const effectiveTTL = ttl || this.config.defaultTTL;
+    this.setCache(key, result, effectiveTTL);
+  }
+
+  /**
+   * 获取混合结果
+   */
+  async getMixedResult<T>(key: string): Promise<T | null> {
+    return this.getFromCache<T>(key) || null;
+  }
+
+  /**
+   * 设置混合结果
+   */
+  async setMixedResult<T>(key: string, result: T, ttl?: number): Promise<void> {
+    const effectiveTTL = ttl || this.config.defaultTTL;
+    this.setCache(key, result, effectiveTTL);
+  }
+
+  /**
+   * 获取缓存的解析器
+   */
+  async getCachedParser<T>(language: string): Promise<T | null> {
+    const cacheKey = this.forParser(language);
+    return this.getFromCache<T>(cacheKey) || null;
+  }
+
+  /**
+   * 缓存解析器
+   */
+  async cacheParser<T>(language: string, parser: T, ttl?: number): Promise<void> {
+    const cacheKey = this.forParser(language);
+    const effectiveTTL = ttl || 600000; // 10分钟
+    this.setCache(cacheKey, parser, effectiveTTL);
+  }
+
+  /**
+   * 获取缓存的AST
+   */
+  async getCachedAST<T>(language: string, code: string): Promise<T | null> {
+    const codeHash = CacheKeyUtils.generateCacheKey(code);
+    const cacheKey = this.forCachedAST(language, codeHash);
+    return this.getFromCache<T>(cacheKey) || null;
+  }
+
+  /**
+   * 缓存AST
+   */
+  async cacheAST<T>(language: string, code: string, tree: T, ttl?: number): Promise<void> {
+    const codeHash = CacheKeyUtils.generateCacheKey(code);
+    const cacheKey = this.forCachedAST(language, codeHash);
+    const effectiveTTL = ttl || 300000; // 5分钟
+    this.setCache(cacheKey, tree, effectiveTTL);
+  }
+
+  /**
+   * 获取缓存的节点
+   */
+  async getCachedNodes<T>(cacheKey: string): Promise<T | null> {
+    return this.getFromCache<T>(cacheKey) || null;
+  }
+
+  /**
+   * 缓存节点
+   */
+  async cacheNodes<T>(cacheKey: string, nodes: T, ttl?: number): Promise<void> {
+    const effectiveTTL = ttl || this.config.defaultTTL;
+    this.setCache(cacheKey, nodes, effectiveTTL);
+  }
+
+  /**
+   * 清除查询相关的所有缓存
+   */
+  clearQueryCache(): void {
+    const queryPattern = /^query:/;
+    const keysToDelete = this.getKeys().filter(key => queryPattern.test(key));
+    
+    for (const key of keysToDelete) {
+      this.deleteFromCache(key);
+    }
+    
+    this.logger.info(`Cleared ${keysToDelete.length} query cache entries`);
+  }
+
+  /**
+   * 清除特定语言的查询缓存
+   */
+  clearLanguageQueryCache(language: string): void {
+    const pattern = new RegExp(`query:(.*):.*:${language.toLowerCase()}$`);
+    const keysToDelete = this.getKeys().filter(key => pattern.test(key));
+    
+    for (const key of keysToDelete) {
+      this.deleteFromCache(key);
+    }
+    
+    this.logger.info(`Cleared ${keysToDelete.length} query cache entries for language: ${language}`);
   }
 }
